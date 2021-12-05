@@ -1,3 +1,4 @@
+use crate::eventlog::ProofStatement;
 use crate::encode_me;
 use crate::ED25519;
 use crate::X25519;
@@ -81,6 +82,13 @@ impl IdDocument {
         };
         //println!("{}", serde_json::to_string_pretty(&doc).unwrap());
         doc
+    }
+
+    pub fn to_proof() -> ProofStatement{
+        ProofStatement{
+            key: vec![],
+            value: vec![]
+        }
     }
 }
 

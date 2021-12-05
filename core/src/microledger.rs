@@ -1,20 +1,18 @@
 use crate::eventlog::{
-    EventLog, EventLogChange, EventLogPayload, ProofStatement, RecoverStatement,
+    EventLog, EventLogChange,
 };
 use crate::IdentityError;
 use crate::{generate_cid, hash, RecoveryKey, SignerKey};
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
-use serde_with::skip_serializing_none;
 use std::collections::HashMap;
 
-#[skip_serializing_none]
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
 pub struct MicroLedgerState {
     pub current_event_id: String,
     pub current_signer_key: SignerKey,
     pub current_recovery_key: RecoveryKey,
-    pub current_proofs: HashMap<String, String>, // extract only current value
+    pub current_proofs: HashMap<Vec<u8>, Vec<u8>>, // extract only current value
 }
 
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
@@ -29,12 +27,10 @@ impl MicroLedgerInception {
     }
 }
 
-#[skip_serializing_none]
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
 pub struct MicroLedger {
     pub id: String, // incepiton id
     pub inception: MicroLedgerInception,
-    #[serde(skip_serializing_if = "Vec::is_empty", default)]
     pub events: Vec<EventLog>,
 }
 
@@ -72,8 +68,8 @@ impl MicroLedger {
                     let signer_valid = state.current_signer_key.public == event.payload.signer_key.clone();
                     check!(signer_valid, IdentityError::InvalidLedger);
                     state.current_proofs.insert(
-                        multibase::encode(multibase::Base::Base32Lower, &stmt.key),
-                        multibase::encode(multibase::Base::Base32Lower, &stmt.value),
+                         stmt.key.clone(),
+                         stmt.value.clone(),
                     );
                 }
                 EventLogChange::Recover(recovery) => {
@@ -102,15 +98,16 @@ impl MicroLedger {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use crate::eventlog::ProofStatement;
+use super::*;
     use crate::*;
     #[test]
     fn generate_test() {
         let (incepiton_secret, incepiton_public) = create_verification_key();
         let mut ledger = MicroLedger::new(incepiton_public.clone(), hash(&incepiton_public));
         let proof_stmt = ProofStatement {
-            key: incepiton_public.clone(),
-            value: incepiton_public.clone(),
+            key: vec![0],
+            value: vec![0],
         };
         /*pome.add_statement(incepiton_secret.clone(), proof_stmt.clone());
         pome.add_statement(incepiton_secret.clone(), proof_stmt.clone());

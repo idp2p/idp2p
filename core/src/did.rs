@@ -13,14 +13,12 @@ use crate::IdentityError;
 use crate::RecoveryKey;
 use crate::SignerKey;
 use serde::{Deserialize, Serialize};
-use serde_with::skip_serializing_none;
 use std::convert::TryInto;
 
-#[skip_serializing_none]
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
 pub struct Identity {
     pub ledger: MicroLedger,
-    pub did_doc: Option<IdDocument>,
+    pub did_doc: IdDocument,
 }
 
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
@@ -75,13 +73,13 @@ impl Identity {
         );
         let mut did = Identity {
             ledger: ledger,
-            did_doc: Some(doc.clone()),
+            did_doc: doc.clone(),
         };
-        did.add_statement(
+        /*did.add_statement(
             signer_secret.clone(),
             vec![0],
             serde_json::to_string(&doc).unwrap().as_bytes().to_vec(),
-        );
+        );*/
         let result = CreateIdentityResult {
             did,
             signer_secret,
@@ -141,8 +139,8 @@ impl Identity {
             authentication_public,
             keyagreement_public,
         );
-        self.did_doc = Some(doc);
-        self.add_statement(secret_key, vec![0], vec![]);
+        self.did_doc = doc;
+        //self.add_statement(secret_key, vec![0], vec![]);
         ChangeDocResult {
             did: self.clone(),
             assertion_secret: assertion_secret,
@@ -168,8 +166,8 @@ impl Identity {
             .verify(candidate.ledger.inception.get_id())?;
         let did_valid = candidate.get_digest() == new_did.get_digest();
         check!(did_valid, IdentityError::InvalidLedger);
-        let did_doc_digest = crate::encode(hash(serde_json::to_string(&self).unwrap().as_bytes()));
-        let did_doc_proof = verified.current_proofs.get("b").unwrap().to_string();
+        let did_doc_digest = &hash(serde_json::to_string(&self).unwrap().as_bytes());
+        let did_doc_proof = verified.current_proofs.get(vec![]).unwrap();
         check!(
             did_doc_digest == did_doc_proof,
             IdentityError::InvalidLedger
