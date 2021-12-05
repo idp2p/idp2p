@@ -1,0 +1,7 @@
+[workspace]
+edition = "2018"
+
+members = [
+    "core",
+    "node"
+]

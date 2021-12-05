@@ -1,0 +1,7 @@
+{
+    "files.exclude": {
+        "**/*lock": true,
+        "**/target": true,
+        "**/LICENSE": true
+    }
+}

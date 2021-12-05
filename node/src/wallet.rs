@@ -1,0 +1,41 @@
+use std::fs::OpenOptions;
+use core::did::Identity;
+use serde::{Deserialize, Serialize};
+use core::encode_me;
+
+const WALLET_BASE_PATH: &str = "../target/";
+#[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
+pub struct Wallet {
+    pub did: Identity,
+    #[serde(with = "encode_me")]
+    pub signer_secret: Vec<u8>,
+    #[serde(with = "encode_me")]
+    pub recovery_secret: Vec<u8>,
+    #[serde(with = "encode_me")]
+    pub assertion_secret: Vec<u8>,
+    #[serde(with = "encode_me")]
+    pub authentication_secret: Vec<u8>,
+    #[serde(with = "encode_me")]
+    pub keyagreement_secret: Vec<u8>,
+}
+
+impl Wallet {
+    pub fn create(name: String) -> Wallet{
+        let wallet_path = &format!("{}{}.json", WALLET_BASE_PATH, name);
+        if !std::path::Path::new(wallet_path).exists() {
+            std::fs::File::create(wallet_path).unwrap();
+        }
+        let file = OpenOptions::new().write(true).open(wallet_path).unwrap();
+        let r = Identity::create();
+        let wallet = Wallet{
+            did: r.did,
+            assertion_secret: r.assertion_secret,
+            authentication_secret: r.authentication_secret,
+            signer_secret: r.signer_secret,
+            recovery_secret: r.recovery_secret,
+            keyagreement_secret: r.keyagreement_secret
+        };
+        serde_json::to_writer_pretty(&file, &wallet).unwrap();
+        wallet
+    }
+}
