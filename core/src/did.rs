@@ -2,6 +2,7 @@ use crate::create_key_agreement;
 use crate::create_verification_key;
 use crate::did_doc::IdDocument;
 use crate::encode_me;
+use crate::eventlog::DocumentDigest;
 use crate::eventlog::EventLog;
 use crate::eventlog::EventLogChange;
 use crate::eventlog::EventLogPayload;
@@ -46,8 +47,8 @@ pub struct RecoveryResult {
 }
 
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
-pub struct ChangeDocResult {
-    pub did: Identity,
+pub struct CreateDocResult {
+    pub doc: IdDocument,
     #[serde(with = "encode_me")]
     pub assertion_secret: Vec<u8>,
     #[serde(with = "encode_me")]
@@ -60,43 +61,62 @@ impl Identity {
     pub fn create() -> CreateIdentityResult {
         let (signer_secret, signer_public) = create_verification_key();
         let (recovery_secret, recovery_public) = create_verification_key();
+        let recovery_public_bytes: [u8; 32] = recovery_public.try_into().unwrap();
+        let ledger = MicroLedger::new(signer_public, hash(&recovery_public_bytes));
+        let doc_result = Identity::create_doc(ledger.id.clone());
+        let mut did = Identity {
+            ledger: ledger,
+            did_doc: doc_result.doc.clone(),
+        };
+        did.set_doc_proof(doc_result.doc.clone(), signer_secret.clone());
+        CreateIdentityResult {
+            did,
+            signer_secret,
+            recovery_secret,
+            assertion_secret: doc_result.assertion_secret,
+            authentication_secret: doc_result.authentication_secret,
+            keyagreement_secret: doc_result.keyagreement_secret,
+        }
+    }
+
+    pub fn create_doc(id: String) -> CreateDocResult {
         let (assertion_secret, assertion_public) = create_verification_key();
         let (authentication_secret, authentication_public) = create_verification_key();
         let (keyagreement_secret, keyagreement_public) = create_key_agreement();
-        let recovery_public_bytes: [u8; 32] = recovery_public.try_into().unwrap();
-        let ledger = MicroLedger::new(signer_public, hash(&recovery_public_bytes));
         let doc = IdDocument::new(
-            ledger.id.clone(),
+            id,
             assertion_public,
             authentication_public,
             keyagreement_public,
         );
-        let mut did = Identity {
-            ledger: ledger,
-            did_doc: doc.clone(),
-        };
-        /*did.add_statement(
-            signer_secret.clone(),
-            vec![0],
-            serde_json::to_string(&doc).unwrap().as_bytes().to_vec(),
-        );*/
-        let result = CreateIdentityResult {
-            did,
-            signer_secret,
-            recovery_secret,
-            assertion_secret,
-            authentication_secret,
-            keyagreement_secret,
-        };
-        result
+        CreateDocResult {
+            doc: doc,
+            assertion_secret: assertion_secret,
+            authentication_secret: authentication_secret,
+            keyagreement_secret: keyagreement_secret,
+        }
     }
 
-    pub fn add_statement(&mut self, secret_key: Vec<u8>, key: Vec<u8>, value: Vec<u8>) {
+    pub fn set_doc_proof(&mut self, doc: IdDocument, secret_key: Vec<u8>) {
+        let change = EventLogChange::SetDocument(DocumentDigest {
+            value: doc.to_hash(),
+        });
+        let keypair = crate::to_keypair(secret_key.clone());
+        let payload = EventLogPayload {
+            previous: self.ledger.get_previous_id(),
+            change: change,
+            signer_key: keypair.public.as_bytes().to_vec(),
+        };
+        let event_log = EventLog::create(payload, secret_key.clone());
+        self.ledger.events.push(event_log);
+    }
+
+    pub fn set_proof(&mut self, secret_key: Vec<u8>, key: Vec<u8>, value: Vec<u8>) {
         let proof_stmt = ProofStatement {
             key: key,
             value: value,
         };
-        let change = EventLogChange::PutProof(proof_stmt);
+        let change = EventLogChange::SetProof(proof_stmt);
         let keypair = crate::to_keypair(secret_key.clone());
         let payload = EventLogPayload {
             previous: self.ledger.get_previous_id(),
@@ -129,26 +149,6 @@ impl Identity {
         }
     }
 
-    pub fn change_doc(&mut self, secret_key: Vec<u8>) -> ChangeDocResult {
-        let (assertion_secret, assertion_public) = create_verification_key();
-        let (authentication_secret, authentication_public) = create_verification_key();
-        let (keyagreement_secret, keyagreement_public) = create_key_agreement();
-        let doc = IdDocument::new(
-            self.ledger.id.clone(),
-            assertion_public,
-            authentication_public,
-            keyagreement_public,
-        );
-        self.did_doc = doc;
-        //self.add_statement(secret_key, vec![0], vec![]);
-        ChangeDocResult {
-            did: self.clone(),
-            assertion_secret: assertion_secret,
-            authentication_secret: authentication_secret,
-            keyagreement_secret: keyagreement_secret,
-        }
-    }
-
     pub fn is_next(&self, new_did: Identity) -> Result<bool, IdentityError> {
         let mut candidate = self.clone();
         let last_id = candidate.ledger.events.last().unwrap().get_id();
@@ -166,10 +166,9 @@ impl Identity {
             .verify(candidate.ledger.inception.get_id())?;
         let did_valid = candidate.get_digest() == new_did.get_digest();
         check!(did_valid, IdentityError::InvalidLedger);
-        let did_doc_digest = &hash(serde_json::to_string(&self).unwrap().as_bytes());
-        let did_doc_proof = verified.current_proofs.get(vec![]).unwrap();
+        let did_doc_digest = hash(serde_json::to_string(&self.did_doc).unwrap().as_bytes());
         check!(
-            did_doc_digest == did_doc_proof,
+            did_doc_digest == verified.current_doc_digest,
             IdentityError::InvalidLedger
         );
         Ok(true)

@@ -1,3 +1,4 @@
+use crate::hash;
 use crate::eventlog::ProofStatement;
 use crate::encode_me;
 use crate::ED25519;
@@ -80,15 +81,11 @@ impl IdDocument {
             key_agreement: vec![key_agreement.id.clone()],
             services: vec![],
         };
-        //println!("{}", serde_json::to_string_pretty(&doc).unwrap());
         doc
     }
 
-    pub fn to_proof() -> ProofStatement{
-        ProofStatement{
-            key: vec![],
-            value: vec![]
-        }
+    pub fn to_hash(&self) -> Vec<u8>{
+        hash(serde_json::to_string(&self).unwrap().as_bytes())
     }
 }
 

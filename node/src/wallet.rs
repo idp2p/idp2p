@@ -1,4 +1,6 @@
 use std::fs::OpenOptions;
+use std::fs::File;
+use std::io::Read;
 use core::did::Identity;
 use serde::{Deserialize, Serialize};
 use core::encode_me;
@@ -20,7 +22,7 @@ pub struct Wallet {
 }
 
 impl Wallet {
-    pub fn create(name: String) -> Wallet{
+    pub fn create(name: &str) -> Wallet{
         let wallet_path = &format!("{}{}.json", WALLET_BASE_PATH, name);
         if !std::path::Path::new(wallet_path).exists() {
             std::fs::File::create(wallet_path).unwrap();
@@ -37,5 +39,13 @@ impl Wallet {
         };
         serde_json::to_writer_pretty(&file, &wallet).unwrap();
         wallet
+    }
+
+    pub fn get(name: &str) -> Wallet{
+        let wallet_path = &format!("{}{}.json", WALLET_BASE_PATH, name);
+        let mut file = File::open(wallet_path).unwrap();
+        let mut buff = String::new();
+        file.read_to_string(&mut buff).unwrap();
+        serde_json::from_str(&buff).unwrap()
     }
 }

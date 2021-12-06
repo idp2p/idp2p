@@ -1,6 +1,5 @@
-use crate::eventlog::{
-    EventLog, EventLogChange,
-};
+use crate::eventlog::DocumentDigest;
+use crate::eventlog::{EventLog, EventLogChange};
 use crate::IdentityError;
 use crate::{generate_cid, hash, RecoveryKey, SignerKey};
 use anyhow::Result;
@@ -13,6 +12,7 @@ pub struct MicroLedgerState {
     pub current_signer_key: SignerKey,
     pub current_recovery_key: RecoveryKey,
     pub current_proofs: HashMap<Vec<u8>, Vec<u8>>, // extract only current value
+    pub current_doc_digest: Vec<u8>,
 }
 
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
@@ -56,6 +56,7 @@ impl MicroLedger {
             current_signer_key: self.inception.signer_key.clone(),
             current_recovery_key: self.inception.recovery_key.clone(),
             current_proofs: HashMap::new(),
+            current_doc_digest: vec![],
         };
         check!(cid == self.inception.get_id(), IdentityError::InvalidId);
         for event in &self.events {
@@ -64,13 +65,19 @@ impl MicroLedger {
             let event_valid = event.verify(state.current_signer_key.public.clone());
             check!(event_valid, IdentityError::InvalidLedger);
             match &event.payload.change {
-                EventLogChange::PutProof(stmt) => {
-                    let signer_valid = state.current_signer_key.public == event.payload.signer_key.clone();
+                EventLogChange::SetDocument(digest) => {
+                    let signer_valid =
+                        state.current_signer_key.public == event.payload.signer_key.clone();
                     check!(signer_valid, IdentityError::InvalidLedger);
-                    state.current_proofs.insert(
-                         stmt.key.clone(),
-                         stmt.value.clone(),
-                    );
+                    state.current_doc_digest = digest.value.clone()
+                }
+                EventLogChange::SetProof(stmt) => {
+                    let signer_valid =
+                        state.current_signer_key.public == event.payload.signer_key.clone();
+                    check!(signer_valid, IdentityError::InvalidLedger);
+                    state
+                        .current_proofs
+                        .insert(stmt.key.clone(), stmt.value.clone());
                 }
                 EventLogChange::Recover(recovery) => {
                     let recovery_key_digest = hash(&event.payload.signer_key.clone());
@@ -98,8 +105,8 @@ impl MicroLedger {
 
 #[cfg(test)]
 mod tests {
+    use super::*;
     use crate::eventlog::ProofStatement;
-use super::*;
     use crate::*;
     #[test]
     fn generate_test() {

@@ -20,12 +20,20 @@ pub struct RecoverStatement {
 }
 
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
+pub struct DocumentDigest {
+    #[serde(with = "encode_me")]
+    pub value: Vec<u8>,
+}
+
+#[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
 #[serde(tag = "type")]
 pub enum EventLogChange {
-    #[serde(rename = "put_proof")]
-    PutProof(ProofStatement),
+    #[serde(rename = "set_proof")]
+    SetProof(ProofStatement),
     #[serde(rename = "recover")]
     Recover(RecoverStatement),
+    #[serde(rename = "set_document")]
+    SetDocument(DocumentDigest),
 }
 
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]

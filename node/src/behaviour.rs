@@ -1,3 +1,4 @@
+use core::did::Identity;
 use libp2p::{
     gossipsub::{Gossipsub, GossipsubEvent, IdentTopic},
     mdns::{Mdns, MdnsEvent},
@@ -5,7 +6,6 @@ use libp2p::{
     NetworkBehaviour,
 };
 use std::collections::HashMap;
-use std::fs::OpenOptions;
 
 #[derive(NetworkBehaviour)]
 #[behaviour(event_process = true)]
@@ -30,10 +30,14 @@ fn handle_post(behaviour: &mut IdentityGossipBehaviour, topic: String, content: 
     match current {
         None => {
             behaviour.db.insert(topic.to_string(), content.to_string());
+            println!("Received did")
         }
         Some(c) => {
-            if content.len() > c.len() {
+            let current_did: Identity = serde_json::from_str(current.unwrap()).unwrap();
+            let candidate: Identity = serde_json::from_str(c).unwrap();
+            if current_did.is_next(candidate).is_ok() {
                 behaviour.db.insert(topic.to_string(), content.to_string());
+                println!("Received did update");
             }
         }
     }

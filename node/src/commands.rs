@@ -1,7 +1,7 @@
 use crate::behaviour::IdentityGossipBehaviour;
 use crate::wallet::Wallet;
 use libp2p::gossipsub::IdentTopic;
-use serde_json::json;
+use rand::prelude::*;
 
 pub enum Commands {
     Get {
@@ -10,7 +10,7 @@ pub enum Commands {
     Create {
         name: String,
     },
-    AddProof {
+    SetProof {
         name: String,
         key: String,
         value: String,
@@ -25,38 +25,52 @@ pub enum Commands {
 
 fn post(behaviour: &mut IdentityGossipBehaviour, id: String, data: String) {
     let gossipsub_topic = IdentTopic::new(id.clone());
-    if behaviour.db.contains_key(&id) {
-        println!("{:#?}", behaviour.db.get(&id).unwrap())
-    } else {
-        behaviour.gossipsub.subscribe(&gossipsub_topic).unwrap();
-        behaviour
-            .gossipsub
-            .publish(gossipsub_topic.clone(), data.as_bytes())
-            .unwrap();
-    }
+    behaviour
+        .gossipsub
+        .publish(gossipsub_topic.clone(), data.as_bytes())
+        .unwrap();
 }
 
 impl Commands {
     pub fn handle(&self, behaviour: &mut IdentityGossipBehaviour) {
         match self {
             Commands::Get { id } => {
-                post(behaviour, id.clone(), "get".to_string());
+                let mut key_data = [0u8; 32];
+                let mut key_rng = thread_rng();
+                key_rng.fill_bytes(&mut key_data);
+                post(
+                    behaviour,
+                    id.clone(),
+                    format!("get {}", String::from_utf8_lossy(&key_data)),
+                );
             }
             Commands::Create { name } => {
-                let wallet = Wallet::create(name.to_string());
-                let id = wallet.did.ledger.id;
+                let wallet = Wallet::create(name);
+                let id = wallet.did.ledger.id.clone();
                 let gossipsub_topic = IdentTopic::new(id.clone());
-                behaviour.db.insert(id.clone(), name.to_string());
+                behaviour
+                    .db
+                    .insert(id.clone(), serde_json::to_string(&wallet.did).unwrap());
                 behaviour.gossipsub.subscribe(&gossipsub_topic).unwrap();
+                let gossipsub_topic = IdentTopic::new(id.clone());
+                let _ = behaviour.gossipsub.publish(
+                    gossipsub_topic.clone(),
+                    serde_json::to_string(&wallet.did).unwrap().as_bytes(),
+                );
                 println!("Created, id:{}", id);
             }
-            Commands::AddProof { name, key, value } => {
-                // let did = get_did(name)
-                // update did
-                // behaviour.db.get(k: &Q)
-                let cmd = json!({"type": "add_proof", "key": key, "value": value});
-                let data = serde_json::to_string(&cmd).unwrap();
-                post(behaviour, name.clone(), data);
+            Commands::SetProof { name, key, value } => {
+                let mut wallet = Wallet::get(name);
+                wallet.did.set_proof(
+                    wallet.signer_secret.clone(),
+                    key.as_bytes().to_vec(),
+                    value.as_bytes().to_vec(),
+                );
+                post(
+                    behaviour,
+                    wallet.did.ledger.id.clone(),
+                    serde_json::to_string(&wallet.did).unwrap(),
+                );
             }
             Commands::Recover { name } => {
                 post(behaviour, name.clone(), "post".to_string());
@@ -78,7 +92,7 @@ pub fn get_command(input: &str) -> Commands {
         "create" => Commands::Create {
             name: input[1].to_string(),
         },
-        "add_proof" => Commands::AddProof {
+        "set_proof" => Commands::SetProof {
             name: input[1].to_string(),
             key: input[2].to_string(),
             value: input[3].to_string(),
