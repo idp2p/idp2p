@@ -31,6 +31,8 @@ impl Commands {
     pub fn handle(&self, behaviour: &mut IdentityGossipBehaviour) {
         match self {
             Commands::Get { id } => {
+                let gossipsub_topic = IdentTopic::new(id.clone());
+                behaviour.gossipsub.subscribe(&gossipsub_topic).unwrap();
                 behaviour.publish(id.clone(), IdentityMessage::new(IdentityCommand::Get));
             }
             Commands::Resolve { id } => {
