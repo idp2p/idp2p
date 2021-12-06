@@ -35,45 +35,8 @@ pub mod behaviour;
 pub mod commands;
 pub mod gossipsub_swarm;
 pub mod wallet;
+pub mod id_message;
 
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-/*
-get_command(&line).execute(swarm);
-                let cmd = get_command(&line);
-                let split = line.split(" ");
-                let input: Vec<&str> = split.collect();
-                let command = input[0];
-                if command == "get"{
-                }else if  command == "post"{
-                   let topic = input[1];
-                   let data = input[2];
-                   swarm.behaviour_mut().db.insert(topic.to_string(), data.to_string());
-                   let gossipsub_topic = libp2p::gossipsub::IdentTopic::new(topic);
-                   let post_data = format!("post {}", data);
-                   swarm.behaviour_mut().gossipsub.subscribe(&gossipsub_topic).unwrap();
-                   let _ = swarm.behaviour_mut().gossipsub.publish(gossipsub_topic, post_data.as_bytes());
-                   /*let floodsub_topic = floodsub::Topic::new(topic);
-                   let post_data = format!("post {}", data);
-                   swarm.behaviour_mut().floodsub.subscribe(floodsub_topic.clone());
-                   swarm.behaviour_mut().floodsub.publish(floodsub_topic, post_data.as_bytes());*/
-                   println!("published on topic: {} {}", topic, post_data);
-                }
-*/

@@ -1,10 +1,14 @@
 use crate::behaviour::IdentityGossipBehaviour;
+use crate::id_message::{IdentityCommand, IdentityMessage};
 use crate::wallet::Wallet;
+use core::did::Identity;
 use libp2p::gossipsub::IdentTopic;
-use rand::prelude::*;
 
 pub enum Commands {
     Get {
+        id: String,
+    },
+    Resolve {
         id: String,
     },
     Create {
@@ -23,26 +27,16 @@ pub enum Commands {
     },
 }
 
-fn post(behaviour: &mut IdentityGossipBehaviour, id: String, data: String) {
-    let gossipsub_topic = IdentTopic::new(id.clone());
-    behaviour
-        .gossipsub
-        .publish(gossipsub_topic.clone(), data.as_bytes())
-        .unwrap();
-}
-
 impl Commands {
     pub fn handle(&self, behaviour: &mut IdentityGossipBehaviour) {
         match self {
             Commands::Get { id } => {
-                let mut key_data = [0u8; 32];
-                let mut key_rng = thread_rng();
-                key_rng.fill_bytes(&mut key_data);
-                post(
-                    behaviour,
-                    id.clone(),
-                    format!("get {}", String::from_utf8_lossy(&key_data)),
-                );
+                behaviour.publish(id.clone(), IdentityMessage::new(IdentityCommand::Get));
+            }
+            Commands::Resolve { id } => {
+                let identity: Identity =
+                    serde_json::from_str(&behaviour.db.get(id).unwrap()).unwrap();
+                println!("{:#?}", identity);
             }
             Commands::Create { name } => {
                 let wallet = Wallet::create(name);
@@ -52,11 +46,10 @@ impl Commands {
                     .db
                     .insert(id.clone(), serde_json::to_string(&wallet.did).unwrap());
                 behaviour.gossipsub.subscribe(&gossipsub_topic).unwrap();
-                let gossipsub_topic = IdentTopic::new(id.clone());
-                let _ = behaviour.gossipsub.publish(
-                    gossipsub_topic.clone(),
-                    serde_json::to_string(&wallet.did).unwrap().as_bytes(),
-                );
+                /*behaviour.publish(
+                    id.clone(),
+                    IdentityMessage::new(IdentityCommand::Post(wallet.did)),
+                );*/
                 println!("Created, id:{}", id);
             }
             Commands::SetProof { name, key, value } => {
@@ -66,18 +59,13 @@ impl Commands {
                     key.as_bytes().to_vec(),
                     value.as_bytes().to_vec(),
                 );
-                post(
-                    behaviour,
+                behaviour.publish(
                     wallet.did.ledger.id.clone(),
-                    serde_json::to_string(&wallet.did).unwrap(),
+                    IdentityMessage::new(IdentityCommand::Post(wallet.did)),
                 );
             }
-            Commands::Recover { name } => {
-                post(behaviour, name.clone(), "post".to_string());
-            }
-            Commands::ChangeDoc { name } => {
-                post(behaviour, name.clone(), "post".to_string());
-            }
+            Commands::Recover { name } => {}
+            Commands::ChangeDoc { name } => {}
         }
     }
 }
@@ -87,6 +75,9 @@ pub fn get_command(input: &str) -> Commands {
     let input: Vec<&str> = split.collect();
     match input[0] {
         "get" => Commands::Get {
+            id: input[1].to_string(),
+        },
+        "resolve" => Commands::Resolve {
             id: input[1].to_string(),
         },
         "create" => Commands::Create {

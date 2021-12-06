@@ -1,3 +1,4 @@
+use crate::id_message::{IdentityCommand, IdentityMessage};
 use core::did::Identity;
 use libp2p::{
     gossipsub::{Gossipsub, GossipsubEvent, IdentTopic},
@@ -16,36 +17,42 @@ pub struct IdentityGossipBehaviour {
     pub db: HashMap<String, String>,
 }
 
-fn handle_get(behaviour: &mut IdentityGossipBehaviour, topic: String) {
-    let current = behaviour.db.get(&topic).unwrap();
-    let post_data = format!("post {}", current.clone());
-    let gossip_topic = IdentTopic::new(topic);
-    let _ = behaviour
-        .gossipsub
-        .publish(gossip_topic, post_data.as_bytes());
-}
-
-fn handle_post(behaviour: &mut IdentityGossipBehaviour, topic: String, content: String) {
+fn handle_post(behaviour: &mut IdentityGossipBehaviour, topic: String, candidate: Identity) {
     let current = behaviour.db.get(&topic);
     match current {
         None => {
-            behaviour.db.insert(topic.to_string(), content.to_string());
-            println!("Received did")
+            behaviour.db.insert(
+                topic.to_string(),
+                serde_json::to_string(&candidate).unwrap(),
+            );
+            println!("Identity created...");
         }
         Some(c) => {
-            let current_did: Identity = serde_json::from_str(current.unwrap()).unwrap();
-            let candidate: Identity = serde_json::from_str(c).unwrap();
-            if current_did.is_next(candidate).is_ok() {
-                behaviour.db.insert(topic.to_string(), content.to_string());
-                println!("Received did update");
+            let current_did: Identity = serde_json::from_str(c).unwrap();
+            if current_did.is_next(candidate.clone()).is_ok() {
+                behaviour.db.insert(
+                    topic.to_string(),
+                    serde_json::to_string(&candidate).unwrap(),
+                );
+                println!("Identity updated....");
             }
         }
     }
 }
 
+impl IdentityGossipBehaviour {
+    pub fn publish(&mut self, topic: String, idm: IdentityMessage) {
+        println!("Published topic: {}", topic.clone());
+        let gossip_topic = IdentTopic::new(topic.clone());
+        let _ = self.gossipsub.publish(
+            gossip_topic,
+            serde_json::to_string(&idm).unwrap().as_bytes(),
+        ).unwrap();
+    }
+}
+
 impl NetworkBehaviourEventProcess<GossipsubEvent> for IdentityGossipBehaviour {
     fn inject_event(&mut self, message: GossipsubEvent) {
-        println!("source: {:?}", message);
         if let GossipsubEvent::Message {
             propagation_source: _,
             message_id: _,
@@ -53,18 +60,18 @@ impl NetworkBehaviourEventProcess<GossipsubEvent> for IdentityGossipBehaviour {
         } = message
         {
             let topic = message.topic.to_string();
-            let data = String::from_utf8_lossy(&message.data);
-            let split = data.split(" ");
-            let input: Vec<&str> = split.collect();
-            let command = input[0];
-            match command {
-                "get" => {
-                    handle_get(self, topic.clone());
+            let id_mes: IdentityMessage = serde_json::from_slice(&message.data).unwrap();
+            println!("Received topic: {}, command: {:#?}", topic, id_mes.command);
+            match id_mes.command {
+                IdentityCommand::Get => {
+                    let identity: Identity =
+                        serde_json::from_str(&self.db.get(&topic).unwrap()).unwrap();
+                    self.publish(
+                        topic.clone(),
+                        IdentityMessage::new(IdentityCommand::Post(identity)),
+                    );
                 }
-                "post" => {
-                    handle_post(self, topic.clone(), input[1].to_string());
-                }
-                _ => panic!(""),
+                IdentityCommand::Post(identity) => handle_post(self, topic.clone(), identity),
             }
         }
     }
