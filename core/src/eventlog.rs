@@ -56,10 +56,10 @@ impl EventLog {
         crate::generate_cid(self)
     }
 
-    pub fn verify(&self, public_key: Vec<u8>) -> bool {
+    pub fn verify(&self, public_data: Vec<u8>) -> bool {
         let payload_json = serde_json::to_string(&self.payload).unwrap();
         let bytes = payload_json.as_bytes();
-        let public_key: PublicKey = PublicKey::from_bytes(&public_key).unwrap();
+        let public_key: PublicKey = PublicKey::from_bytes(&public_data).unwrap();
         let signature_bytes: [u8; 64] = self.proof.clone().try_into().unwrap();
         let signature = Signature::from(signature_bytes);
         public_key.verify(bytes, &signature).is_ok()

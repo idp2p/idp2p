@@ -9,6 +9,7 @@ use crate::microledger::MicroLedger;
 use crate::*;
 use serde::{Deserialize, Serialize};
 use std::convert::TryInto;
+use anyhow::Result;
 
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
 pub struct Identity {
@@ -62,14 +63,8 @@ impl Identity {
         signer_secret: Vec<u8>,
         rec_secret: Vec<u8>,
     ) -> CreateIdentityResult {
-        let rec_public = to_verification_keypair(rec_secret.clone())
-            .public
-            .to_bytes()
-            .to_vec();
-        let signer_public = to_verification_keypair(signer_secret.clone())
-            .public
-            .to_bytes()
-            .to_vec();
+        let rec_public = to_verification_publickey(rec_secret.clone());
+        let signer_public = to_verification_publickey(signer_secret.clone());
         let recovery_public_bytes: [u8; 32] = rec_public.try_into().unwrap();
         let ledger = MicroLedger::new(signer_public, hash(&recovery_public_bytes));
         let doc_result = Identity::create_doc(ledger.id.clone());
@@ -188,9 +183,9 @@ impl Identity {
         authentication_secret: Vec<u8>,
         keyagreement_secret: Vec<u8>,
     ) -> CreateDocResult {
-        let assertion_public = to_verification_publickey(assertion_secret);
-        let authentication_public = to_verification_publickey(authentication_secret);
-        let keyagreement_public = to_key_agreement_publickey(keyagreement_secret);
+        let assertion_public = to_verification_publickey(assertion_secret.clone());
+        let authentication_public = to_verification_publickey(authentication_secret.clone());
+        let keyagreement_public = to_key_agreement_publickey(keyagreement_secret.clone());
         let doc = IdDocument::new(
             id,
             assertion_public,

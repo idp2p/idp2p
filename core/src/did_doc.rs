@@ -103,7 +103,7 @@ mod tests {
     fn new_did_doc() {
         let assertion_public = to_verification_publickey(create_secret_key());
         let authentication_public = to_verification_publickey(create_secret_key());
-        let agreement_public = to_verification_publickey(create_secret_key());
+        let agreement_public = to_key_agreement_publickey(create_secret_key());
         let doc = IdDocument::new(
             "123456".to_string(),
             assertion_public,

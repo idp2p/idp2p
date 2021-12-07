@@ -163,7 +163,7 @@ mod tests {
         ledger.events.push(log);
         ledger.events[0].proof = vec![0; 64];
         let result = ledger.verify(ledger.id.clone());
-        assert!(matches!(result, Err(crate::IdentityError::InvalidPrevious)));
+        assert!(matches!(result, Err(crate::IdentityError::InvalidEventSignature)));
         /*match result {
             Ok(_) => println!("Success"),
             Err(error) => println!("Error: {:?}", error),
