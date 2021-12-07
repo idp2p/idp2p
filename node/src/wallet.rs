@@ -41,6 +41,12 @@ impl Wallet {
         wallet
     }
 
+    pub fn update(name: &str, wallet: &Wallet){
+        let wallet_path = &format!("{}{}.json", WALLET_BASE_PATH, name);
+        let file = OpenOptions::new().write(true).open(wallet_path).unwrap();
+        serde_json::to_writer_pretty(&file, wallet).unwrap();
+    }
+
     pub fn get(name: &str) -> Wallet{
         let wallet_path = &format!("{}{}.json", WALLET_BASE_PATH, name);
         let mut file = File::open(wallet_path).unwrap();

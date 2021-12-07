@@ -29,12 +29,15 @@ fn handle_post(behaviour: &mut IdentityGossipBehaviour, topic: String, candidate
         }
         Some(c) => {
             let current_did: Identity = serde_json::from_str(c).unwrap();
-            if current_did.is_next(candidate.clone()).is_ok() {
+            let r =current_did.is_next(candidate.clone());
+            if r.is_ok() {
                 behaviour.db.insert(
                     topic.to_string(),
                     serde_json::to_string(&candidate).unwrap(),
                 );
                 println!("Identity updated....");
+            }else{
+                println!("Error!!! {:?}", r);
             }
         }
     }
@@ -61,7 +64,7 @@ impl NetworkBehaviourEventProcess<GossipsubEvent> for IdentityGossipBehaviour {
         {
             let topic = message.topic.to_string();
             let id_mes: IdentityMessage = serde_json::from_slice(&message.data).unwrap();
-            println!("Received topic: {}, command: {:#?}", topic, id_mes.command);
+            println!("Received topic: {}", topic);
             match id_mes.command {
                 IdentityCommand::Get => {
                     let identity: Identity =

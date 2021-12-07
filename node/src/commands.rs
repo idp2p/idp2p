@@ -25,6 +25,7 @@ pub enum Commands {
     Recover {
         name: String,
     },
+    Unknown,
 }
 
 impl Commands {
@@ -38,7 +39,7 @@ impl Commands {
             Commands::Resolve { id } => {
                 let identity: Identity =
                     serde_json::from_str(&behaviour.db.get(id).unwrap()).unwrap();
-                println!("{:#?}", identity);
+                println!("{:#?}", serde_json::to_string_pretty(&identity));
             }
             Commands::Create { name } => {
                 let wallet = Wallet::create(name);
@@ -48,10 +49,6 @@ impl Commands {
                     .db
                     .insert(id.clone(), serde_json::to_string(&wallet.did).unwrap());
                 behaviour.gossipsub.subscribe(&gossipsub_topic).unwrap();
-                /*behaviour.publish(
-                    id.clone(),
-                    IdentityMessage::new(IdentityCommand::Post(wallet.did)),
-                );*/
                 println!("Created, id:{}", id);
             }
             Commands::SetProof { name, key, value } => {
@@ -66,8 +63,30 @@ impl Commands {
                     IdentityMessage::new(IdentityCommand::Post(wallet.did)),
                 );
             }
-            Commands::Recover { name } => {}
-            Commands::ChangeDoc { name } => {}
+            Commands::Recover { name } => {
+                let mut wallet = Wallet::get(name);
+                let result = wallet.did.recover(wallet.recovery_secret.clone());
+                wallet.recovery_secret = result.recovery_secret;
+                wallet.signer_secret = result.signer_secret;
+                Wallet::update(name, &wallet);
+                behaviour.publish(
+                    wallet.did.ledger.id.clone(),
+                    IdentityMessage::new(IdentityCommand::Post(wallet.did)),
+                );
+            }
+            Commands::ChangeDoc { name } => {
+                let mut wallet = Wallet::get(name);
+                let result = wallet.did.set_doc(wallet.signer_secret.clone());
+                wallet.assertion_secret = result.assertion_secret;
+                wallet.authentication_secret = result.authentication_secret;
+                wallet.keyagreement_secret = result.keyagreement_secret;
+                Wallet::update(name, &wallet);
+                behaviour.publish(
+                    wallet.did.ledger.id.clone(),
+                    IdentityMessage::new(IdentityCommand::Post(wallet.did)),
+                );
+            }
+            Commands::Unknown => println!("Unknown command"),
         }
     }
 }
@@ -93,9 +112,9 @@ pub fn get_command(input: &str) -> Commands {
         "recover" => Commands::Recover {
             name: input[1].to_string(),
         },
-        "change_doc" => Commands::Recover {
+        "change_doc" => Commands::ChangeDoc {
             name: input[1].to_string(),
         },
-        _ => panic!(""),
+        _ => Commands::Unknown,
     }
 }

@@ -15,11 +15,23 @@ const JSON_CODEC: u64 = 0x0200;
 
 #[derive(Error, Debug)]
 pub enum IdentityError {
-    #[error("unknown error")]
+    #[error("Invalid id")]
     InvalidId,
-    #[error("unknown ledger")]
+    #[error("Invalid ledger")]
     InvalidLedger,
-    #[error("invalid id error")]
+    #[error("Invalid previous")]
+    InvalidPrevious,
+    #[error("Invalid event signature")]
+    InvalidEventSignature,
+    #[error("Invalid signer")]
+    InvalidSigner,
+    #[error("Invalid recovery")]
+    InvalidRecovery,
+    #[error("Invalid doc digest")]
+    InvalidDocumentDigest,
+    #[error("Invalid next")]
+    InvalidNext,
+    #[error("Unknown")]
     Unknown,
 }
 
