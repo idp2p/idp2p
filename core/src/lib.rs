@@ -126,6 +126,12 @@ pub fn create_verification_key() -> (Vec<u8>, Vec<u8>) {
     (secret, public)
 }
 
+pub fn to_verification_publickey(secret_key: Vec<u8>) -> Vec<u8>{
+    let keypair: Keypair = to_keypair(secret_key);
+    let public = keypair.public.to_bytes().to_vec();
+    public
+}
+
 pub fn create_key_agreement() -> (Vec<u8>, Vec<u8>) {
     let mut key_data = [0u8; 32];
     let mut key_rng = thread_rng();

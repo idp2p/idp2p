@@ -65,9 +65,9 @@ impl EventLog {
         public_key.verify(bytes, &signature).is_ok()
     }
 
-    pub fn new(payload: EventLogPayload, signer_key: Vec<u8>) -> EventLog {
+    pub fn new(payload: EventLogPayload, secret_key: Vec<u8>) -> EventLog {
         let payload_json = serde_json::to_string(&payload).unwrap();
-        let keypair = crate::to_keypair(signer_key.clone());
+        let keypair = crate::to_keypair(secret_key.clone());
         let proof = keypair.sign(payload_json.as_bytes());
         let event_log = EventLog {
             payload: payload,

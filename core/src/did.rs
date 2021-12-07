@@ -10,6 +10,7 @@ use crate::eventlog::ProofStatement;
 use crate::eventlog::RecoverStatement;
 use crate::hash;
 use crate::microledger::MicroLedger;
+use crate::to_keypair;
 use crate::IdentityError;
 use crate::RecoveryKey;
 use crate::SignerKey;
@@ -59,9 +60,18 @@ pub struct CreateDocResult {
 
 impl Identity {
     pub fn create() -> CreateIdentityResult {
-        let (signer_secret, signer_public) = create_verification_key();
-        let (recovery_secret, recovery_public) = create_verification_key();
-        let recovery_public_bytes: [u8; 32] = recovery_public.try_into().unwrap();
+        let (signer_secret, _) = create_verification_key();
+        let (recovery_secret, _) = create_verification_key();
+        Identity::create_with_secrets(signer_secret, recovery_secret)
+    }
+
+    pub fn create_with_secrets(
+        signer_secret: Vec<u8>,
+        rec_secret: Vec<u8>,
+    ) -> CreateIdentityResult {
+        let rec_public = to_keypair(rec_secret.clone()).public.to_bytes().to_vec();
+        let signer_public = to_keypair(signer_secret.clone()).public.to_bytes().to_vec();
+        let recovery_public_bytes: [u8; 32] = rec_public.try_into().unwrap();
         let ledger = MicroLedger::new(signer_public, hash(&recovery_public_bytes));
         let doc_result = Identity::create_doc(ledger.id.clone());
         let mut did = Identity {
@@ -70,16 +80,16 @@ impl Identity {
         };
         did.set_doc_proof(doc_result.doc.clone(), signer_secret.clone());
         CreateIdentityResult {
-            did,
-            signer_secret,
-            recovery_secret,
+            did: did,
+            signer_secret: signer_secret,
+            recovery_secret: rec_secret,
             assertion_secret: doc_result.assertion_secret,
             authentication_secret: doc_result.authentication_secret,
             keyagreement_secret: doc_result.keyagreement_secret,
         }
     }
 
-    pub fn set_doc(&mut self, secret_key: Vec<u8>) -> CreateDocResult{
+    pub fn set_doc(&mut self, secret_key: Vec<u8>) -> CreateDocResult {
         let doc_result = Identity::create_doc(self.ledger.id.clone());
         self.did_doc = doc_result.doc.clone();
         self.set_doc_proof(doc_result.doc.clone(), secret_key);
@@ -142,7 +152,11 @@ impl Identity {
             .verify(candidate.ledger.inception.get_id())?;
         let did_valid = candidate.get_digest() == new_did.get_digest();
         check!(did_valid, IdentityError::InvalidNext);
-        let did_doc_digest = hash(serde_json::to_string(&candidate.did_doc).unwrap().as_bytes());
+        let did_doc_digest = hash(
+            serde_json::to_string(&candidate.did_doc)
+                .unwrap()
+                .as_bytes(),
+        );
         check!(
             did_doc_digest == verified.current_doc_digest,
             IdentityError::InvalidDocumentDigest
@@ -185,5 +199,38 @@ impl Identity {
         };
         let event_log = EventLog::new(payload, secret_key.clone());
         self.ledger.events.push(event_log);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn create_with_secrets_test() {
+        let result = create_did();
+        let id = "bagaaierazg6rvoe5xoqcmbiz3qf2mztwl23g2vvmamotvm7rpv2fvgybo4qq";
+        println!("{:?}", serde_json::to_string_pretty(&result.did).unwrap());
+        assert_eq!(result.did.ledger.id, id);
+    }
+
+    #[test]
+    fn set_doc() {
+        let mut result = create_did();
+        let old_doc_authentication = result.did.did_doc.authentication[0].clone();
+        result.did.set_doc(result.signer_secret.clone());
+        assert_eq!(result.did.ledger.events.len(), 2);
+        assert_ne!(result.did.did_doc.authentication[0], old_doc_authentication);
+    }
+
+    fn create_did() -> CreateIdentityResult{   
+        let signer_secret =
+            multibase::decode("beilmx4d76udjmug5ykpy657qa3pfsqbcu7fbbtuk3mgrdrxssseq")
+                .unwrap()
+                .1;
+        let recovery_secret =
+            multibase::decode("blunvrc23gte2nwj7cbf3sjszie7ti3bc6xk257a6rfjcsxwxpuwa")
+                .unwrap()
+                .1;
+        Identity::create_with_secrets(signer_secret, recovery_secret)
     }
 }
