@@ -28,7 +28,7 @@ impl Wallet {
             std::fs::File::create(wallet_path).unwrap();
         }
         let file = OpenOptions::new().write(true).open(wallet_path).unwrap();
-        let r = Identity::create();
+        let r = Identity::new();
         let wallet = Wallet{
             did: r.did,
             assertion_secret: r.assertion_secret,

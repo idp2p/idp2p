@@ -1,4 +1,4 @@
-use crate::did_doc::IdDocument;
+use crate::did_doc::{CreateDocResult, IdDocument};
 use crate::eventlog::DocumentDigest;
 use crate::eventlog::EventLog;
 use crate::eventlog::EventLogChange;
@@ -7,9 +7,9 @@ use crate::eventlog::ProofStatement;
 use crate::eventlog::RecoverStatement;
 use crate::microledger::MicroLedger;
 use crate::*;
+use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use std::convert::TryInto;
-use anyhow::Result;
 
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
 pub struct Identity {
@@ -41,33 +41,39 @@ pub struct RecoveryResult {
     pub recovery_secret: Vec<u8>,
 }
 
-#[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
-pub struct CreateDocResult {
-    pub doc: IdDocument,
-    #[serde(with = "encode_me")]
-    pub assertion_secret: Vec<u8>,
-    #[serde(with = "encode_me")]
-    pub authentication_secret: Vec<u8>,
-    #[serde(with = "encode_me")]
-    pub keyagreement_secret: Vec<u8>,
-}
-
 impl Identity {
-    pub fn create() -> CreateIdentityResult {
+    pub fn new() -> CreateIdentityResult {
         let signer_secret = create_secret_key();
         let recovery_secret = create_secret_key();
-        Identity::create_with_secrets(signer_secret, recovery_secret)
+        let assertion_secret = create_secret_key();
+        let authentication_secret = create_secret_key();
+        let key_agreement_secret = create_secret_key();
+        Identity::new_with_secrets(
+            signer_secret,
+            recovery_secret,
+            assertion_secret,
+            authentication_secret,
+            key_agreement_secret,
+        )
     }
 
-    pub fn create_with_secrets(
+    pub fn new_with_secrets(
         signer_secret: Vec<u8>,
         rec_secret: Vec<u8>,
+        assertion_secret: Vec<u8>,
+        authentication_secret: Vec<u8>,
+        keyagreement_secret: Vec<u8>,
     ) -> CreateIdentityResult {
         let rec_public = to_verification_publickey(rec_secret.clone());
         let signer_public = to_verification_publickey(signer_secret.clone());
         let recovery_public_bytes: [u8; 32] = rec_public.try_into().unwrap();
         let ledger = MicroLedger::new(signer_public, hash(&recovery_public_bytes));
-        let doc_result = Identity::create_doc(ledger.id.clone());
+        let doc_result = IdDocument::new(
+            ledger.id.clone(),
+            assertion_secret,
+            authentication_secret,
+            keyagreement_secret,
+        );
         let mut did = Identity {
             ledger: ledger,
             did_doc: doc_result.doc.clone(),
@@ -84,7 +90,15 @@ impl Identity {
     }
 
     pub fn set_doc(&mut self, secret_key: Vec<u8>) -> CreateDocResult {
-        let doc_result = Identity::create_doc(self.ledger.id.clone());
+        let assertion_secret = create_secret_key();
+        let authentication_secret = create_secret_key();
+        let key_agreement_secret = create_secret_key();
+        let doc_result = IdDocument::new(
+            self.ledger.id.clone(),
+            assertion_secret,
+            authentication_secret,
+            key_agreement_secret,
+        );
         self.did_doc = doc_result.doc.clone();
         self.set_doc_proof(doc_result.doc.clone(), secret_key);
         doc_result
@@ -165,41 +179,6 @@ impl Identity {
         crate::encode(digest)
     }
 
-    fn create_doc(id: String) -> CreateDocResult {
-        let assertion_secret = create_secret_key();
-        let authentication_secret = create_secret_key();
-        let keyagreement_secret = create_secret_key();
-        Identity::create_doc_with_secrets(
-            id,
-            assertion_secret,
-            authentication_secret,
-            keyagreement_secret,
-        )
-    }
-
-    pub fn create_doc_with_secrets(
-        id: String,
-        assertion_secret: Vec<u8>,
-        authentication_secret: Vec<u8>,
-        keyagreement_secret: Vec<u8>,
-    ) -> CreateDocResult {
-        let assertion_public = to_verification_publickey(assertion_secret.clone());
-        let authentication_public = to_verification_publickey(authentication_secret.clone());
-        let keyagreement_public = to_key_agreement_publickey(keyagreement_secret.clone());
-        let doc = IdDocument::new(
-            id,
-            assertion_public,
-            authentication_public,
-            keyagreement_public,
-        );
-        CreateDocResult {
-            doc: doc,
-            assertion_secret: assertion_secret,
-            authentication_secret: authentication_secret,
-            keyagreement_secret: keyagreement_secret,
-        }
-    }
-
     fn set_doc_proof(&mut self, doc: IdDocument, secret_key: Vec<u8>) {
         let change = EventLogChange::SetDocument(DocumentDigest {
             value: doc.to_hash(),
@@ -244,6 +223,15 @@ mod tests {
             multibase::decode("blunvrc23gte2nwj7cbf3sjszie7ti3bc6xk257a6rfjcsxwxpuwa")
                 .unwrap()
                 .1;
-        Identity::create_with_secrets(signer_secret, recovery_secret)
+        let assertion_secret = create_secret_key();
+        let authentication_secret = create_secret_key();
+        let keyagreement_secret = create_secret_key();
+        Identity::new_with_secrets(
+            signer_secret,
+            recovery_secret,
+            assertion_secret,
+            authentication_secret,
+            keyagreement_secret,
+        )
     }
 }

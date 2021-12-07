@@ -1,7 +1,4 @@
-use crate::encode_me;
-use crate::hash;
-use crate::ED25519;
-use crate::X25519;
+use crate::*;
 use serde::{Deserialize, Serialize};
 use serde_with::skip_serializing_none;
 
@@ -23,6 +20,17 @@ pub struct VerificationMethod {
     pub typ: String,
     #[serde(with = "encode_me", rename = "publicKeyMultibase")]
     pub bytes: Vec<u8>,
+}
+
+#[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
+pub struct CreateDocResult {
+    pub doc: IdDocument,
+    #[serde(with = "encode_me")]
+    pub assertion_secret: Vec<u8>,
+    #[serde(with = "encode_me")]
+    pub authentication_secret: Vec<u8>,
+    #[serde(with = "encode_me")]
+    pub keyagreement_secret: Vec<u8>,
 }
 
 #[skip_serializing_none]
@@ -47,10 +55,13 @@ pub struct IdDocument {
 impl IdDocument {
     pub fn new(
         id: String,
-        assertion_public: Vec<u8>,
-        authentication_public: Vec<u8>,
-        agreement_public: Vec<u8>,
-    ) -> IdDocument {
+        assertion_secret: Vec<u8>,
+        authentication_secret: Vec<u8>,
+        keyagreement_secret: Vec<u8>,
+    ) -> CreateDocResult {
+        let assertion_public = to_verification_publickey(assertion_secret.clone());
+        let authentication_public = to_verification_publickey(authentication_secret.clone());
+        let keyagreement_public = to_key_agreement_publickey(keyagreement_secret.clone());
         let assertion_method = VerificationMethod {
             id: crate::encode(assertion_public.clone()),
             controller: format!("did:p2p:{}", id.clone()),
@@ -64,10 +75,10 @@ impl IdDocument {
             bytes: authentication_public.clone(),
         };
         let key_agreement = VerificationMethod {
-            id: crate::encode(agreement_public.clone()),
+            id: crate::encode(keyagreement_public.clone()),
             controller: format!("did:p2p:{}", id.clone()),
             typ: X25519.to_string(),
-            bytes: agreement_public.clone(),
+            bytes: keyagreement_public.clone(),
         };
         let doc = IdDocument {
             context: vec![
@@ -87,7 +98,12 @@ impl IdDocument {
             key_agreement: vec![key_agreement.id.clone()],
             services: vec![],
         };
-        doc
+        CreateDocResult {
+            doc: doc,
+            assertion_secret: assertion_secret,
+            authentication_secret: authentication_secret,
+            keyagreement_secret: keyagreement_secret,
+        }
     }
 
     pub fn to_hash(&self) -> Vec<u8> {
@@ -98,20 +114,19 @@ impl IdDocument {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::*;
     #[test]
     fn new_did_doc() {
         let assertion_public = to_verification_publickey(create_secret_key());
         let authentication_public = to_verification_publickey(create_secret_key());
         let agreement_public = to_key_agreement_publickey(create_secret_key());
-        let doc = IdDocument::new(
+        let docResult = IdDocument::new(
             "123456".to_string(),
             assertion_public,
             authentication_public,
             agreement_public,
         );
-        assert_eq!(doc.id, "did:p2p:123456");
-        assert_eq!(doc.controller, "did:p2p:123456");
-        assert_eq!(doc.verification_method.len(), 3);
+        assert_eq!(docResult.doc.id, "did:p2p:123456");
+        assert_eq!(docResult.doc.controller, "did:p2p:123456");
+        assert_eq!(docResult.doc.verification_method.len(), 3);
     }
 }
