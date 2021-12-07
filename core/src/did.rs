@@ -96,9 +96,9 @@ impl Identity {
         let payload = EventLogPayload {
             previous: self.ledger.get_previous_id(),
             change: change,
-            signer_key: keypair.public.as_bytes().to_vec(),
+            signer_publickey: keypair.public.as_bytes().to_vec(),
         };
-        let event_log = EventLog::create(payload, secret_key.clone());
+        let event_log = EventLog::new(payload, secret_key.clone());
         self.ledger.events.push(event_log);
     }
 
@@ -113,9 +113,9 @@ impl Identity {
         let payload = EventLogPayload {
             previous: self.ledger.get_previous_id(),
             change: change,
-            signer_key: keypair.public.as_bytes().to_vec(),
+            signer_publickey: keypair.public.as_bytes().to_vec(),
         };
-        let event_log = EventLog::create(payload, secret_key.clone());
+        let event_log = EventLog::new(payload, secret_key.clone());
         self.ledger.events.push(event_log);
         RecoveryResult {
             did: self.clone(),
@@ -181,9 +181,9 @@ impl Identity {
         let payload = EventLogPayload {
             previous: self.ledger.get_previous_id(),
             change: change,
-            signer_key: keypair.public.as_bytes().to_vec(),
+            signer_publickey: keypair.public.as_bytes().to_vec(),
         };
-        let event_log = EventLog::create(payload, secret_key.clone());
+        let event_log = EventLog::new(payload, secret_key.clone());
         self.ledger.events.push(event_log);
     }
 }

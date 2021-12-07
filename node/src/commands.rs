@@ -39,7 +39,7 @@ impl Commands {
             Commands::Resolve { id } => {
                 let identity: Identity =
                     serde_json::from_str(&behaviour.db.get(id).unwrap()).unwrap();
-                println!("{:#?}", serde_json::to_string_pretty(&identity));
+                println!("{}", serde_json::to_string_pretty(&identity).unwrap());
             }
             Commands::Create { name } => {
                 let wallet = Wallet::create(name);

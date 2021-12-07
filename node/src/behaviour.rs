@@ -29,14 +29,14 @@ fn handle_post(behaviour: &mut IdentityGossipBehaviour, topic: String, candidate
         }
         Some(c) => {
             let current_did: Identity = serde_json::from_str(c).unwrap();
-            let r =current_did.is_next(candidate.clone());
+            let r = current_did.is_next(candidate.clone());
             if r.is_ok() {
                 behaviour.db.insert(
                     topic.to_string(),
                     serde_json::to_string(&candidate).unwrap(),
                 );
                 println!("Identity updated....");
-            }else{
+            } else {
                 println!("Error!!! {:?}", r);
             }
         }
@@ -47,10 +47,10 @@ impl IdentityGossipBehaviour {
     pub fn publish(&mut self, topic: String, idm: IdentityMessage) {
         println!("Published topic: {}", topic.clone());
         let gossip_topic = IdentTopic::new(topic.clone());
-        let _ = self.gossipsub.publish(
-            gossip_topic,
-            serde_json::to_string(&idm).unwrap().as_bytes(),
-        ).unwrap();
+        let json_str = serde_json::to_string(&idm).unwrap();
+        self.gossipsub
+            .publish(gossip_topic, json_str.as_bytes())
+            .unwrap();
     }
 }
 

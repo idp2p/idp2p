@@ -40,7 +40,7 @@ pub enum EventLogChange {
 pub struct EventLogPayload {
     pub previous: String, // if first = inception
     #[serde(with = "encode_me")]
-    pub signer_key: Vec<u8>, // if recover = recover, else = signer_key
+    pub signer_publickey: Vec<u8>, // if recover = recover, else = signer_key
     pub change: EventLogChange,
 }
 
@@ -56,10 +56,6 @@ impl EventLog {
         crate::generate_cid(self)
     }
 
-    pub fn get_previous(&self) -> String {
-        crate::generate_cid(self)
-    }
-
     pub fn verify(&self, public_key: Vec<u8>) -> bool {
         let payload_json = serde_json::to_string(&self.payload).unwrap();
         let bytes = payload_json.as_bytes();
@@ -69,7 +65,7 @@ impl EventLog {
         public_key.verify(bytes, &signature).is_ok()
     }
 
-    pub fn create(payload: EventLogPayload, signer_key: Vec<u8>) -> EventLog {
+    pub fn new(payload: EventLogPayload, signer_key: Vec<u8>) -> EventLog {
         let payload_json = serde_json::to_string(&payload).unwrap();
         let keypair = crate::to_keypair(signer_key.clone());
         let proof = keypair.sign(payload_json.as_bytes());
@@ -78,5 +74,23 @@ impl EventLog {
             proof: proof.to_bytes().to_vec(),
         };
         event_log
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::create_verification_key;
+    #[test]
+    fn new_event() {
+        let (signer_secret, signer_public) = create_verification_key();
+        let payload = EventLogPayload {
+            previous: "1".to_string(),
+            signer_publickey: signer_public.clone(),
+            change: EventLogChange::SetDocument(DocumentDigest { value: vec![] }),
+        };
+        let log = EventLog::new(payload, signer_secret);
+        let is_valid = log.verify(signer_public);
+        assert!(is_valid);
     }
 }

@@ -135,6 +135,7 @@ pub fn create_key_agreement() -> (Vec<u8>, Vec<u8>) {
     let public: Vec<u8> = public_key.to_bytes().to_vec();
     (key_data.to_vec(), public)
 }
+
 macro_rules! check {
     ($e: expr, $err: expr) => {{
         if !$e {
@@ -147,3 +148,16 @@ pub mod did_doc;
 pub mod eventlog;
 pub mod microledger;
 pub mod did;
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn hash_test() {
+        let v = vec![0,1];
+        let digest = hash(&v);
+        let hex = multibase::encode(Base::Base16Lower, digest);
+        assert_eq!(hex, "fb413f47d13ee2fe6c845b2ee141af81de858df4ec549a58b7970bb96645bc8d2");
+    }
+}
+

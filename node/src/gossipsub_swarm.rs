@@ -1,7 +1,6 @@
 use crate::behaviour::IdentityGossipBehaviour;
 use libp2p::gossipsub::{
-    Gossipsub, GossipsubConfigBuilder, GossipsubMessage, IdentTopic as Topic, MessageAuthenticity,
-    MessageId, ValidationMode,
+    GossipsubConfigBuilder, GossipsubMessage, MessageAuthenticity, MessageId, ValidationMode,
 };
 use libp2p::swarm::SwarmBuilder;
 use libp2p::Swarm;

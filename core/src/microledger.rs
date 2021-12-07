@@ -61,19 +61,19 @@ impl MicroLedger {
         for event in &self.events {
             let previous_valid = event.payload.previous == state.current_event_id;
             check!(previous_valid, IdentityError::InvalidPrevious);   
-            let event_valid = event.verify(event.payload.signer_key.clone());
+            let event_valid = event.verify(event.payload.signer_publickey.clone());
             check!(event_valid, IdentityError::InvalidEventSignature);
             match &event.payload.change {
                 EventLogChange::SetDocument(digest) => {
                     let signer_valid =
-                        state.current_signer_key.public == event.payload.signer_key.clone();
+                        state.current_signer_key.public == event.payload.signer_publickey.clone();
                     check!(signer_valid, IdentityError::InvalidSigner);
                   
                     state.current_doc_digest = digest.value.clone()
                 }
                 EventLogChange::SetProof(stmt) => {
                     let signer_valid =
-                        state.current_signer_key.public == event.payload.signer_key.clone();
+                        state.current_signer_key.public == event.payload.signer_publickey.clone();
                     check!(signer_valid, IdentityError::InvalidSigner);
                     let event_valid = event.verify(state.current_signer_key.public.clone());
                     check!(event_valid, IdentityError::InvalidEventSignature);
@@ -82,7 +82,7 @@ impl MicroLedger {
                         .insert(stmt.key.clone(), stmt.value.clone());
                 }
                 EventLogChange::Recover(recovery) => {
-                    let recovery_key_digest = hash(&event.payload.signer_key.clone());
+                    let recovery_key_digest = hash(&event.payload.signer_publickey.clone());
                     let rec_valid = recovery_key_digest == state.current_recovery_key.digest;
                     check!(rec_valid, IdentityError::InvalidRecovery);
                     state.current_signer_key = recovery.next_signer_key.clone();

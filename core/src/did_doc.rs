@@ -1,6 +1,5 @@
-use crate::hash;
-use crate::eventlog::ProofStatement;
 use crate::encode_me;
+use crate::hash;
 use crate::ED25519;
 use crate::X25519;
 use serde::{Deserialize, Serialize};
@@ -29,8 +28,10 @@ pub struct VerificationMethod {
 #[skip_serializing_none]
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
 pub struct IdDocument {
-    pub id: String,         // / or did:ipfs:xxxxxxx
-    pub controller: String, // / or did:ipfs:xxxxxxx
+    pub id: String,
+    pub controller: String,
+    #[serde(rename = "@context")]
+    pub context: Vec<String>,
     #[serde(rename = "verificationMethod")]
     pub verification_method: Vec<VerificationMethod>,
     #[serde(rename = "assertionMethod")]
@@ -51,25 +52,30 @@ impl IdDocument {
         agreement_public: Vec<u8>,
     ) -> IdDocument {
         let assertion_method = VerificationMethod {
-            id: multibase::encode(multibase::Base::Base32Lower, assertion_public.clone()),
+            id: crate::encode(assertion_public.clone()),
             controller: format!("did:p2p:{}", id.clone()),
             typ: ED25519.to_string(),
             bytes: assertion_public.clone(),
         };
         let authentication = VerificationMethod {
-            id: multibase::encode(multibase::Base::Base32Lower, authentication_public.clone()),
+            id: crate::encode(authentication_public.clone()),
             controller: format!("did:p2p:{}", id.clone()),
             typ: ED25519.to_string(),
             bytes: authentication_public.clone(),
         };
         let key_agreement = VerificationMethod {
-            id: multibase::encode(multibase::Base::Base32Lower, agreement_public.clone()),
+            id: crate::encode(agreement_public.clone()),
             controller: format!("did:p2p:{}", id.clone()),
             typ: X25519.to_string(),
             bytes: agreement_public.clone(),
         };
         let doc = IdDocument {
-            id: id.clone(),
+            context: vec![
+                "https://www.w3.org/ns/did/v1".to_string(),
+                "https://w3id.org/security/suites/ed25519-2020/v1".to_string(),
+                "https://w3id.org/security/suites/x25519-2020/v1".to_string(),
+            ],
+            id: format!("did:p2p:{}", id.clone()),
             controller: format!("did:p2p:{}", id.clone()),
             verification_method: vec![
                 assertion_method.clone(),
@@ -84,7 +90,7 @@ impl IdDocument {
         doc
     }
 
-    pub fn to_hash(&self) -> Vec<u8>{
+    pub fn to_hash(&self) -> Vec<u8> {
         hash(serde_json::to_string(&self).unwrap().as_bytes())
     }
 }
@@ -95,15 +101,18 @@ mod tests {
     use crate::create_key_agreement;
     use crate::create_verification_key;
     #[test]
-    fn generate_test() {
+    fn new_did_doc() {
         let (_, assertion_public) = create_verification_key();
         let (_, authentication_public) = create_verification_key();
         let (_, agreement_public) = create_key_agreement();
-        let _ = IdDocument::new(
+        let doc = IdDocument::new(
             "123456".to_string(),
             assertion_public,
             authentication_public,
             agreement_public,
         );
+        assert_eq!(doc.id, "did:p2p:123456");
+        assert_eq!(doc.controller, "did:p2p:123456");
+        assert_eq!(doc.verification_method.len(), 3);
     }
 }
