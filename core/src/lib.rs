@@ -1,3 +1,4 @@
+use std::convert::TryInto;
 use cid::{
     multihash::{Code, MultihashDigest},
     Cid,
@@ -107,7 +108,7 @@ pub fn generate_cid<T: Sized + Serialize>(t: &T) -> String {
     cid.to_string()
 }
 
-pub fn to_keypair(secret: Vec<u8>) -> Keypair {
+pub fn to_verification_keypair(secret: Vec<u8>) -> Keypair {
     let mut secret = secret.clone();
     let secret_key = SecretKey::from_bytes(&secret).unwrap();
     let public_key: PublicKey = PublicKey::from(&secret_key);
@@ -116,30 +117,25 @@ pub fn to_keypair(secret: Vec<u8>) -> Keypair {
     Keypair::from_bytes(&secret).unwrap()
 }
 
-pub fn create_verification_key() -> (Vec<u8>, Vec<u8>) {
+pub fn create_secret_key() -> Vec<u8> {
     let mut key_data = [0u8; 32];
     let mut key_rng = thread_rng();
     key_rng.fill_bytes(&mut key_data);
-    let keypair: Keypair = to_keypair(key_data.to_vec());
-    let public = keypair.public.to_bytes().to_vec();
-    let secret = keypair.secret.as_bytes().to_vec();
-    (secret, public)
+    key_data.to_vec()
 }
 
-pub fn to_verification_publickey(secret_key: Vec<u8>) -> Vec<u8>{
-    let keypair: Keypair = to_keypair(secret_key);
+pub fn to_verification_publickey(secret_key: Vec<u8>) -> Vec<u8> {
+    let keypair: Keypair = to_verification_keypair(secret_key);
     let public = keypair.public.to_bytes().to_vec();
     public
 }
 
-pub fn create_key_agreement() -> (Vec<u8>, Vec<u8>) {
-    let mut key_data = [0u8; 32];
-    let mut key_rng = thread_rng();
-    key_rng.fill_bytes(&mut key_data);
-    let secret_key = StaticSecret::from(key_data);
+pub fn to_key_agreement_publickey(secret: Vec<u8>) -> Vec<u8> {
+    let secret_data: [u8;32] = secret.try_into().unwrap();
+    let secret_key = StaticSecret::from(secret_data);
     let public_key = x25519_dalek::PublicKey::from(&secret_key);
     let public: Vec<u8> = public_key.to_bytes().to_vec();
-    (key_data.to_vec(), public)
+    public
 }
 
 macro_rules! check {
@@ -150,20 +146,27 @@ macro_rules! check {
     }};
 }
 
+pub mod did;
 pub mod did_doc;
 pub mod eventlog;
 pub mod microledger;
-pub mod did;
 
 #[cfg(test)]
 mod tests {
     use super::*;
     #[test]
     fn hash_test() {
-        let v = vec![0,1];
+        let v = vec![0, 1];
         let digest = hash(&v);
         let hex = multibase::encode(Base::Base16Lower, digest);
-        assert_eq!(hex, "fb413f47d13ee2fe6c845b2ee141af81de858df4ec549a58b7970bb96645bc8d2");
+        assert_eq!(
+            hex,
+            "fb413f47d13ee2fe6c845b2ee141af81de858df4ec549a58b7970bb96645bc8d2"
+        );
     }
 }
 
+/*let keypair: Keypair = to_keypair(key_data.to_vec());
+let public = keypair.public.to_bytes().to_vec();
+let secret = keypair.secret.as_bytes().to_vec();
+(secret, public)*/

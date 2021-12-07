@@ -67,7 +67,7 @@ impl EventLog {
 
     pub fn new(payload: EventLogPayload, secret_key: Vec<u8>) -> EventLog {
         let payload_json = serde_json::to_string(&payload).unwrap();
-        let keypair = crate::to_keypair(secret_key.clone());
+        let keypair = crate::to_verification_keypair(secret_key.clone());
         let proof = keypair.sign(payload_json.as_bytes());
         let event_log = EventLog {
             payload: payload,
@@ -80,16 +80,17 @@ impl EventLog {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::create_verification_key;
+    use crate::*;
     #[test]
     fn new_event() {
-        let (signer_secret, signer_public) = create_verification_key();
+        let secret_key = create_secret_key();
+        let signer_public = to_verification_publickey(secret_key.clone());
         let payload = EventLogPayload {
             previous: "1".to_string(),
             signer_publickey: signer_public.clone(),
             change: EventLogChange::SetDocument(DocumentDigest { value: vec![] }),
         };
-        let log = EventLog::new(payload, signer_secret);
+        let log = EventLog::new(payload, secret_key);
         let is_valid = log.verify(signer_public);
         assert!(is_valid);
     }

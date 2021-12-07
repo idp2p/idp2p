@@ -98,13 +98,12 @@ impl IdDocument {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::create_key_agreement;
-    use crate::create_verification_key;
+    use crate::*;
     #[test]
     fn new_did_doc() {
-        let (_, assertion_public) = create_verification_key();
-        let (_, authentication_public) = create_verification_key();
-        let (_, agreement_public) = create_key_agreement();
+        let assertion_public = to_verification_publickey(create_secret_key());
+        let authentication_public = to_verification_publickey(create_secret_key());
+        let agreement_public = to_verification_publickey(create_secret_key());
         let doc = IdDocument::new(
             "123456".to_string(),
             assertion_public,
