@@ -13,7 +13,7 @@ use std::convert::TryInto;
 
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
 pub struct Identity {
-    pub ledger: MicroLedger,
+    pub microledger: MicroLedger,
     pub did_doc: IdDocument,
 }
 
@@ -75,7 +75,7 @@ impl Identity {
             keyagreement_secret,
         );
         let mut did = Identity {
-            ledger: ledger,
+            microledger: ledger,
             did_doc: doc_result.doc.clone(),
         };
         did.set_doc_proof(doc_result.doc.clone(), signer_secret.clone());
@@ -94,7 +94,7 @@ impl Identity {
         let authentication_secret = create_secret_key();
         let key_agreement_secret = create_secret_key();
         let doc_result = IdDocument::new(
-            self.ledger.id.clone(),
+            self.microledger.id.clone(),
             assertion_secret,
             authentication_secret,
             key_agreement_secret,
@@ -112,12 +112,13 @@ impl Identity {
         let change = EventLogChange::SetProof(proof_stmt);
         let signer_publickey = to_verification_publickey(secret_key.clone());
         let payload = EventLogPayload {
-            previous: self.ledger.get_previous_id(),
+            previous: self.microledger.get_previous_id(),
             change: change,
             signer_publickey: signer_publickey,
         };
         let event_log = EventLog::new(payload, secret_key.clone());
-        self.ledger.events.push(event_log);
+        //println!("Event log {:?}", event_log);
+        self.microledger.events.push(event_log);
     }
 
     pub fn recover(&mut self, secret_key: Vec<u8>) -> RecoveryResult {
@@ -131,12 +132,12 @@ impl Identity {
         });
         let signer_publickey = to_verification_publickey(secret_key.clone());
         let payload = EventLogPayload {
-            previous: self.ledger.get_previous_id(),
+            previous: self.microledger.get_previous_id(),
             change: change,
             signer_publickey: signer_publickey,
         };
         let event_log = EventLog::new(payload, secret_key.clone());
-        self.ledger.events.push(event_log);
+        self.microledger.events.push(event_log);
         RecoveryResult {
             did: self.clone(),
             signer_secret: signer_secret,
@@ -146,11 +147,11 @@ impl Identity {
 
     pub fn is_next(&self, new_did: Identity) -> Result<bool, IdentityError> {
         let mut candidate = self.clone();
-        let last_id = candidate.ledger.events.last().unwrap().get_id();
+        let last_id = candidate.microledger.events.last().unwrap().get_id();
         let mut is_last = false;
-        for event in &new_did.ledger.events {
+        for event in &new_did.microledger.events {
             if is_last {
-                candidate.ledger.events.push(event.clone());
+                candidate.microledger.events.push(event.clone());
             }
             if event.get_id() == last_id {
                 is_last = true;
@@ -158,8 +159,8 @@ impl Identity {
         }
         candidate.did_doc = new_did.did_doc.clone();
         let verified = candidate
-            .ledger
-            .verify(candidate.ledger.inception.get_id())?;
+            .microledger
+            .verify(candidate.microledger.inception.get_id())?;
         let did_valid = candidate.get_digest() == new_did.get_digest();
         check!(did_valid, IdentityError::InvalidNext);
         let did_doc_digest = hash(
@@ -185,12 +186,12 @@ impl Identity {
         });
         let public_key = to_verification_publickey(secret_key.clone());
         let payload = EventLogPayload {
-            previous: self.ledger.get_previous_id(),
+            previous: self.microledger.get_previous_id(),
             change: change,
             signer_publickey: public_key,
         };
         let event_log = EventLog::new(payload, secret_key.clone());
-        self.ledger.events.push(event_log);
+        self.microledger.events.push(event_log);
     }
 }
 
@@ -202,7 +203,7 @@ mod tests {
         let result = create_did();
         let id = "bagaaierazg6rvoe5xoqcmbiz3qf2mztwl23g2vvmamotvm7rpv2fvgybo4qq";
         println!("{:?}", serde_json::to_string_pretty(&result.did).unwrap());
-        assert_eq!(result.did.ledger.id, id);
+        assert_eq!(result.did.microledger.id, id);
     }
 
     #[test]
@@ -210,7 +211,7 @@ mod tests {
         let mut result = create_did();
         let old_doc_authentication = result.did.did_doc.authentication[0].clone();
         result.did.set_doc(result.signer_secret.clone());
-        assert_eq!(result.did.ledger.events.len(), 2);
+        assert_eq!(result.did.microledger.events.len(), 2);
         assert_ne!(result.did.did_doc.authentication[0], old_doc_authentication);
     }
 
@@ -231,7 +232,7 @@ mod tests {
             .unwrap()
             .1;
         result.did.did_doc = IdDocument::new(
-            result.did.ledger.id.clone(),
+            result.did.microledger.id.clone(),
             secret.clone(),
             secret.clone(),
             secret.clone(),

@@ -43,7 +43,7 @@ impl Commands {
             }
             Commands::Create { name } => {
                 let wallet = Wallet::create(name);
-                let id = wallet.did.ledger.id.clone();
+                let id = wallet.did.microledger.id.clone();
                 let gossipsub_topic = IdentTopic::new(id.clone());
                 behaviour
                     .db
@@ -58,8 +58,9 @@ impl Commands {
                     key.as_bytes().to_vec(),
                     value.as_bytes().to_vec(),
                 );
+                Wallet::update(name, &wallet);
                 behaviour.publish(
-                    wallet.did.ledger.id.clone(),
+                    wallet.did.microledger.id.clone(),
                     IdentityMessage::new(IdentityCommand::Post(wallet.did)),
                 );
             }
@@ -70,7 +71,7 @@ impl Commands {
                 wallet.signer_secret = result.signer_secret;
                 Wallet::update(name, &wallet);
                 behaviour.publish(
-                    wallet.did.ledger.id.clone(),
+                    wallet.did.microledger.id.clone(),
                     IdentityMessage::new(IdentityCommand::Post(wallet.did)),
                 );
             }
@@ -82,7 +83,7 @@ impl Commands {
                 wallet.keyagreement_secret = result.keyagreement_secret;
                 Wallet::update(name, &wallet);
                 behaviour.publish(
-                    wallet.did.ledger.id.clone(),
+                    wallet.did.microledger.id.clone(),
                     IdentityMessage::new(IdentityCommand::Post(wallet.did)),
                 );
             }
@@ -95,24 +96,24 @@ pub fn get_command(input: &str) -> Commands {
     let split = input.split(" ");
     let input: Vec<&str> = split.collect();
     match input[0] {
+        "create-id" => Commands::Create {
+            name: input[1].to_string(),
+        },
+        "create-doc" => Commands::ChangeDoc {
+            name: input[1].to_string(),
+        },
         "get" => Commands::Get {
             id: input[1].to_string(),
         },
         "resolve" => Commands::Resolve {
             id: input[1].to_string(),
         },
-        "create" => Commands::Create {
-            name: input[1].to_string(),
-        },
-        "set_proof" => Commands::SetProof {
+        "set-proof" => Commands::SetProof {
             name: input[1].to_string(),
             key: input[2].to_string(),
             value: input[3].to_string(),
         },
         "recover" => Commands::Recover {
-            name: input[1].to_string(),
-        },
-        "change_doc" => Commands::ChangeDoc {
             name: input[1].to_string(),
         },
         _ => Commands::Unknown,

@@ -14,8 +14,8 @@ pub struct Service {
 #[skip_serializing_none]
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
 pub struct VerificationMethod {
-    pub id: String,         // root did:cid:xxxx#public
-    pub controller: String, // root did:cid:xxxx
+    pub id: String,        
+    pub controller: String,
     #[serde(rename = "type")]
     pub typ: String,
     #[serde(with = "encode_me", rename = "publicKeyMultibase")]

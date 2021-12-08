@@ -45,12 +45,13 @@ fn handle_post(behaviour: &mut IdentityGossipBehaviour, topic: String, candidate
 
 impl IdentityGossipBehaviour {
     pub fn publish(&mut self, topic: String, idm: IdentityMessage) {
-        println!("Published topic: {}", topic.clone());
         let gossip_topic = IdentTopic::new(topic.clone());
         let json_str = serde_json::to_string(&idm).unwrap();
-        self.gossipsub
-            .publish(gossip_topic, json_str.as_bytes())
-            .unwrap();
+        let result = self.gossipsub.publish(gossip_topic, json_str.as_bytes());
+        match result {
+            Ok(_) => println!("Published id: {}", topic.clone()),
+            Err(e) => println!("Publish error, {:?}", e),
+        }
     }
 }
 
@@ -64,7 +65,7 @@ impl NetworkBehaviourEventProcess<GossipsubEvent> for IdentityGossipBehaviour {
         {
             let topic = message.topic.to_string();
             let id_mes: IdentityMessage = serde_json::from_slice(&message.data).unwrap();
-            println!("Received topic: {}", topic);
+            println!("Received id: {}", topic);
             match id_mes.command {
                 IdentityCommand::Get => {
                     let identity: Identity =

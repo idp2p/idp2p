@@ -4,7 +4,7 @@
 
 > Everything about you, nothing about you
 
-> `IDP2P` is a peer-to-peer identity protocol and network which enables a controller to store its own proofs. It is also did method ```did:p2p```. In other words, it is ipfs of decentralized identity.
+> `IDP2P` is a peer-to-peer identity protocol and network which enables a controller to store its own proofs. It is also did method `did:p2p`. The protocol is developed based on `libp2p`, in other words, it is ipfs of decentralized identity.
 
 ## Background
 
@@ -18,21 +18,25 @@ See also (related specs):
 
 ## Introduction
 
-Most of did methods tried to solve decentralized identity problems with different ways. Some of them used blockchain or dlt solution, another are based on peer relation. Sidetree used a layer-2 solution. KERI is another solution. 
+Each did method tried to solve decentralized identity problems with different ways. Some of them used `blockchain` or `dlt` for storing did documents. Sidetree used a layer-2 solution to solve cost and efficiency problem. Others are simple, self-describing methods and aren't depend on any ledger technology  e.g. `did:peer`, `did:key`, `did:keri`. Each method chooses some of following features: 
 
-```
-did:p2p:z6MkpTHR8VNsBxYAAWHut2Geadd9jSwuBV8xRoAnwWsdvktH
-```
+- Decentralization
+- Easy to use
+- Resolve
+- Cost and Efficiency
 
-That DID would correspond to the following DID Document:
 
 ## Identity Generation
 
+Identity is microledger and document. Microledger is inception(recovery key, signer key) and events. 
+
 ### Example DID Document
+
+```did:p2p:z6MkpTHR8VNsBxYAAWHut2Geadd9jSwuBV8xRoAnwWsdvktH```
 
 ```json
 {
-    "ledger": {
+    "microledger": {
       "id": "bagaaieratxin4o3iclo7ua3s3bbueds2uzfc5gi26mermevzb2etqliwjbla",
       "inception": {
         "signer_key": {
@@ -82,21 +86,10 @@ That DID would correspond to the following DID Document:
   }
 ```
 
-### 
 ## Consensus
 
-- Libp2p 
+![w:1000](idp2p.drawio.png) 
 
-
-## Security
-
-The `keyAgreement` key is a Curve25519 public key (suitable for
-Diffie-Hellman key exchange) that is deterministically _derived_ from the source
-Ed25519 key, using  [`ed2curve-js`](https://github.com/dchest/ed2curve-js).
-
-Note that this derived key is optional -- there's currently
-[no proof](https://crypto.stackexchange.com/questions/3260/using-same-keypair-for-diffie-hellman-and-signing/3311#3311)
-that this is safe to do.
 
 ## Install
 
@@ -104,18 +97,26 @@ Requires rust and cargo
 
 ## Usage
 
-### Create a peer 
+### Create a peer
+
+- ```cargo run -p <port>```
 
 ### Create idenity
 
+- ```create-id <name>```
+
 ### Subscribe to identity
+
+- ```get <id>```
 
 ### Reslove identity
 
-### Change identity
+- ```resolve <id>```
 
+### Create new doc
 
-PRs accepted.
+- ```create-doc <name>```
+
 
 ## License
 
