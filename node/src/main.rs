@@ -1,7 +1,8 @@
 use crate::commands::get_command;
-use crate::gossipsub_swarm::*;
+use crate::id_swarm::create;
 use libp2p::futures::StreamExt;
 use libp2p::swarm::SwarmEvent;
+use libp2p::Multiaddr;
 use std::error::Error;
 use tokio::io::{self, AsyncBufReadExt};
 
@@ -15,6 +16,13 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     let mut stdin = io::BufReader::new(io::stdin()).lines();
     let mut swarm = create(port).await?;
+    if let Some(to_dial) = std::env::args().nth(1) {
+        let address: Multiaddr = to_dial.parse().expect("Invalid address.");
+        match swarm.dial(address.clone()) {
+            Ok(_) => println!("Dialed {:?}", address),
+            Err(e) => println!("Dial {:?} failed: {:?}", address, e),
+        };
+    }
     loop {
         tokio::select! {
             line = stdin.next_line() => {
@@ -33,10 +41,6 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
 pub mod behaviour;
 pub mod commands;
-pub mod gossipsub_swarm;
-pub mod wallet;
 pub mod id_message;
-
-
-
-
+pub mod id_swarm;
+pub mod wallet;
