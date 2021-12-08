@@ -5,18 +5,24 @@ use libp2p::swarm::SwarmEvent;
 use libp2p::Multiaddr;
 use std::error::Error;
 use tokio::io::{self, AsyncBufReadExt};
+use structopt::StructOpt;
+
+#[derive(Debug, StructOpt)]
+#[structopt(name = "idp2p", about = "Usage of idp2p.")]
+struct Opt {
+    #[structopt(short = "p", long = "port", default_value = "0")]
+    port: u16,
+    #[structopt(short = "d", long = "dial")]
+    dial_address: Option<String>,
+}
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
     env_logger::init();
-    let args: Vec<String> = std::env::args().collect();
-    let port = (args.len() > 1)
-        .then(|| args[1].clone().parse::<u16>().unwrap())
-        .unwrap_or(0);
-
+    let opt = Opt::from_args();
     let mut stdin = io::BufReader::new(io::stdin()).lines();
-    let mut swarm = create(port).await?;
-    if let Some(to_dial) = std::env::args().nth(1) {
+    let mut swarm = create(opt.port).await?;
+    if let Some(to_dial) = opt.dial_address {
         let address: Multiaddr = to_dial.parse().expect("Invalid address.");
         match swarm.dial(address.clone()) {
             Ok(_) => println!("Dialed {:?}", address),

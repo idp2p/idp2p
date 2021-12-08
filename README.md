@@ -1,8 +1,10 @@
-# idp2p(experimental)
+# IDP2P(experimental)
+
+## Description
 
 > Everything about you, nothing about you
 
-> `idp2p` is a peer-to-peer identity protocol and network which enables a controller to store own proofs. It is also did method ```did:p2p```.In another words, it is ipfs of decentralized identity.
+> `IDP2P` is a peer-to-peer identity protocol and network which enables a controller to store its own proofs. It is also did method ```did:p2p```. In other words, it is ipfs of decentralized identity.
 
 ## Background
 
@@ -14,11 +16,9 @@ See also (related specs):
 * [Peer DID](https://identity.foundation/peer-did-method-spec/)
 * [Key Event Receipt Infrastructure](https://keri.one//)
 
-## Problem
+## Introduction
 
 Most of did methods tried to solve decentralized identity problems with different ways. Some of them used blockchain or dlt solution, another are based on peer relation. Sidetree used a layer-2 solution. KERI is another solution. 
-
-## Solution
 
 ```
 did:p2p:z6MkpTHR8VNsBxYAAWHut2Geadd9jSwuBV8xRoAnwWsdvktH
@@ -26,42 +26,67 @@ did:p2p:z6MkpTHR8VNsBxYAAWHut2Geadd9jSwuBV8xRoAnwWsdvktH
 
 That DID would correspond to the following DID Document:
 
+## Identity Generation
+
 ### Example DID Document
 
 ```json
 {
-  "@context": [
-    "https://www.w3.org/ns/did/v1",
-    "https://w3id.org/security/suites/ed25519-2020/v1",
-    "https://w3id.org/security/suites/x25519-2020/v1"
-  ],
-  "id": "did:p2p:z6MkhaXgBZD...",
-  "verificationMethod": [{
-    "id": "did:p2p:z6MkhaXgBZD...",
-    "type": "Ed25519VerificationKey2020",
-    "controller": "did:p2p:z6MkhaXgBZD...",
-    "publicKeyMultibase": "z6MkhaXgBZD..."
-  }],
-  "authentication": [
-    "did:key:z6MkhaXgBZD..."
-  ],
-  "assertionMethod": [
-    "did:key:z6MkhaXgBZD..."
-  ],
-  "capabilityDelegation": [
-    "did:key:z6MkhaXgBZD..."
-  ],
-  "capabilityInvocation": [
-    "did:key:z6MkhaXgBZD..."
-  ],
-  "keyAgreement": [{
-    "id": "did:key:z6MkhaXgBZD...",
-    "type": "X25519KeyAgreementKey2020",
-    "controller": "did:key:z6MkhaXgBZD...",
-    "publicKeyMultibase": "z6LSj72tK8..."
-  }]
-}
+    "ledger": {
+      "id": "bagaaieratxin4o3iclo7ua3s3bbueds2uzfc5gi26mermevzb2etqliwjbla",
+      "inception": {
+        "signer_key": {
+          "type": "Ed25519VerificationKey2020",
+          "public": "by5gtwpufy4.."
+        },
+        "recovery_key": {
+          "type": "Ed25519VerificationKey2020",
+          "digest": "bmb2cvioxfy65ej.."
+        }
+      },
+      "events": [
+        {
+          "payload": {
+            "previous": "bagaaieratxin4o3iclo7u..",
+            "signer_publickey": "by5gtwpufy4zfnog4j..",
+            "change": {
+              "type": "set_document",
+              "value": "bdu3gqtjc6ks52.."
+            }
+          },
+          "proof": "bx6svqb6if5yaflgoumdff7j.."
+        }
+      ]
+    },
+    "did_doc": {
+      "id": "did:p2p:bagaaieratxin..",
+      "controller": "did:p2p:bagaaieratxi..",
+      "@context": [
+        "https://www.w3.org/ns/did/v1",
+        "https://w3id.org/security/suites/ed25519-2020/v1",
+        "https://w3id.org/security/suites/x25519-2020/v1"
+      ],
+      "verificationMethod": [
+        {}
+      ],
+      "assertionMethod": [
+        "did:p2p:bagaaieratxib#wtyb2xhyvxolbd.."
+      ],
+      "authentication": [
+        "did:p2p:bagaaieratxib#3txadadmtke6d.."
+      ],
+      "keyAgreement": [
+        "did:p2p:bagaaieratxib#cnzphk5djc3bt64.."
+      ]
+    }
+  }
 ```
+
+### 
+## Consensus
+
+- Libp2p 
+
 
 ## Security
 
@@ -75,21 +100,22 @@ that this is safe to do.
 
 ## Install
 
-Requires Rust
-
-To install from `cargo`:
-
-```
+Requires rust and cargo
 
 ## Usage
 
-### `create-identity <name>`
+### Create a peer 
+
+### Create idenity
+
+### Subscribe to identity
+
+### Reslove identity
+
+### Change identity
 
 
 PRs accepted.
-
-If editing the Readme, please conform to the
-[standard-readme](https://github.com/RichardLitt/standard-readme) specification.
 
 ## License
 

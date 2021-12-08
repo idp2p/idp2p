@@ -206,12 +206,38 @@ mod tests {
     }
 
     #[test]
-    fn set_doc() {
+    fn set_doc_test() {
         let mut result = create_did();
         let old_doc_authentication = result.did.did_doc.authentication[0].clone();
         result.did.set_doc(result.signer_secret.clone());
         assert_eq!(result.did.ledger.events.len(), 2);
         assert_ne!(result.did.did_doc.authentication[0], old_doc_authentication);
+    }
+
+    #[test]
+    fn is_next_ok_test() {
+        let mut result = create_did();
+        let current = result.did.clone();
+        result.did.set_doc(result.signer_secret.clone());
+        let r = current.is_next(result.did.clone());
+        assert!(r.is_ok());
+    }
+
+    #[test]
+    fn is_next_invaliddoc_test() {
+        let mut result = create_did();
+        let current = result.did.clone();
+        let secret = multibase::decode("beilmx4d76udjmug5ykpy657qa3pfsqbcu7fbbtuk3mgrdrxssseq")
+            .unwrap()
+            .1;
+        result.did.did_doc = IdDocument::new(
+            result.did.ledger.id.clone(),
+            secret.clone(),
+            secret.clone(),
+            secret.clone(),
+        ).doc;
+        let r = current.is_next(result.did.clone());
+        assert!(matches!(r, Err(crate::IdentityError::InvalidDocumentDigest)));
     }
 
     fn create_did() -> CreateIdentityResult {

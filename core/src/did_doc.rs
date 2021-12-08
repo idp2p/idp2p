@@ -93,9 +93,9 @@ impl IdDocument {
                 authentication.clone(),
                 key_agreement.clone(),
             ],
-            authentication: vec![authentication.id.clone()],
-            assertion_method: vec![assertion_method.id.clone()],
-            key_agreement: vec![key_agreement.id.clone()],
+            authentication: vec![format!("did:p2p:{}#{}", id.clone(), authentication.id.clone())],
+            assertion_method: vec![format!("did:p2p:{}#{}", id.clone(), assertion_method.id.clone())],
+            key_agreement: vec![format!("did:p2p:{}#{}", id.clone(), key_agreement.id.clone())],
             services: vec![],
         };
         CreateDocResult {
