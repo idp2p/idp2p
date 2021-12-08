@@ -97,6 +97,8 @@ Requires rust and cargo
 
 ## Usage
 
+![w:1000](idp2p.gif)
+
 ### Create a peer
 
 - ```cargo run -p <port>```
