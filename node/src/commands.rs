@@ -43,7 +43,7 @@ impl Commands {
             }
             Commands::Create { name } => {
                 let wallet = Wallet::create(name);
-                let id = wallet.did.microledger.id.clone();
+                let id = wallet.did.id.clone();
                 let gossipsub_topic = IdentTopic::new(id.clone());
                 behaviour
                     .db
@@ -60,7 +60,7 @@ impl Commands {
                 );
                 Wallet::update(name, &wallet);
                 behaviour.publish(
-                    wallet.did.microledger.id.clone(),
+                    wallet.did.id.clone(),
                     IdentityMessage::new(IdentityCommand::Post(wallet.did)),
                 );
             }
@@ -71,7 +71,7 @@ impl Commands {
                 wallet.signer_secret = result.signer_secret;
                 Wallet::update(name, &wallet);
                 behaviour.publish(
-                    wallet.did.microledger.id.clone(),
+                    wallet.did.id.clone(),
                     IdentityMessage::new(IdentityCommand::Post(wallet.did)),
                 );
             }
@@ -83,7 +83,7 @@ impl Commands {
                 wallet.keyagreement_secret = result.keyagreement_secret;
                 Wallet::update(name, &wallet);
                 behaviour.publish(
-                    wallet.did.microledger.id.clone(),
+                    wallet.did.id.clone(),
                     IdentityMessage::new(IdentityCommand::Post(wallet.did)),
                 );
             }

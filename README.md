@@ -1,6 +1,6 @@
-# IDP2P(experimental)
+# IDP2P
 
-> Everything about you, nothing about you(only proofs)
+> `Experimental`, inspired by `did:peer` and `keri`
 
 ## Background
 
@@ -16,12 +16,7 @@ See also (related topics):
 
 ## Problem
 
-Each did method tries to solve decentralized identity problems with different ways. Most of them are based on public source of truth like a `blockchain`, `dlt`, `database` or similar. Others are simple, self-describing methods and aren't depend on any ledger technology e.g. `did:peer`, `did:key`, `did:keri`. Each method has own pros-cons in terms of following features: 
-
-- Decentralization
-- Easy to use
-- Resolve
-- Cost and Efficiency
+Each did method tries to solve decentralized identity problems with different ways. Most of them are based on public source of truth like a `blockchain`, `dlt`, `database` or similar. Others are simple, self-describing methods and aren't depend on any ledger technology e.g. `did:peer`, `did:key`, `did:keri`. Each method has own pros-cons in terms of [design-goals](https://www.w3.org/TR/did-core/#design-goals)
 
 ## IDP2P Solution 
 
@@ -29,16 +24,18 @@ Each did method tries to solve decentralized identity problems with different wa
 
 - Self describing identity(like did:keri, did:peer, did:key)
 - Only identity owner and verifiers are responsible for storing identity materials
-- Based on subscription based ledger and consensus, it is 
+- Based on pub-sub based ledger and consensus betwwen controller and verifiers
 - Resolvable via `idp2p` network 
 
-### Consensus `TODO`
+### Consensus Mechanism 
+
+When an identity event has occured, change is published over `idp2p` network, all subscribers verifies new did and updates it if suitable.  
 
 ![w:1000](idp2p.drawio.png) 
 
-### Identity Generation
+### Identity Content
 
-A p2p identity includes id, microledger and did document. Id is the unique identifier of identity. 
+An `idp2p` identity includes id, microledger and current did document. Id is the unique identifier of identity. 
 
 ```json
 {
@@ -189,38 +186,40 @@ There are three event types.
 ```
 
 
-## Implementation `TODO`
+## Getting Started(rust) 
 
-### Install `TODO`
-
-> Requires rust and cargo
-
-### Usage
-
-![w:1000](idp2p.gif)
-
-### Create a peer
+#### Generate a peer
 
 - ```cargo run -p <port>```
 
-### Create idenity
+#### Create idenity
 
 - ```create-id <name>```
 
-### Subscribe to identity
+#### Subscribe to identity
 
 - ```get <id>```
 
-### Reslove identity
+#### Reslove identity
 
 - ```resolve <id>```
 
-### Create new doc
+#### Create new doc
 
 - ```create-doc <name>```
 
+#### Demo 
+
+![w:1000](idp2p.gif)
+
+
+## Contributions
+
+The idp2p implementation in `rust` is a work in progress. 
+
+Contributions are most welcome
 
 ## License
 
-[Apache](LICENSE) 
+[Apache License 2.0](LICENSE) 
 
