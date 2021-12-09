@@ -1,6 +1,6 @@
 # IDP2P
 
-> `Experimental`, inspired by `did:peer` and `keri`
+> `Experimental`, inspired by `ipfs`, `did:peer` and `keri`
 
 ## Background
 
@@ -16,46 +16,60 @@ See also (related topics):
 
 ## Problem
 
-Each did method tries to solve decentralized identity problems with different ways. Most of them are based on public source of truth like a `blockchain`, `dlt`, `database` or similar. Others are simple, self-describing methods and aren't depend on any ledger technology e.g. `did:peer`, `did:key`, `did:keri`. Each method has own pros-cons in terms of [design-goals](https://www.w3.org/TR/did-core/#design-goals)
+Each did method uses own way to implement decentralized identity. Most of them are based on public source of truth like a `blockchain`, `dlt`, `database` or similar. Others are simple, self-describing methods and aren't depend on any ledger technology e.g. `did:peer`, `did:key`, `keri`. Each method has own pros-cons in terms of [design-goals](https://www.w3.org/TR/did-core/#design-goals)
 
 ## IDP2P Solution 
 
-`IDP2P` is a peer-to-peer identity protocol which enables a controller to publish its proofs and did documents in decentralized network. The protocol is based on [libp2p](https://libp2p.io/), in other words, it can be considered ipfs of decentralized identity. `IDP2P` has following features:
+`IDP2P` is a peer-to-peer identity protocol which enables a controller to create, manage and share its own proofs as well as did documents. The protocol is based on [libp2p](https://libp2p.io/), in other words, it can be considered `ipfs` of decentralized identity. `IDP2P` has following features:
 
-- Self describing identity(like did:keri, did:peer, did:key)
-- Only identity owner and verifiers are responsible for storing identity materials
-- Based on pub-sub based ledger and consensus betwwen controller and verifiers
-- Resolvable via `idp2p` network 
+- Self describing identity(like `did:keri`, `did:peer`, `did:key`)
+- P2P network like `ipfs`
+- Only identity owner and verifiers are responsible for storing and verifying identity
+- Based on `libp2p` pub-sub consensus resolvable via network
 
-### Consensus Mechanism 
+### Identity
 
-When an identity event has occured, change is published over `idp2p` network, all subscribers verifies new did and updates its own ledger if suitable. 
-
-![w:1000](idp2p.drawio.png) 
-
-### Identity Content
-
-An `idp2p` identity includes id, microledger and current did document. Id is the unique identifier of identity. 
+An `idp2p` identity includes unique identifier, microledger and did document. 
 
 ```json
 {
     "id": "did:p2p:z6MkpTHR8VNsBxYAAWHut2Geadd9jSwuBV8xRoAnwWsdvktH",
     "microledger": {},
     "did_doc": {}
-  }
+}
 ```
 
-Microledger includes id, inception and events for identity
+### Id
+
+`id` is the unique identifier of identity. It uses id generation like `did:peer`. Generation method is following: 
+
+- Generate an inception block
+- Get json string of the block
+- Convert it to bytes
+- Get SHA-256 digest of bytes
+- Encode it with multibase and multicodec(like `ipfs`)
+
+Sample: `did:p2p:bagaaieratxin4o3iclo7ua3s3bbueds2uzfc5gi26mermevzb2etqliwjbla`
+
+### Microledger
+
+A microledger represents backing storage of identity and it includes id, inception and events for identity
 
 ```json
   {
-    "id": "z6MkpTHR8VNsBxYAAWHut2Geadd9jSwuBV8xRoAnwWsdvktH",
+    "id": "bagaaieratxin4o3iclo7ua3s3bbueds2uzfc5gi26mermevzb2etqliwjbla",
     "inception": {},
     "events": []
   }
 ```
 
-Inception includes `signer_key`(public) and `recovery_key`(digest). 
+#### Id
+
+`id` is same with identifier but `did:p2p:` prefix.
+
+#### Inception
+
+`inception` includes `signer` public key and `recovery` public key digest
 
 ```json
 {
@@ -70,7 +84,9 @@ Inception includes `signer_key`(public) and `recovery_key`(digest).
 }
 ```
 
-First event should to point inception, others should point last event. An event has `payload` and `proof`
+#### Events
+
+`events` is array of identity changes and each event is linked to the previous one. First event is linked inception block.
 
 ```json
 {
@@ -87,20 +103,39 @@ First event should to point inception, others should point last event. An event 
 
 There are three event types.
 
-#### DID Document Proof
+- `set_document`: proof of did document change, requires `value` property which is hash of did document.
+- `set_proof`: any proof about identity,  requires `key` and `value` properties.
+- `recover` recovery proof of identity requires `next_signer_key` and `next_recovery_key` properties.
 
-`set_document`: proof of did document change, requires `value` property which is hash of did document.
+### DID Document
 
-#### Proof
+DID document is described in [DIDs Spec](https://www.w3.org/TR/did-core/). Only current document is stored in identity.
 
-`set_proof`: any proof about identity,  requires `key` and `value` properties.
+```json
+{
+    "id": "did:p2p:bagaaieratxin..",
+    "controller": "did:p2p:bagaaieratxi..",
+    "@context": [
+        "https://www.w3.org/ns/did/v1",
+        "https://w3id.org/security/suites/ed25519-2020/v1",
+        "https://w3id.org/security/suites/x25519-2020/v1"
+    ],
+    "verificationMethod": [...],
+    "assertionMethod": ["did:p2p:bagaaieratxib#wtyb2xhyvxolbd.."],
+    "authentication": ["did:p2p:bagaaieratxib#3txadadmtke6d.."],
+    "keyAgreement": ["did:p2p:bagaaieratxib#cnzphk5djc3bt64.."]
+}
+```
 
-#### Recovery Proof
+### Consensus Mechanism 
 
-`recover` recovery proof of identity requires `next_signer_key` and `next_recovery_key` properties.
+When an identity event has occured, change is published over `idp2p` network, all subscribers verifies new did change and updates its own ledger if incoming change is suitable. 
 
+![w:1000](idp2p.drawio.png) 
 
-#### IDP2P Example
+### Identity Content
+
+#### Example Identity
 
 ```json
 {
@@ -169,18 +204,10 @@ There are three event types.
         "https://w3id.org/security/suites/ed25519-2020/v1",
         "https://w3id.org/security/suites/x25519-2020/v1"
       ],
-      "verificationMethod": [
-        {}
-      ],
-      "assertionMethod": [
-        "did:p2p:bagaaieratxib#wtyb2xhyvxolbd.."
-      ],
-      "authentication": [
-        "did:p2p:bagaaieratxib#3txadadmtke6d.."
-      ],
-      "keyAgreement": [
-        "did:p2p:bagaaieratxib#cnzphk5djc3bt64.."
-      ]
+      "verificationMethod": [],
+      "assertionMethod": ["did:p2p:bagaaieratxib#wtyb2xhyvxolbd.."],
+      "authentication": ["did:p2p:bagaaieratxib#3txadadmtke6d.."],
+      "keyAgreement": ["did:p2p:bagaaieratxib#cnzphk5djc3bt64.."]
     }
   }
 ```
