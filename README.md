@@ -20,7 +20,7 @@ Each did method tries to solve decentralized identity problems with different wa
 
 ## IDP2P Solution 
 
-`IDP2P` is a peer-to-peer identity protocol and network which enables a controller to store its own proofs. It stores did documents and proofs about an identity. The `idp2p` protocol is based on `libp2p`, in other words, it can be considered ipfs of decentralized identity. `IDP2P` has following features:
+`IDP2P` is a peer-to-peer identity protocol which enables a controller to publish its proofs and did documents in decentralized network. The protocol is based on [libp2p](https://libp2p.io/), in other words, it can be considered ipfs of decentralized identity. `IDP2P` has following features:
 
 - Self describing identity(like did:keri, did:peer, did:key)
 - Only identity owner and verifiers are responsible for storing identity materials
@@ -29,7 +29,7 @@ Each did method tries to solve decentralized identity problems with different wa
 
 ### Consensus Mechanism 
 
-When an identity event has occured, change is published over `idp2p` network, all subscribers verifies new did and updates it if suitable.  
+When an identity event has occured, change is published over `idp2p` network, all subscribers verifies new did and updates its own ledger if suitable. 
 
 ![w:1000](idp2p.drawio.png) 
 
@@ -215,7 +215,7 @@ There are three event types.
 
 ## Contributions
 
-The idp2p implementation in `rust` is a work in progress. 
+The idp2p protocol and  `rust` implementation in is a work in progress. 
 
 Contributions are most welcome
 

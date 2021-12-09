@@ -119,14 +119,14 @@ mod tests {
         let assertion_public = to_verification_publickey(create_secret_key());
         let authentication_public = to_verification_publickey(create_secret_key());
         let agreement_public = to_key_agreement_publickey(create_secret_key());
-        let docResult = IdDocument::new(
+        let doc_result = IdDocument::new(
             "123456".to_string(),
             assertion_public,
             authentication_public,
             agreement_public,
         );
-        assert_eq!(docResult.doc.id, "did:p2p:123456");
-        assert_eq!(docResult.doc.controller, "did:p2p:123456");
-        assert_eq!(docResult.doc.verification_method.len(), 3);
+        assert_eq!(doc_result.doc.id, "did:p2p:123456");
+        assert_eq!(doc_result.doc.controller, "did:p2p:123456");
+        assert_eq!(doc_result.doc.verification_method.len(), 3);
     }
 }
