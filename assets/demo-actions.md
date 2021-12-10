@@ -14,7 +14,7 @@
 
 ## Publications
 
-- Article -> github, medium + linkedin
-- Mail -> did:peer, keri
+- Article -> github, medium, linkedin, twitter
+- Mail -> did:peer, keri, mattr, trinsic, everynm
 - Reddit -> libp2p, decentralized101, rust
 

@@ -23,119 +23,14 @@ Each did method uses own way to implement decentralized identity. Most of them a
 `IDP2P` is a peer-to-peer identity protocol which enables a controller to create, manage and share its own proofs as well as did documents. The protocol is based on [libp2p](https://libp2p.io/), in other words, it can be considered `ipfs` of decentralized identity. `IDP2P` has following features:
 
 - Self describing identity(like `did:keri`, `did:peer`, `did:key`)
-- P2P network like `ipfs`
+- Based on `libp2p` pub-sub protocol, so it can be stored and resolved via network
+- P2P network provides per ledger per identity
 - Only identity owner and verifiers are responsible for storing and verifying identity
-- Based on `libp2p` pub-sub consensus resolvable via network
+
 
 ### Identity
 
-An `idp2p` identity includes unique identifier, microledger and did document. 
-
-```json
-{
-    "id": "did:p2p:z6MkpTHR8VNsBxYAAWHut2Geadd9jSwuBV8xRoAnwWsdvktH",
-    "microledger": {},
-    "did_doc": {}
-}
-```
-
-### Id
-
-`id` is the unique identifier of identity. It uses id generation like `did:peer`. Generation method is following: 
-
-- Generate an inception block
-- Get json string of the block
-- Convert it to bytes
-- Get SHA-256 digest of bytes
-- Encode it with multibase and multicodec(like `ipfs`)
-
-Sample: `did:p2p:bagaaieratxin4o3iclo7ua3s3bbueds2uzfc5gi26mermevzb2etqliwjbla`
-
-### Microledger
-
-A microledger represents backing storage of identity and it includes id, inception and events for identity
-
-```json
-  {
-    "id": "bagaaieratxin4o3iclo7ua3s3bbueds2uzfc5gi26mermevzb2etqliwjbla",
-    "inception": {},
-    "events": []
-  }
-```
-
-#### Id
-
-`id` is same with identifier but `did:p2p:` prefix.
-
-#### Inception
-
-`inception` includes `signer` public key and `recovery` public key digest
-
-```json
-{
-  "signer_key": {
-    "type": "Ed25519VerificationKey2020",
-    "public": "by5gtwpufy4.."
-  },
-  "recovery_key": {
-    "type": "Ed25519VerificationKey2020",
-    "digest": "bmb2cvioxfy65ej.."
-  }
-}
-```
-
-#### Events
-
-`events` is array of identity changes and each event is linked to the previous one. First event is linked inception block.
-
-```json
-{
-    "payload": {
-      "previous": "<inception-hash>",
-      "signer_publickey": "by5gtwpufy4zfnog4j..",
-      "change": {
-        "type": "set_document"
-      }
-    },
-    "proof": "bx6svqb6if5yaflgoumdff7j.."
-}
-```
-
-There are three event types.
-
-- `set_document`: proof of did document change, requires `value` property which is hash of did document.
-- `set_proof`: any proof about identity,  requires `key` and `value` properties.
-- `recover` recovery proof of identity requires `next_signer_key` and `next_recovery_key` properties.
-
-### DID Document
-
-DID document is described in [DIDs Spec](https://www.w3.org/TR/did-core/). Only current document is stored in identity.
-
-```json
-{
-    "id": "did:p2p:bagaaieratxin..",
-    "controller": "did:p2p:bagaaieratxi..",
-    "@context": [
-        "https://www.w3.org/ns/did/v1",
-        "https://w3id.org/security/suites/ed25519-2020/v1",
-        "https://w3id.org/security/suites/x25519-2020/v1"
-    ],
-    "verificationMethod": [...],
-    "assertionMethod": ["did:p2p:bagaaieratxib#wtyb2xhyvxolbd.."],
-    "authentication": ["did:p2p:bagaaieratxib#3txadadmtke6d.."],
-    "keyAgreement": ["did:p2p:bagaaieratxib#cnzphk5djc3bt64.."]
-}
-```
-
-### Consensus Mechanism 
-
-When an identity event has occured, change is published over `idp2p` network, all subscribers verifies new did change and updates its own ledger if incoming change is suitable. 
-
-![w:1000](idp2p.drawio.png) 
-
-### Identity Content
-
-#### Example Identity
+#### *example*
 
 ```json
 {
@@ -212,6 +107,112 @@ When an identity event has occured, change is published over `idp2p` network, al
   }
 ```
 
+An `idp2p` identity includes unique identifier, microledger and did document. 
+
+```json
+{
+    "id": "did:p2p:z6MkpTHR8VNsBxYAAWHut2Geadd9jSwuBV8xRoAnwWsdvktH",
+    "microledger": {},
+    "did_doc": {}
+}
+```
+
+*`id`* is the unique identifier of identity. It uses id generation like `did:peer`. ID should be generated following way: 
+
+- Generate an inception block
+- Get json string of the block
+- Convert it to bytes
+- Get SHA-256 digest of bytes
+- Encode it with multibase and multicodec(like `ipfs`)
+
+*sample id*: `did:p2p:bagaaieratxin4o3iclo7ua3s3bbueds2uzfc5gi26mermevzb2etqliwjbla`
+
+`microledger` represents backing storage of identity and it includes id, inception and events for identity
+
+```json
+  {
+    "id": "bagaaieratxin4o3iclo7ua3s3bbueds2uzfc5gi26mermevzb2etqliwjbla",
+    "inception": {},
+    "events": []
+  }
+```
+
+`did_doc` is described in [DIDs Spec](https://www.w3.org/TR/did-core/). Only current document is stored in identity.
+
+```json
+{
+    "id": "did:p2p:bagaaieratxin..",
+    "controller": "did:p2p:bagaaieratxi..",
+    "@context": [
+        "https://www.w3.org/ns/did/v1",
+        "https://w3id.org/security/suites/ed25519-2020/v1",
+        "https://w3id.org/security/suites/x25519-2020/v1"
+    ],
+    "verificationMethod": [...],
+    "assertionMethod": ["did:p2p:bagaaieratxib#wtyb2xhyvxolbd.."],
+    "authentication": ["did:p2p:bagaaieratxib#3txadadmtke6d.."],
+    "keyAgreement": ["did:p2p:bagaaieratxib#cnzphk5djc3bt64.."]
+}
+```
+
+
+
+### Microledger Details
+
+`id` is same with identifier but `did:p2p:` prefix.
+
+`inception` includes `signer` public key and `recovery` public key digest
+
+```json
+{
+  "signer_key": {
+    "type": "Ed25519VerificationKey2020",
+    "public": "by5gtwpufy4.."
+  },
+  "recovery_key": {
+    "type": "Ed25519VerificationKey2020",
+    "digest": "bmb2cvioxfy65ej.."
+  }
+}
+```
+
+`events` is array of identity changes and each event is linked to the previous one. First event is linked inception block.
+
+![w:1000](assets/microledger.drawio.png) 
+
+
+```json
+{
+    "payload": {
+      "previous": "<inception-hash>",
+      "signer_publickey": "by5gtwpufy4zfnog4j..",
+      "change": {
+        "type": "set_document"
+      }
+    },
+    "proof": "bx6svqb6if5yaflgoumdff7j.."
+}
+```
+
+There are three event types.
+
+- `set_document`: proof of did document change, requires `value` property which is hash of did document.
+- `set_proof`: any proof about identity,  requires `key` and `value` properties.
+- `recover` recovery proof of identity requires `next_signer_key` and `next_recovery_key` properties.
+
+
+
+### Consensus Mechanism 
+
+When an identity event has occured, change is published over `idp2p` network, all subscribers verifies new did change and updates its own ledger if incoming change is suitable.
+
+There are two pub-sub commands: 
+
+- `get`: when a peer want to subscribe to identity, it publishs a `get` command with `id` over the network. 
+- `post`: when a peer received a `get` command, it posts identity information to subscribers in order to reach a consensus
+
+![w:1000](assets/idp2p.drawio.png) 
+
 
 ## Getting Started(rust) 
 
@@ -237,7 +238,7 @@ When an identity event has occured, change is published over `idp2p` network, al
 
 #### Demo 
 
-![w:1000](idp2p.gif)
+![w:1000](assets/idp2p.gif)
 
 
 ## Contributions
