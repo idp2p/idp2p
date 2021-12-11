@@ -22,10 +22,10 @@ Each did method uses own way to implement decentralized identity. Most of them a
 
 `IDP2P` is a peer-to-peer identity protocol which enables a controller to create, manage and share its own proofs as well as did documents. The protocol is based on [libp2p](https://libp2p.io/), in other words, it can be considered `ipfs` of decentralized identity. `IDP2P` has following features:
 
-- Self describing identity(like `did:keri`, `did:peer`, `did:key`)
+- Self-describing identity(like `did:keri`, `did:peer`, `did:key`)
 - Based on `libp2p` pub-sub protocol, so it can be stored and resolved via network
-- P2P network provides per ledger per identity
-- Only identity owner and verifiers are responsible for storing and verifying identity
+- P2P network provides one ledger per identity
+- Only identity owner and verifiers ar responsible for storing and verifying identity
 
 
 ### Identity
@@ -137,7 +137,7 @@ An `idp2p` identity includes unique identifier, microledger and did document.
   }
 ```
 
-`did_doc` is described in [DIDs Spec](https://www.w3.org/TR/did-core/). Only current document is stored in identity.
+`did_doc` is described in [DIDs Spec](https://www.w3.org/TR/did-core/). Only latest document is stored in identity.
 
 ```json
 {
@@ -159,7 +159,7 @@ An `idp2p` identity includes unique identifier, microledger and did document.
 
 ### Microledger Details
 
-`id` is same with identifier but `did:p2p:` prefix.
+`id` is same with identifier except `did:p2p:` prefix.
 
 `inception` includes `signer` public key and `recovery` public key digest
 
@@ -214,7 +214,7 @@ There are two pub-sub commands:
 ![w:1000](assets/idp2p.drawio.png) 
 
 
-## Getting Started(rust) 
+## Getting Started(rust demo) 
 
 #### Generate a peer
 
