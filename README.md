@@ -25,7 +25,8 @@ Each did method uses own way to implement decentralized identity. Most of them a
 - Self-describing identity(like `did:keri`, `did:peer`, `did:key`)
 - Based on `libp2p` pub-sub protocol, so it can be stored and resolved via network
 - P2P network provides one ledger per identity
-- Only identity owner and verifiers ar responsible for storing and verifying identity
+- ID is also a topic to subsribe(it means ledger is based on subscription)
+- Only identity owner and verifiers are responsible for storing and verifying identity
 
 
 ### Identity
