@@ -38,7 +38,7 @@ impl Commands {
             }
             Commands::Resolve { id } => {
                 let identity: Identity =
-                    serde_json::from_str(&behaviour.db.get(id).unwrap()).unwrap();
+                    serde_json::from_str(&behaviour.identities.get(id).unwrap()).unwrap();
                 println!("{}", serde_json::to_string_pretty(&identity).unwrap());
             }
             Commands::Create { name } => {
@@ -46,10 +46,10 @@ impl Commands {
                 let id = wallet.did.id.clone();
                 let gossipsub_topic = IdentTopic::new(id.clone());
                 behaviour
-                    .db
+                    .identities
                     .insert(id.clone(), serde_json::to_string(&wallet.did).unwrap());
                 behaviour.gossipsub.subscribe(&gossipsub_topic).unwrap();
-                println!("Created, id:{}", id);
+                println!("Created, {}", id);
             }
             Commands::SetProof { name, key, value } => {
                 let mut wallet = Wallet::get(name);

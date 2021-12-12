@@ -76,7 +76,7 @@ impl Identity {
             keyagreement_secret,
         );
         let mut did = Identity {
-            id: ledger.id.clone(),
+            id: format!("did:p2p:{}", ledger.id.clone()),
             microledger: ledger,
             did_doc: doc_result.doc.clone(),
         };

@@ -41,9 +41,10 @@ pub async fn create(port: u16) -> Result<Swarm<IdentityGossipBehaviour>, Box<dyn
         let gossipsub = gossipsub_reuslt.expect("Correct configuration");
         let mdns = libp2p::mdns::Mdns::new(Default::default()).await?;
         let behaviour = IdentityGossipBehaviour {
-            gossipsub,
-            mdns,
-            db: HashMap::new(),
+            gossipsub: gossipsub,
+            mdns: mdns,
+            identities: HashMap::new(),
+            get_requests: vec![]
         };
         SwarmBuilder::new(transport, behaviour, local_peer_id)
             .executor(Box::new(|fut| {
