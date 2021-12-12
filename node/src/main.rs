@@ -29,7 +29,6 @@ async fn main() -> Result<(), Box<dyn Error>> {
             Err(e) => println!("Dial {:?} failed: {:?}", address, e),
         };
     }
-
     loop {
         tokio::select! {
             line = stdin.next_line() => {
@@ -42,6 +41,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
                     println!("Listening on {:?}", address);
                 }
             }
+            _ = watcher::async_watch("../target/") =>{}
         }
     }
 }
@@ -51,3 +51,4 @@ pub mod commands;
 pub mod id_message;
 pub mod id_swarm;
 pub mod wallet;
+pub mod watcher;
