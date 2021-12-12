@@ -156,8 +156,6 @@ An `idp2p` identity includes unique identifier, microledger and did document.
 }
 ```
 
-
-
 ### Microledger Details
 
 `id` is same with identifier except `did:p2p:` prefix.
@@ -201,8 +199,6 @@ There are three event types.
 - `set_proof`: any proof about identity,  requires `key` and `value` properties.
 - `recover` recovery proof of identity requires `next_signer_key` and `next_recovery_key` properties.
 
-
-
 ### Consensus Mechanism 
 
 When an identity event has occured, change is published over `idp2p` network, all subscribers verifies new did change and updates its own ledger if incoming change is suitable.
@@ -210,7 +206,7 @@ When an identity event has occured, change is published over `idp2p` network, al
 There are two pub-sub commands: 
 
 - `get`: when a peer want to subscribe to identity, it publishs a `get` command with `id` over the network. 
-- `post`: when a peer received a `get` command, it posts identity information to subscribers in order to reach a consensus
+- `post`: when a peer received a `get` command or an identity change occured, it posts identity information to subscribers in order to reach a consensus
 
 ![w:1000](assets/idp2p.drawio.png) 
 
@@ -219,23 +215,33 @@ There are two pub-sub commands:
 
 #### Generate a peer
 
-- ```cargo run -p <port>```
+- ```cargo run```
 
-#### Create idenity
+#### Create identity
 
-- ```create-id <name>```
+- cmd: ```create-id <name>```
+
+- ex: `create-id ademcaglin`
 
 #### Subscribe to identity
 
-- ```get <id>```
+- cmd: ```get <id>```
+- ex: `get did:p2p:bagaaieraam4...`
 
-#### Reslove identity
+#### Resolve identity
 
-- ```resolve <id>```
+- cmd: ```resolve <id>```
+- ex: `resolve did:p2p:bagaaieraam4...`
 
 #### Create new doc
 
-- ```create-doc <name>```
+- cmd: ```create-doc <name>```
+- ex: `create-doc ademcaglin`
+
+#### Recover
+
+- cmd: ```recover <name>```
+- ex: `recover ademcaglin`
 
 #### Demo 
 

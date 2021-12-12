@@ -4,8 +4,8 @@ use libp2p::futures::StreamExt;
 use libp2p::swarm::SwarmEvent;
 use libp2p::Multiaddr;
 use std::error::Error;
-use tokio::io::{self, AsyncBufReadExt};
 use structopt::StructOpt;
+use tokio::io::{self, AsyncBufReadExt};
 
 #[derive(Debug, StructOpt)]
 #[structopt(name = "idp2p", about = "Usage of idp2p.")]
@@ -29,6 +29,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
             Err(e) => println!("Dial {:?} failed: {:?}", address, e),
         };
     }
+
     loop {
         tokio::select! {
             line = stdin.next_line() => {
