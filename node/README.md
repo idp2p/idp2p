@@ -1,3 +1,3 @@
-# Distributed Hash Table 
+# Identity Node
 
-> Distributed Ledger
+> Identity Node

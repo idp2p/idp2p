@@ -13,7 +13,3 @@ serde_json = "1.0.68"
 tokio = { version = "1.13.0", features = ["full"] }
 rand = "0.8.4"
 core = { version = "0.1.0", path = "../core" }
-crossbeam-channel = "0.4.0"
-notify = "5.0.0-pre.13"
-#warp = "0.3"
-

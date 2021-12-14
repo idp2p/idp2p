@@ -6,6 +6,8 @@ use libp2p::Multiaddr;
 use std::error::Error;
 use structopt::StructOpt;
 use tokio::io::{self, AsyncBufReadExt};
+use tokio::time::Duration;
+use tokio::time::Instant;
 
 #[derive(Debug, StructOpt)]
 #[structopt(name = "idp2p", about = "Usage of idp2p.")]
@@ -14,6 +16,8 @@ struct Opt {
     port: u16,
     #[structopt(short = "d", long = "dial")]
     dial_address: Option<String>,
+    #[structopt(short = "f", long = "folder", default_value = "../target/idp2p")]
+    folder: String,
 }
 
 #[tokio::main]
@@ -22,6 +26,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let opt = Opt::from_args();
     let mut stdin = io::BufReader::new(io::stdin()).lines();
     let mut swarm = create(opt.port).await?;
+
     if let Some(to_dial) = opt.dial_address {
         let address: Multiaddr = to_dial.parse().expect("Invalid address.");
         match swarm.dial(address.clone()) {
@@ -29,6 +34,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
             Err(e) => println!("Dial {:?} failed: {:?}", address, e),
         };
     }
+    let sleep = tokio::time::sleep(Duration::from_secs(1));
+    tokio::pin!(sleep);
     loop {
         tokio::select! {
             line = stdin.next_line() => {
@@ -41,7 +48,10 @@ async fn main() -> Result<(), Box<dyn Error>> {
                     println!("Listening on {:?}", address);
                 }
             }
-            _ = watcher::async_watch("../target/") =>{}
+            () = &mut sleep => {
+                // FileCommand::handle(&opt.folder);
+                sleep.as_mut().reset(Instant::now() + Duration::from_secs(1));
+            },
         }
     }
 }
@@ -51,4 +61,3 @@ pub mod commands;
 pub mod id_message;
 pub mod id_swarm;
 pub mod wallet;
-pub mod watcher;

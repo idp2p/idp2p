@@ -16,8 +16,6 @@ pub struct IdentityGossipBehaviour {
     pub mdns: Mdns,
     #[behaviour(ignore)]
     pub identities: HashMap<String, String>,
-    #[behaviour(ignore)]
-    pub get_requests: Vec<String>,
 }
 
 enum PostResult {

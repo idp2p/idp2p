@@ -43,8 +43,7 @@ pub async fn create(port: u16) -> Result<Swarm<IdentityGossipBehaviour>, Box<dyn
         let behaviour = IdentityGossipBehaviour {
             gossipsub: gossipsub,
             mdns: mdns,
-            identities: HashMap::new(),
-            get_requests: vec![]
+            identities: HashMap::new()
         };
         SwarmBuilder::new(transport, behaviour, local_peer_id)
             .executor(Box::new(|fut| {
