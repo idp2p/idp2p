@@ -1,3 +1,4 @@
+use crate::id_command::IdentityCommand;
 use crate::commands::get_command;
 use crate::id_swarm::create;
 use libp2p::futures::StreamExt;
@@ -6,8 +7,6 @@ use libp2p::Multiaddr;
 use std::error::Error;
 use structopt::StructOpt;
 use tokio::io::{self, AsyncBufReadExt};
-use tokio::time::Duration;
-use tokio::time::Instant;
 
 #[derive(Debug, StructOpt)]
 #[structopt(name = "idp2p", about = "Usage of idp2p.")]
@@ -34,30 +33,36 @@ async fn main() -> Result<(), Box<dyn Error>> {
             Err(e) => println!("Dial {:?} failed: {:?}", address, e),
         };
     }
-    let sleep = tokio::time::sleep(Duration::from_secs(1));
-    tokio::pin!(sleep);
+    let (sender, mut receiver) = tokio::sync::mpsc::channel::<IdentityCommand>(100);
+    let cmd_sender = sender.clone();
+    let routes = http::routes(sender.clone());
     loop {
         tokio::select! {
             line = stdin.next_line() => {
                 let line = line?.expect("stdin closed");
                 let cmd = get_command(&line);
                 cmd.handle(swarm.behaviour_mut());
+                cmd_sender.send(IdentityCommand::Get{id: String::new()}).await.unwrap();
             }
             event = swarm.select_next_some() => {
                 if let SwarmEvent::NewListenAddr { address, .. } = event {
                     println!("Listening on {:?}", address);
                 }
             }
-            () = &mut sleep => {
-                // FileCommand::handle(&opt.folder);
-                sleep.as_mut().reset(Instant::now() + Duration::from_secs(1));
-            },
+            message = receiver.recv() => {
+                if message.is_some(){
+                    println!("Got message: {:?}", message.unwrap());
+                }
+            }
+            () = warp::serve(routes.clone()).run(([127, 0, 0, 1], 3030)) => {}
         }
     }
 }
 
-pub mod behaviour;
 pub mod commands;
+pub mod id_behaviour;
 pub mod id_message;
 pub mod id_swarm;
+pub mod id_command;
 pub mod wallet;
+pub mod http;

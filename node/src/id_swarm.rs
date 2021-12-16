@@ -1,4 +1,4 @@
-use crate::behaviour::IdentityGossipBehaviour;
+use crate::id_behaviour::IdentityGossipBehaviour;
 use libp2p::gossipsub::{
     GossipsubConfigBuilder, GossipsubMessage, MessageAuthenticity, MessageId, ValidationMode,
 };

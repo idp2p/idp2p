@@ -1,4 +1,4 @@
-use crate::did_doc::{CreateDocResult, IdDocument};
+use crate::did_doc::IdDocument;
 use crate::eventlog::DocumentDigest;
 use crate::eventlog::EventLog;
 use crate::eventlog::EventLogChange;
@@ -33,13 +33,30 @@ pub struct CreateIdentityResult {
     pub keyagreement_secret: Vec<u8>,
 }
 
-#[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
+/*#[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
 pub struct RecoveryResult {
     pub did: Identity,
     #[serde(with = "encode_me")]
     pub signer_secret: Vec<u8>,
     #[serde(with = "encode_me")]
     pub recovery_secret: Vec<u8>,
+}*/
+
+pub enum IdentityEvent {
+    SetProof {
+        key: Vec<u8>,
+        value: Vec<u8>,
+        signer: Vec<u8>,
+    },
+    ChangeDoc {
+        doc: IdDocument,
+        signer: Vec<u8>,
+    },
+    Recover {
+        new_signer: Vec<u8>,
+        new_recovery: Vec<u8>,
+        signer: Vec<u8>,
+    },
 }
 
 impl Identity {
@@ -69,7 +86,7 @@ impl Identity {
         let signer_public = to_verification_publickey(signer_secret.clone());
         let recovery_public_bytes: [u8; 32] = rec_public.try_into().unwrap();
         let ledger = MicroLedger::new(signer_public, hash(&recovery_public_bytes));
-        let doc_result = IdDocument::new(
+        let doc_result = IdDocument::new_with_secrets(
             ledger.id.clone(),
             assertion_secret,
             authentication_secret,
@@ -91,6 +108,176 @@ impl Identity {
         }
     }
 
+    pub fn save_event(&mut self, e: IdentityEvent) {
+        match e {
+            IdentityEvent::SetProof { key, value, signer } => {
+                let proof_stmt = ProofStatement {
+                    key: key,
+                    value: value,
+                };
+                let change = EventLogChange::SetProof(proof_stmt);
+                let signer_publickey = to_verification_publickey(signer.clone());
+                let payload = EventLogPayload {
+                    previous: self.microledger.get_previous_id(),
+                    change: change,
+                    signer_publickey: signer_publickey,
+                };
+                let event_log = EventLog::new(payload, signer.clone());
+                self.microledger.events.push(event_log);
+            }
+            IdentityEvent::Recover {
+                new_signer,
+                new_recovery,
+                signer,
+            } => {
+                let change = EventLogChange::Recover(RecoverStatement {
+                    next_signer_key: SignerKey::new(new_signer.clone()),
+                    next_recovery_key: RecoveryKey::new(hash(&new_recovery)),
+                });
+                let signer_publickey = to_verification_publickey(signer.clone());
+                let payload = EventLogPayload {
+                    previous: self.microledger.get_previous_id(),
+                    change: change,
+                    signer_publickey: signer_publickey,
+                };
+                let event_log = EventLog::new(payload, signer.clone());
+                self.microledger.events.push(event_log);
+            }
+            IdentityEvent::ChangeDoc { doc, signer } => {
+                self.did_doc = doc.clone();
+                self.set_doc_proof(doc.clone(), signer);
+            }
+        }
+    }
+
+    pub fn is_next(&self, new_did: Identity) -> Result<bool, IdentityError> {
+        let mut candidate = self.clone();
+        let last_id = candidate.microledger.events.last().unwrap().get_id();
+        let mut is_last = false;
+        for event in &new_did.microledger.events {
+            if is_last {
+                candidate.microledger.events.push(event.clone());
+            }
+            if event.get_id() == last_id {
+                is_last = true;
+            }
+        }
+        candidate.did_doc = new_did.did_doc.clone();
+        let verified = candidate
+            .microledger
+            .verify(candidate.microledger.inception.get_id())?;
+        let did_valid = candidate.get_digest() == new_did.get_digest();
+        check!(did_valid, IdentityError::InvalidNext);
+        let did_doc_digest = hash(
+            serde_json::to_string(&candidate.did_doc)
+                .unwrap()
+                .as_bytes(),
+        );
+        check!(
+            did_doc_digest == verified.current_doc_digest,
+            IdentityError::InvalidDocumentDigest
+        );
+        Ok(true)
+    }
+
+    pub fn get_digest(&self) -> String {
+        let digest = hash(serde_json::to_string(&self).unwrap().as_bytes());
+        crate::encode(digest)
+    }
+
+    fn set_doc_proof(&mut self, doc: IdDocument, secret_key: Vec<u8>) {
+        let change = EventLogChange::SetDocument(DocumentDigest {
+            value: doc.get_digest(),
+        });
+        let public_key = to_verification_publickey(secret_key.clone());
+        let payload = EventLogPayload {
+            previous: self.microledger.get_previous_id(),
+            change: change,
+            signer_publickey: public_key,
+        };
+        let event_log = EventLog::new(payload, secret_key.clone());
+        self.microledger.events.push(event_log);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn create_with_secrets_test() {
+        let result = create_did();
+        let id = "bagaaierazg6rvoe5xoqcmbiz3qf2mztwl23g2vvmamotvm7rpv2fvgybo4qq";
+        println!("{:?}", serde_json::to_string_pretty(&result.did).unwrap());
+        assert_eq!(result.did.microledger.id, id);
+        assert_eq!(result.did.id, format!("did:p2p:{}", id));
+    }
+
+    #[test]
+    fn set_doc_test() {
+        let mut result = create_did();
+        let old_doc_authentication = result.did.did_doc.authentication[0].clone();
+        let new_doc = IdDocument::new(result.did.id.clone());
+        result.did.save_event(IdentityEvent::ChangeDoc {
+            doc: new_doc.doc,
+            signer: result.signer_secret.clone(),
+        });
+        assert_eq!(result.did.microledger.events.len(), 2);
+        assert_ne!(result.did.did_doc.authentication[0], old_doc_authentication);
+    }
+
+    #[test]
+    fn is_next_ok_test() {
+        let mut result = create_did();
+        let current = result.did.clone();
+        //result.did.set_doc(result.signer_secret.clone());
+        let r = current.is_next(result.did.clone());
+        assert!(r.is_ok());
+    }
+
+    #[test]
+    fn is_next_invaliddoc_test() {
+        let mut result = create_did();
+        let current = result.did.clone();
+        let secret = multibase::decode("beilmx4d76udjmug5ykpy657qa3pfsqbcu7fbbtuk3mgrdrxssseq")
+            .unwrap()
+            .1;
+        result.did.did_doc = IdDocument::new_with_secrets(
+            result.did.microledger.id.clone(),
+            secret.clone(),
+            secret.clone(),
+            secret.clone(),
+        )
+        .doc;
+        let r = current.is_next(result.did.clone());
+        assert!(matches!(
+            r,
+            Err(crate::IdentityError::InvalidDocumentDigest)
+        ));
+    }
+
+    fn create_did() -> CreateIdentityResult {
+        let signer_secret =
+            multibase::decode("beilmx4d76udjmug5ykpy657qa3pfsqbcu7fbbtuk3mgrdrxssseq")
+                .unwrap()
+                .1;
+        let recovery_secret =
+            multibase::decode("blunvrc23gte2nwj7cbf3sjszie7ti3bc6xk257a6rfjcsxwxpuwa")
+                .unwrap()
+                .1;
+        let assertion_secret = create_secret_key();
+        let authentication_secret = create_secret_key();
+        let keyagreement_secret = create_secret_key();
+        Identity::new_with_secrets(
+            signer_secret,
+            recovery_secret,
+            assertion_secret,
+            authentication_secret,
+            keyagreement_secret,
+        )
+    }
+}
+
+/*
     pub fn set_doc(&mut self, secret_key: Vec<u8>) -> CreateDocResult {
         let assertion_secret = create_secret_key();
         let authentication_secret = create_secret_key();
@@ -146,121 +333,4 @@ impl Identity {
             recovery_secret: recovery_secret,
         }
     }
-
-    pub fn is_next(&self, new_did: Identity) -> Result<bool, IdentityError> {
-        let mut candidate = self.clone();
-        let last_id = candidate.microledger.events.last().unwrap().get_id();
-        let mut is_last = false;
-        for event in &new_did.microledger.events {
-            if is_last {
-                candidate.microledger.events.push(event.clone());
-            }
-            if event.get_id() == last_id {
-                is_last = true;
-            }
-        }
-        candidate.did_doc = new_did.did_doc.clone();
-        let verified = candidate
-            .microledger
-            .verify(candidate.microledger.inception.get_id())?;
-        let did_valid = candidate.get_digest() == new_did.get_digest();
-        check!(did_valid, IdentityError::InvalidNext);
-        let did_doc_digest = hash(
-            serde_json::to_string(&candidate.did_doc)
-                .unwrap()
-                .as_bytes(),
-        );
-        check!(
-            did_doc_digest == verified.current_doc_digest,
-            IdentityError::InvalidDocumentDigest
-        );
-        Ok(true)
-    }
-
-    pub fn get_digest(&self) -> String {
-        let digest = hash(serde_json::to_string(&self).unwrap().as_bytes());
-        crate::encode(digest)
-    }
-
-    fn set_doc_proof(&mut self, doc: IdDocument, secret_key: Vec<u8>) {
-        let change = EventLogChange::SetDocument(DocumentDigest {
-            value: doc.to_hash(),
-        });
-        let public_key = to_verification_publickey(secret_key.clone());
-        let payload = EventLogPayload {
-            previous: self.microledger.get_previous_id(),
-            change: change,
-            signer_publickey: public_key,
-        };
-        let event_log = EventLog::new(payload, secret_key.clone());
-        self.microledger.events.push(event_log);
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    #[test]
-    fn create_with_secrets_test() {
-        let result = create_did();
-        let id = "bagaaierazg6rvoe5xoqcmbiz3qf2mztwl23g2vvmamotvm7rpv2fvgybo4qq";
-        println!("{:?}", serde_json::to_string_pretty(&result.did).unwrap());
-        assert_eq!(result.did.microledger.id, id);
-    }
-
-    #[test]
-    fn set_doc_test() {
-        let mut result = create_did();
-        let old_doc_authentication = result.did.did_doc.authentication[0].clone();
-        result.did.set_doc(result.signer_secret.clone());
-        assert_eq!(result.did.microledger.events.len(), 2);
-        assert_ne!(result.did.did_doc.authentication[0], old_doc_authentication);
-    }
-
-    #[test]
-    fn is_next_ok_test() {
-        let mut result = create_did();
-        let current = result.did.clone();
-        result.did.set_doc(result.signer_secret.clone());
-        let r = current.is_next(result.did.clone());
-        assert!(r.is_ok());
-    }
-
-    #[test]
-    fn is_next_invaliddoc_test() {
-        let mut result = create_did();
-        let current = result.did.clone();
-        let secret = multibase::decode("beilmx4d76udjmug5ykpy657qa3pfsqbcu7fbbtuk3mgrdrxssseq")
-            .unwrap()
-            .1;
-        result.did.did_doc = IdDocument::new(
-            result.did.microledger.id.clone(),
-            secret.clone(),
-            secret.clone(),
-            secret.clone(),
-        ).doc;
-        let r = current.is_next(result.did.clone());
-        assert!(matches!(r, Err(crate::IdentityError::InvalidDocumentDigest)));
-    }
-
-    fn create_did() -> CreateIdentityResult {
-        let signer_secret =
-            multibase::decode("beilmx4d76udjmug5ykpy657qa3pfsqbcu7fbbtuk3mgrdrxssseq")
-                .unwrap()
-                .1;
-        let recovery_secret =
-            multibase::decode("blunvrc23gte2nwj7cbf3sjszie7ti3bc6xk257a6rfjcsxwxpuwa")
-                .unwrap()
-                .1;
-        let assertion_secret = create_secret_key();
-        let authentication_secret = create_secret_key();
-        let keyagreement_secret = create_secret_key();
-        Identity::new_with_secrets(
-            signer_secret,
-            recovery_secret,
-            assertion_secret,
-            authentication_secret,
-            keyagreement_secret,
-        )
-    }
-}
+*/

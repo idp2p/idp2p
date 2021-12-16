@@ -1,9 +1,10 @@
-use crate::behaviour::IdentityGossipBehaviour;
-use crate::id_message::{IdentityCommand, IdentityMessage};
+use crate::id_behaviour::IdentityGossipBehaviour;
+use crate::id_message::{IdentityMessageType, IdentityMessage};
 use crate::wallet::Wallet;
 use core::did::Identity;
 use libp2p::gossipsub::IdentTopic;
 
+#[derive(PartialEq, Debug, Clone)]
 pub enum Commands {
     Get {
         id: String,
@@ -34,7 +35,7 @@ impl Commands {
             Commands::Get { id } => {
                 let gossipsub_topic = IdentTopic::new(id.clone());
                 behaviour.gossipsub.subscribe(&gossipsub_topic).unwrap();
-                behaviour.publish(id.clone(), IdentityMessage::new(IdentityCommand::Get));
+                behaviour.publish(id.clone(), IdentityMessage::new(IdentityMessageType::Get));
             }
             Commands::Resolve { id } => {
                 let identity: Identity =
@@ -53,38 +54,38 @@ impl Commands {
             }
             Commands::SetProof { name, key, value } => {
                 let mut wallet = Wallet::get(name);
-                wallet.did.set_proof(
+                /*wallet.did.set_proof(
                     wallet.signer_secret.clone(),
                     key.as_bytes().to_vec(),
                     value.as_bytes().to_vec(),
-                );
+                );*/
                 Wallet::update(name, &wallet);
                 behaviour.publish(
                     wallet.did.id.clone(),
-                    IdentityMessage::new(IdentityCommand::Post(wallet.did)),
+                    IdentityMessage::new(IdentityMessageType::Post(wallet.did)),
                 );
             }
             Commands::Recover { name } => {
                 let mut wallet = Wallet::get(name);
-                let result = wallet.did.recover(wallet.recovery_secret.clone());
-                wallet.recovery_secret = result.recovery_secret;
-                wallet.signer_secret = result.signer_secret;
+               // let result = wallet.did.recover(wallet.recovery_secret.clone());
+                //wallet.recovery_secret = result.recovery_secret;
+                //wallet.signer_secret = result.signer_secret;
                 Wallet::update(name, &wallet);
                 behaviour.publish(
                     wallet.did.id.clone(),
-                    IdentityMessage::new(IdentityCommand::Post(wallet.did)),
+                    IdentityMessage::new(IdentityMessageType::Post(wallet.did)),
                 );
             }
             Commands::ChangeDoc { name } => {
                 let mut wallet = Wallet::get(name);
-                let result = wallet.did.set_doc(wallet.signer_secret.clone());
-                wallet.assertion_secret = result.assertion_secret;
-                wallet.authentication_secret = result.authentication_secret;
-                wallet.keyagreement_secret = result.keyagreement_secret;
+                //let result = wallet.did.set_doc(wallet.signer_secret.clone());
+                //wallet.assertion_secret = result.assertion_secret;
+                //wallet.authentication_secret = result.authentication_secret;
+                //wallet.keyagreement_secret = result.keyagreement_secret;
                 Wallet::update(name, &wallet);
                 behaviour.publish(
                     wallet.did.id.clone(),
-                    IdentityMessage::new(IdentityCommand::Post(wallet.did)),
+                    IdentityMessage::new(IdentityMessageType::Post(wallet.did)),
                 );
             }
             Commands::Unknown => println!("Unknown command"),

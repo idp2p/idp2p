@@ -6,12 +6,12 @@ use rand::prelude::*;
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
 pub struct IdentityMessage {
     pub nonce: String,
-    pub command: IdentityCommand,
+    pub message: IdentityMessageType,
 }
 
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
 #[serde(tag = "type")]
-pub enum IdentityCommand {
+pub enum IdentityMessageType {
     #[serde(rename = "get")]
     Get,
     #[serde(rename = "post")]
@@ -19,7 +19,7 @@ pub enum IdentityCommand {
 }
 
 impl IdentityMessage {
-    pub fn new(command: IdentityCommand) -> IdentityMessage {
+    pub fn new(message: IdentityMessageType) -> IdentityMessage {
         let nonce: String = rand::thread_rng()
             .sample_iter(&Alphanumeric)
             .take(32)
@@ -27,7 +27,7 @@ impl IdentityMessage {
             .collect();
         IdentityMessage{
             nonce,
-            command
+            message
         }
     }
 }

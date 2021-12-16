@@ -1,4 +1,4 @@
-use crate::id_message::{IdentityCommand, IdentityMessage};
+use crate::id_message::{IdentityMessageType, IdentityMessage};
 use anyhow::Result;
 use core::did::Identity;
 use libp2p::{
@@ -75,16 +75,16 @@ impl NetworkBehaviourEventProcess<GossipsubEvent> for IdentityGossipBehaviour {
         {
             let topic = message.topic.to_string();
             let id_mes: IdentityMessage = serde_json::from_slice(&message.data).unwrap();
-            match id_mes.command {
-                IdentityCommand::Get => {
+            match id_mes.message {
+                IdentityMessageType::Get => {
                     let identity: Identity =
                         serde_json::from_str(&self.identities.get(&topic).unwrap()).unwrap();
                     self.publish(
                         topic.clone(),
-                        IdentityMessage::new(IdentityCommand::Post(identity)),
+                        IdentityMessage::new(IdentityMessageType::Post(identity)),
                     );
                 }
-                IdentityCommand::Post(identity) => {
+                IdentityMessageType::Post(identity) => {
                     let r = handle_post(self, topic.clone(), identity);
                     match r {
                         Ok(r) => match r {

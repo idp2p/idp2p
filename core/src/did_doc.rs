@@ -14,7 +14,7 @@ pub struct Service {
 #[skip_serializing_none]
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
 pub struct VerificationMethod {
-    pub id: String,        
+    pub id: String,
     pub controller: String,
     #[serde(rename = "type")]
     pub typ: String,
@@ -53,7 +53,19 @@ pub struct IdDocument {
 }
 
 impl IdDocument {
-    pub fn new(
+    pub fn new(id: String) -> CreateDocResult {
+        let assertion_secret = create_secret_key();
+        let authentication_secret = create_secret_key();
+        let key_agreement_secret = create_secret_key();
+        IdDocument::new_with_secrets(
+            id,
+            assertion_secret,
+            authentication_secret,
+            key_agreement_secret,
+        )
+    }
+
+    pub fn new_with_secrets(
         id: String,
         assertion_secret: Vec<u8>,
         authentication_secret: Vec<u8>,
@@ -93,9 +105,21 @@ impl IdDocument {
                 authentication.clone(),
                 key_agreement.clone(),
             ],
-            authentication: vec![format!("did:p2p:{}#{}", id.clone(), authentication.id.clone())],
-            assertion_method: vec![format!("did:p2p:{}#{}", id.clone(), assertion_method.id.clone())],
-            key_agreement: vec![format!("did:p2p:{}#{}", id.clone(), key_agreement.id.clone())],
+            authentication: vec![format!(
+                "did:p2p:{}#{}",
+                id.clone(),
+                authentication.id.clone()
+            )],
+            assertion_method: vec![format!(
+                "did:p2p:{}#{}",
+                id.clone(),
+                assertion_method.id.clone()
+            )],
+            key_agreement: vec![format!(
+                "did:p2p:{}#{}",
+                id.clone(),
+                key_agreement.id.clone()
+            )],
             services: vec![],
         };
         CreateDocResult {
@@ -106,7 +130,7 @@ impl IdDocument {
         }
     }
 
-    pub fn to_hash(&self) -> Vec<u8> {
+    pub fn get_digest(&self) -> Vec<u8> {
         hash(serde_json::to_string(&self).unwrap().as_bytes())
     }
 }
@@ -119,7 +143,7 @@ mod tests {
         let assertion_public = to_verification_publickey(create_secret_key());
         let authentication_public = to_verification_publickey(create_secret_key());
         let agreement_public = to_key_agreement_publickey(create_secret_key());
-        let doc_result = IdDocument::new(
+        let doc_result = IdDocument::new_with_secrets(
             "123456".to_string(),
             assertion_public,
             authentication_public,
