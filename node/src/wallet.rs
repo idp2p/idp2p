@@ -1,9 +1,10 @@
+use idp2p_core::did::CreateIdentityResult;
 use std::fs::OpenOptions;
 use std::fs::File;
 use std::io::Read;
-use core::did::Identity;
+use idp2p_core::did::Identity;
 use serde::{Deserialize, Serialize};
-use core::encode_me;
+use idp2p_core::encode_me;
 
 const WALLET_BASE_PATH: &str = "../target/";
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
@@ -22,20 +23,19 @@ pub struct Wallet {
 }
 
 impl Wallet {
-    pub fn create(name: &str) -> Wallet{
+    pub fn create(name: &str, id_result: CreateIdentityResult) -> Wallet{
         let wallet_path = &format!("{}{}.json", WALLET_BASE_PATH, name);
         if !std::path::Path::new(wallet_path).exists() {
             std::fs::File::create(wallet_path).unwrap();
         }
         let file = OpenOptions::new().write(true).open(wallet_path).unwrap();
-        let r = Identity::new();
         let wallet = Wallet{
-            did: r.did,
-            assertion_secret: r.assertion_secret,
-            authentication_secret: r.authentication_secret,
-            signer_secret: r.signer_secret,
-            recovery_secret: r.recovery_secret,
-            keyagreement_secret: r.keyagreement_secret
+            did: id_result.did,
+            assertion_secret: id_result.assertion_secret,
+            authentication_secret: id_result.authentication_secret,
+            signer_secret: id_result.signer_secret,
+            recovery_secret: id_result.recovery_secret,
+            keyagreement_secret: id_result.keyagreement_secret
         };
         serde_json::to_writer_pretty(&file, &wallet).unwrap();
         wallet

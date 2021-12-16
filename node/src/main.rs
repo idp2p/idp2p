@@ -1,5 +1,5 @@
+use crate::wallet::Wallet;
 use crate::id_command::IdentityCommand;
-use crate::commands::get_command;
 use crate::id_swarm::create;
 use libp2p::futures::StreamExt;
 use libp2p::swarm::SwarmEvent;
@@ -13,10 +13,10 @@ use tokio::io::{self, AsyncBufReadExt};
 struct Opt {
     #[structopt(short = "p", long = "port", default_value = "0")]
     port: u16,
-    #[structopt(short = "d", long = "dial")]
+    #[structopt(short = "a", long = "address")]
     dial_address: Option<String>,
-    #[structopt(short = "f", long = "folder", default_value = "../target/idp2p")]
-    folder: String,
+    #[structopt(short = "d", long = "dir", default_value = "../target/idp2p")]
+    dir: String,
 }
 
 #[tokio::main]
@@ -40,9 +40,10 @@ async fn main() -> Result<(), Box<dyn Error>> {
         tokio::select! {
             line = stdin.next_line() => {
                 let line = line?.expect("stdin closed");
-                let cmd = get_command(&line);
-                cmd.handle(swarm.behaviour_mut());
-                cmd_sender.send(IdentityCommand::Get{id: String::new()}).await.unwrap();
+                let cmd = id_command::handle_cmd(&line);
+                if let Some(id_cmd) = cmd{
+                    cmd_sender.send(id_cmd).await.unwrap();
+                }
             }
             event = swarm.select_next_some() => {
                 if let SwarmEvent::NewListenAddr { address, .. } = event {
@@ -50,19 +51,19 @@ async fn main() -> Result<(), Box<dyn Error>> {
                 }
             }
             message = receiver.recv() => {
-                if message.is_some(){
-                    println!("Got message: {:?}", message.unwrap());
+                if let Some(message) = message{
+                    println!("Got message: {:?}", message);
+                    message.handle(swarm.behaviour_mut());
                 }
             }
             () = warp::serve(routes.clone()).run(([127, 0, 0, 1], 3030)) => {}
         }
     }
 }
-
-pub mod commands;
+pub mod http;
 pub mod id_behaviour;
+pub mod id_command;
 pub mod id_message;
 pub mod id_swarm;
-pub mod id_command;
 pub mod wallet;
-pub mod http;
+pub mod id_store;

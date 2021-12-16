@@ -1,4 +1,4 @@
-use core::did::Identity;
+use idp2p_core::did::Identity;
 use serde::{Deserialize, Serialize};
 use rand::distributions::Alphanumeric;
 use rand::prelude::*;

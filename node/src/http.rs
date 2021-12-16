@@ -1,11 +1,5 @@
-use warp::{self, Filter};
 use crate::id_command::IdentityCommand;
-
-/*pub fn publish_message(message: String) -> Json {
-    // validate secret
-    // publish message
-    warp::reply::json(&id)
-}*/
+use warp::{self, Filter};
 
 pub fn routes(
     sender: tokio::sync::mpsc::Sender<IdentityCommand>,
@@ -16,10 +10,14 @@ pub fn routes(
         .and_then(resolve)
 }
 
+pub fn publish_message(message: String) -> Result<impl warp::Reply, warp::Rejection> {
+    Ok("sent on channel :)")
+}
+
 async fn resolve(
     id: String,
     sender: tokio::sync::mpsc::Sender<IdentityCommand>,
 ) -> Result<impl warp::Reply, warp::Rejection> {
-    sender.send(IdentityCommand::Get{id: id}).await.unwrap();
+    sender.send(IdentityCommand::Get { id: id }).await.unwrap();
     Ok("sent on channel :)")
 }

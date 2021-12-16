@@ -33,15 +33,6 @@ pub struct CreateIdentityResult {
     pub keyagreement_secret: Vec<u8>,
 }
 
-/*#[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
-pub struct RecoveryResult {
-    pub did: Identity,
-    #[serde(with = "encode_me")]
-    pub signer_secret: Vec<u8>,
-    #[serde(with = "encode_me")]
-    pub recovery_secret: Vec<u8>,
-}*/
-
 pub enum IdentityEvent {
     SetProof {
         key: Vec<u8>,
@@ -277,60 +268,3 @@ mod tests {
     }
 }
 
-/*
-    pub fn set_doc(&mut self, secret_key: Vec<u8>) -> CreateDocResult {
-        let assertion_secret = create_secret_key();
-        let authentication_secret = create_secret_key();
-        let key_agreement_secret = create_secret_key();
-        let doc_result = IdDocument::new(
-            self.microledger.id.clone(),
-            assertion_secret,
-            authentication_secret,
-            key_agreement_secret,
-        );
-        self.did_doc = doc_result.doc.clone();
-        self.set_doc_proof(doc_result.doc.clone(), secret_key);
-        doc_result
-    }
-
-    pub fn set_proof(&mut self, secret_key: Vec<u8>, key: Vec<u8>, value: Vec<u8>) {
-        let proof_stmt = ProofStatement {
-            key: key,
-            value: value,
-        };
-        let change = EventLogChange::SetProof(proof_stmt);
-        let signer_publickey = to_verification_publickey(secret_key.clone());
-        let payload = EventLogPayload {
-            previous: self.microledger.get_previous_id(),
-            change: change,
-            signer_publickey: signer_publickey,
-        };
-        let event_log = EventLog::new(payload, secret_key.clone());
-        //println!("Event log {:?}", event_log);
-        self.microledger.events.push(event_log);
-    }
-
-    pub fn recover(&mut self, secret_key: Vec<u8>) -> RecoveryResult {
-        let signer_secret = create_secret_key();
-        let recovery_secret = create_secret_key();
-        let signer_public = to_verification_publickey(signer_secret.clone());
-        let recovery_public = to_verification_publickey(recovery_secret.clone());
-        let change = EventLogChange::Recover(RecoverStatement {
-            next_signer_key: SignerKey::new(signer_public.clone()),
-            next_recovery_key: RecoveryKey::new(hash(&recovery_public)),
-        });
-        let signer_publickey = to_verification_publickey(secret_key.clone());
-        let payload = EventLogPayload {
-            previous: self.microledger.get_previous_id(),
-            change: change,
-            signer_publickey: signer_publickey,
-        };
-        let event_log = EventLog::new(payload, secret_key.clone());
-        self.microledger.events.push(event_log);
-        RecoveryResult {
-            did: self.clone(),
-            signer_secret: signer_secret,
-            recovery_secret: recovery_secret,
-        }
-    }
-*/

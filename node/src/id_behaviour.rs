@@ -1,6 +1,6 @@
 use crate::id_message::{IdentityMessageType, IdentityMessage};
 use anyhow::Result;
-use core::did::Identity;
+use idp2p_core::did::Identity;
 use libp2p::{
     gossipsub::{Gossipsub, GossipsubEvent, IdentTopic},
     mdns::{Mdns, MdnsEvent},
