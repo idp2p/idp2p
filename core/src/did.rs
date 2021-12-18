@@ -141,6 +141,22 @@ impl Identity {
         }
     }
 
+    pub fn verify(&self) -> Result<bool, IdentityError> {
+        let verified = self
+            .microledger
+            .verify(self.microledger.inception.get_id())?;
+        let did_doc_digest = hash(
+            serde_json::to_string(&self.did_doc)
+                .unwrap()
+                .as_bytes(),
+        );
+        check!(
+            did_doc_digest == verified.current_doc_digest,
+            IdentityError::InvalidDocumentDigest
+        );
+        Ok(true)
+    }
+
     pub fn is_next(&self, new_did: Identity) -> Result<bool, IdentityError> {
         let mut candidate = self.clone();
         let last_id = candidate.microledger.events.last().unwrap().get_id();
@@ -154,21 +170,9 @@ impl Identity {
             }
         }
         candidate.did_doc = new_did.did_doc.clone();
-        let verified = candidate
-            .microledger
-            .verify(candidate.microledger.inception.get_id())?;
         let did_valid = candidate.get_digest() == new_did.get_digest();
         check!(did_valid, IdentityError::InvalidNext);
-        let did_doc_digest = hash(
-            serde_json::to_string(&candidate.did_doc)
-                .unwrap()
-                .as_bytes(),
-        );
-        check!(
-            did_doc_digest == verified.current_doc_digest,
-            IdentityError::InvalidDocumentDigest
-        );
-        Ok(true)
+        candidate.verify()
     }
 
     pub fn get_digest(&self) -> String {

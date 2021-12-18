@@ -1,4 +1,5 @@
-use crate::id_message::{IdentityMessageType, IdentityMessage};
+use crate::file_store::FileStore;
+use crate::id_message::{IdentityMessage, IdentityMessageType};
 use anyhow::Result;
 use idp2p_core::did::Identity;
 use libp2p::{
@@ -24,44 +25,41 @@ enum PostResult {
     Skipped,
 }
 
-fn handle_post(
-    behaviour: &mut IdentityGossipBehaviour,
-    topic: String,
-    candidate: Identity,
-) -> Result<PostResult> {
-    let current = behaviour.identities.get(&topic);
-    match current {
-        None => {
-            behaviour.identities.insert(
-                topic.to_string(),
-                candidate.get_digest(),
-            );
-            Ok(PostResult::IdentityCreated)
-        }
-        Some(c) => {
-            let current_did: Identity = serde_json::from_str(c)?;
-            if current_did.get_digest() == candidate.get_digest() {
-                return Ok(PostResult::Skipped);
-            }
-            current_did.is_next(candidate.clone())?;
-            behaviour.identities.insert(
-                topic.to_string(),
-                serde_json::to_string(&candidate).unwrap(),
-            );
-            Ok(PostResult::IdentityUpdated)
-        }
-    }
-}
-
 impl IdentityGossipBehaviour {
-    pub fn publish(&mut self, topic: String, idm: IdentityMessage) {
-        let gossip_topic = IdentTopic::new(topic.clone());
-        let json_str = serde_json::to_string(&idm).unwrap();
+    pub fn publish(&mut self, id: String, mes: IdentityMessage) {
+        let gossip_topic = IdentTopic::new(id.clone());
+        let json_str = serde_json::to_string(&mes).unwrap();
         let result = self.gossipsub.publish(gossip_topic, json_str.as_bytes());
         match result {
-            Ok(_) => println!("Published id: {}", topic.clone()),
+            Ok(_) => println!("Published id: {}", id.clone()),
             Err(e) => println!("Publish error, {:?}", e),
         }
+    }
+
+    fn handle_post(&mut self, candidate_digest: &str, candidate: Identity) -> Result<PostResult> {
+        let current = self.identities.get(&candidate.id);
+        match current {
+            None => {
+                candidate.verify()?;
+                self.save(candidate.clone());
+                Ok(PostResult::IdentityCreated)
+            }
+            Some(digest) => {
+                if digest == candidate_digest {
+                    return Ok(PostResult::Skipped);
+                }
+                let current_did: Identity = FileStore.get("identities", &candidate.id).unwrap();
+                current_did.is_next(candidate.clone())?;
+                self.save(candidate.clone());
+                Ok(PostResult::IdentityUpdated)
+            }
+        }
+    }
+
+    fn save(&mut self, candidate: Identity) {
+        self.identities
+            .insert(candidate.id.clone(), candidate.get_digest());
+        FileStore.put("identities", &candidate.id, candidate.clone());
     }
 }
 
@@ -73,23 +71,24 @@ impl NetworkBehaviourEventProcess<GossipsubEvent> for IdentityGossipBehaviour {
             message,
         } = message
         {
-            let topic = message.topic.to_string();
+            let id = message.topic.to_string();
             let id_mes: IdentityMessage = serde_json::from_slice(&message.data).unwrap();
             match id_mes.message {
                 IdentityMessageType::Get => {
                     let identity: Identity =
-                        serde_json::from_str(&self.identities.get(&topic).unwrap()).unwrap();
-                    self.publish(
-                        topic.clone(),
-                        IdentityMessage::new(IdentityMessageType::Post(identity)),
-                    );
+                        serde_json::from_str(&self.identities.get(&id).unwrap()).unwrap();
+                    let post = IdentityMessageType::Post {
+                        digest: identity.get_digest(),
+                        identity: identity.clone(),
+                    };
+                    self.publish(id.clone(), IdentityMessage::new(post));
                 }
-                IdentityMessageType::Post(identity) => {
-                    let r = handle_post(self, topic.clone(), identity);
-                    match r {
-                        Ok(r) => match r {
-                            PostResult::IdentityCreated => println!("Identity created {}", &topic),
-                            PostResult::IdentityUpdated => println!("Identity updated {}", &topic),
+                IdentityMessageType::Post { digest, identity } => {
+                    let result = self.handle_post(&digest, identity);
+                    match result {
+                        Ok(result) => match result {
+                            PostResult::IdentityCreated => println!("Identity created {}", &id),
+                            PostResult::IdentityUpdated => println!("Identity updated {}", &id),
                             _ => {}
                         },
                         Err(e) => println!("Error {}", e),

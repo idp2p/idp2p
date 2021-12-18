@@ -1,3 +1,4 @@
+use crate::file_store::FileStore;
 use crate::id_behaviour::IdentityGossipBehaviour;
 use crate::id_message::{IdentityMessage, IdentityMessageType};
 use idp2p_core::did::Identity;
@@ -18,10 +19,11 @@ impl IdentityCommand {
                 let id = did.id.clone();
                 let gossipsub_topic = IdentTopic::new(did.id.clone());
                 behaviour.gossipsub.subscribe(&gossipsub_topic).unwrap();
-                behaviour.publish(
-                    id.clone(),
-                    IdentityMessage::new(IdentityMessageType::Post(did.clone())),
-                );
+                let post = IdentityMessageType::Post {
+                    digest: did.get_digest(),
+                    identity: did.clone(),
+                };
+                behaviour.publish(id.clone(), IdentityMessage::new(post));
             }
             IdentityCommand::Get { id } => {
                 let gossipsub_topic = IdentTopic::new(id.clone());
@@ -39,11 +41,10 @@ pub fn handle_cmd(input: &str) -> Option<IdentityCommand> {
         "create-id" => {
             let name = input[1];
             let identity_result = Identity::new();
-           // Wallet::create(name, identity_result.clone());
+            FileStore.put("accounts", name, identity_result);
         }
         "change-doc" => {
             let name = input[1].to_string();
-            
         }
         "set-proof" => {
             let name = input[1].to_string();

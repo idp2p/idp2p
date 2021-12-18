@@ -1,7 +1,7 @@
 use idp2p_core::did::Identity;
-use serde::{Deserialize, Serialize};
 use rand::distributions::Alphanumeric;
 use rand::prelude::*;
+use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
 pub struct IdentityMessage {
@@ -15,7 +15,7 @@ pub enum IdentityMessageType {
     #[serde(rename = "get")]
     Get,
     #[serde(rename = "post")]
-    Post(Identity),
+    Post { digest: String, identity: Identity },
 }
 
 impl IdentityMessage {
@@ -25,9 +25,6 @@ impl IdentityMessage {
             .take(32)
             .map(char::from)
             .collect();
-        IdentityMessage{
-            nonce,
-            message
-        }
+        IdentityMessage { nonce, message }
     }
 }

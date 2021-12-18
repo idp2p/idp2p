@@ -3,11 +3,11 @@ use crate::id_swarm::create;
 use libp2p::futures::StreamExt;
 use libp2p::swarm::SwarmEvent;
 use libp2p::Multiaddr;
+use qrcode::render::unicode;
+use qrcode::QrCode;
 use std::error::Error;
 use structopt::StructOpt;
 use tokio::io::{self, AsyncBufReadExt};
-use qrcode::QrCode;
-use qrcode::render::unicode;
 
 #[derive(Debug, StructOpt)]
 #[structopt(name = "idp2p", about = "Usage of idp2p.")]
@@ -16,25 +16,35 @@ struct Opt {
     port: u16,
     #[structopt(short = "a", long = "address")]
     dial_address: Option<String>,
-    #[structopt(short = "d", long = "dir", default_value = "../target/idp2p")]
+    #[structopt(short = "d", long = "dir", default_value = "../target")]
     dir: String,
 }
 
-#[tokio::main]
-async fn main() -> Result<(), Box<dyn Error>> {
-    env_logger::init();
-    let opt = Opt::from_args();
-    let mut stdin = io::BufReader::new(io::stdin()).lines();
-    let mut swarm = create(opt.port).await?;
+fn init(base_path: &str) -> String {
+    std::env::set_var("BASE_PATH", base_path);
+    let id_path = format!("{}/identities", base_path);
+    let ac_path = format!("{}/accounts", base_path);
+    std::fs::create_dir_all(id_path).unwrap();
+    std::fs::create_dir_all(ac_path).unwrap();
     let secret = idp2p_core::create_secret_key();
     let token = idp2p_core::encode(secret);
     let code = QrCode::new(token.clone()).unwrap();
-    let image = code.render::<unicode::Dense1x2>()
+    let image = code
+        .render::<unicode::Dense1x2>()
         .dark_color(unicode::Dense1x2::Light)
         .light_color(unicode::Dense1x2::Dark)
         .build();
     println!("{}", image);
     println!("Access token: {}", token);
+    token
+}
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn Error>> {
+    let opt = Opt::from_args();
+    let mut stdin = io::BufReader::new(io::stdin()).lines();
+    let mut swarm = create(opt.port).await?;
+    let token = init(&opt.dir);
     if let Some(to_dial) = opt.dial_address {
         let address: Multiaddr = to_dial.parse().expect("Invalid address.");
         match swarm.dial(address.clone()) {
@@ -70,9 +80,9 @@ async fn main() -> Result<(), Box<dyn Error>> {
         }
     }
 }
+pub mod file_store;
 pub mod http;
 pub mod id_behaviour;
 pub mod id_command;
 pub mod id_message;
 pub mod id_swarm;
-pub mod file_store;

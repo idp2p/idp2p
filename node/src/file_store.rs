@@ -16,7 +16,7 @@ impl FileStore {
         serde_json::to_writer_pretty(&file, &value).unwrap();
     }
 
-    pub async fn get<T: DeserializeOwned>(&self, entity: &str, id: &str) -> Option<T> {
+    pub fn get<T: DeserializeOwned>(&self, entity: &str, id: &str) -> Option<T> {
         let path = FileStore::get_path(entity, id);
         let mut file = File::open(&path).unwrap();
         let mut buff = String::new();
