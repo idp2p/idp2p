@@ -14,4 +14,5 @@ tokio = { version = "1.13.0", features = ["full"] }
 rand = "0.8.4"
 async-trait = "0.1.52"
 warp = "0.3.2"
+qrcode = "0.12.0"
 idp2p_core = { version = "0.1.0", path = "../core" }

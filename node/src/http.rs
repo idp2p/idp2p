@@ -2,6 +2,7 @@ use crate::id_command::IdentityCommand;
 use warp::{self, Filter};
 
 pub fn routes(
+    token: &str,
     sender: tokio::sync::mpsc::Sender<IdentityCommand>,
 ) -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone {
     let send_filter = warp::any().map(move || sender.clone());

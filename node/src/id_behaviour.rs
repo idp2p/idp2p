@@ -34,7 +34,7 @@ fn handle_post(
         None => {
             behaviour.identities.insert(
                 topic.to_string(),
-                serde_json::to_string(&candidate).unwrap(),
+                candidate.get_digest(),
             );
             Ok(PostResult::IdentityCreated)
         }

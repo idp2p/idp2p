@@ -1,4 +1,3 @@
-use crate::wallet::Wallet;
 use crate::id_command::IdentityCommand;
 use crate::id_swarm::create;
 use libp2p::futures::StreamExt;
@@ -7,6 +6,8 @@ use libp2p::Multiaddr;
 use std::error::Error;
 use structopt::StructOpt;
 use tokio::io::{self, AsyncBufReadExt};
+use qrcode::QrCode;
+use qrcode::render::unicode;
 
 #[derive(Debug, StructOpt)]
 #[structopt(name = "idp2p", about = "Usage of idp2p.")]
@@ -25,7 +26,15 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let opt = Opt::from_args();
     let mut stdin = io::BufReader::new(io::stdin()).lines();
     let mut swarm = create(opt.port).await?;
-
+    let secret = idp2p_core::create_secret_key();
+    let token = idp2p_core::encode(secret);
+    let code = QrCode::new(token.clone()).unwrap();
+    let image = code.render::<unicode::Dense1x2>()
+        .dark_color(unicode::Dense1x2::Light)
+        .light_color(unicode::Dense1x2::Dark)
+        .build();
+    println!("{}", image);
+    println!("Access token: {}", token);
     if let Some(to_dial) = opt.dial_address {
         let address: Multiaddr = to_dial.parse().expect("Invalid address.");
         match swarm.dial(address.clone()) {
@@ -35,7 +44,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     }
     let (sender, mut receiver) = tokio::sync::mpsc::channel::<IdentityCommand>(100);
     let cmd_sender = sender.clone();
-    let routes = http::routes(sender.clone());
+    let routes = http::routes(&token, sender.clone());
     loop {
         tokio::select! {
             line = stdin.next_line() => {
@@ -53,6 +62,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
             message = receiver.recv() => {
                 if let Some(message) = message{
                     println!("Got message: {:?}", message);
+                    //let c = FileStore.get::<idp2p_core::did::Identity>("", "").await;
                     message.handle(swarm.behaviour_mut());
                 }
             }
@@ -65,5 +75,4 @@ pub mod id_behaviour;
 pub mod id_command;
 pub mod id_message;
 pub mod id_swarm;
-pub mod wallet;
-pub mod id_store;
+pub mod file_store;
