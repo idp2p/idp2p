@@ -71,12 +71,10 @@ async fn main() -> Result<(), Box<dyn Error>> {
             }
             message = receiver.recv() => {
                 if let Some(message) = message{
-                    println!("Got message: {:?}", message);
-                    //let c = FileStore.get::<idp2p_core::did::Identity>("", "").await;
                     message.handle(swarm.behaviour_mut());
                 }
             }
-            () = warp::serve(routes.clone()).run(([127, 0, 0, 1], 3030)) => {}
+            () = warp::serve(routes.clone()).run(([127, 0, 0, 1], opt.port + 1)) => {}
         }
     }
 }

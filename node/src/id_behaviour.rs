@@ -75,8 +75,7 @@ impl NetworkBehaviourEventProcess<GossipsubEvent> for IdentityGossipBehaviour {
             let id_mes: IdentityMessage = serde_json::from_slice(&message.data).unwrap();
             match id_mes.message {
                 IdentityMessageType::Get => {
-                    let identity: Identity =
-                        serde_json::from_str(&self.identities.get(&id).unwrap()).unwrap();
+                    let identity: Identity = FileStore.get("identities", &id).unwrap();
                     let post = IdentityMessageType::Post {
                         digest: identity.get_digest(),
                         identity: identity.clone(),

@@ -77,14 +77,15 @@ impl Identity {
         let signer_public = to_verification_publickey(signer_secret.clone());
         let recovery_public_bytes: [u8; 32] = rec_public.try_into().unwrap();
         let ledger = MicroLedger::new(signer_public, hash(&recovery_public_bytes));
+        let id = ledger.inception.get_id();
         let doc_result = IdDocument::new_with_secrets(
-            ledger.id.clone(),
+            id.clone(),
             assertion_secret,
             authentication_secret,
             keyagreement_secret,
         );
         let mut did = Identity {
-            id: format!("did:p2p:{}", ledger.id.clone()),
+            id: id.clone(),
             microledger: ledger,
             did_doc: doc_result.doc.clone(),
         };
@@ -145,11 +146,7 @@ impl Identity {
         let verified = self
             .microledger
             .verify(self.microledger.inception.get_id())?;
-        let did_doc_digest = hash(
-            serde_json::to_string(&self.did_doc)
-                .unwrap()
-                .as_bytes(),
-        );
+        let did_doc_digest = hash(serde_json::to_string(&self.did_doc).unwrap().as_bytes());
         check!(
             did_doc_digest == verified.current_doc_digest,
             IdentityError::InvalidDocumentDigest
@@ -203,8 +200,7 @@ mod tests {
         let result = create_did();
         let id = "bagaaierazg6rvoe5xoqcmbiz3qf2mztwl23g2vvmamotvm7rpv2fvgybo4qq";
         println!("{:?}", serde_json::to_string_pretty(&result.did).unwrap());
-        assert_eq!(result.did.microledger.id, id);
-        assert_eq!(result.did.id, format!("did:p2p:{}", id));
+        assert_eq!(result.did.id, id);
     }
 
     #[test]
@@ -237,15 +233,15 @@ mod tests {
             .unwrap()
             .1;
         result.did.did_doc = IdDocument::new_with_secrets(
-            result.did.microledger.id.clone(),
+            result.did.id.clone(),
             secret.clone(),
             secret.clone(),
             secret.clone(),
         )
         .doc;
-        let r = current.is_next(result.did.clone());
+        let is_next = current.is_next(result.did.clone());
         assert!(matches!(
-            r,
+            is_next,
             Err(crate::IdentityError::InvalidDocumentDigest)
         ));
     }
@@ -271,4 +267,3 @@ mod tests {
         )
     }
 }
-

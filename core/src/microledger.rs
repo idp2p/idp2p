@@ -28,7 +28,6 @@ impl MicroLedgerInception {
 
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
 pub struct MicroLedger {
-    pub id: String, // incepiton id
     pub inception: MicroLedgerInception,
     pub events: Vec<EventLog>,
 }
@@ -41,9 +40,7 @@ impl MicroLedger {
             signer_key: signer_key,
             recovery_key: recovery_key,
         };
-        let id = inception.get_id();
         MicroLedger {
-            id,
             inception,
             events: vec![],
         }
@@ -112,14 +109,13 @@ mod tests {
         let inception_public = create_secret_key();
         let ledger = MicroLedger::new(inception_public.clone(), hash(&inception_public));
         assert_eq!(ledger.events.len(), 0);
-        assert_eq!(ledger.inception.get_id(), ledger.id);
     }
 
     #[test]
     fn verify_test() {
         let inception_public = to_verification_publickey(create_secret_key());
         let ledger = MicroLedger::new(inception_public.clone(), hash(&inception_public));
-        let r = ledger.verify(ledger.id.clone());
+        let r = ledger.verify(ledger.inception.get_id());
         assert!(r.is_ok());
     }
 
@@ -127,8 +123,8 @@ mod tests {
     fn verify_invalid_cid_test() {
         let inception_public = to_verification_publickey(create_secret_key());
         let mut ledger = MicroLedger::new(inception_public.clone(), hash(&inception_public));
-        ledger.id = format!("{}.", ledger.id);
-        let result = ledger.verify(ledger.id.clone());
+        let id = format!("{}.", ledger.inception.get_id());
+        let result = ledger.verify(id);
         assert!(matches!(result, Err(crate::IdentityError::InvalidId)));
     }
 
@@ -145,7 +141,7 @@ mod tests {
         let log = EventLog::new(payload, signer_secret);
         ledger.events.push(log);
         ledger.events[0].payload.previous = String::from("aa");
-        let result = ledger.verify(ledger.id.clone());
+        let result = ledger.verify(ledger.inception.get_id());
         assert!(matches!(result, Err(crate::IdentityError::InvalidPrevious)));
     }
 
@@ -162,7 +158,7 @@ mod tests {
         let log = EventLog::new(payload, signer_secret);
         ledger.events.push(log);
         ledger.events[0].proof = vec![0; 64];
-        let result = ledger.verify(ledger.id.clone());
+        let result = ledger.verify(ledger.inception.get_id());
         assert!(matches!(result, Err(crate::IdentityError::InvalidEventSignature)));
         /*match result {
             Ok(_) => println!("Success"),
@@ -193,7 +189,7 @@ mod tests {
         };
         let log = EventLog::new(payload, signer_secret);
         ledger.events.push(log);
-        let result = ledger.verify(ledger.id.clone());
+        let result = ledger.verify(ledger.inception.get_id());
         assert!(matches!(result, Err(crate::IdentityError::InvalidSigner)));
     }
 
@@ -213,7 +209,7 @@ mod tests {
         };
         let log_rec = EventLog::new(payload_rec, signer_secret.clone());
         ledger.events.push(log_rec.clone());
-        let result = ledger.verify(ledger.id.clone());
+        let result = ledger.verify(ledger.inception.get_id());
         assert!(matches!(result, Err(crate::IdentityError::InvalidRecovery)));
     }
 }

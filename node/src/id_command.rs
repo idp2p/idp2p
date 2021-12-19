@@ -19,11 +19,16 @@ impl IdentityCommand {
                 let id = did.id.clone();
                 let gossipsub_topic = IdentTopic::new(did.id.clone());
                 behaviour.gossipsub.subscribe(&gossipsub_topic).unwrap();
-                let post = IdentityMessageType::Post {
-                    digest: did.get_digest(),
-                    identity: did.clone(),
-                };
-                behaviour.publish(id.clone(), IdentityMessage::new(post));
+                if behaviour.identities.contains_key(&id) {
+                    let post = IdentityMessageType::Post {
+                        digest: did.get_digest(),
+                        identity: did.clone(),
+                    };
+                    behaviour.publish(id.clone(), IdentityMessage::new(post));
+                } else {
+                    behaviour.identities.insert(id.clone(), did.get_digest());
+                    FileStore.put("identities", &did.id, did);
+                }
             }
             IdentityCommand::Get { id } => {
                 let gossipsub_topic = IdentTopic::new(id.clone());
@@ -41,7 +46,14 @@ pub fn handle_cmd(input: &str) -> Option<IdentityCommand> {
         "create-id" => {
             let name = input[1];
             let identity_result = Identity::new();
-            FileStore.put("accounts", name, identity_result);
+            FileStore.put("accounts", name, identity_result.clone());
+            return Some(IdentityCommand::Post {
+                did: identity_result.did,
+            });
+        }
+        "get" => {
+            let id = input[1].to_string();
+            return Some(IdentityCommand::Get { id });
         }
         "change-doc" => {
             let name = input[1].to_string();

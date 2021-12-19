@@ -29,3 +29,14 @@ impl FileStore {
         format!("{}/{}/{}.json", base_path, entity, id)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn get_path_test() {
+        std::env::set_var("BASE_PATH", "idp2p");
+        let path = FileStore::get_path("identities", "123");
+        assert_eq!(path, "idp2p/identities/123.json");
+    }
+}
