@@ -1,6 +1,6 @@
 use crate::eventlog::{EventLog, EventLogChange};
 use crate::IdentityError;
-use crate::{generate_cid, hash, RecoveryKey, SignerKey};
+use crate::{generate_cid, hash, IdKey};
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -8,16 +8,16 @@ use std::collections::HashMap;
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
 pub struct MicroLedgerState {
     pub current_event_id: String,
-    pub current_signer_key: SignerKey,
-    pub current_recovery_key: RecoveryKey,
+    pub current_signer_key: IdKey,
+    pub current_recovery_key: IdKey,
     pub current_proofs: HashMap<Vec<u8>, Vec<u8>>, // extract only current value
     pub current_doc_digest: Vec<u8>,
 }
 
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
 pub struct MicroLedgerInception {
-    pub signer_key: SignerKey,
-    pub recovery_key: RecoveryKey,
+    pub signer_key: IdKey,
+    pub recovery_key: IdKey,
 }
 
 impl MicroLedgerInception {
@@ -34,8 +34,8 @@ pub struct MicroLedger {
 
 impl MicroLedger {
     pub fn new(signer_key: Vec<u8>, recovery_key_digest: Vec<u8>) -> MicroLedger {
-        let signer_key = SignerKey::new(signer_key);
-        let recovery_key = RecoveryKey::new(recovery_key_digest);
+        let signer_key = IdKey::new(signer_key);
+        let recovery_key = IdKey::new(recovery_key_digest);
         let inception = MicroLedgerInception {
             signer_key: signer_key,
             recovery_key: recovery_key,

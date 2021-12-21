@@ -123,12 +123,12 @@ impl Identity {
                 signer,
             } => {
                 let change = EventLogChange::Recover(RecoverStatement {
-                    next_signer_key: SignerKey::new(new_signer.clone()),
-                    next_recovery_key: RecoveryKey::new(hash(&new_recovery)),
+                    next_recovery_key: IdKey::new(hash(&new_recovery)),
                 });
                 let signer_publickey = to_verification_publickey(signer.clone());
                 let payload = EventLogPayload {
                     previous: self.microledger.get_previous_id(),
+                    next_signer_key: IdKey::new(new_signer.clone()),
                     change: change,
                     signer_publickey: signer_publickey,
                 };

@@ -1,6 +1,5 @@
 use crate::encode_me;
-use crate::RecoveryKey;
-use crate::SignerKey;
+use crate::IdKey;
 use ed25519_dalek::{PublicKey, Signature, Signer, Verifier};
 use serde::{Deserialize, Serialize};
 use std::convert::TryInto;
@@ -15,8 +14,8 @@ pub struct ProofStatement {
 
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
 pub struct RecoverStatement {
-    pub next_signer_key: SignerKey,
-    pub next_recovery_key: RecoveryKey,
+    #[serde(rename = "nextRecoveryKey")]
+    pub next_recovery_key: IdKey,
 }
 
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
@@ -28,19 +27,22 @@ pub struct DocumentDigest {
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
 #[serde(tag = "type")]
 pub enum EventLogChange {
-    #[serde(rename = "set_proof")]
+    #[serde(rename = "SetProof")]
     SetProof(ProofStatement),
-    #[serde(rename = "recover")]
+    #[serde(rename = "SetRecoveryKey")]
     Recover(RecoverStatement),
-    #[serde(rename = "set_document")]
+    #[serde(rename = "SetDocument")]
     SetDocument(DocumentDigest),
 }
 
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
 pub struct EventLogPayload {
-    pub previous: String, // if first = inception
+    pub previous: String, 
     #[serde(with = "encode_me")]
-    pub signer_publickey: Vec<u8>, // if recover = recover, else = signer_key
+    #[serde(rename = "signerPublic")]
+    pub signer_publickey: Vec<u8>, 
+    #[serde(rename = "nextSignerKey")]
+    pub next_signer_key: IdKey,
     pub change: EventLogChange,
 }
 
@@ -88,6 +90,7 @@ mod tests {
         let payload = EventLogPayload {
             previous: "1".to_string(),
             signer_publickey: signer_public.clone(),
+            next_signer_key: IdKey::new(vec![]),
             change: EventLogChange::SetDocument(DocumentDigest { value: vec![] }),
         };
         let log = EventLog::new(payload, secret_key);

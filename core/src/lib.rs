@@ -36,34 +36,19 @@ pub enum IdentityError {
     Unknown,
 }
 
-#[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
-pub struct SignerKey {
-    #[serde(rename = "type")]
-    pub typ: String,
-    #[serde(with = "encode_me")]
-    pub public: Vec<u8>,
-}
 
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
-pub struct RecoveryKey {
+pub struct IdKey {
     #[serde(rename = "type")]
     pub typ: String,
     #[serde(with = "encode_me")]
     pub digest: Vec<u8>,
 }
 
-impl SignerKey {
-    pub fn new(public: Vec<u8>) -> SignerKey {
-        SignerKey {
-            typ: ED25519.to_string(),
-            public: public,
-        }
-    }
-}
 
-impl RecoveryKey {
-    pub fn new(digest: Vec<u8>) -> RecoveryKey {
-        RecoveryKey {
+impl IdKey {
+    pub fn new(digest: Vec<u8>) -> IdKey {
+        IdKey {
             typ: ED25519.to_string(),
             digest: digest,
         }
