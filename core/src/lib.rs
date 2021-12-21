@@ -38,7 +38,7 @@ pub enum IdentityError {
 
 
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
-pub struct IdKey {
+pub struct NextKey {
     #[serde(rename = "type")]
     pub typ: String,
     #[serde(with = "encode_me")]
@@ -46,9 +46,10 @@ pub struct IdKey {
 }
 
 
-impl IdKey {
-    pub fn new(digest: Vec<u8>) -> IdKey {
-        IdKey {
+impl NextKey {
+    pub fn from_public(public: &[u8]) -> NextKey {
+        let digest = hash(public);
+        NextKey {
             typ: ED25519.to_string(),
             digest: digest,
         }
@@ -93,12 +94,12 @@ pub fn generate_cid<T: Sized + Serialize>(t: &T) -> String {
     cid.to_string()
 }
 
-pub fn to_verification_keypair(secret: Vec<u8>) -> Keypair {
-    let mut secret = secret.clone();
+pub fn to_verification_keypair(secret: &[u8]) -> Keypair {
+    let mut new_secret = secret.to_vec();
     let secret_key = SecretKey::from_bytes(&secret).unwrap();
     let public_key: PublicKey = PublicKey::from(&secret_key);
     let mut public: Vec<u8> = public_key.to_bytes().to_vec();
-    secret.append(&mut public);
+    new_secret.append(&mut public);
     Keypair::from_bytes(&secret).unwrap()
 }
 
@@ -109,13 +110,13 @@ pub fn create_secret_key() -> Vec<u8> {
     key_data.to_vec()
 }
 
-pub fn to_verification_publickey(secret_key: Vec<u8>) -> Vec<u8> {
+pub fn to_verification_publickey(secret_key: &[u8]) -> Vec<u8> {
     let keypair: Keypair = to_verification_keypair(secret_key);
     let public = keypair.public.to_bytes().to_vec();
     public
 }
 
-pub fn to_key_agreement_publickey(secret: Vec<u8>) -> Vec<u8> {
+pub fn to_key_agreement_publickey(secret: &[u8]) -> Vec<u8> {
     let secret_data: [u8;32] = secret.try_into().unwrap();
     let secret_key = StaticSecret::from(secret_data);
     let public_key = x25519_dalek::PublicKey::from(&secret_key);

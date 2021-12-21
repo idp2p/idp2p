@@ -1,5 +1,5 @@
 use crate::encode_me;
-use crate::IdKey;
+use crate::NextKey;
 use ed25519_dalek::{PublicKey, Signature, Signer, Verifier};
 use serde::{Deserialize, Serialize};
 use std::convert::TryInto;
@@ -14,8 +14,8 @@ pub struct ProofStatement {
 
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
 pub struct RecoverStatement {
-    #[serde(rename = "nextRecoveryKey")]
-    pub next_recovery_key: IdKey,
+    #[serde(rename = "recoveryNextKey")]
+    pub recovery_next_key: NextKey,
 }
 
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
@@ -39,10 +39,10 @@ pub enum EventLogChange {
 pub struct EventLogPayload {
     pub previous: String, 
     #[serde(with = "encode_me")]
-    #[serde(rename = "signerPublic")]
-    pub signer_publickey: Vec<u8>, 
-    #[serde(rename = "nextSignerKey")]
-    pub next_signer_key: IdKey,
+    #[serde(rename = "signerPublicKey")]
+    pub signer_public_key: Vec<u8>, 
+    #[serde(rename = "signerNextKey")]
+    pub next_key: NextKey,
     pub change: EventLogChange,
 }
 
@@ -53,12 +53,20 @@ pub struct EventLog {
     pub proof: Vec<u8>, // if recover assume recovery key
 }
 
+impl EventLogPayload{
+    pub fn sign(&self, secret: &[u8]) -> Vec<u8>{
+        let payload_json = serde_json::to_string(&self).unwrap();
+        let keypair = crate::to_verification_keypair(secret);
+        keypair.sign(payload_json.as_bytes()).to_bytes().to_vec()
+    }
+}
+
 impl EventLog {
     pub fn get_id(&self) -> String {
         crate::generate_cid(self)
     }
 
-    pub fn verify(&self, public_data: Vec<u8>) -> bool {
+    pub fn verify(&self, public_data: &[u8]) -> bool {
         let payload_json = serde_json::to_string(&self.payload).unwrap();
         let bytes = payload_json.as_bytes();
         let public_key: PublicKey = PublicKey::from_bytes(&public_data).unwrap();
@@ -67,13 +75,10 @@ impl EventLog {
         public_key.verify(bytes, &signature).is_ok()
     }
 
-    pub fn new(payload: EventLogPayload, secret_key: Vec<u8>) -> EventLog {
-        let payload_json = serde_json::to_string(&payload).unwrap();
-        let keypair = crate::to_verification_keypair(secret_key.clone());
-        let proof = keypair.sign(payload_json.as_bytes());
+    pub fn new(payload: EventLogPayload, proof: Vec<u8>) -> EventLog {
         let event_log = EventLog {
             payload: payload,
-            proof: proof.to_bytes().to_vec(),
+            proof: proof,
         };
         event_log
     }
@@ -86,15 +91,16 @@ mod tests {
     #[test]
     fn new_event() {
         let secret_key = create_secret_key();
-        let signer_public = to_verification_publickey(secret_key.clone());
+        let signer_public = to_verification_publickey(&secret_key);
         let payload = EventLogPayload {
             previous: "1".to_string(),
-            signer_publickey: signer_public.clone(),
-            next_signer_key: IdKey::new(vec![]),
+            signer_public_key: signer_public.clone(),
+            next_key: NextKey::from_public(&vec![]),
             change: EventLogChange::SetDocument(DocumentDigest { value: vec![] }),
         };
-        let log = EventLog::new(payload, secret_key);
-        let is_valid = log.verify(signer_public);
+        let proof = payload.sign(&secret_key);
+        let log = EventLog::new(payload, proof);
+        let is_valid = log.verify(&signer_public);
         assert!(is_valid);
     }
 }

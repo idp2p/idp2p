@@ -15,7 +15,7 @@ use std::convert::TryInto;
 pub struct Identity {
     pub id: String,
     pub microledger: MicroLedger,
-    pub did_doc: IdDocument,
+    pub document: IdDocument,
 }
 
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
@@ -35,18 +35,20 @@ pub struct CreateIdentityResult {
 
 pub enum IdentityEvent {
     SetProof {
+        signer_public_key: Vec<u8>,
+        next_key: Vec<u8>,
         key: Vec<u8>,
         value: Vec<u8>,
-        signer: Vec<u8>,
     },
     ChangeDoc {
+        signer_public_key: Vec<u8>,
+        next_key: Vec<u8>,
         doc: IdDocument,
-        signer: Vec<u8>,
     },
     Recover {
-        new_signer: Vec<u8>,
-        new_recovery: Vec<u8>,
-        signer: Vec<u8>,
+        signer_public_key: Vec<u8>,
+        next_key: Vec<u8>,
+        next_recovery: Vec<u8>,
     },
 }
 
@@ -73,10 +75,10 @@ impl Identity {
         authentication_secret: Vec<u8>,
         keyagreement_secret: Vec<u8>,
     ) -> CreateIdentityResult {
-        let rec_public = to_verification_publickey(rec_secret.clone());
-        let signer_public = to_verification_publickey(signer_secret.clone());
+        let rec_public = to_verification_publickey(&rec_secret.clone());
+        let signer_public = to_verification_publickey(&signer_secret.clone());
         let recovery_public_bytes: [u8; 32] = rec_public.try_into().unwrap();
-        let ledger = MicroLedger::new(signer_public, hash(&recovery_public_bytes));
+        let ledger = MicroLedger::new(&signer_public, &recovery_public_bytes);
         let id = ledger.inception.get_id();
         let doc_result = IdDocument::new_with_secrets(
             id.clone(),
@@ -87,7 +89,7 @@ impl Identity {
         let mut did = Identity {
             id: id.clone(),
             microledger: ledger,
-            did_doc: doc_result.doc.clone(),
+            document: doc_result.doc.clone(),
         };
         did.set_doc_proof(doc_result.doc.clone(), signer_secret.clone());
         CreateIdentityResult {
@@ -102,17 +104,22 @@ impl Identity {
 
     pub fn save_event(&mut self, e: IdentityEvent) {
         match e {
-            IdentityEvent::SetProof { key, value, signer } => {
+            IdentityEvent::SetProof {
+                key,
+                value,
+                signer_secret,
+                next_key,
+            } => {
                 let proof_stmt = ProofStatement {
                     key: key,
                     value: value,
                 };
                 let change = EventLogChange::SetProof(proof_stmt);
-                let signer_publickey = to_verification_publickey(signer.clone());
+                let signer_publickey = to_verification_publickey(&signer_secret);
                 let payload = EventLogPayload {
                     previous: self.microledger.get_previous_id(),
                     change: change,
-                    signer_publickey: signer_publickey,
+                    signer_public_key: signer_publickey,
                 };
                 let event_log = EventLog::new(payload, signer.clone());
                 self.microledger.events.push(event_log);
@@ -145,10 +152,10 @@ impl Identity {
     pub fn verify(&self) -> Result<bool, IdentityError> {
         let verified = self
             .microledger
-            .verify(self.microledger.inception.get_id())?;
-        let did_doc_digest = hash(serde_json::to_string(&self.did_doc).unwrap().as_bytes());
+            .verify(&self.microledger.inception.get_id())?;
+        let did_doc_digest = hash(serde_json::to_string(&self.document).unwrap().as_bytes());
         check!(
-            did_doc_digest == verified.current_doc_digest,
+            did_doc_digest == verified.doc_digest,
             IdentityError::InvalidDocumentDigest
         );
         Ok(true)
@@ -166,7 +173,7 @@ impl Identity {
                 is_last = true;
             }
         }
-        candidate.did_doc = new_did.did_doc.clone();
+        candidate.document = new_did.document.clone();
         let did_valid = candidate.get_digest() == new_did.get_digest();
         check!(did_valid, IdentityError::InvalidNext);
         candidate.verify()
@@ -185,7 +192,7 @@ impl Identity {
         let payload = EventLogPayload {
             previous: self.microledger.get_previous_id(),
             change: change,
-            signer_publickey: public_key,
+            signer_public_key: public_key,
         };
         let event_log = EventLog::new(payload, secret_key.clone());
         self.microledger.events.push(event_log);

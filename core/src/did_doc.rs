@@ -71,9 +71,9 @@ impl IdDocument {
         authentication_secret: Vec<u8>,
         keyagreement_secret: Vec<u8>,
     ) -> CreateDocResult {
-        let assertion_public = to_verification_publickey(assertion_secret.clone());
-        let authentication_public = to_verification_publickey(authentication_secret.clone());
-        let keyagreement_public = to_key_agreement_publickey(keyagreement_secret.clone());
+        let assertion_public = to_verification_publickey(&assertion_secret);
+        let authentication_public = to_verification_publickey(&authentication_secret);
+        let keyagreement_public = to_key_agreement_publickey(&keyagreement_secret);
         let assertion_method = VerificationMethod {
             id: crate::encode(assertion_public.clone()),
             controller: format!("did:p2p:{}", id.clone()),
@@ -140,9 +140,9 @@ mod tests {
     use super::*;
     #[test]
     fn new_did_doc() {
-        let assertion_public = to_verification_publickey(create_secret_key());
-        let authentication_public = to_verification_publickey(create_secret_key());
-        let agreement_public = to_key_agreement_publickey(create_secret_key());
+        let assertion_public = to_verification_publickey(&create_secret_key());
+        let authentication_public = to_verification_publickey(&create_secret_key());
+        let agreement_public = to_key_agreement_publickey(&create_secret_key());
         let doc_result = IdDocument::new_with_secrets(
             "123456".to_string(),
             assertion_public,
