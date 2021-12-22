@@ -65,22 +65,22 @@ impl MicroLedger {
             let signer_digest = hash(&event.payload.signer_public_key);
             match &event.payload.change {
                 EventLogChange::SetDocument(digest) => {
-                    let signer_valid = state.next_key.digest == signer_digest;
+                    let signer_valid = state.next_key.value == signer_digest;
                     check!(signer_valid, IdentityError::InvalidSigner);
                     state.doc_digest = digest.value.clone()
                 }
                 EventLogChange::SetProof(stmt) => {
-                    let signer_valid = state.next_key.digest == signer_digest;
+                    let signer_valid = state.next_key.value == signer_digest;
                     check!(signer_valid, IdentityError::InvalidSigner);
-                    state.proofs.insert(stmt.key, stmt.value);
+                    state.proofs.insert(stmt.key.clone(), stmt.value.clone());
                 }
                 EventLogChange::Recover(recovery) => {
-                    let rec_valid = state.recovery_next_key.digest == signer_digest;
+                    let rec_valid = state.recovery_next_key.value == signer_digest;
                     check!(rec_valid, IdentityError::InvalidRecovery);
                     state.recovery_next_key = recovery.recovery_next_key.clone();
                 }
             }
-            state.next_key = event.payload.next_key;
+            state.next_key = event.payload.next_key.clone();
             state.event_id = event.get_id();
         }
         Ok(state)
@@ -120,7 +120,7 @@ mod tests {
     #[test]
     fn verify_invalid_cid_test() {
         let public = to_verification_publickey(&create_secret_key());
-        let mut ledger = MicroLedger::new(&public, &public);
+        let ledger = MicroLedger::new(&public, &public);
         let id = format!("{}.", ledger.inception.get_id());
         let result = ledger.verify(&id);
         assert!(matches!(result, Err(crate::IdentityError::InvalidId)));
@@ -182,7 +182,8 @@ mod tests {
                 recovery_next_key: NextKey::from_public(&new_public),
             }),
         };
-        let log_rec = EventLog::new(payload_rec, signer_secret.clone());
+        let proof = payload_rec.sign(&signer_secret);
+        let log_rec = EventLog::new(payload_rec, proof);
         ledger.events.push(log_rec.clone());
         let payload = EventLogPayload {
             previous: log_rec.get_id(),
@@ -212,7 +213,6 @@ mod tests {
             }),
         };
         let proof = payload_rec.sign(&signer_secret);
-        let log = EventLog::new(payload_rec, proof);
         let log_rec = EventLog::new(payload_rec, proof);
         ledger.events.push(log_rec.clone());
         let result = ledger.verify(&ledger.inception.get_id());

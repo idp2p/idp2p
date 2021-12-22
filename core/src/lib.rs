@@ -42,7 +42,7 @@ pub struct NextKey {
     #[serde(rename = "type")]
     pub typ: String,
     #[serde(with = "encode_me")]
-    pub digest: Vec<u8>,
+    pub value: Vec<u8>,
 }
 
 
@@ -51,7 +51,7 @@ impl NextKey {
         let digest = hash(public);
         NextKey {
             typ: ED25519.to_string(),
-            digest: digest,
+            value: digest,
         }
     }
 }
@@ -95,12 +95,12 @@ pub fn generate_cid<T: Sized + Serialize>(t: &T) -> String {
 }
 
 pub fn to_verification_keypair(secret: &[u8]) -> Keypair {
-    let mut new_secret = secret.to_vec();
-    let secret_key = SecretKey::from_bytes(&secret).unwrap();
+    let secret_key = SecretKey::from_bytes(secret).unwrap();
     let public_key: PublicKey = PublicKey::from(&secret_key);
     let mut public: Vec<u8> = public_key.to_bytes().to_vec();
+    let mut new_secret = secret.to_vec();
     new_secret.append(&mut public);
-    Keypair::from_bytes(&secret).unwrap()
+    Keypair::from_bytes(&new_secret).unwrap()
 }
 
 pub fn create_secret_key() -> Vec<u8> {
