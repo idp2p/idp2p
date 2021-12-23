@@ -16,7 +16,7 @@ See also (related topics):
 
 ## Problem
 
-Each did method uses own way to implement decentralized identity. Most of them are based on public source of truth like a `blockchain`, `dlt`, `database` or similar. Others are simple, self-describing methods and aren't depend on any ledger technology e.g. `did:peer`, `did:key`, `keri`. Each method has own pros-cons in terms of [design-goals](https://www.w3.org/TR/did-core/#design-goals)
+Each did method uses own way to implement decentralized identity. Most of them are based on public source of truth like a `blockchain`, `dlt`, `database` or similar. Others are simple, self-describing methods and don't depend on any ledger technology e.g. `did:peer`, `did:key`, `keri`. Each method has its own pros-cons in terms of [design-goals](https://www.w3.org/TR/did-core/#design-goals)
 
 ## IDP2P Solution 
 
@@ -25,8 +25,24 @@ Each did method uses own way to implement decentralized identity. Most of them a
 - Self-describing identity(like `did:keri`, `did:peer`, `did:key`)
 - Based on `libp2p` pub-sub protocol, so it can be stored and resolved via network
 - P2P network provides one ledger per identity
-- ID is also a topic to subsribe(it means ledger is based on subscription)
 - Only identity owner and verifiers are responsible for storing and verifying identity
+
+
+### Consensus Mechanism 
+
+When an identity event has occured, change is published over `idp2p` network, all subscribers verifies new did change and updates its own ledger if incoming change is suitable.
+
+There are two pub-sub commands: 
+
+- `get`: when a peer want to subscribe to identity, it publishs a `get` command with `id` over the network. 
+- `post`: when a peer received a `get` command or an identity change occured, it posts identity information to subscribers in order to reach a consensus
+
+![w:1000](assets/idp2p-pubsub.gif) 
+
+An identity is also a topic to subsribe(it means ledger is based on subscription)
+
+![w:1000](assets/idp2p.drawio.png) 
+
 
 
 ### Identity
@@ -35,26 +51,29 @@ Each did method uses own way to implement decentralized identity. Most of them a
 
 ```json
 {
-    "id": "did:p2p:bagaaieratxin4o3iclo7ua3s3bbueds2uzfc5gi26mermevzb2etqliwjbla",
+    "id": "bagaaieratxin4o3iclo7ua3s3bbueds2uzfc5gi26mermevzb2etqliwjbla",
     "microledger": {
-      "id": "bagaaieratxin4o3iclo7ua3s3bbueds2uzfc5gi26mermevzb2etqliwjbla",
       "inception": {
-        "signer_key": {
+        "inceptionKey": {
           "type": "Ed25519VerificationKey2020",
-          "public": "by5gtwpufy4.."
+          "value": "by5gtwpufy4.."
         },
-        "recovery_key": {
+        "recoveryNextKey": {
           "type": "Ed25519VerificationKey2020",
-          "digest": "bmb2cvioxfy65ej.."
+          "value": "bmb2cvioxfy65ej.."
         }
       },
       "events": [
         {
           "payload": {
             "previous": "bagaaieratxin4o3iclo7u..",
-            "signer_publickey": "by5gtwpufy4zfnog4j..",
+            "signerPublicKey": "by5gtwpufy4zfnog4j..",
+            "signerNextKey": {
+              "type": "Ed25519VerificationKey2020",
+              "value":"b2wvipekepehi.."
+            },
             "change": {
-              "type": "set_document",
+              "type": "SetDocument",
               "value": "bdu3gqtjc6ks52.."
             }
           },
@@ -63,9 +82,13 @@ Each did method uses own way to implement decentralized identity. Most of them a
         {
           "payload": {
             "previous": "bagaaieraof7..",
-            "signer_publickey": "b2wvipekepehi..",
+            "signerPublicKey": "b2wvipekepehi..",
+            "signerNextKey": {
+              "type": "Ed25519VerificationKey2020",
+              "value":"b2wvipekepehi.."
+            },
             "change": {
-              "type": "set_proof",
+              "type": "SetProof",
               "key": "bnnsxs",
               "value": "bozqwy5lf"
             }
@@ -74,17 +97,17 @@ Each did method uses own way to implement decentralized identity. Most of them a
         },
         {
           "payload": {
-            "previous": "bagaaiera5jmj..",
-            "signer_publickey": "be7tovk6p..",
+             "previous": "bagaaieraof7..",
+             "signerPublicKey": "b2wvipekepehi..",
+             "signerNextKey": {
+               "type": "Ed25519VerificationKey2020",
+               "value":"b2wvipekepehi.."
+             },
             "change": {
-              "type": "recover",
-              "next_signer_key": {
+              "type": "SetRecoveryKey",
+              "recoveryNextKey": {
                 "type": "Ed25519VerificationKey2020",
-                "public": "b443ew4cp.."
-              },
-              "next_recovery_key": {
-                "type": "Ed25519VerificationKey2020",
-                "digest": "bcut3s.."
+                "value": "bcut3s.."
               }
             }
           },
@@ -92,7 +115,7 @@ Each did method uses own way to implement decentralized identity. Most of them a
         }
       ]
     },
-    "did_doc": {
+    "document": {
       "id": "did:p2p:bagaaieratxin..",
       "controller": "did:p2p:bagaaieratxi..",
       "@context": [
@@ -114,7 +137,7 @@ An `idp2p` identity includes unique identifier, microledger and did document.
 {
     "id": "did:p2p:z6MkpTHR8VNsBxYAAWHut2Geadd9jSwuBV8xRoAnwWsdvktH",
     "microledger": {},
-    "did_doc": {}
+    "document": {}
 }
 ```
 
@@ -164,13 +187,13 @@ An `idp2p` identity includes unique identifier, microledger and did document.
 
 ```json
 {
-  "signer_key": {
+  "inceptionKey": {
     "type": "Ed25519VerificationKey2020",
-    "public": "by5gtwpufy4.."
+    "value": "<base32 value of inception public"
   },
-  "recovery_key": {
+  "recoveryNextKey": {
     "type": "Ed25519VerificationKey2020",
-    "digest": "bmb2cvioxfy65ej.."
+    "value": "<base32 digest of recovery public>"
   }
 }
 ```
@@ -184,9 +207,9 @@ An `idp2p` identity includes unique identifier, microledger and did document.
 {
     "payload": {
       "previous": "<inception-hash>",
-      "signer_publickey": "by5gtwpufy4zfnog4j..",
+      "signerPublic": "by5gtwpufy4zfnog4j..",
       "change": {
-        "type": "set_document"
+        "type": "SetDocument"
       }
     },
     "proof": "bx6svqb6if5yaflgoumdff7j.."
@@ -195,21 +218,9 @@ An `idp2p` identity includes unique identifier, microledger and did document.
 
 There are three event types.
 
-- `set_document`: proof of did document change, requires `value` property which is hash of did document.
-- `set_proof`: any proof about identity,  requires `key` and `value` properties.
-- `recover` recovery proof of identity requires `next_signer_key` and `next_recovery_key` properties.
-
-### Consensus Mechanism 
-
-When an identity event has occured, change is published over `idp2p` network, all subscribers verifies new did change and updates its own ledger if incoming change is suitable.
-
-There are two pub-sub commands: 
-
-- `get`: when a peer want to subscribe to identity, it publishs a `get` command with `id` over the network. 
-- `post`: when a peer received a `get` command or an identity change occured, it posts identity information to subscribers in order to reach a consensus
-
-![w:1000](assets/idp2p.drawio.png) 
-
+- `SetDocument`: proof of did document change, requires `value` property which is hash of did document.
+- `SetProof`: any proof about identity,  requires `key` and `value` properties.
+- `SetRecoveryKey` recovery proof of identity requires `next_signer_key` and `next_recovery_key` properties.
 
 ## Getting Started(rust demo) 
 
