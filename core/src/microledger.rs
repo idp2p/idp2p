@@ -31,6 +31,7 @@ impl MicroLedgerInception {
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
 pub struct MicroLedger {
     pub inception: MicroLedgerInception,
+    #[serde(skip_serializing_if = "Vec::is_empty", default)]
     pub events: Vec<EventLog>,
 }
 
@@ -108,7 +109,15 @@ mod tests {
         let ledger = MicroLedger::new(&inception_secret, &inception_secret);
         assert_eq!(ledger.events.len(), 0);
     }
-
+    #[test]
+    fn id_test() {
+        let expected_id = "bagaaiera5ce3nckdmy5yd2hwzfpmcwnd2pldaqgbstgdrilhwaoanpzwsofa";
+        let signer_secret = multibase::decode("bclc5pn2tfuhkqmupbr3lkyc5o4g4je6glfwkix6nrtf7hch7b3kq").unwrap().1;
+        let recovery_secret = multibase::decode("bd6yg2qeifnixj4x3z2fclp5wd3i6ysjlfkxewqqt2thie6lfnkma").unwrap().1;
+        let ledger = MicroLedger::new(&to_verification_publickey(&signer_secret), &to_verification_publickey(&recovery_secret));
+        assert_eq!(ledger.inception.get_id(), expected_id);
+    }
+    
     #[test]
     fn verify_test() {
         let inception_signer_public = to_verification_publickey(&create_secret_key());

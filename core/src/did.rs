@@ -1,4 +1,5 @@
 use crate::did_doc::IdDocument;
+use crate::eventlog::DocumentDigest;
 use crate::eventlog::EventLog;
 use crate::eventlog::EventLogChange;
 use crate::eventlog::EventLogPayload;
@@ -6,7 +7,6 @@ use crate::microledger::MicroLedger;
 use crate::*;
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
-use std::convert::TryInto;
 
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
 pub struct Identity {
@@ -19,7 +19,7 @@ pub struct Identity {
 pub struct CreateIdentityResult {
     pub did: Identity,
     #[serde(with = "encode_me")]
-    pub signer_secret: Vec<u8>,
+    pub next_secret: Vec<u8>,
     #[serde(with = "encode_me")]
     pub recovery_secret: Vec<u8>,
     #[serde(with = "encode_me")]
@@ -32,48 +32,58 @@ pub struct CreateIdentityResult {
 
 impl Identity {
     pub fn new() -> CreateIdentityResult {
-        let signer_secret = create_secret_key();
+        let inception_secret = create_secret_key();
+        let next_secret = create_secret_key();
         let recovery_secret = create_secret_key();
         let assertion_secret = create_secret_key();
         let authentication_secret = create_secret_key();
         let key_agreement_secret = create_secret_key();
         Identity::new_with_secrets(
-            signer_secret,
-            recovery_secret,
-            assertion_secret,
-            authentication_secret,
-            key_agreement_secret,
+            &inception_secret,
+            &next_secret,
+            &recovery_secret,
+            &assertion_secret,
+            &authentication_secret,
+            &key_agreement_secret,
         )
     }
 
     pub fn new_with_secrets(
-        signer_secret: Vec<u8>,
-        rec_secret: Vec<u8>,
-        assertion_secret: Vec<u8>,
-        authentication_secret: Vec<u8>,
-        keyagreement_secret: Vec<u8>,
+        inception_secret: &[u8],
+        next_secret: &[u8],
+        rec_secret: &[u8],
+        assertion_secret: &[u8],
+        authentication_secret: &[u8],
+        keyagreement_secret: &[u8],
     ) -> CreateIdentityResult {
-        let rec_public = to_verification_publickey(&rec_secret.clone());
-        let signer_public = to_verification_publickey(&signer_secret.clone());
-        let recovery_public_bytes: [u8; 32] = rec_public.try_into().unwrap();
-        let ledger = MicroLedger::new(&signer_public, &recovery_public_bytes);
+        let rec_public = to_verification_publickey(&rec_secret);
+        let inception_public = to_verification_publickey(&inception_secret);
+        let next_public = to_verification_publickey(&next_secret);
+        let ledger = MicroLedger::new(&inception_public, &rec_public);
         let id = ledger.inception.get_id();
         let doc_result = IdDocument::new_with_secrets(
             id.clone(),
-            assertion_secret,
-            authentication_secret,
-            keyagreement_secret,
+            assertion_secret.to_vec(),
+            authentication_secret.to_vec(),
+            keyagreement_secret.to_vec(),
         );
         let mut did = Identity {
             id: id.clone(),
             microledger: ledger,
             document: doc_result.doc.clone(),
         };
-        //did.set_doc_proof(doc_result.doc.clone(), signer_secret.clone());
+        let doc_change = EventLogChange::SetDocument(DocumentDigest {
+            value: doc_result.doc.get_digest(),
+        });
+        did.save_event(
+            &inception_secret,
+            NextKey::from_public(&next_public),
+            doc_change,
+        );
         CreateIdentityResult {
             did: did,
-            signer_secret: signer_secret,
-            recovery_secret: rec_secret,
+            next_secret: next_secret.to_vec(),
+            recovery_secret: rec_secret.to_vec(),
             assertion_secret: doc_result.assertion_secret,
             authentication_secret: doc_result.authentication_secret,
             keyagreement_secret: doc_result.keyagreement_secret,
@@ -128,20 +138,6 @@ impl Identity {
         let digest = hash(serde_json::to_string(&self).unwrap().as_bytes());
         crate::encode(digest)
     }
-
-    /*fn set_doc_proof(&mut self, doc: IdDocument, secret_key: Vec<u8>) {
-        let change = EventLogChange::SetDocument(DocumentDigest {
-            value: doc.get_digest(),
-        });
-        let public_key = to_verification_publickey(secret_key.clone());
-        let payload = EventLogPayload {
-            previous: self.microledger.get_previous_id(),
-            change: change,
-            signer_public_key: public_key,
-        };
-        let event_log = EventLog::new(payload, secret_key.clone());
-        self.microledger.events.push(event_log);
-    }*/
 }
 
 #[cfg(test)]
@@ -151,8 +147,7 @@ mod tests {
     #[test]
     fn create_with_secrets_test() {
         let result = create_did();
-        let id = "bagaaierazg6rvoe5xoqcmbiz3qf2mztwl23g2vvmamotvm7rpv2fvgybo4qq";
-        println!("{:?}", serde_json::to_string_pretty(&result.did).unwrap());
+        let id = "bagaaierap44kwfwbfgfxwcdfjefcqmycu6ongzl3epqyuutg5t6sqeaq53cq";
         assert_eq!(result.did.id, id);
     }
 
@@ -163,13 +158,9 @@ mod tests {
         let new_doc = IdDocument::new(result.did.id.clone());
         let doc_digest = new_doc.doc.get_digest();
         result.did.document = new_doc.doc;
-        let change = EventLogChange::SetDocument(DocumentDigest {
-            value: doc_digest,
-        });
+        let change = EventLogChange::SetDocument(DocumentDigest { value: doc_digest });
         let next_key = NextKey::from_public(&vec![]);
-        result
-            .did
-            .save_event(&result.signer_secret, next_key, change);
+        result.did.save_event(&result.next_secret, next_key, change);
         assert_eq!(result.did.microledger.events.len(), 2);
         assert_ne!(
             result.did.document.authentication[0],
@@ -208,7 +199,11 @@ mod tests {
     }
 
     fn create_did() -> CreateIdentityResult {
-        let signer_secret =
+        let inception_secret =
+        multibase::decode("beilmx4d76udjmug5ykpy657qa3pfsqbcu7fbbtuk3mgrdrxssseq")
+            .unwrap()
+            .1;
+        let next_secret =
             multibase::decode("beilmx4d76udjmug5ykpy657qa3pfsqbcu7fbbtuk3mgrdrxssseq")
                 .unwrap()
                 .1;
@@ -220,11 +215,12 @@ mod tests {
         let authentication_secret = create_secret_key();
         let keyagreement_secret = create_secret_key();
         Identity::new_with_secrets(
-            signer_secret,
-            recovery_secret,
-            assertion_secret,
-            authentication_secret,
-            keyagreement_secret,
+            &inception_secret,
+            &next_secret,
+            &recovery_secret,
+            &assertion_secret,
+            &authentication_secret,
+            &keyagreement_secret,
         )
     }
 }
