@@ -45,6 +45,14 @@ pub struct NextKey {
     pub value: Vec<u8>,
 }
 
+#[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
+pub struct InceptionKey {
+    #[serde(rename = "type")]
+    pub typ: String,
+    #[serde(with = "encode_me")]
+    pub value: Vec<u8>,
+}
+
 
 impl NextKey {
     pub fn from_public(public: &[u8]) -> NextKey {

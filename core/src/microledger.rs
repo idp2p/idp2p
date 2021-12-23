@@ -1,5 +1,7 @@
 use crate::eventlog::{EventLog, EventLogChange};
 use crate::IdentityError;
+use crate::InceptionKey;
+use crate::ED25519;
 use crate::{generate_cid, hash, NextKey};
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
@@ -16,8 +18,8 @@ pub struct MicroLedgerState {
 
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
 pub struct MicroLedgerInception {
-    #[serde(rename = "signerNextKey")]
-    pub signer_next_key: NextKey,
+    #[serde(rename = "inceptionKey")]
+    pub inception_key: InceptionKey,
     #[serde(rename = "recoveryNextKey")]
     pub recovery_next_key: NextKey,
 }
@@ -36,11 +38,17 @@ pub struct MicroLedger {
 }
 
 impl MicroLedger {
-    pub fn new(public_key: &[u8], recovery_public_key: &[u8]) -> MicroLedger {
-        let next_key = NextKey::from_public(public_key);
+    pub fn new(
+        inception_public_key: &[u8],
+        recovery_public_key: &[u8],
+    ) -> MicroLedger {
+        let inception_key = InceptionKey {
+            typ: ED25519.to_string(),
+            value: inception_public_key.to_vec(),
+        };
         let recovery_next_key = NextKey::from_public(recovery_public_key);
         let inception = MicroLedgerInception {
-            signer_next_key: next_key,
+            inception_key: inception_key,
             recovery_next_key: recovery_next_key,
         };
         MicroLedger {
@@ -52,7 +60,7 @@ impl MicroLedger {
     pub fn verify(&self, cid: &str) -> Result<MicroLedgerState, IdentityError> {
         let mut state = MicroLedgerState {
             event_id: self.inception.get_id(),
-            next_key: self.inception.signer_next_key.clone(),
+            next_key: NextKey::from_public(&self.inception.inception_key.value),
             recovery_next_key: self.inception.recovery_next_key.clone(),
             proofs: HashMap::new(),
             doc_digest: vec![],
@@ -111,17 +119,29 @@ mod tests {
     }
     #[test]
     fn id_test() {
-        let expected_id = "bagaaiera5ce3nckdmy5yd2hwzfpmcwnd2pldaqgbstgdrilhwaoanpzwsofa";
-        let signer_secret = multibase::decode("bclc5pn2tfuhkqmupbr3lkyc5o4g4je6glfwkix6nrtf7hch7b3kq").unwrap().1;
-        let recovery_secret = multibase::decode("bd6yg2qeifnixj4x3z2fclp5wd3i6ysjlfkxewqqt2thie6lfnkma").unwrap().1;
-        let ledger = MicroLedger::new(&to_verification_publickey(&signer_secret), &to_verification_publickey(&recovery_secret));
+        let expected_id = "bagaaieraa3osn7ivjmkipdjluomerepr4hs7c647rux3mh5tkamaelgoycjq";
+        let inception_secret =
+            multibase::decode("bd6yg2qeifnixj4x3z2fclp5wd3i6ysjlfkxewqqt2thie6lfnkma")
+                .unwrap()
+                .1;
+        let recovery_secret =
+            multibase::decode("bd6yg2qeifnixj4x3z2fclp5wd3i6ysjlfkxewqqt2thie6lfnkma")
+                .unwrap()
+                .1;
+        let ledger = MicroLedger::new(
+            &to_verification_publickey(&inception_secret),
+            &to_verification_publickey(&recovery_secret),
+        );
+        println!("{}", serde_json::to_string(&ledger).unwrap());
         assert_eq!(ledger.inception.get_id(), expected_id);
     }
-    
     #[test]
     fn verify_test() {
         let inception_signer_public = to_verification_publickey(&create_secret_key());
-        let ledger = MicroLedger::new(&inception_signer_public, &inception_signer_public);
+        let ledger = MicroLedger::new(
+            &inception_signer_public,
+            &inception_signer_public,
+        );
         let r = ledger.verify(&ledger.inception.get_id());
         assert!(r.is_ok());
     }
@@ -140,11 +160,11 @@ mod tests {
         let secret = create_secret_key();
         let public = to_verification_publickey(&secret);
 
-        let mut ledger = MicroLedger::new(&public, &public);
+        let mut ledger = MicroLedger::new( &public, &public);
         let payload = EventLogPayload {
             previous: "1".to_string(),
             signer_public_key: public.clone(),
-            next_key : NextKey::from_public(&public),
+            next_key: NextKey::from_public(&public),
             change: EventLogChange::SetDocument(DocumentDigest { value: vec![] }),
         };
         let proof = payload.sign(&secret);
@@ -159,7 +179,7 @@ mod tests {
     fn verify_invalid_signature_test() {
         let signer_secret = create_secret_key();
         let inception_public = to_verification_publickey(&signer_secret);
-        let mut ledger = MicroLedger::new(&inception_public, &inception_public);
+        let mut ledger = MicroLedger::new( &inception_public, &inception_public);
         let payload = EventLogPayload {
             previous: ledger.inception.get_id(),
             signer_public_key: inception_public.clone(),
@@ -182,11 +202,11 @@ mod tests {
         let signer_secret = create_secret_key();
         let inception_public = to_verification_publickey(&signer_secret);
         let new_public = to_verification_publickey(&create_secret_key());
-        let mut ledger = MicroLedger::new(&inception_public, &inception_public);
+        let mut ledger = MicroLedger::new( &inception_public, &inception_public);
         let payload_rec = EventLogPayload {
             previous: ledger.inception.get_id(),
             signer_public_key: inception_public.clone(),
-            next_key : NextKey::from_public(&new_public),
+            next_key: NextKey::from_public(&new_public),
             change: EventLogChange::Recover(RecoverStatement {
                 recovery_next_key: NextKey::from_public(&new_public),
             }),
@@ -197,7 +217,7 @@ mod tests {
         let payload = EventLogPayload {
             previous: log_rec.get_id(),
             signer_public_key: inception_public.clone(),
-            next_key : NextKey::from_public(&new_public),
+            next_key: NextKey::from_public(&new_public),
             change: EventLogChange::SetDocument(DocumentDigest { value: vec![] }),
         };
         let proof = payload.sign(&signer_secret);
@@ -212,7 +232,7 @@ mod tests {
         let signer_secret = create_secret_key();
         let inception_public = to_verification_publickey(&signer_secret);
         let new_public = to_verification_publickey(&create_secret_key());
-        let mut ledger = MicroLedger::new(&inception_public, &new_public);
+        let mut ledger = MicroLedger::new( &inception_public, &new_public);
         let payload_rec = EventLogPayload {
             previous: ledger.inception.get_id(),
             signer_public_key: inception_public.clone(),
