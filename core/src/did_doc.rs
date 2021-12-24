@@ -1,6 +1,6 @@
-use crate::*;
 use serde::{Deserialize, Serialize};
 use serde_with::skip_serializing_none;
+use crate::*;
 
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
 pub struct Service {
@@ -134,6 +134,7 @@ impl IdDocument {
         hash(serde_json::to_string(&self).unwrap().as_bytes())
     }
 }
+
 
 #[cfg(test)]
 mod tests {

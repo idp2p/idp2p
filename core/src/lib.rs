@@ -36,33 +36,9 @@ pub enum IdentityError {
     Unknown,
 }
 
-
-#[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
-pub struct NextKey {
-    #[serde(rename = "type")]
-    pub typ: String,
-    #[serde(with = "encode_me")]
-    pub value: Vec<u8>,
-}
-
-#[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
-pub struct InceptionKey {
-    #[serde(rename = "type")]
-    pub typ: String,
-    #[serde(with = "encode_me")]
-    pub value: Vec<u8>,
-}
-
-
-impl NextKey {
-    pub fn from_public(public: &[u8]) -> NextKey {
-        let digest = hash(public);
-        NextKey {
-            typ: ED25519.to_string(),
-            value: digest,
-        }
-    }
-}
+pub type IdKeySecret = Vec<u8>;
+pub type IdKey = Vec<u8>;
+pub type IdKeyDigest = Vec<u8>;
 
 pub mod encode_me {
     use multibase::Base;

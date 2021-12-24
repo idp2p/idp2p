@@ -6,6 +6,7 @@ use serde::{Deserialize, Serialize};
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
 pub struct IdentityMessage {
     pub nonce: String,
+    //pub timstamp: String,
     pub message: IdentityMessageType,
 }
 

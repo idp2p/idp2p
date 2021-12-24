@@ -1,27 +1,31 @@
+use crate::ED25519;
 use crate::eventlog::{EventLog, EventLogChange};
 use crate::IdentityError;
-use crate::InceptionKey;
-use crate::ED25519;
-use crate::{generate_cid, hash, NextKey};
+use crate::{generate_cid, hash, IdKey, IdKeyDigest};
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use crate::encode_me;
 
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
 pub struct MicroLedgerState {
     pub event_id: String,
-    pub next_key: NextKey,
-    pub recovery_next_key: NextKey,
+    pub next_key_digest: IdKeyDigest,
+    pub recovery_key_digest: IdKeyDigest,
     pub proofs: HashMap<Vec<u8>, Vec<u8>>, // extract only current value
     pub doc_digest: Vec<u8>,
 }
 
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
 pub struct MicroLedgerInception {
+    #[serde(rename = "keyType")]
+    pub key_type: String,
+    #[serde(with = "encode_me")]
     #[serde(rename = "inceptionKey")]
-    pub inception_key: InceptionKey,
-    #[serde(rename = "recoveryNextKey")]
-    pub recovery_next_key: NextKey,
+    pub inception_key: IdKey,
+    #[serde(with = "encode_me")]
+    #[serde(rename = "recoveryKeyDigest")]
+    pub recovery_key_digest: IdKeyDigest,
 }
 
 impl MicroLedgerInception {
@@ -42,14 +46,12 @@ impl MicroLedger {
         inception_public_key: &[u8],
         recovery_public_key: &[u8],
     ) -> MicroLedger {
-        let inception_key = InceptionKey {
-            typ: ED25519.to_string(),
-            value: inception_public_key.to_vec(),
-        };
-        let recovery_next_key = NextKey::from_public(recovery_public_key);
+        let inception_key = inception_public_key.to_vec();
+        let recovery_key_digest = hash(recovery_public_key);
         let inception = MicroLedgerInception {
+            key_type: ED25519.to_owned(),
             inception_key: inception_key,
-            recovery_next_key: recovery_next_key,
+            recovery_key_digest: recovery_key_digest,
         };
         MicroLedger {
             inception,
@@ -60,8 +62,8 @@ impl MicroLedger {
     pub fn verify(&self, cid: &str) -> Result<MicroLedgerState, IdentityError> {
         let mut state = MicroLedgerState {
             event_id: self.inception.get_id(),
-            next_key: NextKey::from_public(&self.inception.inception_key.value),
-            recovery_next_key: self.inception.recovery_next_key.clone(),
+            next_key_digest: hash(&self.inception.inception_key),
+            recovery_key_digest: self.inception.recovery_key_digest.clone(),
             proofs: HashMap::new(),
             doc_digest: vec![],
         };
@@ -69,27 +71,27 @@ impl MicroLedger {
         for event in &self.events {
             let previous_valid = event.payload.previous == state.event_id;
             check!(previous_valid, IdentityError::InvalidPrevious);
-            let event_valid = event.verify(&event.payload.signer_public_key);
+            let event_valid = event.verify(&event.payload.signer_key);
             check!(event_valid, IdentityError::InvalidEventSignature);
-            let signer_digest = hash(&event.payload.signer_public_key);
+            let signer_digest = hash(&event.payload.signer_key);
             match &event.payload.change {
                 EventLogChange::SetDocument(digest) => {
-                    let signer_valid = state.next_key.value == signer_digest;
+                    let signer_valid = state.next_key_digest == signer_digest;
                     check!(signer_valid, IdentityError::InvalidSigner);
                     state.doc_digest = digest.value.clone()
                 }
                 EventLogChange::SetProof(stmt) => {
-                    let signer_valid = state.next_key.value == signer_digest;
+                    let signer_valid = state.next_key_digest == signer_digest;
                     check!(signer_valid, IdentityError::InvalidSigner);
                     state.proofs.insert(stmt.key.clone(), stmt.value.clone());
                 }
                 EventLogChange::Recover(recovery) => {
-                    let rec_valid = state.recovery_next_key.value == signer_digest;
+                    let rec_valid = state.recovery_key_digest == signer_digest;
                     check!(rec_valid, IdentityError::InvalidRecovery);
-                    state.recovery_next_key = recovery.recovery_next_key.clone();
+                    state.recovery_key_digest = recovery.recovery_key_digest.clone();
                 }
             }
-            state.next_key = event.payload.next_key.clone();
+            state.next_key_digest = event.payload.next_key_digest.clone();
             state.event_id = event.get_id();
         }
         Ok(state)
@@ -119,7 +121,7 @@ mod tests {
     }
     #[test]
     fn id_test() {
-        let expected_id = "bagaaieraa3osn7ivjmkipdjluomerepr4hs7c647rux3mh5tkamaelgoycjq";
+        let expected_id = "bagaaieray3luw27xnz5ed3537eoihoztehssbyulwukju6eg6ltjmgtorzzq";
         let inception_secret =
             multibase::decode("bd6yg2qeifnixj4x3z2fclp5wd3i6ysjlfkxewqqt2thie6lfnkma")
                 .unwrap()
@@ -163,8 +165,8 @@ mod tests {
         let mut ledger = MicroLedger::new( &public, &public);
         let payload = EventLogPayload {
             previous: "1".to_string(),
-            signer_public_key: public.clone(),
-            next_key: NextKey::from_public(&public),
+            signer_key: public.clone(),
+            next_key_digest: hash(&public),
             change: EventLogChange::SetDocument(DocumentDigest { value: vec![] }),
         };
         let proof = payload.sign(&secret);
@@ -182,8 +184,8 @@ mod tests {
         let mut ledger = MicroLedger::new( &inception_public, &inception_public);
         let payload = EventLogPayload {
             previous: ledger.inception.get_id(),
-            signer_public_key: inception_public.clone(),
-            next_key: NextKey::from_public(&inception_public),
+            signer_key: inception_public.clone(),
+            next_key_digest: hash(&inception_public),
             change: EventLogChange::SetDocument(DocumentDigest { value: vec![] }),
         };
         let proof = payload.sign(&signer_secret);
@@ -205,10 +207,10 @@ mod tests {
         let mut ledger = MicroLedger::new( &inception_public, &inception_public);
         let payload_rec = EventLogPayload {
             previous: ledger.inception.get_id(),
-            signer_public_key: inception_public.clone(),
-            next_key: NextKey::from_public(&new_public),
+            signer_key: inception_public.clone(),
+            next_key_digest: hash(&new_public),
             change: EventLogChange::Recover(RecoverStatement {
-                recovery_next_key: NextKey::from_public(&new_public),
+                recovery_key_digest: hash(&new_public),
             }),
         };
         let proof = payload_rec.sign(&signer_secret);
@@ -216,8 +218,8 @@ mod tests {
         ledger.events.push(log_rec.clone());
         let payload = EventLogPayload {
             previous: log_rec.get_id(),
-            signer_public_key: inception_public.clone(),
-            next_key: NextKey::from_public(&new_public),
+            signer_key: inception_public.clone(),
+            next_key_digest: hash(&new_public),
             change: EventLogChange::SetDocument(DocumentDigest { value: vec![] }),
         };
         let proof = payload.sign(&signer_secret);
@@ -235,10 +237,10 @@ mod tests {
         let mut ledger = MicroLedger::new( &inception_public, &new_public);
         let payload_rec = EventLogPayload {
             previous: ledger.inception.get_id(),
-            signer_public_key: inception_public.clone(),
-            next_key: NextKey::from_public(&new_public),
+            signer_key: inception_public.clone(),
+            next_key_digest: hash(&new_public),
             change: EventLogChange::Recover(RecoverStatement {
-                recovery_next_key: NextKey::from_public(&new_public),
+                recovery_key_digest: hash(&new_public),
             }),
         };
         let proof = payload_rec.sign(&signer_secret);

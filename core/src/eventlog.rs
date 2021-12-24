@@ -1,5 +1,4 @@
-use crate::encode_me;
-use crate::NextKey;
+use crate::{encode_me, IdKey, IdKeyDigest};
 use ed25519_dalek::{PublicKey, Signature, Signer, Verifier};
 use serde::{Deserialize, Serialize};
 use std::convert::TryInto;
@@ -14,8 +13,9 @@ pub struct ProofStatement {
 
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
 pub struct RecoverStatement {
-    #[serde(rename = "recoveryNextKey")]
-    pub recovery_next_key: NextKey,
+    #[serde(with = "encode_me")]
+    #[serde(rename = "recoveryKeyDigest")]
+    pub recovery_key_digest: IdKeyDigest,
 }
 
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
@@ -40,9 +40,10 @@ pub struct EventLogPayload {
     pub previous: String, 
     #[serde(with = "encode_me")]
     #[serde(rename = "signerPublicKey")]
-    pub signer_public_key: Vec<u8>, 
+    pub signer_key: IdKey, 
+    #[serde(with = "encode_me")]
     #[serde(rename = "signerNextKey")]
-    pub next_key: NextKey,
+    pub next_key_digest: IdKeyDigest,
     pub change: EventLogChange,
 }
 
@@ -94,8 +95,8 @@ mod tests {
         let signer_public = to_verification_publickey(&secret_key);
         let payload = EventLogPayload {
             previous: "1".to_string(),
-            signer_public_key: signer_public.clone(),
-            next_key: NextKey::from_public(&vec![]),
+            signer_key: signer_public.clone(),
+            next_key_digest: vec![],
             change: EventLogChange::SetDocument(DocumentDigest { value: vec![] }),
         };
         let proof = payload.sign(&secret_key);
