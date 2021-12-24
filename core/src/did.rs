@@ -77,7 +77,7 @@ impl Identity {
         });
         did.save_event(
             &inception_secret,
-            NextKey::from_public(&next_public),
+            hash(&next_public),
             doc_change,
         );
         CreateIdentityResult {
@@ -90,13 +90,13 @@ impl Identity {
         }
     }
 
-    pub fn save_event(&mut self, signer_secret: &[u8], next_key: NextKey, change: EventLogChange) {
+    pub fn save_event(&mut self, signer_secret: &[u8], next_key_digest: IdKeyDigest, change: EventLogChange) {
         let signer_publickey = to_verification_publickey(&signer_secret);
         let previous = self.microledger.get_previous_id();
         let payload = EventLogPayload {
             previous: previous,
-            signer_public_key: signer_publickey,
-            next_key: next_key,
+            signer_key: signer_publickey,
+            next_key_digest: next_key_digest,
             change: change,
         };
         let proof = payload.sign(&signer_secret);
@@ -147,7 +147,7 @@ mod tests {
     #[test]
     fn create_with_secrets_test() {
         let result = create_did();
-        let id = "bagaaierap44kwfwbfgfxwcdfjefcqmycu6ongzl3epqyuutg5t6sqeaq53cq";
+        let id = "bagaaiera443xzpi6oqcvionvwd7py5a3o6tzrlqzyscxzuvwtsfezfwpcg6q";
         assert_eq!(result.did.id, id);
     }
 
@@ -159,7 +159,7 @@ mod tests {
         let doc_digest = new_doc.doc.get_digest();
         result.did.document = new_doc.doc;
         let change = EventLogChange::SetDocument(DocumentDigest { value: doc_digest });
-        let next_key = NextKey::from_public(&vec![]);
+        let next_key = hash(&vec![]);
         result.did.save_event(&result.next_secret, next_key, change);
         assert_eq!(result.did.microledger.events.len(), 2);
         assert_ne!(
