@@ -1,6 +1,17 @@
+use crate::*;
 use serde::{Deserialize, Serialize};
 use serde_with::skip_serializing_none;
-use crate::*;
+
+pub struct CreateDocInput<'a> {
+    pub id: &'a str,
+    pub signer_secret: &'a [u8],
+    pub next_key_digest: &'a [u8],
+    pub recovery_key_digest: &'a [u8],
+    pub assertion_key: &'a [u8],
+    pub authentication_key: &'a [u8],
+    pub keyagreement_key: &'a [u8],
+    pub service: &'a [Service],
+}
 
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
 pub struct Service {
@@ -18,19 +29,8 @@ pub struct VerificationMethod {
     pub controller: String,
     #[serde(rename = "type")]
     pub typ: String,
-    #[serde(with = "encode_me", rename = "publicKeyMultibase")]
+    #[serde(with = "encode_vec", rename = "publicKeyMultibase")]
     pub bytes: Vec<u8>,
-}
-
-#[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
-pub struct CreateDocResult {
-    pub doc: IdDocument,
-    #[serde(with = "encode_me")]
-    pub assertion_secret: Vec<u8>,
-    #[serde(with = "encode_me")]
-    pub authentication_secret: Vec<u8>,
-    #[serde(with = "encode_me")]
-    pub keyagreement_secret: Vec<u8>,
 }
 
 #[skip_serializing_none]
@@ -53,81 +53,44 @@ pub struct IdDocument {
 }
 
 impl IdDocument {
-    pub fn new(id: String) -> CreateDocResult {
-        let assertion_secret = create_secret_key();
-        let authentication_secret = create_secret_key();
-        let key_agreement_secret = create_secret_key();
-        IdDocument::new_with_secrets(
-            id,
-            assertion_secret,
-            authentication_secret,
-            key_agreement_secret,
-        )
-    }
-
-    pub fn new_with_secrets(
-        id: String,
-        assertion_secret: Vec<u8>,
-        authentication_secret: Vec<u8>,
-        keyagreement_secret: Vec<u8>,
-    ) -> CreateDocResult {
-        let assertion_public = to_verification_publickey(&assertion_secret);
-        let authentication_public = to_verification_publickey(&authentication_secret);
-        let keyagreement_public = to_key_agreement_publickey(&keyagreement_secret);
+    pub fn new(input: CreateDocInput) -> IdDocument {
+        let doc_id = format!("did:p2p:{}", input.id);
+        let assertion_id = format!("{}#{}", doc_id, encode(input.assertion_key));
+        let authentication_id = format!("{}#{}", doc_id, encode(input.authentication_key));
+        let keyagreement_id = format!("{}#{}", doc_id, encode(input.keyagreement_key));
         let assertion_method = VerificationMethod {
-            id: crate::encode(assertion_public.clone()),
-            controller: format!("did:p2p:{}", id.clone()),
+            id: assertion_id.clone(),
+            controller: doc_id.clone(),
             typ: ED25519.to_string(),
-            bytes: assertion_public.clone(),
+            bytes: input.assertion_key.to_owned(),
         };
         let authentication = VerificationMethod {
-            id: crate::encode(authentication_public.clone()),
-            controller: format!("did:p2p:{}", id.clone()),
+            id: authentication_id.clone(),
+            controller: doc_id.clone(),
             typ: ED25519.to_string(),
-            bytes: authentication_public.clone(),
+            bytes: input.authentication_key.to_owned(),
         };
         let key_agreement = VerificationMethod {
-            id: crate::encode(keyagreement_public.clone()),
-            controller: format!("did:p2p:{}", id.clone()),
+            id: keyagreement_id.clone(),
+            controller: doc_id.clone(),
             typ: X25519.to_string(),
-            bytes: keyagreement_public.clone(),
+            bytes: input.keyagreement_key.to_owned(),
         };
-        let doc = IdDocument {
+        let document = IdDocument {
             context: vec![
                 "https://www.w3.org/ns/did/v1".to_string(),
                 "https://w3id.org/security/suites/ed25519-2020/v1".to_string(),
                 "https://w3id.org/security/suites/x25519-2020/v1".to_string(),
             ],
-            id: format!("did:p2p:{}", id.clone()),
-            controller: format!("did:p2p:{}", id.clone()),
-            verification_method: vec![
-                assertion_method.clone(),
-                authentication.clone(),
-                key_agreement.clone(),
-            ],
-            authentication: vec![format!(
-                "did:p2p:{}#{}",
-                id.clone(),
-                authentication.id.clone()
-            )],
-            assertion_method: vec![format!(
-                "did:p2p:{}#{}",
-                id.clone(),
-                assertion_method.id.clone()
-            )],
-            key_agreement: vec![format!(
-                "did:p2p:{}#{}",
-                id.clone(),
-                key_agreement.id.clone()
-            )],
+            id: doc_id.clone(),
+            controller: doc_id.clone(),
+            verification_method: vec![assertion_method, authentication, key_agreement],
+            authentication: vec![authentication_id],
+            assertion_method: vec![assertion_id],
+            key_agreement: vec![keyagreement_id],
             services: vec![],
         };
-        CreateDocResult {
-            doc: doc,
-            assertion_secret: assertion_secret,
-            authentication_secret: authentication_secret,
-            keyagreement_secret: keyagreement_secret,
-        }
+        document
     }
 
     pub fn get_digest(&self) -> Vec<u8> {
@@ -135,23 +98,27 @@ impl IdDocument {
     }
 }
 
-
 #[cfg(test)]
 mod tests {
     use super::*;
     #[test]
     fn new_did_doc() {
-        let assertion_public = to_verification_publickey(&create_secret_key());
-        let authentication_public = to_verification_publickey(&create_secret_key());
-        let agreement_public = to_key_agreement_publickey(&create_secret_key());
-        let doc_result = IdDocument::new_with_secrets(
-            "123456".to_string(),
-            assertion_public,
-            authentication_public,
-            agreement_public,
-        );
-        assert_eq!(doc_result.doc.id, "did:p2p:123456");
-        assert_eq!(doc_result.doc.controller, "did:p2p:123456");
-        assert_eq!(doc_result.doc.verification_method.len(), 3);
+        let secret = create_secret_key();
+        let ed_key = to_verification_publickey(&secret);
+        let x_key = to_key_agreement_publickey(&secret);
+        let input = CreateDocInput{
+            id: "123456",
+            signer_secret: &secret,
+            next_key_digest: &hash(&ed_key),
+            recovery_key_digest: &hash(&ed_key),
+            assertion_key: &ed_key,
+            authentication_key: &ed_key,
+            keyagreement_key: &x_key,
+            service: &vec![],
+        };
+        let doc = IdDocument::new(input);
+        assert_eq!(doc.id, "did:p2p:123456");
+        assert_eq!(doc.controller, "did:p2p:123456");
+        assert_eq!(doc.verification_method.len(), 3);
     }
 }

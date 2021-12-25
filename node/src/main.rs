@@ -27,7 +27,7 @@ fn init(base_path: &str) -> String {
     std::fs::create_dir_all(id_path).unwrap();
     std::fs::create_dir_all(ac_path).unwrap();
     let secret = idp2p_core::create_secret_key();
-    let token = idp2p_core::encode(secret);
+    let token = idp2p_core::encode(&secret);
     let code = QrCode::new(token.clone()).unwrap();
     let image = code
         .render::<unicode::Dense1x2>()

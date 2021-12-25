@@ -1,4 +1,3 @@
-use std::convert::TryInto;
 use cid::{
     multihash::{Code, MultihashDigest},
     Cid,
@@ -6,8 +5,9 @@ use cid::{
 use ed25519_dalek::{Keypair, PublicKey, SecretKey};
 use multibase::*;
 use rand::prelude::*;
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 use sha2::{Digest, Sha256};
+use std::convert::TryInto;
 use thiserror::Error;
 use x25519_dalek::StaticSecret;
 const ED25519: &str = "Ed25519VerificationKey2020";
@@ -40,7 +40,7 @@ pub type IdKeySecret = Vec<u8>;
 pub type IdKey = Vec<u8>;
 pub type IdKeyDigest = Vec<u8>;
 
-pub mod encode_me {
+pub mod encode_vec {
     use multibase::Base;
     use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
@@ -52,6 +52,7 @@ pub mod encode_me {
         let (_, data) = multibase::decode(&s).unwrap();
         Ok(data)
     }
+
     pub fn serialize<S, T>(value: &T, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: Serializer,
@@ -67,8 +68,8 @@ pub fn hash(bytes: &[u8]) -> Vec<u8> {
     (&hasher.finalize()).to_vec()
 }
 
-pub fn encode(value: Vec<u8>) -> String {
-    multibase::encode(Base::Base32Lower, &value)
+pub fn encode(value: &[u8]) -> String {
+    multibase::encode(Base::Base32Lower, value)
 }
 
 pub fn generate_cid<T: Sized + Serialize>(t: &T) -> String {
@@ -101,7 +102,7 @@ pub fn to_verification_publickey(secret_key: &[u8]) -> Vec<u8> {
 }
 
 pub fn to_key_agreement_publickey(secret: &[u8]) -> Vec<u8> {
-    let secret_data: [u8;32] = secret.try_into().unwrap();
+    let secret_data: [u8; 32] = secret.try_into().unwrap();
     let secret_key = StaticSecret::from(secret_data);
     let public_key = x25519_dalek::PublicKey::from(&secret_key);
     let public: Vec<u8> = public_key.to_bytes().to_vec();
@@ -127,16 +128,9 @@ mod tests {
     #[test]
     fn hash_test() {
         let v = vec![0, 1];
+        let e = "fb413f47d13ee2fe6c845b2ee141af81de858df4ec549a58b7970bb96645bc8d2";
         let digest = hash(&v);
         let hex = multibase::encode(Base::Base16Lower, digest);
-        assert_eq!(
-            hex,
-            "fb413f47d13ee2fe6c845b2ee141af81de858df4ec549a58b7970bb96645bc8d2"
-        );
+        assert_eq!(hex, e);
     }
 }
-
-/*let keypair: Keypair = to_keypair(key_data.to_vec());
-let public = keypair.public.to_bytes().to_vec();
-let secret = keypair.secret.as_bytes().to_vec();
-(secret, public)*/

@@ -1,6 +1,7 @@
 use crate::file_store::FileStore;
 use crate::id_behaviour::IdentityGossipBehaviour;
 use crate::id_message::{IdentityMessage, IdentityMessageType};
+use idp2p_core::create_secret_key;
 use idp2p_core::did::Identity;
 use libp2p::gossipsub::IdentTopic;
 
@@ -45,11 +46,10 @@ pub fn handle_cmd(input: &str) -> Option<IdentityCommand> {
     match input[0] {
         "create-id" => {
             let name = input[1];
-            let identity_result = Identity::new();
-            FileStore.put("accounts", name, identity_result.clone());
-            return Some(IdentityCommand::Post {
-                did: identity_result.did,
-            });
+            let secret = create_secret_key();
+            let identity = Identity::new(&secret, &secret);
+            FileStore.put("accounts", name, identity.clone());
+            return Some(IdentityCommand::Post { did: identity });
         }
         "get" => {
             let id = input[1].to_string();

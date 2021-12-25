@@ -1,26 +1,26 @@
-use crate::{encode_me, IdKey, IdKeyDigest};
+use crate::{encode_vec, IdKey, IdKeyDigest};
 use ed25519_dalek::{PublicKey, Signature, Signer, Verifier};
 use serde::{Deserialize, Serialize};
 use std::convert::TryInto;
 
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
 pub struct ProofStatement {
-    #[serde(with = "encode_me")]
+    #[serde(with = "encode_vec")]
     pub key: Vec<u8>,
-    #[serde(with = "encode_me")]
+    #[serde(with = "encode_vec")]
     pub value: Vec<u8>,
 }
 
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
 pub struct RecoverStatement {
-    #[serde(with = "encode_me")]
+    #[serde(with = "encode_vec")]
     #[serde(rename = "recoveryKeyDigest")]
     pub recovery_key_digest: IdKeyDigest,
 }
 
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
 pub struct DocumentDigest {
-    #[serde(with = "encode_me")]
+    #[serde(with = "encode_vec")]
     pub value: Vec<u8>,
 }
 
@@ -38,10 +38,10 @@ pub enum EventLogChange {
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
 pub struct EventLogPayload {
     pub previous: String, 
-    #[serde(with = "encode_me")]
+    #[serde(with = "encode_vec")]
     #[serde(rename = "signerPublicKey")]
     pub signer_key: IdKey, 
-    #[serde(with = "encode_me")]
+    #[serde(with = "encode_vec")]
     #[serde(rename = "signerNextKey")]
     pub next_key_digest: IdKeyDigest,
     pub change: EventLogChange,
@@ -50,7 +50,7 @@ pub struct EventLogPayload {
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
 pub struct EventLog {
     pub payload: EventLogPayload,
-    #[serde(with = "encode_me")]
+    #[serde(with = "encode_vec")]
     pub proof: Vec<u8>, // if recover assume recovery key
 }
 
@@ -91,17 +91,17 @@ mod tests {
     use crate::*;
     #[test]
     fn new_event() {
-        let secret_key = create_secret_key();
-        let signer_public = to_verification_publickey(&secret_key);
+        let secret = create_secret_key();
+        let signer_key = to_verification_publickey(&secret);
         let payload = EventLogPayload {
             previous: "1".to_string(),
-            signer_key: signer_public.clone(),
+            signer_key: signer_key.clone(),
             next_key_digest: vec![],
             change: EventLogChange::SetDocument(DocumentDigest { value: vec![] }),
         };
-        let proof = payload.sign(&secret_key);
+        let proof = payload.sign(&secret);
         let log = EventLog::new(payload, proof);
-        let is_valid = log.verify(&signer_public);
+        let is_valid = log.verify(&signer_key);
         assert!(is_valid);
     }
 }
