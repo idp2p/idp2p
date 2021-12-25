@@ -2,15 +2,12 @@ use crate::*;
 use serde::{Deserialize, Serialize};
 use serde_with::skip_serializing_none;
 
-pub struct CreateDocInput<'a> {
-    pub id: &'a str,
-    pub signer_secret: &'a [u8],
-    pub next_key_digest: &'a [u8],
-    pub recovery_key_digest: &'a [u8],
-    pub assertion_key: &'a [u8],
-    pub authentication_key: &'a [u8],
-    pub keyagreement_key: &'a [u8],
-    pub service: &'a [Service],
+pub struct CreateDocInput {
+    pub id: String,
+    pub assertion_key: Vec<u8>,
+    pub authentication_key: Vec<u8>,
+    pub keyagreement_key: Vec<u8>,
+    pub service: Vec<Service>,
 }
 
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
@@ -55,9 +52,9 @@ pub struct IdDocument {
 impl IdDocument {
     pub fn new(input: CreateDocInput) -> IdDocument {
         let doc_id = format!("did:p2p:{}", input.id);
-        let assertion_id = format!("{}#{}", doc_id, encode(input.assertion_key));
-        let authentication_id = format!("{}#{}", doc_id, encode(input.authentication_key));
-        let keyagreement_id = format!("{}#{}", doc_id, encode(input.keyagreement_key));
+        let assertion_id = format!("{}#{}", doc_id, encode(&input.assertion_key));
+        let authentication_id = format!("{}#{}", doc_id, encode(&input.authentication_key));
+        let keyagreement_id = format!("{}#{}", doc_id, encode(&input.keyagreement_key));
         let assertion_method = VerificationMethod {
             id: assertion_id.clone(),
             controller: doc_id.clone(),
@@ -107,14 +104,11 @@ mod tests {
         let ed_key = to_verification_publickey(&secret);
         let x_key = to_key_agreement_publickey(&secret);
         let input = CreateDocInput{
-            id: "123456",
-            signer_secret: &secret,
-            next_key_digest: &hash(&ed_key),
-            recovery_key_digest: &hash(&ed_key),
-            assertion_key: &ed_key,
-            authentication_key: &ed_key,
-            keyagreement_key: &x_key,
-            service: &vec![],
+            id: "123456".to_owned(),
+            assertion_key: ed_key.clone(),
+            authentication_key: ed_key.clone(),
+            keyagreement_key: x_key.clone(),
+            service: vec![],
         };
         let doc = IdDocument::new(input);
         assert_eq!(doc.id, "did:p2p:123456");

@@ -28,13 +28,16 @@ impl Identity {
         did
     }
 
-    pub fn create_document(&mut self, input: CreateDocInput) {
-        let signer_secret = &input.signer_secret.to_owned();
-        let next_key_digest = &input.next_key_digest.to_owned();
+    pub fn create_document(
+        &mut self,
+        signer_secret: &[u8],
+        next_key_digest: &[u8],
+        input: CreateDocInput,
+    ) {
         let document = IdDocument::new(input);
         self.document = Some(document.clone());
         let digest = DocumentDigest {
-            value: hash(&document.get_digest()),
+            value: document.get_digest(),
         };
         let change = EventLogChange::SetDocument(digest);
         self.save_event(signer_secret, next_key_digest, change)
@@ -62,25 +65,22 @@ impl Identity {
     pub fn verify(&self) -> Result<bool, IdentityError> {
         let id = self.microledger.inception.get_id();
         let verified = self.microledger.verify(&id)?;
-        let doc_json = serde_json::to_string(&self.document).unwrap();
-        let did_doc_digest = hash(doc_json.as_bytes());
-        check!(
-            did_doc_digest == verified.doc_digest,
-            IdentityError::InvalidDocumentDigest
-        );
+        if let Some(document) = self.document.clone() {
+            let doc_json = serde_json::to_string(&document).unwrap();
+            let did_doc_digest = hash(doc_json.as_bytes());
+            check!(
+                did_doc_digest == verified.doc_digest,
+                IdentityError::InvalidDocumentDigest
+            );
+        }
         Ok(true)
     }
 
     pub fn is_next(&self, new_did: Identity) -> Result<bool, IdentityError> {
         let mut candidate = self.clone();
-        let last_id = candidate.microledger.events.last().unwrap().get_id();
-        let mut is_last = false;
         for event in &new_did.microledger.events {
-            if is_last {
+            if !candidate.microledger.events.contains(&event) {
                 candidate.microledger.events.push(event.clone());
-            }
-            if event.get_id() == last_id {
-                is_last = true;
             }
         }
         candidate.document = new_did.document.clone();
@@ -100,45 +100,33 @@ mod tests {
     use super::*;
 
     #[test]
-    fn set_doc_test() {
-        /*let mut did = create_did();
-        let old_doc_authentication = did.document.authentication[0].clone();
-        let new_doc = IdDocument::new(result.did.id.clone());
-        let doc_digest = new_doc.doc.get_digest();
-        result.did.document = new_doc.doc;
-        let change = EventLogChange::SetDocument(DocumentDigest { value: doc_digest });
-        let next_key = hash(&vec![]);
-        result.did.save_event(&result.next_secret, next_key, change);
-        assert_eq!(result.did.microledger.events.len(), 2);
-        assert_ne!(
-            result.did.document.authentication[0],
-            old_doc_authentication
-        );*/
-    }
-
-    #[test]
     fn is_next_ok_test() {
-        let (mut did, secret) = create_did();
-        let ed_key = to_verification_publickey(&secret);
-        let x_key = to_key_agreement_publickey(&secret);
+        let (did, _) = create_did();
         let current = did.clone();
-        let input = CreateDocInput{
-            id: "123456",
-            signer_secret: &secret,
-            next_key_digest: &hash(&ed_key),
-            recovery_key_digest: &hash(&ed_key),
-            assertion_key: &ed_key,
-            authentication_key: &ed_key,
-            keyagreement_key: &x_key,
-            service: &vec![],
-        };
-        did.create_document(input);
         let r = current.is_next(did.clone());
         assert!(r.is_ok());
     }
 
     #[test]
-    fn is_next_invaliddoc_test() {
+    fn is_next_ok_with_doc_test() {
+        let (mut did, secret) = create_did();
+        let current = did.clone();
+        let ed_key = to_verification_publickey(&secret);
+        let x_key = to_key_agreement_publickey(&secret);
+        let input = CreateDocInput {
+           id: did.id.clone(),
+           assertion_key: ed_key.clone(),
+           authentication_key: ed_key.clone(),
+           keyagreement_key: x_key.clone(),
+           service: vec![]
+        };
+        did.create_document(&secret, &hash(&ed_key), input);
+        let r = current.is_next(did.clone());
+        assert!(r.is_ok());
+    }
+
+    #[test]
+    fn is_next_invalid_doc_test() {
         /*let mut result = create_did();
         let current = result.did.clone();
         let secret = multibase::decode("beilmx4d76udjmug5ykpy657qa3pfsqbcu7fbbtuk3mgrdrxssseq")
@@ -161,6 +149,7 @@ mod tests {
     fn create_did() -> (Identity, Vec<u8>) {
         let secret_str = "beilmx4d76udjmug5ykpy657qa3pfsqbcu7fbbtuk3mgrdrxssseq";
         let secret = multibase::decode(secret_str).unwrap().1;
-        (Identity::new(&secret, &secret), secret)
+        let ed_key_digest = hash(&to_verification_publickey(&secret));
+        (Identity::new(&ed_key_digest, &ed_key_digest), secret)
     }
 }
