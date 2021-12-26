@@ -104,7 +104,7 @@ mod tests {
         let (did, _) = create_did();
         let current = did.clone();
         let r = current.is_next(did.clone());
-        assert!(r.is_ok());
+        assert!(r.is_ok(), "{:?}", r);
     }
 
     #[test]
@@ -122,28 +122,31 @@ mod tests {
         };
         did.create_document(&secret, &hash(&ed_key), input);
         let r = current.is_next(did.clone());
-        assert!(r.is_ok());
+        assert!(r.is_ok(), "{:?}", r);
     }
 
     #[test]
     fn is_next_invalid_doc_test() {
-        /*let mut result = create_did();
-        let current = result.did.clone();
-        let secret = multibase::decode("beilmx4d76udjmug5ykpy657qa3pfsqbcu7fbbtuk3mgrdrxssseq")
-            .unwrap()
-            .1;
-        result.did.document = IdDocument::new_with_secrets(
-            result.did.id.clone(),
-            secret.clone(),
-            secret.clone(),
-            secret.clone(),
-        )
-        .doc;
-        let is_next = current.is_next(result.did.clone());
-        assert!(matches!(
-            is_next,
-            Err(crate::IdentityError::InvalidDocumentDigest)
-        ));*/
+        let (mut did, secret) = create_did();
+        let current = did.clone();
+        let ed_key = to_verification_publickey(&secret);
+        let x_key = to_key_agreement_publickey(&secret);
+        let input = CreateDocInput {
+           id: did.id.clone(),
+           assertion_key: ed_key.clone(),
+           authentication_key: ed_key.clone(),
+           keyagreement_key: x_key.clone(),
+           service: vec![]
+        };
+        did.create_document(&secret, &hash(&ed_key), input);
+        let digest = DocumentDigest {
+            value: vec![]
+        };
+        let change = EventLogChange::SetDocument(digest);
+        did.save_event(&secret, &secret, change);
+        let result = current.is_next(did);
+        let is_err = matches!(result, Err(crate::IdentityError::InvalidDocumentDigest));
+        assert!(is_err, "{:?}", result);
     }
 
     fn create_did() -> (Identity, Vec<u8>) {

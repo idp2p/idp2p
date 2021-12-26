@@ -59,7 +59,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
         tokio::select! {
             line = stdin.next_line() => {
                 let line = line?.expect("stdin closed");
-                let cmd = id_command::handle_cmd(&line);
+                let cmd = account::handle_cmd(&line);
                 if let Some(id_cmd) = cmd{
                     cmd_sender.send(id_cmd).await.unwrap();
                 }
@@ -84,3 +84,4 @@ pub mod id_behaviour;
 pub mod id_command;
 pub mod id_message;
 pub mod id_swarm;
+pub mod account;

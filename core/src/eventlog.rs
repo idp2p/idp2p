@@ -14,7 +14,7 @@ pub struct ProofStatement {
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
 pub struct RecoverStatement {
     #[serde(with = "encode_vec")]
-    #[serde(rename = "recoveryKeyDigest")]
+    #[serde(rename = "ecoveryKeyDigest")]
     pub recovery_key_digest: IdKeyDigest,
 }
 
