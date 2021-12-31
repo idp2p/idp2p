@@ -1,3 +1,4 @@
+use idp2p_core::did_doc::IdDocument;
 use crate::file_store::FileStore;
 use crate::IdentityCommand;
 use idp2p_core::create_secret_key;
@@ -63,8 +64,9 @@ pub fn handle_cmd(input: &str) -> Option<IdentityCommand> {
                     keyagreement_key: to_verification_publickey(&keyagreement_secret),
                     service: vec![],
                 };
+                let doc = IdDocument::new(input);
                 let key_digest = hash(&to_verification_publickey(&next_secret));
-                identity.create_document(&acc.next_secret, &key_digest, input);
+                identity.create_document(&acc.next_secret, &key_digest, doc);
                 FileStore.put("accounts", &name, acc);
                 return Some(IdentityCommand::Post { did: identity });
             }

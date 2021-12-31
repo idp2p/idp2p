@@ -125,12 +125,52 @@ pub mod microledger;
 #[cfg(test)]
 mod tests {
     use super::*;
+    use serde_json::json;
+    use ed25519_dalek::{PublicKey, Signature, Signer, Verifier};
     #[test]
     fn hash_test() {
-        let v = vec![0, 1];
-        let e = "fb413f47d13ee2fe6c845b2ee141af81de858df4ec549a58b7970bb96645bc8d2";
-        let digest = hash(&v);
-        let hex = multibase::encode(Base::Base16Lower, digest);
-        assert_eq!(hex, e);
+        let data = json!({
+            "name": "John Doe"
+        });
+        let expected = "botmu6ay364t223hj4akn7amds6rpwquuavx54demvy5e4vkn5uuq";
+        let digest = hash(serde_json::to_string(&data).unwrap().as_bytes());
+        let result = encode(&digest);
+        assert_eq!(result, expected);
+    }
+    #[test]
+    fn cid_test() {
+        let data = json!({
+            "name": "John Doe"
+        });
+        let expected = "bagaaieraotmu6ay364t223hj4akn7amds6rpwquuavx54demvy5e4vkn5uuq";
+        let cid = generate_cid(&data);
+        assert_eq!(cid, expected);
+    }
+
+    #[test]
+    fn proof_test() {
+        let secret = "bclc5pn2tfuhkqmupbr3lkyc5o4g4je6glfwkix6nrtf7hch7b3kq";
+        let keypair = to_verification_keypair(&multibase::decode(secret).unwrap().1);
+        let sig = keypair.sign(&vec![0]);
+        let public_key_bytes = to_verification_publickey(&multibase::decode(secret).unwrap().1);
+        let public_key = PublicKey::from_bytes(&public_key_bytes).unwrap();
+        let is_valid = public_key.verify(&vec![0], &sig).is_ok();
+        assert!(is_valid);
+    }
+
+    #[test]
+    fn to_verification_key_test(){
+       let secret = "bclc5pn2tfuhkqmupbr3lkyc5o4g4je6glfwkix6nrtf7hch7b3kq";
+       let expected = "brgzkmbdnyevdth3sczvxjumd6bdl6ngn6eqbsbpazuvq42bfzk2a";
+       let public_key = to_verification_publickey(&multibase::decode(secret).unwrap().1);
+       assert_eq!(encode(&public_key), expected);
+    }
+
+    #[test]
+    fn to_agreement_key_test(){
+        let secret = "bclc5pn2tfuhkqmupbr3lkyc5o4g4je6glfwkix6nrtf7hch7b3kq";
+        let expected = "bbgitzmdocc3y2gvcmtiihr2gyw4xjppux7ea3gdo6afwy6gbrmpa";
+        let public_key = to_key_agreement_publickey(&multibase::decode(secret).unwrap().1);
+        assert_eq!(encode(&public_key), expected);
     }
 }

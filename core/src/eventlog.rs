@@ -1,3 +1,4 @@
+use crate::hash;
 use crate::{encode_vec, IdKey, IdKeyDigest};
 use ed25519_dalek::{PublicKey, Signature, Signer, Verifier};
 use serde::{Deserialize, Serialize};
@@ -14,7 +15,7 @@ pub struct ProofStatement {
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
 pub struct RecoverStatement {
     #[serde(with = "encode_vec")]
-    #[serde(rename = "ecoveryKeyDigest")]
+    #[serde(rename = "recoveryKeyDigest")]
     pub recovery_key_digest: IdKeyDigest,
 }
 
@@ -37,12 +38,12 @@ pub enum EventLogChange {
 
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
 pub struct EventLogPayload {
-    pub previous: String, 
+    pub previous: String,
     #[serde(with = "encode_vec")]
-    #[serde(rename = "signerPublicKey")]
-    pub signer_key: IdKey, 
+    #[serde(rename = "signerKey")]
+    pub signer_key: IdKey,
     #[serde(with = "encode_vec")]
-    #[serde(rename = "signerNextKey")]
+    #[serde(rename = "nextKeyDigest")]
     pub next_key_digest: IdKeyDigest,
     pub change: EventLogChange,
 }
@@ -54,11 +55,12 @@ pub struct EventLog {
     pub proof: Vec<u8>, // if recover assume recovery key
 }
 
-impl EventLogPayload{
-    pub fn sign(&self, secret: &[u8]) -> Vec<u8>{
+impl EventLogPayload {
+    pub fn sign(&self, secret: &[u8]) -> Vec<u8> {
         let payload_json = serde_json::to_string(&self).unwrap();
+        let bytes = payload_json.as_bytes();
         let keypair = crate::to_verification_keypair(secret);
-        keypair.sign(payload_json.as_bytes()).to_bytes().to_vec()
+        keypair.sign(&bytes).to_bytes().to_vec()
     }
 }
 
@@ -90,7 +92,7 @@ mod tests {
     use super::*;
     use crate::*;
     #[test]
-    fn new_event() {
+    fn event_verify_test() {
         let secret = create_secret_key();
         let signer_key = to_verification_publickey(&secret);
         let payload = EventLogPayload {
@@ -103,5 +105,31 @@ mod tests {
         let log = EventLog::new(payload, proof);
         let is_valid = log.verify(&signer_key);
         assert!(is_valid);
+    }
+
+    #[test]
+    fn event_create_test() {
+        let secret = "bclc5pn2tfuhkqmupbr3lkyc5o4g4je6glfwkix6nrtf7hch7b3kq";
+        let signer_key = to_verification_publickey(&multibase::decode(secret).unwrap().1);
+        let payload = EventLogPayload {
+            previous: "1".to_string(),
+            signer_key: signer_key.clone(),
+            next_key_digest: hash(&signer_key),
+            change: EventLogChange::SetDocument(DocumentDigest { value: vec![] }),
+        };
+        let proof = payload.sign(&multibase::decode(secret).unwrap().1);
+        let log = EventLog::new(payload, proof);
+        let expected_json = r#"
+        {
+            "payload": {
+                "previous": "1",
+                "signerKey": "brgzkmbdnyevdth3sczvxjumd6bdl6ngn6eqbsbpazuvq42bfzk2a",
+                "nextKeyDigest": "bcodiqdow4rvnu4o2wwtpv6dvjjsd63najdeazekh4w3s2dyb2tvq",
+                "change": {"type": "SetDocument", "value": "b"}
+            },
+            "proof": "b5hpli3wz7repyggufuhwwhej6ql5tjruh6d5kljld4rgnxet5g2jswetzguru6c2wne5kdeq5q5jx72l57jwrqcf6fcxu5bizqgh4cq"
+        }"#;
+        let expected: EventLog = serde_json::from_str(expected_json).unwrap();
+        assert_eq!(serde_json::to_string(&log).unwrap(), serde_json::to_string(&expected).unwrap());
     }
 }

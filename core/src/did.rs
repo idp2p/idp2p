@@ -32,13 +32,12 @@ impl Identity {
         &mut self,
         signer_secret: &[u8],
         next_key_digest: &[u8],
-        input: CreateDocInput,
+        document: IdDocument,
     ) {
-        let document = IdDocument::new(input);
-        self.document = Some(document.clone());
         let digest = DocumentDigest {
             value: document.get_digest(),
         };
+        self.document = Some(document);
         let change = EventLogChange::SetDocument(digest);
         self.save_event(signer_secret, next_key_digest, change)
     }
@@ -120,7 +119,8 @@ mod tests {
            keyagreement_key: x_key.clone(),
            service: vec![]
         };
-        did.create_document(&secret, &hash(&ed_key), input);
+        let doc = IdDocument::new(input);
+        did.create_document(&secret, &hash(&ed_key), doc);
         let r = current.is_next(did.clone());
         assert!(r.is_ok(), "{:?}", r);
     }
@@ -138,7 +138,8 @@ mod tests {
            keyagreement_key: x_key.clone(),
            service: vec![]
         };
-        did.create_document(&secret, &hash(&ed_key), input);
+        let doc = IdDocument::new(input);
+        did.create_document(&secret, &hash(&ed_key), doc);
         let digest = DocumentDigest {
             value: vec![]
         };
