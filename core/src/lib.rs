@@ -27,8 +27,6 @@ pub enum IdentityError {
     #[error("Invalid signer")]
     InvalidSigner,
     #[error("Invalid recovery")]
-    InvalidRecovery,
-    #[error("Invalid doc digest")]
     InvalidDocumentDigest,
     #[error("Invalid next")]
     InvalidNext,

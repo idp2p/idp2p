@@ -1,9 +1,6 @@
-use crate::did_doc::CreateDocInput;
 use crate::did_doc::IdDocument;
 use crate::eventlog::DocumentDigest;
-use crate::eventlog::EventLog;
 use crate::eventlog::EventLogChange;
-use crate::eventlog::EventLogPayload;
 use crate::microledger::MicroLedger;
 use crate::*;
 use anyhow::Result;
@@ -28,37 +25,13 @@ impl Identity {
         did
     }
 
-    pub fn create_document(
-        &mut self,
-        signer_secret: &[u8],
-        next_key_digest: &[u8],
-        document: IdDocument,
-    ) {
+    pub fn create_document(&mut self, signer: &[u8], next: &[u8], document: IdDocument) {
         let digest = DocumentDigest {
             value: document.get_digest(),
         };
         self.document = Some(document);
         let change = EventLogChange::SetDocument(digest);
-        self.save_event(signer_secret, next_key_digest, change)
-    }
-
-    pub fn save_event(
-        &mut self,
-        signer_secret: &[u8],
-        next_key_digest: &[u8],
-        change: EventLogChange,
-    ) {
-        let signer_publickey = to_verification_publickey(&signer_secret);
-        let previous = self.microledger.get_previous_id();
-        let payload = EventLogPayload {
-            previous: previous,
-            signer_key: signer_publickey,
-            next_key_digest: next_key_digest.to_owned(),
-            change: change,
-        };
-        let proof = payload.sign(&signer_secret);
-        let event_log = EventLog::new(payload, proof);
-        self.microledger.events.push(event_log);
+        self.microledger.save_event(signer, next, change)
     }
 
     pub fn verify(&self) -> Result<bool, IdentityError> {
@@ -97,6 +70,7 @@ impl Identity {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::did_doc::CreateDocInput;
 
     #[test]
     fn is_next_ok_test() {
@@ -113,11 +87,11 @@ mod tests {
         let ed_key = to_verification_publickey(&secret);
         let x_key = to_key_agreement_publickey(&secret);
         let input = CreateDocInput {
-           id: did.id.clone(),
-           assertion_key: ed_key.clone(),
-           authentication_key: ed_key.clone(),
-           keyagreement_key: x_key.clone(),
-           service: vec![]
+            id: did.id.clone(),
+            assertion_key: ed_key.clone(),
+            authentication_key: ed_key.clone(),
+            keyagreement_key: x_key.clone(),
+            service: vec![],
         };
         let doc = IdDocument::new(input);
         did.create_document(&secret, &hash(&ed_key), doc);
@@ -132,19 +106,17 @@ mod tests {
         let ed_key = to_verification_publickey(&secret);
         let x_key = to_key_agreement_publickey(&secret);
         let input = CreateDocInput {
-           id: did.id.clone(),
-           assertion_key: ed_key.clone(),
-           authentication_key: ed_key.clone(),
-           keyagreement_key: x_key.clone(),
-           service: vec![]
+            id: did.id.clone(),
+            assertion_key: ed_key.clone(),
+            authentication_key: ed_key.clone(),
+            keyagreement_key: x_key.clone(),
+            service: vec![],
         };
         let doc = IdDocument::new(input);
         did.create_document(&secret, &hash(&ed_key), doc);
-        let digest = DocumentDigest {
-            value: vec![]
-        };
+        let digest = DocumentDigest { value: vec![] };
         let change = EventLogChange::SetDocument(digest);
-        did.save_event(&secret, &secret, change);
+        did.microledger.save_event(&secret, &secret, change);
         let result = current.is_next(did);
         let is_err = matches!(result, Err(crate::IdentityError::InvalidDocumentDigest));
         assert!(is_err, "{:?}", result);

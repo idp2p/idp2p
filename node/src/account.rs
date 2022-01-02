@@ -83,7 +83,7 @@ pub fn handle_cmd(input: &str) -> Option<IdentityCommand> {
                 };
                 let change = idp2p_core::eventlog::EventLogChange::SetProof(proof);
                 let key_digest = hash(&to_verification_publickey(&acc.next_secret));
-                identity.save_event(&acc.next_secret, &key_digest, change);
+                identity.microledger.save_event(&acc.next_secret, &key_digest, change);
                 return Some(IdentityCommand::Post { did: identity });
             }
         }
@@ -96,7 +96,7 @@ pub fn handle_cmd(input: &str) -> Option<IdentityCommand> {
                 };
                 let change = idp2p_core::eventlog::EventLogChange::Recover(stmt);
                 let key_digest = hash(&to_verification_publickey(&acc.next_secret));
-                identity.save_event(&acc.next_secret, &key_digest, change);
+                identity.microledger.save_event(&acc.next_secret, &key_digest, change);
                 return Some(IdentityCommand::Post { did: identity });
             }
         }
