@@ -46,6 +46,7 @@ pub struct EventLogPayload {
     #[serde(rename = "nextKeyDigest")]
     pub next_key_digest: IdKeyDigest,
     pub change: EventLogChange,
+    pub timestamp: i64
 }
 
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
@@ -91,6 +92,7 @@ impl EventLog {
 mod tests {
     use super::*;
     use crate::*;
+    use chrono::prelude::*;
     #[test]
     fn event_verify_test() {
         let secret = create_secret_key();
@@ -100,6 +102,7 @@ mod tests {
             signer_key: signer_key.clone(),
             next_key_digest: vec![],
             change: EventLogChange::SetDocument(DocumentDigest { value: vec![] }),
+            timestamp: Utc::now().timestamp()
         };
         let proof = payload.sign(&secret);
         let log = EventLog::new(payload, proof);
@@ -116,6 +119,7 @@ mod tests {
             signer_key: signer_key.clone(),
             next_key_digest: hash(&signer_key),
             change: EventLogChange::SetDocument(DocumentDigest { value: vec![] }),
+            timestamp: Utc::now().timestamp()
         };
         let proof = payload.sign(&multibase::decode(secret).unwrap().1);
         let log = EventLog::new(payload, proof);

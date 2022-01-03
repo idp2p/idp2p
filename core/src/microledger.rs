@@ -8,6 +8,7 @@ use crate::{generate_cid, hash, IdKeyDigest};
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use chrono::prelude::*;
 
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
 pub struct MicroLedgerState {
@@ -62,6 +63,7 @@ impl MicroLedger {
             signer_key: signer_publickey,
             next_key_digest: next.to_owned(),
             change: change,
+            timestamp: Utc::now().timestamp()
         };
         let proof = payload.sign(&signer);
         let event_log = EventLog::new(payload, proof);

@@ -54,7 +54,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     }
     let (sender, mut receiver) = tokio::sync::mpsc::channel::<IdentityCommand>(100);
     let cmd_sender = sender.clone();
-    let routes = http::routes(&token, sender.clone());
+    let routes = http::routes(token, sender.clone());
     loop {
         tokio::select! {
             line = stdin.next_line() => {
