@@ -1,7 +1,6 @@
 use crate::file_store::FileStore;
 use crate::id_behaviour::IdentityGossipBehaviour;
 use crate::id_message::{IdentityMessage, IdentityMessageType};
-use idp2p_core::create_secret_key;
 use idp2p_core::did::Identity;
 use libp2p::gossipsub::IdentTopic;
 

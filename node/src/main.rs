@@ -8,6 +8,7 @@ use qrcode::QrCode;
 use std::error::Error;
 use structopt::StructOpt;
 use tokio::io::{self, AsyncBufReadExt};
+use dotenv::dotenv;
 
 #[derive(Debug, StructOpt)]
 #[structopt(name = "idp2p", about = "Usage of idp2p.")]
@@ -26,8 +27,7 @@ fn init(base_path: &str) -> String {
     let ac_path = format!("{}/accounts", base_path);
     std::fs::create_dir_all(id_path).unwrap();
     std::fs::create_dir_all(ac_path).unwrap();
-    let secret = idp2p_core::create_secret_key();
-    let token = idp2p_core::encode(&secret);
+    let token = std::env::var("TOKEN").expect("$TOKEN is not set");
     let code = QrCode::new(token.clone()).unwrap();
     let image = code
         .render::<unicode::Dense1x2>()
@@ -42,6 +42,7 @@ fn init(base_path: &str) -> String {
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
     let opt = Opt::from_args();
+    dotenv().ok();
     let mut stdin = io::BufReader::new(io::stdin()).lines();
     let mut swarm = create(opt.port).await?;
     let token = init(&opt.dir);

@@ -8,15 +8,22 @@ use idp2p_core::eventlog::ProofStatement;
 use idp2p_core::eventlog::RecoverStatement;
 use idp2p_core::hash;
 use idp2p_core::to_verification_publickey;
+use idp2p_core::encode_vec;
 use serde::{Deserialize, Serialize};
+
 
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
 pub struct Account {
     pub id: String,
+    #[serde(with = "encode_vec")]
     pub next_secret: Vec<u8>,
+    #[serde(with = "encode_vec")]
     pub recovery_secret: Vec<u8>,
+    #[serde(with = "encode_vec")]
     pub assertion_secret: Vec<u8>,
+    #[serde(with = "encode_vec")]
     pub authentication_secret: Vec<u8>,
+    #[serde(with = "encode_vec")]
     pub agreement_secret: Vec<u8>,
 }
 

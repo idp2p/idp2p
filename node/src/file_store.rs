@@ -18,10 +18,14 @@ impl FileStore {
 
     pub fn get<T: DeserializeOwned>(&self, entity: &str, id: &str) -> Option<T> {
         let path = FileStore::get_path(entity, id);
-        let mut file = File::open(&path).unwrap();
-        let mut buff = String::new();
-        file.read_to_string(&mut buff).unwrap();
-        Some(serde_json::from_str::<T>(&buff).unwrap())
+        let result = File::open(&path);
+        if result.is_ok(){
+            let mut file = result.unwrap();
+            let mut buff = String::new();
+            file.read_to_string(&mut buff).unwrap();
+            return Some(serde_json::from_str::<T>(&buff).unwrap())
+        }
+        None
     }
 
     fn get_path(entity: &str, id: &str) -> String {

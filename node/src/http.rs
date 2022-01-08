@@ -1,5 +1,9 @@
+use idp2p_core::did::Identity;
+use crate::file_store::FileStore;
 use crate::id_command::IdentityCommand;
 use warp::{self, Filter};
+use std::time::Duration;
+use std::thread::sleep;
 
 pub fn routes(
     secret: String,
@@ -9,14 +13,21 @@ pub fn routes(
         token == format!("Bearer {}", secret)
     });
     let send_filter = warp::any().map(move || sender.clone());
-    let default_routes = warp::path!("resolve" / String)
+    let resolve_routes = warp::path!("resolve" / String)
         .and(auth_filter.clone())
         .and(send_filter.clone())
         .and_then(resolve);
-    default_routes
+    let publish_routes = warp::path!("publish" / String)
+        .and(auth_filter.clone())
+        .and(send_filter.clone())
+        .and_then(publish);
+    resolve_routes.or(publish_routes)
 }
 
-pub fn publish_message(message: String, ) -> Result<impl warp::Reply, warp::Rejection> {
+async fn publish(
+    message: String,
+    is_authenticated: bool,
+    sender: tokio::sync::mpsc::Sender<IdentityCommand>, ) -> Result<impl warp::Reply, warp::Rejection> {
     Ok("sent on channel :)")
 }
 
@@ -29,6 +40,13 @@ async fn resolve(
     if !is_authenticated{
         return Err(warp::reject());
     }
-    sender.send(IdentityCommand::Get { id: id }).await.unwrap();
-    Ok("sent on channel :)")
+    if let Some(identity) = FileStore.get::<Identity>("identities", &id){
+        return Ok(warp::reply::json(&identity));
+    }
+    sender.send(IdentityCommand::Get { id: id.clone() }).await.unwrap();
+    sleep(Duration::from_secs(2));
+    if let Some(identity) = FileStore.get::<Identity>("identities", &id){
+        return Ok(warp::reply::json(&identity));
+    }
+    Err(warp::reject())
 }
