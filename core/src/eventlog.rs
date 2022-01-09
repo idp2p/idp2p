@@ -114,12 +114,13 @@ mod tests {
     fn event_create_test() {
         let secret = "bclc5pn2tfuhkqmupbr3lkyc5o4g4je6glfwkix6nrtf7hch7b3kq";
         let signer_key = to_verification_publickey(&multibase::decode(secret).unwrap().1);
+        let timestamp = 0;
         let payload = EventLogPayload {
             previous: "1".to_string(),
             signer_key: signer_key.clone(),
             next_key_digest: hash(&signer_key),
             change: EventLogChange::SetDocument(DocumentDigest { value: vec![] }),
-            timestamp: Utc::now().timestamp()
+            timestamp: timestamp
         };
         let proof = payload.sign(&multibase::decode(secret).unwrap().1);
         let log = EventLog::new(payload, proof);
@@ -129,9 +130,10 @@ mod tests {
                 "previous": "1",
                 "signerKey": "brgzkmbdnyevdth3sczvxjumd6bdl6ngn6eqbsbpazuvq42bfzk2a",
                 "nextKeyDigest": "bcodiqdow4rvnu4o2wwtpv6dvjjsd63najdeazekh4w3s2dyb2tvq",
-                "change": {"type": "SetDocument", "value": "b"}
+                "change": {"type": "SetDocument", "value": "b"},
+                "timestamp": 0
             },
-            "proof": "b5hpli3wz7repyggufuhwwhej6ql5tjruh6d5kljld4rgnxet5g2jswetzguru6c2wne5kdeq5q5jx72l57jwrqcf6fcxu5bizqgh4cq"
+            "proof": "bvxrlrdqsehngru6c3k77d3a4cye7jis3yakkvqanb4btvg3la5a2cqchfpjmyotqhm3mye5j4dp27w2nwdp3tskwjvpnza3y6udg6cq"
         }"#;
         let expected: EventLog = serde_json::from_str(expected_json).unwrap();
         assert_eq!(serde_json::to_string(&log).unwrap(), serde_json::to_string(&expected).unwrap());

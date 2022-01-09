@@ -5,7 +5,9 @@ use crate::microledger::MicroLedger;
 use crate::*;
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
+use serde_with::skip_serializing_none;
 
+#[skip_serializing_none]
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
 pub struct Identity {
     pub id: String,

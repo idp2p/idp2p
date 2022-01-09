@@ -41,11 +41,11 @@ pub struct IdDocument {
     pub verification_method: Vec<VerificationMethod>,
     #[serde(rename = "assertionMethod")]
     pub assertion_method: Vec<String>,
-    #[serde(rename = "service")]
-    #[serde(skip_serializing_if = "Vec::is_empty", default)]
     pub authentication: Vec<String>,
     #[serde(rename = "keyAgreement")]
     pub key_agreement: Vec<String>,
+    #[serde(rename = "service")]
+    #[serde(skip_serializing_if = "Vec::is_empty", default)]
     pub services: Vec<Service>,
 }
 

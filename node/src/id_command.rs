@@ -14,8 +14,6 @@ impl IdentityCommand {
     pub fn handle(&self, behaviour: &mut IdentityGossipBehaviour) {
         match self {
             IdentityCommand::Post { did } => {
-                // validate did
-                // if valid and next change local store
                 let id = did.id.clone();
                 let gossipsub_topic = IdentTopic::new(did.id.clone());
                 behaviour.gossipsub.subscribe(&gossipsub_topic).unwrap();
