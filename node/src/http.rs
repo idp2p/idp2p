@@ -34,10 +34,8 @@ async fn publish(
     if !is_authenticated {
         return Err(warp::reject());
     }
-    sender
-        .send(IdentityCommand::Post { did: did.clone() })
-        .await
-        .unwrap();
+    let cmd = IdentityCommand::Post { did: did.clone() };
+    sender.send(cmd).await.unwrap();
     Ok(warp::reply::json(&did))
 }
 
@@ -52,10 +50,8 @@ async fn resolve(
     if let Some(identity) = FileStore.get::<Identity>("identities", &id) {
         return Ok(warp::reply::json(&identity));
     }
-    sender
-        .send(IdentityCommand::Get { id: id.clone() })
-        .await
-        .unwrap();
+    let cmd = IdentityCommand::Get { id: id.clone() };
+    sender.send(cmd).await.unwrap();
     sleep(Duration::from_secs(2));
     if let Some(identity) = FileStore.get::<Identity>("identities", &id) {
         return Ok(warp::reply::json(&identity));

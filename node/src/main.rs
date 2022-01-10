@@ -41,8 +41,8 @@ fn init(base_path: &str) -> String {
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
-    let opt = Opt::from_args();
     dotenv().ok();
+    let opt = Opt::from_args();
     let mut stdin = io::BufReader::new(io::stdin()).lines();
     let mut swarm = create(opt.port).await?;
     let token = init(&opt.dir);

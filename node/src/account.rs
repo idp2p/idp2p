@@ -11,7 +11,6 @@ use idp2p_core::to_verification_publickey;
 use idp2p_core::encode_vec;
 use serde::{Deserialize, Serialize};
 
-
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
 pub struct Account {
     pub id: String,
@@ -19,10 +18,13 @@ pub struct Account {
     pub next_secret: Vec<u8>,
     #[serde(with = "encode_vec")]
     pub recovery_secret: Vec<u8>,
+    #[serde(skip_serializing_if = "Vec::is_empty", default)]
     #[serde(with = "encode_vec")]
     pub assertion_secret: Vec<u8>,
+    #[serde(skip_serializing_if = "Vec::is_empty", default)]
     #[serde(with = "encode_vec")]
     pub authentication_secret: Vec<u8>,
+    #[serde(skip_serializing_if = "Vec::is_empty", default)]
     #[serde(with = "encode_vec")]
     pub agreement_secret: Vec<u8>,
 }
