@@ -49,7 +49,9 @@ pub fn handle_cmd(input: &str) -> Option<IdentityCommand> {
             let name = input[1];
             let next_secret = create_secret_key();
             let recovery_secret = create_secret_key();
-            let identity = Identity::new(&hash(&next_secret), &hash(&recovery_secret));
+            let next_key_digest = hash(&to_verification_publickey(&next_secret));
+            let recovery_key_digest = hash(&to_verification_publickey(&recovery_secret));
+            let identity = Identity::new(&next_key_digest, &recovery_key_digest);
             let account = Account::new(&identity.id, &next_secret, &recovery_secret);
             FileStore.put("accounts", name, account);
             return Some(IdentityCommand::Post { did: identity });
@@ -76,6 +78,7 @@ pub fn handle_cmd(input: &str) -> Option<IdentityCommand> {
                 let doc = IdDocument::new(input);
                 let key_digest = hash(&to_verification_publickey(&next_secret));
                 identity.create_document(&acc.next_secret, &key_digest, doc);
+                FileStore.put("identities", &identity.id, identity.clone());
                 FileStore.put("accounts", &name, acc);
                 return Some(IdentityCommand::Post { did: identity });
             }

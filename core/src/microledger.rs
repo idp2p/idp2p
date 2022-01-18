@@ -55,20 +55,21 @@ impl MicroLedger {
         }
     }
 
-    pub fn save_event(&mut self, signer: &[u8], next: &[u8], change: EventLogChange) {
-        let signer_publickey = to_verification_publickey(&signer);
+    pub fn save_event(&mut self, signer_secret: &[u8], next_digest: &[u8], change: EventLogChange) {
+        let signer_key = to_verification_publickey(&signer_secret);
         let previous = self.get_previous_id();
         let payload = EventLogPayload {
             previous: previous,
-            signer_key: signer_publickey,
-            next_key_digest: next.to_owned(),
+            signer_key: signer_key,
+            next_key_digest: next_digest.to_owned(),
             change: change,
             timestamp: Utc::now().timestamp()
         };
-        let proof = payload.sign(&signer);
+        let proof = payload.sign(signer_secret);
         let event_log = EventLog::new(payload, proof);
         self.events.push(event_log);
     }
+    
     pub fn verify(&self, cid: &str) -> Result<MicroLedgerState, IdentityError> {
         let mut state = MicroLedgerState {
             event_id: self.inception.get_id(),
