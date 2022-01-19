@@ -75,7 +75,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
                     message.handle(swarm.behaviour_mut());
                 }
             }
-            () = warp::serve(routes.clone()).run(([127, 0, 0, 1], opt.port + 1)) => {}
+            () = warp::serve(routes.clone()).run(([0, 0, 0, 0], opt.port + 1)) => {}
         }
     }
 }
