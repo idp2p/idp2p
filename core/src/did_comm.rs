@@ -1,16 +1,17 @@
-use didcomm_rs::Jws;
-use didcomm_rs::crypto::{SignatureAlgorithm, Signer, SigningMethod, SymmetricCypherMethod, CryptoAlgorithm, Cypher};
-use didcomm_rs::Jwe;
-use didcomm_rs::Recepient;
-use didcomm_rs::DidcommHeader;
-use didcomm_rs::JwmHeader;
-use crate::to_diffie_hellman;
-use crate::encode;
 use crate::did::Identity;
+use crate::to_shared_secret;
+use didcomm_rs::crypto::{
+    CryptoAlgorithm, Cypher, SignatureAlgorithm, Signer, SigningMethod, SymmetricCypherMethod
+};
+use didcomm_rs::DidcommHeader;
+use didcomm_rs::Jwe;
+use didcomm_rs::JwmHeader;
+use didcomm_rs::Jws;
+use didcomm_rs::MessageType;
+use didcomm_rs::Recepient;
 use serde::{Deserialize, Serialize};
 use serde_with::skip_serializing_none;
 use std::convert::TryInto;
-use x25519_dalek::{StaticSecret, PublicKey};
 
 #[skip_serializing_none]
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
@@ -23,21 +24,19 @@ pub struct Message {
     body: String,
 }
 
-impl Message{
+impl Message {
     pub fn new() -> Self {
         Message {
             jwm_header: JwmHeader::default(),
             didcomm_header: DidcommHeader::new(),
             recepients: None,
-            body: String::default()
+            body: String::default(),
         }
     }
-   
     pub fn from(mut self, from: &str) -> Self {
         self.didcomm_header.from = Some(String::from(from));
         self
     }
-   
     pub fn to(mut self, to: &[&str]) -> Self {
         for s in to {
             self.didcomm_header.to.push(s.to_string());
@@ -52,9 +51,12 @@ impl Message{
         }
         self
     }
-    pub fn set_body(mut self, body: &[u8]) -> Self {
-        self.body = encode(body);
+    pub fn set_body(mut self, body: &str) -> Self {
+        self.body = body.to_owned();
         self
+    }
+    pub fn get_body(&self) -> String {
+        self.body.clone()
     }
 
     pub fn kid(mut self, kid: &str) -> Self {
@@ -96,7 +98,10 @@ impl Message{
         self
     }
 
-    pub fn seal_pre_encrypted(self, cyphertext: impl AsRef<[u8]>) -> Result<String, didcomm_rs::Error> {
+    pub fn seal_pre_encrypted(
+        self,
+        cyphertext: impl AsRef<[u8]>,
+    ) -> Result<String, didcomm_rs::Error> {
         let d_header = self.get_didcomm_header();
         let mut jwe = Jwe::new(self.jwm_header.clone(), self.recepients.clone(), cyphertext);
         jwe.header.skid = Some(d_header.from.clone().unwrap_or_default());
@@ -143,7 +148,11 @@ impl Message{
         }
     }
 
-    pub fn sign(self, signer: SigningMethod, signing_key: &[u8]) -> Result<String, didcomm_rs::Error> {
+    pub fn sign(
+        self,
+        signer: SigningMethod,
+        signing_key: &[u8],
+    ) -> Result<String, didcomm_rs::Error> {
         let h = self.jwm_header.clone();
         if h.alg.is_none() {
             Err(didcomm_rs::Error::JwsParseError)
@@ -159,7 +168,9 @@ impl Message{
         if let Some(alg) = &jws.header.alg {
             let verifyer: SignatureAlgorithm = alg.try_into()?;
             if verifyer.validator()(key, &jws.payload.as_bytes(), &jws.signature[..])? {
-                Ok(serde_json::from_slice(&multibase::decode(&jws.payload).unwrap().1)?)
+                Ok(serde_json::from_slice(
+                    &multibase::decode(&jws.payload).unwrap().1,
+                )?)
             } else {
                 Err(didcomm_rs::Error::JwsParseError)
             }
@@ -169,19 +180,50 @@ impl Message{
     }
 }
 
-pub fn seal(secret: &[u8], sender: Identity, receiver: Identity, data: &str) -> Result<String, didcomm_rs::Error> {
-    let rec_doc = receiver.document.unwrap();
-    let rec_key_agree_pub = rec_doc.verification_method[2].bytes.clone();
-    let kid = sender.document.unwrap().authentication[0].clone();
+pub fn seal(
+    secret: &[u8],
+    sender: Identity,
+    receiver: Identity,
+    data: &str,
+) -> Result<String, didcomm_rs::Error> {
+    let receiver_doc = receiver.document.unwrap();
+    let receiver_key_agree_pub = receiver_doc.verification_method[2].bytes.clone();
+    let kid = sender.document.unwrap().key_agreement[0].clone();
     let message = Message::new() // creating message
         .from(&sender.id) // setting from
         .to(&[&receiver.id]) // setting to
-        .set_body(data.as_bytes()) // packing in some payload
+        .set_body(data) // packing in some payload
         .as_jwe(&CryptoAlgorithm::XC20P) // set JOSE header for XC20P algorithm
         .kid(&kid); // set kid header
-    let shared = to_diffie_hellman(secret, &rec_key_agree_pub);
+    let shared = to_shared_secret(secret, &receiver_key_agree_pub);
+    println!("{:?}", shared.as_bytes());
     let alg = crypter_from_header(&message.jwm_header)?;
     message.encrypt(alg.encryptor(), shared.as_bytes())
+}
+
+pub fn receive(incomming: &str, sk: &[u8], sender: Identity) -> Result<Message, didcomm_rs::Error> {
+    let jwe: Jwe = serde_json::from_str(incomming)?;
+    if jwe.header.skid.is_none() {
+        return Err(didcomm_rs::Error::DidResolveFailed);
+    }
+    let sender_doc = sender.document.unwrap();
+    let sender_public_key = sender_doc.verification_method[2].bytes.clone();
+    if let Some(alg) = &jwe.header.alg {
+        let shared = to_shared_secret(sk, &sender_public_key);
+        println!("{:?}", shared.as_bytes());
+        let a: CryptoAlgorithm = alg.try_into()?;
+        let m =  Message::decrypt(incomming.as_bytes(), a.decryptor(), shared.as_bytes())?;
+        if &m.jwm_header.typ == &MessageType::DidcommJws {
+            if m.jwm_header.alg.is_none() {
+                return Err(didcomm_rs::Error::JweParseError);
+            }
+            Ok(Message::verify(m.get_body().as_bytes(), &sender_public_key)?)
+        } else {
+            Ok(m)
+        }
+    } else {
+        Err(didcomm_rs::Error::DidResolveFailed)
+    }
 }
 
 fn crypter_from_header(header: &JwmHeader) -> Result<CryptoAlgorithm, didcomm_rs::Error> {

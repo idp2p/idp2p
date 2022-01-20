@@ -1,7 +1,6 @@
+use idp2p_core::to_key_agreement_publickey;
 use crate::file_store::FileStore;
 use crate::IdentityCommand;
-use didcomm_rs::crypto::CryptoAlgorithm;
-use didcomm_rs::Message;
 use idp2p_core::create_secret_key;
 use idp2p_core::did::Identity;
 use idp2p_core::did_comm::seal;
@@ -16,6 +15,7 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
 pub struct Account {
+    pub name: String,
     pub id: String,
     #[serde(with = "encode_vec")]
     pub next_secret: Vec<u8>,
@@ -33,8 +33,9 @@ pub struct Account {
 }
 
 impl Account {
-    pub fn new(id: &str, sec: &[u8], rec: &[u8]) -> Account {
+    pub fn new(name: &str, id: &str, sec: &[u8], rec: &[u8]) -> Account {
         Account {
+            name: name.to_owned(),
             id: id.to_owned(),
             next_secret: sec.to_owned(),
             recovery_secret: rec.to_owned(),
@@ -55,8 +56,8 @@ pub fn handle_cmd(input: &str) -> Option<IdentityCommand> {
             let next_key_digest = hash(&to_verification_publickey(&next_secret));
             let recovery_key_digest = hash(&to_verification_publickey(&recovery_secret));
             let identity = Identity::new(&next_key_digest, &recovery_key_digest);
-            let account = Account::new(&identity.id, &next_secret, &recovery_secret);
-            FileStore.put("accounts", name, account);
+            let account = Account::new(name, &identity.id, &next_secret, &recovery_secret);
+            FileStore.put("accounts", "peer", account);
             return Some(IdentityCommand::Post { did: identity });
         }
         "get" => {
@@ -64,8 +65,7 @@ pub fn handle_cmd(input: &str) -> Option<IdentityCommand> {
             return Some(IdentityCommand::Get { id });
         }
         "set-document" => {
-            let name = input[1].to_string();
-            if let Some(mut acc) = FileStore.get::<Account>("accounts", &name) {
+            if let Some(mut acc) = FileStore.get::<Account>("accounts", "peer") {
                 let next_secret = create_secret_key();
                 let assertion_secret = create_secret_key();
                 let authentication_secret = create_secret_key();
@@ -75,7 +75,7 @@ pub fn handle_cmd(input: &str) -> Option<IdentityCommand> {
                     id: identity.id.clone(),
                     assertion_key: to_verification_publickey(&assertion_secret),
                     authentication_key: to_verification_publickey(&authentication_secret),
-                    keyagreement_key: to_verification_publickey(&keyagreement_secret),
+                    keyagreement_key: to_key_agreement_publickey(&keyagreement_secret),
                     service: vec![],
                 };
                 let doc = IdDocument::new(input);
@@ -85,15 +85,14 @@ pub fn handle_cmd(input: &str) -> Option<IdentityCommand> {
                 acc.authentication_secret = authentication_secret;
                 acc.assertion_secret = assertion_secret;
                 acc.agreement_secret = keyagreement_secret;
-                FileStore.put("accounts", &name, acc);
+                FileStore.put("accounts", "peer", acc);
                 return Some(IdentityCommand::Post { did: identity });
             }
         }
         "set-proof" => {
-            let name = input[1].to_string();
             let key = input[2].to_string();
             let value = input[3].to_string();
-            if let Some(acc) = FileStore.get::<Account>("accounts", &name) {
+            if let Some(acc) = FileStore.get::<Account>("accounts", "peer") {
                 let mut identity = FileStore.get::<Identity>("identities", &acc.id).unwrap();
                 let proof = ProofStatement {
                     key: key.as_bytes().to_vec(),
@@ -108,8 +107,7 @@ pub fn handle_cmd(input: &str) -> Option<IdentityCommand> {
             }
         }
         "recover" => {
-            let name = input[1].to_string();
-            if let Some(acc) = FileStore.get::<Account>("accounts", &name) {
+            if let Some(acc) = FileStore.get::<Account>("accounts", "peer") {
                 let mut identity = FileStore.get::<Identity>("identities", &acc.id).unwrap();
                 let stmt = RecoverStatement {
                     recovery_key_digest: hash(&acc.next_secret),
@@ -123,21 +121,15 @@ pub fn handle_cmd(input: &str) -> Option<IdentityCommand> {
             }
         }
         "send-message" => {
-            let sender_name = input[1].to_string();
-            let message_data = input[2];
-            let receiver_id = input[3].to_string();
-            let sender = FileStore.get::<Account>("accounts", &sender_name).unwrap();
+            let message_data = input[1];
+            let receiver_id = input[2].to_string();
+            let sender = FileStore.get::<Account>("accounts", "peer").unwrap();
             let receiver_did = FileStore
                 .get::<Identity>("identities", &receiver_id)
                 .unwrap();
             let sender_did = FileStore.get::<Identity>("identities", &sender.id).unwrap();
-            let ready_to_send = seal(
-                &sender.authentication_secret,
-                sender_did,
-                receiver_did,
-                message_data,
-            )
-            .unwrap();
+            let sk = sender.agreement_secret;
+            let ready_to_send = seal(&sk, sender_did, receiver_did, message_data).unwrap();
             return Some(IdentityCommand::Jwm {
                 id: receiver_id,
                 message: ready_to_send,

@@ -107,7 +107,7 @@ pub fn to_key_agreement_publickey(secret: &[u8]) -> Vec<u8> {
     public
 }
 
-pub fn to_diffie_hellman(secret: &[u8], public: &[u8]) -> x25519_dalek::SharedSecret{
+pub fn to_shared_secret(secret: &[u8], public: &[u8]) -> x25519_dalek::SharedSecret{
     let secret_data: [u8; 32] = secret.try_into().unwrap();
     let public_data: [u8; 32] = public.try_into().unwrap();
     let sender_secret = StaticSecret::from(secret_data);
