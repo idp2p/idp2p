@@ -8,6 +8,7 @@ use libp2p::gossipsub::IdentTopic;
 pub enum IdentityCommand {
     Post { did: Identity },
     Get { id: String },
+    Jwm { id: String, message: String },
 }
 
 impl IdentityCommand {
@@ -33,7 +34,14 @@ impl IdentityCommand {
                 behaviour.gossipsub.subscribe(&gossipsub_topic).unwrap();
                 behaviour.publish(id.clone(), IdentityMessage::new(IdentityMessageType::Get));
             }
+            IdentityCommand::Jwm { id, message } => {
+                let gossipsub_topic = IdentTopic::new(id.clone());
+                behaviour.gossipsub.subscribe(&gossipsub_topic).unwrap();
+                let id_mes = IdentityMessage::new(IdentityMessageType::Jwm {
+                    message: message.to_owned(),
+                });
+                behaviour.publish(id.clone(), id_mes);
+            }
         }
     }
 }
-

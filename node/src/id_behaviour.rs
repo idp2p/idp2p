@@ -93,6 +93,9 @@ impl NetworkBehaviourEventProcess<GossipsubEvent> for IdentityGossipBehaviour {
                         Err(e) => println!("Error {}", e),
                     }
                 }
+                IdentityMessageType::Jwm { message } => {
+                    println!("{:?}", message);
+                }
             }
         }
     }

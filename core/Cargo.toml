@@ -16,6 +16,8 @@ cid = "0.7.0"
 x25519-dalek = "1.2.0"
 async-trait = "0.1.52"
 chrono = "0.4.19"
+didcomm-rs = "0.6.6"
+uuid = "0.8"
 [dependencies.serde_with]
 version = "1.11.0"
 features = [ "macros" ]

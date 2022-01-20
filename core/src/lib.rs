@@ -107,6 +107,14 @@ pub fn to_key_agreement_publickey(secret: &[u8]) -> Vec<u8> {
     public
 }
 
+pub fn to_diffie_hellman(secret: &[u8], public: &[u8]) -> x25519_dalek::SharedSecret{
+    let secret_data: [u8; 32] = secret.try_into().unwrap();
+    let public_data: [u8; 32] = public.try_into().unwrap();
+    let sender_secret = StaticSecret::from(secret_data);
+    let receiver_public = x25519_dalek::PublicKey::from(public_data);
+    sender_secret.diffie_hellman(&receiver_public)
+}
+
 macro_rules! check {
     ($e: expr, $err: expr) => {{
         if !$e {
@@ -119,6 +127,7 @@ pub mod did;
 pub mod did_doc;
 pub mod eventlog;
 pub mod microledger;
+pub mod did_comm;
 
 #[cfg(test)]
 mod tests {

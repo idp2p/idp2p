@@ -17,6 +17,8 @@ pub enum IdentityMessageType {
     Get,
     #[serde(rename = "post")]
     Post { digest: String, identity: Identity },
+    #[serde(rename = "jwm")]
+    Jwm { message: String },
 }
 
 impl IdentityMessage {
