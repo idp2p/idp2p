@@ -1,3 +1,4 @@
+use libp2p::PeerId;
 use crate::id_command::IdentityCommand;
 use crate::id_swarm::create;
 use libp2p::futures::StreamExt;
@@ -46,6 +47,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let mut stdin = io::BufReader::new(io::stdin()).lines();
     let mut swarm = create(opt.port).await?;
     let token = init(&opt.dir);
+    let peerid: PeerId = "12D3KooWPhdG3aH7TspBGL6NMySg346Knbj2pcDdXCzaTYRiaMjp".parse().unwrap();
+    swarm.behaviour_mut().gossipsub.add_explicit_peer(&peerid);
     if let Some(to_dial) = opt.dial_address {
         let address: Multiaddr = to_dial.parse().expect("Invalid address.");
         match swarm.dial(address.clone()) {
