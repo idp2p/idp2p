@@ -20,3 +20,4 @@ qrcode = "0.12.0"
 chrono = "0.4.19"
 idp2p_core = { version = "0.1.0", path = "../core" }
 dotenv = "0.15.0"
+colored = "2.0.0"

@@ -12,6 +12,7 @@ use libp2p::{
     NetworkBehaviour,
 };
 use std::collections::HashMap;
+use colored::*;
 
 #[derive(NetworkBehaviour)]
 #[behaviour(event_process = true)]
@@ -103,7 +104,7 @@ impl NetworkBehaviourEventProcess<GossipsubEvent> for IdentityGossipBehaviour {
                     let sender: Identity = FileStore.get("identities", &sender_id).unwrap();
                     let acc = FileStore.get::<Account>("accounts", "peer").unwrap();
                     let mes = receive(&message, &acc.agreement_secret, sender).unwrap();
-                    println!("{}",  mes.get_body());
+                    println!("{}",  mes.get_body().green());
                 }
             }
         }
