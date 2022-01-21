@@ -180,4 +180,15 @@ mod tests {
         let public_key = to_key_agreement_publickey(&multibase::decode(secret).unwrap().1);
         assert_eq!(encode(&public_key), expected);
     }
+
+    #[test]
+    fn to_shared_key_test(){
+        let alice_secret = create_secret_key();
+        let bob_secret = create_secret_key();
+        let alice_public = to_key_agreement_publickey(&alice_secret);
+        let bob_public = to_key_agreement_publickey(&bob_secret);
+        let alice_shared = to_shared_secret(&alice_secret, &bob_public);
+        let bob_shared = to_shared_secret(&bob_secret, &alice_public);
+        assert_eq!(alice_shared.as_bytes(), bob_shared.as_bytes());
+    }
 }

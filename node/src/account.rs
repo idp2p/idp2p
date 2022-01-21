@@ -58,6 +58,7 @@ pub fn handle_cmd(input: &str) -> Option<IdentityCommand> {
             let identity = Identity::new(&next_key_digest, &recovery_key_digest);
             let account = Account::new(name, &identity.id, &next_secret, &recovery_secret);
             FileStore.put("accounts", "peer", account);
+            println!("Created identity: {:?}", identity.id);
             return Some(IdentityCommand::Post { did: identity });
         }
         "get" => {
@@ -86,6 +87,7 @@ pub fn handle_cmd(input: &str) -> Option<IdentityCommand> {
                 acc.assertion_secret = assertion_secret;
                 acc.agreement_secret = keyagreement_secret;
                 FileStore.put("accounts", "peer", acc);
+                println!("Document created");
                 return Some(IdentityCommand::Post { did: identity });
             }
         }
@@ -130,6 +132,7 @@ pub fn handle_cmd(input: &str) -> Option<IdentityCommand> {
             let sender_did = FileStore.get::<Identity>("identities", &sender.id).unwrap();
             let sk = sender.agreement_secret;
             let ready_to_send = seal(&sk, sender_did, receiver_did, message_data).unwrap();
+            println!("Sended message: {}", ready_to_send);
             return Some(IdentityCommand::Jwm {
                 id: receiver_id,
                 message: ready_to_send,

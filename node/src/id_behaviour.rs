@@ -1,3 +1,4 @@
+use idp2p_core::did_comm::get_sender_id;
 use crate::account::Account;
 use idp2p_core::did_comm::receive;
 use crate::file_store::FileStore;
@@ -97,8 +98,9 @@ impl NetworkBehaviourEventProcess<GossipsubEvent> for IdentityGossipBehaviour {
                     }
                 }
                 IdentityMessageType::Jwm { message } => {
-                    println!("{:?}", message);
-                    let sender: Identity = FileStore.get("identities", &id).unwrap();
+                    println!("JWM: {:?}", message);
+                    let sender_id = get_sender_id(&message);
+                    let sender: Identity = FileStore.get("identities", &sender_id).unwrap();
                     let acc = FileStore.get::<Account>("accounts", "peer").unwrap();
                     let mes = receive(&message, &acc.agreement_secret, sender).unwrap();
                     println!("{}",  mes.get_body());

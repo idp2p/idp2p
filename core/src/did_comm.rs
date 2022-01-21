@@ -196,21 +196,25 @@ pub fn seal(
         .as_jwe(&CryptoAlgorithm::XC20P) // set JOSE header for XC20P algorithm
         .kid(&kid); // set kid header
     let shared = to_shared_secret(secret, &receiver_key_agree_pub);
-    println!("{:?}", shared.as_bytes());
     let alg = crypter_from_header(&message.jwm_header)?;
     message.encrypt(alg.encryptor(), shared.as_bytes())
 }
 
-pub fn receive(incomming: &str, sk: &[u8], sender: Identity) -> Result<Message, didcomm_rs::Error> {
+pub fn get_sender_id(incomming: &str) -> String{
+    let jwe: Jwe = serde_json::from_str(incomming).unwrap();
+    jwe.header.skid.unwrap()
+}
+pub fn receive(incomming: &str, secret: &[u8], sender: Identity) -> Result<Message, didcomm_rs::Error> {
     let jwe: Jwe = serde_json::from_str(incomming)?;
+    
     if jwe.header.skid.is_none() {
         return Err(didcomm_rs::Error::DidResolveFailed);
     }
     let sender_doc = sender.document.unwrap();
     let sender_public_key = sender_doc.verification_method[2].bytes.clone();
-    if let Some(alg) = &jwe.header.alg {
-        let shared = to_shared_secret(sk, &sender_public_key);
-        println!("{:?}", shared.as_bytes());
+    let shared = to_shared_secret(secret, &sender_public_key);
+    if let Some(alg) = &jwe.header.alg {   
+       
         let a: CryptoAlgorithm = alg.try_into()?;
         let m =  Message::decrypt(incomming.as_bytes(), a.decryptor(), shared.as_bytes())?;
         if &m.jwm_header.typ == &MessageType::DidcommJws {
