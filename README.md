@@ -1,267 +1,37 @@
-# IDP2P
+# idp2p-rust
 
 > `Experimental`, inspired by `ipfs`, `did:peer` and `keri`
 
-## Background
+[See idp2p spec and demo](https://idp2p.github.io)
 
-See also (related topics):
+## Getting Started 
 
-* [Decentralized Identifiers (DIDs)](https://w3c.github.io/did-core)
-* [Verifiable Credentials](https://www.w3.org/TR/vc-data-model/)
-* [IPFS](https://ipfs.io/)
-* [LIBP2P](https://libp2p.io/)
-* [Key DID](https://github.com/w3c-ccg/did-method-key/)
-* [Peer DID](https://identity.foundation/peer-did-method-spec/)
-* [Key Event Receipt Infrastructure](https://keri.one//)
+#### Generate peers
 
-## Problem
-
-Each did method uses own way to implement decentralized identity. Most of them are based on public source of truth like a `blockchain`, `dlt`, `database` or similar. Others are simple, self-describing methods and don't depend on any ledger technology e.g. `did:peer`, `did:key`, `keri`. Each method has its own pros-cons in terms of [design-goals](https://www.w3.org/TR/did-core/#design-goals)
-
-## IDP2P Solution 
-
-`IDP2P` is a peer-to-peer identity protocol which enables a controller to create, manage and share its own proofs as well as did documents. The protocol is based on [libp2p](https://libp2p.io/), in other words, it can be considered `ipfs` of decentralized identity. `IDP2P` has following features:
-
-- Self-describing identity(like `did:keri`, `did:peer`, `did:key`)
-- Based on `libp2p` pub-sub protocol, so it can be stored and resolved via network
-- P2P network provides one ledger per identity
-- Only identity owner and verifiers are responsible for storing and verifying identity
-
-
-### Consensus Mechanism 
-
-When an identity event has occured, change is published over `idp2p` network, all subscribers verifies new did change and updates its own ledger if incoming change is suitable.
-
-There are two pub-sub commands: 
-
-- `get`: when a peer want to subscribe to identity, it publishs a `get` command with `id` over the network. 
-- `post`: when a peer received a `get` command or an identity change occured, it posts identity information to subscribers in order to reach a consensus
-
-![w:1000](assets/idp2p-pubsub.gif) 
-
-An identity is also a topic to subsribe(it means ledger is based on subscription)
-
-![w:1000](assets/idp2p.drawio.png) 
-
-
-
-### Identity
-
-#### *example*
-
-```json
-{
-    "id": "bagaaieratxin4o3iclo7ua3s3bbueds2uzfc5gi26mermevzb2etqliwjbla",
-    "microledger": {
-      "inception": {
-        "inceptionKey": {
-          "type": "Ed25519VerificationKey2020",
-          "value": "by5gtwpufy4.."
-        },
-        "recoveryNextKey": {
-          "type": "Ed25519VerificationKey2020",
-          "value": "bmb2cvioxfy65ej.."
-        }
-      },
-      "events": [
-        {
-          "payload": {
-            "previous": "bagaaieratxin4o3iclo7u..",
-            "signerPublicKey": "by5gtwpufy4zfnog4j..",
-            "signerNextKey": {
-              "type": "Ed25519VerificationKey2020",
-              "value":"b2wvipekepehi.."
-            },
-            "change": {
-              "type": "SetDocument",
-              "value": "bdu3gqtjc6ks52.."
-            }
-          },
-          "proof": "bx6svqb6if5yaflgoumdff7j.."
-        },
-        {
-          "payload": {
-            "previous": "bagaaieraof7..",
-            "signerPublicKey": "b2wvipekepehi..",
-            "signerNextKey": {
-              "type": "Ed25519VerificationKey2020",
-              "value":"b2wvipekepehi.."
-            },
-            "change": {
-              "type": "SetProof",
-              "key": "bnnsxs",
-              "value": "bozqwy5lf"
-            }
-          },
-          "proof": "bwltjvobkxxq6.."
-        },
-        {
-          "payload": {
-             "previous": "bagaaieraof7..",
-             "signerPublicKey": "b2wvipekepehi..",
-             "signerNextKey": {
-               "type": "Ed25519VerificationKey2020",
-               "value":"b2wvipekepehi.."
-             },
-            "change": {
-              "type": "SetRecoveryKey",
-              "recoveryNextKey": {
-                "type": "Ed25519VerificationKey2020",
-                "value": "bcut3s.."
-              }
-            }
-          },
-          "proof": "b3yo6vlymyn.."
-        }
-      ]
-    },
-    "document": {
-      "id": "did:p2p:bagaaieratxin..",
-      "controller": "did:p2p:bagaaieratxi..",
-      "@context": [
-        "https://www.w3.org/ns/did/v1",
-        "https://w3id.org/security/suites/ed25519-2020/v1",
-        "https://w3id.org/security/suites/x25519-2020/v1"
-      ],
-      "verificationMethod": [],
-      "assertionMethod": ["did:p2p:bagaaieratxib#wtyb2xhyvxolbd.."],
-      "authentication": ["did:p2p:bagaaieratxib#3txadadmtke6d.."],
-      "keyAgreement": ["did:p2p:bagaaieratxib#cnzphk5djc3bt64.."]
-    }
-  }
-```
-
-An `idp2p` identity includes unique identifier, microledger and did document. 
-
-```json
-{
-    "id": "did:p2p:z6MkpTHR8VNsBxYAAWHut2Geadd9jSwuBV8xRoAnwWsdvktH",
-    "microledger": {},
-    "document": {}
-}
-```
-
-*`id`* is the unique identifier of identity. It uses id generation like `did:peer`. ID should be generated following way: 
-
-- Generate an inception block
-- Get json string of the block
-- Convert it to bytes
-- Get SHA-256 digest of bytes
-- Encode it with multibase and multicodec(like `ipfs`)
-
-*sample id*: `did:p2p:bagaaieratxin4o3iclo7ua3s3bbueds2uzfc5gi26mermevzb2etqliwjbla`
-
-`microledger` represents backing storage of identity and it includes id, inception and events for identity
-
-```json
-  {
-    "id": "bagaaieratxin4o3iclo7ua3s3bbueds2uzfc5gi26mermevzb2etqliwjbla",
-    "inception": {},
-    "events": []
-  }
-```
-
-`did_doc` is described in [DIDs Spec](https://www.w3.org/TR/did-core/). Only latest document is stored in identity.
-
-```json
-{
-    "id": "did:p2p:bagaaieratxin..",
-    "controller": "did:p2p:bagaaieratxi..",
-    "@context": [
-        "https://www.w3.org/ns/did/v1",
-        "https://w3id.org/security/suites/ed25519-2020/v1",
-        "https://w3id.org/security/suites/x25519-2020/v1"
-    ],
-    "verificationMethod": [...],
-    "assertionMethod": ["did:p2p:bagaaieratxib#wtyb2xhyvxolbd.."],
-    "authentication": ["did:p2p:bagaaieratxib#3txadadmtke6d.."],
-    "keyAgreement": ["did:p2p:bagaaieratxib#cnzphk5djc3bt64.."]
-}
-```
-
-### Microledger Details
-
-`id` is same with identifier except `did:p2p:` prefix.
-
-`inception` includes `signer` public key and `recovery` public key digest
-
-```json
-{
-  "inceptionKey": {
-    "type": "Ed25519VerificationKey2020",
-    "value": "<base32 value of inception public"
-  },
-  "recoveryNextKey": {
-    "type": "Ed25519VerificationKey2020",
-    "value": "<base32 digest of recovery public>"
-  }
-}
-```
-
-`events` is array of identity changes and each event is linked to the previous one. First event is linked inception block.
-
-![w:1000](assets/microledger.drawio.png) 
-
-
-```json
-{
-    "payload": {
-      "previous": "<inception-hash>",
-      "signerPublic": "by5gtwpufy4zfnog4j..",
-      "change": {
-        "type": "SetDocument"
-      }
-    },
-    "proof": "bx6svqb6if5yaflgoumdff7j.."
-}
-```
-
-There are three event types.
-
-- `SetDocument`: proof of did document change, requires `value` property which is hash of did document.
-- `SetProof`: any proof about identity,  requires `key` and `value` properties.
-- `SetRecoveryKey` recovery proof of identity requires `next_signer_key` and `next_recovery_key` properties.
-
-## Getting Started(rust demo) 
-
-#### Generate a peer
-
-- ```cargo run```
+- ```cargo run -- -p 5000 -d ../target/alice```
+- ```cargo run -- -p 6000 -d ../target/bob```
 
 #### Create identity
 
-- cmd: ```create-id <name>```
-
-- ex: `create-id ademcaglin`
+- cmd: ```create <name>```
+- ex: `create alice` and `create bob`
 
 #### Subscribe to identity
 
 - cmd: ```get <id>```
-- ex: `get did:p2p:bagaaieraam4...`
+- ex: `get bagaaieraam4...`
 
-#### Resolve identity
+#### Create DID Document
 
-- cmd: ```resolve <id>```
-- ex: `resolve did:p2p:bagaaieraam4...`
-
-#### Create new doc
-
-- cmd: ```create-doc <name>```
-- ex: `create-doc ademcaglin`
+- cmd: ```set-document```
 
 #### Recover
 
-- cmd: ```recover <name>```
-- ex: `recover ademcaglin`
-
-#### Demo 
-
-![w:1000](assets/idp2p.gif)
-
+- cmd: ```recover```
 
 ## Contributions
 
-The idp2p protocol and  `rust` implementation in is a work in progress. 
+The idp2p `rust` implementation is work in progress. 
 
 Contributions are most welcome
 

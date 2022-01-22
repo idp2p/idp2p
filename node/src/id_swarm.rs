@@ -34,11 +34,11 @@ pub async fn create(port: u16) -> Result<Swarm<IdentityGossipBehaviour>, Box<dyn
             .build()
             .expect("Valid config");
 
-        let gossipsub_reuslt = libp2p::gossipsub::Gossipsub::new(
+        let gossipsub_result = libp2p::gossipsub::Gossipsub::new(
             MessageAuthenticity::Signed(local_key),
             gossipsub_config,
         );
-        let gossipsub = gossipsub_reuslt.expect("Correct configuration");
+        let gossipsub = gossipsub_result.expect("Correct configuration");
         let mdns = libp2p::mdns::Mdns::new(Default::default()).await?;
         let behaviour = IdentityGossipBehaviour {
             gossipsub: gossipsub,
