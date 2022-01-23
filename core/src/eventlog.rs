@@ -1,4 +1,3 @@
-use crate::hash;
 use crate::{encode_vec, IdKey, IdKeyDigest};
 use ed25519_dalek::{PublicKey, Signature, Signer, Verifier};
 use serde::{Deserialize, Serialize};
@@ -14,6 +13,8 @@ pub struct ProofStatement {
 
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
 pub struct RecoverStatement {
+    #[serde(rename = "keyType")]
+    pub key_type: String,
     #[serde(with = "encode_vec")]
     #[serde(rename = "recoveryKeyDigest")]
     pub recovery_key_digest: IdKeyDigest,

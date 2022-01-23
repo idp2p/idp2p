@@ -75,7 +75,6 @@ impl NetworkBehaviourEventProcess<GossipsubEvent> for IdentityGossipBehaviour {
             message,
         } = message
         {
-            println!("Got message: {:?}", message);
             let id = message.topic.to_string();
             let id_mes: IdentityMessage = serde_json::from_slice(&message.data).unwrap();
             match id_mes.message {

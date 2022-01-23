@@ -112,6 +112,7 @@ pub fn handle_cmd(input: &str) -> Option<IdentityCommand> {
             if let Some(acc) = FileStore.get::<Account>("accounts", "peer") {
                 let mut identity = FileStore.get::<Identity>("identities", &acc.id).unwrap();
                 let stmt = RecoverStatement {
+                    key_type: "Ed25519VerificationKey2020".to_owned(),
                     recovery_key_digest: hash(&acc.next_secret),
                 };
                 let change = idp2p_core::eventlog::EventLogChange::Recover(stmt);

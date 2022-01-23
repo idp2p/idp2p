@@ -210,6 +210,7 @@ mod tests {
         let id = ledger.inception.get_id();
         let signer = to_verification_publickey(&secret);
         let rec = RecoverStatement {
+            key_type: ED25519.to_owned(),
             recovery_key_digest: hash(&signer),
         };
         let change = EventLogChange::Recover(rec);

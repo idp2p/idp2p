@@ -5,13 +5,23 @@ use std::thread::sleep;
 use std::time::Duration;
 use warp::{self, Filter};
 
+fn is_valid(secret: Option<String>, token: String) -> bool{
+    if secret.is_none(){
+        return true;
+    }
+    let expected_token = format!("Bearer {}", secret.unwrap());
+    token == expected_token
+}
 pub fn routes(
-    secret: String,
+    secret: Option<String>,
     sender: tokio::sync::mpsc::Sender<IdentityCommand>,
 ) -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone {
+    let auth_required = secret.is_none();
     let auth_filter = warp::any()
         .and(warp::header("Authorization"))
-        .map(move |token: String| token == format!("Bearer {}", secret));
+        .map(move |token: String| is_valid(secret.clone(), token))
+        .or(warp::any().map(move || auth_required))
+        .unify();
     let send_filter = warp::any().map(move || sender.clone());
     let resolve_routes = warp::path!("resolve" / String)
         .and(auth_filter.clone())
