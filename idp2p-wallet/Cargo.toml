@@ -1,0 +1,13 @@
+[package]
+name = "idp2p_core"
+version = "0.1.0"
+edition = "2018"
+
+[dependencies]
+anyhow = "1.0"
+thiserror = "1.0"
+serde = { version = "1.0.130", features = ["derive"] }
+serde_json = "1.0.68"
+[dependencies.serde_with]
+version = "1.11.0"
+features = [ "macros" ]
