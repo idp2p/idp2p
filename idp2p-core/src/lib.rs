@@ -21,9 +21,13 @@ pub enum IdentityError {
     Unknown,
 }
 
-pub type IdKeySecret = Vec<u8>;
-pub type IdKey = Vec<u8>;
-pub type IdKeyDigest = Vec<u8>;
+macro_rules! check {
+    ($e: expr, $err: expr) => {{
+        if !$e {
+            return Err($err);
+        }
+    }};
+}
 
 pub mod did;
 pub mod did_doc;

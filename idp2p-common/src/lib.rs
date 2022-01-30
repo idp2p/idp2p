@@ -2,17 +2,16 @@ use cid::{
     multihash::{Code, MultihashDigest},
     Cid,
 };
-use ed25519_dalek::{Keypair, PublicKey, SecretKey};
 use multibase::*;
-use rand::prelude::*;
 use serde::Serialize;
 use sha2::{Digest, Sha256};
-use std::convert::TryInto;
-use x25519_dalek::StaticSecret;
-const ED25519: &str = "Ed25519VerificationKey2020";
-const X25519: &str = "X25519KeyAgreementKey2020";
-const JSON_CODEC: u64 = 0x0200;
 
+pub const ED25519: &str = "Ed25519VerificationKey2020";
+pub const X25519: &str = "X25519KeyAgreementKey2020";
+const JSON_CODEC: u64 = 0x0200;
+pub type IdKeySecret = Vec<u8>;
+pub type IdKey = Vec<u8>;
+pub type IdKeyDigest = Vec<u8>;
 pub mod store;
 pub mod secret;
 pub mod encode_vec {
@@ -41,6 +40,10 @@ pub fn encode(value: &[u8]) -> String {
     multibase::encode(Base::Base32Lower, value)
 }
 
+pub fn decode(s: &str) -> Vec<u8>{
+    multibase::decode(s).unwrap().1
+}
+
 pub fn hash(bytes: &[u8]) -> Vec<u8> {
     let mut hasher = Sha256::default();
     hasher.update(bytes);
@@ -54,19 +57,10 @@ pub fn generate_cid<T: Sized + Serialize>(t: &T) -> String {
     cid.to_string()
 }
 
-macro_rules! check {
-    ($e: expr, $err: expr) => {{
-        if !$e {
-            return Err($err);
-        }
-    }};
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
     use serde_json::json;
-    use ed25519_dalek::{PublicKey, Signature, Signer, Verifier};
     #[test]
     fn hash_test() {
         let data = json!({

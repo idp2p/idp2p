@@ -1,6 +1,6 @@
-use crate::*;
 use serde::{Deserialize, Serialize};
 use serde_with::skip_serializing_none;
+use idp2p_common::*;
 
 pub struct CreateDocInput {
     pub id: String,
@@ -100,9 +100,9 @@ mod tests {
     use super::*;
     #[test]
     fn new_did_doc() {
-        let secret = create_secret_key();
-        let ed_key = to_verification_publickey(&secret);
-        let x_key = to_key_agreement_publickey(&secret);
+        let secret = secret::IdSecret::new();
+        let ed_key = secret.to_verification_publickey();
+        let x_key = secret.to_key_agreement_publickey();
         let input = CreateDocInput{
             id: "123456".to_owned(),
             assertion_key: ed_key.clone(),

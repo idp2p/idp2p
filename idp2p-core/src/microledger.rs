@@ -1,14 +1,11 @@
-use crate::encode_vec;
 use crate::eventlog::EventLogPayload;
 use crate::eventlog::{EventLog, EventLogChange};
-use crate::to_verification_publickey;
 use crate::IdentityError;
-use crate::ED25519;
-use crate::{generate_cid, hash, IdKeyDigest};
 use anyhow::Result;
+use chrono::prelude::*;
+use idp2p_common::*;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use chrono::prelude::*;
 
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
 pub struct MicroLedgerState {
@@ -55,25 +52,25 @@ impl MicroLedger {
         }
     }
 
-    pub fn create_event(&self,
-         signer_key: &[u8],
-         next_key_digest: &[u8],
-         change: EventLogChange) -> EventLogPayload {
-            let previous = self.get_previous_id();
-            EventLogPayload {
-                previous: previous,
-                signer_key: signer_key.to_owned(),
-                next_key_digest: next_digest.to_owned(),
-                change: change,
-                timestamp: Utc::now().timestamp()
-            }
+    pub fn create_event(
+        &self,
+        signer_key: &[u8],
+        next_digest: &[u8],
+        change: EventLogChange,
+    ) -> EventLogPayload {
+        let previous = self.get_previous_id();
+        EventLogPayload {
+            previous: previous,
+            signer_key: signer_key.to_owned(),
+            next_key_digest: next_digest.to_owned(),
+            change: change,
+            timestamp: Utc::now().timestamp(),
+        }
     }
-    
     pub fn save_event(&mut self, payload: EventLogPayload, proof: &[u8]) {
         let event_log = EventLog::new(payload, proof);
         self.events.push(event_log);
     }
-    
     pub fn verify(&self, cid: &str) -> Result<MicroLedgerState, IdentityError> {
         let mut state = MicroLedgerState {
             event_id: self.inception.get_id(),
@@ -127,7 +124,7 @@ impl MicroLedger {
 mod tests {
     use super::*;
     use crate::eventlog::*;
-    use crate::*;
+    use idp2p_common::secret::IdSecret;
 
     #[test]
     fn id_test() {
@@ -155,8 +152,8 @@ mod tests {
         let (mut ledger, secret) = create_microledger();
         let id = ledger.inception.get_id();
         let change = EventLogChange::SetDocument(DocumentDigest { value: vec![] });
-        let signer = to_verification_publickey(&secret);
-        ledger.save_event(&signer, &hash(&signer), change);
+        let signer = secret.to_verification_publickey();
+        //ledger.save_event(&signer, &hash(&signer), change);
         ledger.events[0].payload.previous = "1".to_owned();
         let result = ledger.verify(&id);
         let is_err = matches!(result, Err(crate::IdentityError::InvalidPrevious));
@@ -168,8 +165,8 @@ mod tests {
         let (mut ledger, secret) = create_microledger();
         let id = ledger.inception.get_id();
         let change = EventLogChange::SetDocument(DocumentDigest { value: vec![] });
-        let signer = to_verification_publickey(&secret);
-        ledger.save_event(&signer, &hash(&signer), change);
+        let signer = secret.to_verification_publickey();
+        //ledger.save_event(&signer, &hash(&signer), change);
         ledger.events[0].proof = vec![0; 64];
         let result = ledger.verify(&id);
         let is_err = matches!(result, Err(crate::IdentityError::InvalidEventSignature));
@@ -181,12 +178,12 @@ mod tests {
         let (mut ledger, secret) = create_microledger();
         let id = ledger.inception.get_id();
         let change = EventLogChange::SetDocument(DocumentDigest { value: vec![] });
-        let signer = to_verification_publickey(&secret);
-        ledger.save_event(&signer, &hash(&signer), change);
-        let new_secret = create_secret_key();
-        let new_ed_key = to_verification_publickey(&new_secret);
+        let signer = secret.to_verification_publickey();
+        //ledger.save_event(&signer, &hash(&signer), change);
+        let new_secret = IdSecret::new();
+        let new_ed_key = new_secret.to_verification_publickey();
         ledger.events[0].payload.signer_key = new_ed_key.clone();
-        ledger.events[0].proof = ledger.events[0].payload.sign(&new_secret);
+        ledger.events[0].proof = new_secret.sign(&ledger.events[0].payload);
         let result = ledger.verify(&id);
         let is_err = matches!(result, Err(crate::IdentityError::InvalidSigner));
         assert!(is_err, "{:?}", result);
@@ -196,13 +193,16 @@ mod tests {
     fn verify_set_proof_invalid_signer_test() {
         let (mut ledger, secret) = create_microledger();
         let id = ledger.inception.get_id();
-        let change = EventLogChange::SetProof(ProofStatement {key: vec![], value: vec![] });
-        let signer = to_verification_publickey(&secret);
-        ledger.save_event(&signer, &hash(&signer), change);
-        let new_secret = create_secret_key();
-        let new_ed_key = to_verification_publickey(&new_secret);
+        let change = EventLogChange::SetProof(ProofStatement {
+            key: vec![],
+            value: vec![],
+        });
+        let signer = secret.to_verification_publickey();
+        //ledger.save_event(&signer, &hash(&signer), change);
+        let new_secret = IdSecret::new();
+        let new_ed_key = new_secret.to_verification_publickey();
         ledger.events[0].payload.signer_key = new_ed_key.clone();
-        ledger.events[0].proof = ledger.events[0].payload.sign(&new_secret);
+        ledger.events[0].proof =  new_secret.sign(&ledger.events[0].payload);
         let result = ledger.verify(&id);
         let is_err = matches!(result, Err(crate::IdentityError::InvalidSigner));
         assert!(is_err, "{:?}", result);
@@ -212,27 +212,27 @@ mod tests {
     fn verify_recovery_invalid_signer_test() {
         let (mut ledger, secret) = create_microledger();
         let id = ledger.inception.get_id();
-        let signer = to_verification_publickey(&secret);
+        let signer = secret.to_verification_publickey();
         let rec = RecoverStatement {
             key_type: ED25519.to_owned(),
             recovery_key_digest: hash(&signer),
         };
         let change = EventLogChange::Recover(rec);
-        ledger.save_event(&signer, &hash(&signer), change);
-        let new_secret = create_secret_key();
-        let new_ed_key = to_verification_publickey(&new_secret);
+        //ledger.save_event(&signer, &hash(&signer), change);
+        let new_secret = IdSecret::new();
+        let new_ed_key = new_secret.to_verification_publickey();
         ledger.events[0].payload.signer_key = new_ed_key.clone();
-        ledger.events[0].proof = ledger.events[0].payload.sign(&new_secret);
+        ledger.events[0].proof =  new_secret.sign(&ledger.events[0].payload);
         let result = ledger.verify(&id);
         let is_err = matches!(result, Err(crate::IdentityError::InvalidSigner));
         assert!(is_err, "{:?}", result);
     }
 
-    fn create_microledger() -> (MicroLedger, Vec<u8>) {
-        let secret = "bd6yg2qeifnixj4x3z2fclp5wd3i6ysjlfkxewqqt2thie6lfnkma";
-        let next_key = to_verification_publickey(&multibase::decode(secret).unwrap().1);
-        let recovery_key = to_verification_publickey(&multibase::decode(secret).unwrap().1);
+    fn create_microledger() -> (MicroLedger, secret::IdSecret) {
+        let secret = IdSecret::from_str("bd6yg2qeifnixj4x3z2fclp5wd3i6ysjlfkxewqqt2thie6lfnkma");
+        let next_key = secret.to_verification_publickey();
+        let recovery_key = secret.to_verification_publickey();
         let ledger = MicroLedger::new(&hash(&next_key), &hash(&recovery_key));
-        (ledger, multibase::decode(secret).unwrap().1)
+        (ledger, secret)
     }
 }
