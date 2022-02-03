@@ -1,5 +1,5 @@
 [package]
-name = "idp2p_node2"
+name = "idp2p_node"
 version = "0.1.0"
 edition = "2018"
 copyright = "2022, Adem Caglin"
@@ -8,6 +8,7 @@ authors = ["adem caglin <adem.caglin@gmail.com>"]
 [dependencies]
 structopt = "0.3.25"
 env_logger = "0.9.0"
+async-trait = "0.1.52"
 anyhow = "1.0"
 warp = "0.3.2"
 dotenv = "0.15.0"

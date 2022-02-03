@@ -40,3 +40,15 @@ impl IdStore for FileStore{
         None
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn get_path_test() {
+        std::env::set_var("BASE_PATH", "idp2p");
+        let store = FileStore{};
+        let path = store.get_path("identities", "123");
+        assert_eq!(path, "idp2p/identities/123.json");
+    }
+}

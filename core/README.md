@@ -1,3 +1,0 @@
-# Core Library
-
-> Microledger issues

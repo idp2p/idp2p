@@ -2,9 +2,8 @@
 edition = "2018"
 
 members = [
-    "core",
-    "node",
     "idp2p-common",
     "idp2p-core",
+    "idp2p-didcomm",
     "idp2p-node"
 ]

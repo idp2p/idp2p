@@ -1,16 +1,13 @@
-use serde::Serialize;
-use ed25519_dalek::{Keypair, SecretKey, PublicKey, Signer};
+use ed25519_dalek::{Keypair, PublicKey, SecretKey, Signer};
 use rand::prelude::*;
+use serde::Serialize;
 use std::convert::TryInto;
 use x25519_dalek::StaticSecret;
 pub struct IdSecret(Vec<u8>);
 
 impl IdSecret {
     pub fn new() -> IdSecret {
-        let mut key_data = [0u8; 32];
-        let mut key_rng = thread_rng();
-        key_rng.fill_bytes(&mut key_data);
-        IdSecret(key_data.to_vec())
+        IdSecret(crate::create_random::<32>().to_vec())
     }
 
     pub fn from(data: &[u8]) -> IdSecret {
@@ -57,5 +54,49 @@ impl IdSecret {
         let bytes = payload_json.as_bytes();
         let keypair = self.to_verification_keypair();
         keypair.sign(&bytes).to_bytes().to_vec()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::encode;
+    use ed25519_dalek::{PublicKey, Signer, Verifier};
+    #[test]
+    fn proof_test() {
+        let secret = IdSecret::from_str("bclc5pn2tfuhkqmupbr3lkyc5o4g4je6glfwkix6nrtf7hch7b3kq");
+        let keypair = secret.to_verification_keypair();
+        let sig = keypair.sign(&vec![0]);
+        let public_key_bytes = secret.to_verification_publickey();
+        let public_key = PublicKey::from_bytes(&public_key_bytes).unwrap();
+        let is_valid = public_key.verify(&vec![0], &sig).is_ok();
+        assert!(is_valid);
+    }
+
+    #[test]
+    fn to_verification_key_test() {
+        let secret = IdSecret::from_str("bclc5pn2tfuhkqmupbr3lkyc5o4g4je6glfwkix6nrtf7hch7b3kq");
+        let expected = "brgzkmbdnyevdth3sczvxjumd6bdl6ngn6eqbsbpazuvq42bfzk2a";
+        let public_key = secret.to_verification_publickey();
+        assert_eq!(encode(&public_key), expected);
+    }
+
+    #[test]
+    fn to_agreement_key_test() {
+        let secret = IdSecret::from_str("bclc5pn2tfuhkqmupbr3lkyc5o4g4je6glfwkix6nrtf7hch7b3kq");
+        let expected = "bbgitzmdocc3y2gvcmtiihr2gyw4xjppux7ea3gdo6afwy6gbrmpa";
+        let public_key = secret.to_key_agreement_publickey();
+        assert_eq!(encode(&public_key), expected);
+    }
+
+    #[test]
+    fn to_shared_key_test() {
+        let alice_secret = IdSecret::new();
+        let bob_secret = IdSecret::new();
+        let alice_public = alice_secret.to_key_agreement_publickey();
+        let bob_public = bob_secret.to_key_agreement_publickey();
+        let alice_shared = alice_secret.to_shared_secret(&bob_public);
+        let bob_shared = bob_secret.to_shared_secret(&alice_public);
+        assert_eq!(alice_shared.as_bytes(), bob_shared.as_bytes());
     }
 }

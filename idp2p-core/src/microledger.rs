@@ -67,6 +67,7 @@ impl MicroLedger {
             timestamp: Utc::now().timestamp(),
         }
     }
+
     pub fn save_event(&mut self, payload: EventLogPayload, proof: &[u8]) {
         let event_log = EventLog::new(payload, proof);
         self.events.push(event_log);
@@ -151,9 +152,11 @@ mod tests {
     fn verify_invalid_previous_test() {
         let (mut ledger, secret) = create_microledger();
         let id = ledger.inception.get_id();
-        let change = EventLogChange::SetDocument(DocumentDigest { value: vec![] });
+        let change = EventLogChange::SetDocument(DocumentDigest { value: vec![] }); 
         let signer = secret.to_verification_publickey();
-        //ledger.save_event(&signer, &hash(&signer), change);
+        let payload = ledger.create_event(&signer, &signer, change);
+        let proof = secret.sign(&payload);
+        ledger.save_event(payload, &proof);
         ledger.events[0].payload.previous = "1".to_owned();
         let result = ledger.verify(&id);
         let is_err = matches!(result, Err(crate::IdentityError::InvalidPrevious));
@@ -166,7 +169,9 @@ mod tests {
         let id = ledger.inception.get_id();
         let change = EventLogChange::SetDocument(DocumentDigest { value: vec![] });
         let signer = secret.to_verification_publickey();
-        //ledger.save_event(&signer, &hash(&signer), change);
+        let payload = ledger.create_event(&signer, &signer, change);
+        let proof = secret.sign(&payload);
+        ledger.save_event(payload, &proof);
         ledger.events[0].proof = vec![0; 64];
         let result = ledger.verify(&id);
         let is_err = matches!(result, Err(crate::IdentityError::InvalidEventSignature));
@@ -179,7 +184,9 @@ mod tests {
         let id = ledger.inception.get_id();
         let change = EventLogChange::SetDocument(DocumentDigest { value: vec![] });
         let signer = secret.to_verification_publickey();
-        //ledger.save_event(&signer, &hash(&signer), change);
+        let payload = ledger.create_event(&signer, &signer, change);
+        let proof = secret.sign(&payload);
+        ledger.save_event(payload, &proof);
         let new_secret = IdSecret::new();
         let new_ed_key = new_secret.to_verification_publickey();
         ledger.events[0].payload.signer_key = new_ed_key.clone();
@@ -198,7 +205,9 @@ mod tests {
             value: vec![],
         });
         let signer = secret.to_verification_publickey();
-        //ledger.save_event(&signer, &hash(&signer), change);
+        let payload = ledger.create_event(&signer, &signer, change);
+        let proof = secret.sign(&payload);
+        ledger.save_event(payload, &proof);
         let new_secret = IdSecret::new();
         let new_ed_key = new_secret.to_verification_publickey();
         ledger.events[0].payload.signer_key = new_ed_key.clone();
@@ -218,7 +227,9 @@ mod tests {
             recovery_key_digest: hash(&signer),
         };
         let change = EventLogChange::Recover(rec);
-        //ledger.save_event(&signer, &hash(&signer), change);
+        let payload = ledger.create_event(&signer, &signer, change);
+        let proof = secret.sign(&payload);
+        ledger.save_event(payload, &proof);
         let new_secret = IdSecret::new();
         let new_ed_key = new_secret.to_verification_publickey();
         ledger.events[0].payload.signer_key = new_ed_key.clone();

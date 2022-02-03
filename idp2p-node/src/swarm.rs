@@ -1,9 +1,11 @@
+use crate::message::{IdentityEvent, IdentityMessage};
 use anyhow::Result;
+use idp2p_common::store::FileStore;
 use libp2p::Swarm;
 use libp2p::{
     gossipsub::{
-        Gossipsub, GossipsubConfigBuilder, GossipsubEvent, GossipsubMessage, IdentTopic,
-        MessageAuthenticity, MessageId, ValidationMode,
+        Gossipsub, GossipsubConfigBuilder, GossipsubEvent, GossipsubMessage,
+        MessageAuthenticity, MessageId, ValidationMode,IdentTopic
     },
     identity,
     mdns::{Mdns, MdnsEvent},
@@ -11,7 +13,6 @@ use libp2p::{
     NetworkBehaviour, PeerId,
 };
 use std::collections::hash_map::DefaultHasher;
-use std::collections::HashMap;
 use std::collections::HashMap;
 use std::error::Error;
 use std::hash::{Hash, Hasher};
@@ -24,8 +25,21 @@ pub struct IdentityGossipBehaviour {
     pub mdns: Mdns,
     #[behaviour(ignore)]
     pub identities: HashMap<String, String>,
+    #[behaviour(ignore)]
+    pub sender: tokio::sync::mpsc::Sender<IdentityEvent>,
 }
 
+impl IdentityGossipBehaviour {
+    pub fn publish(&mut self, id: String, mes: IdentityMessage) {
+        let gossip_topic = IdentTopic::new(id.clone());
+        let json_str = serde_json::to_string(&mes).unwrap();
+        let result = self.gossipsub.publish(gossip_topic, json_str.as_bytes());
+        match result {
+            Ok(_) => println!("Published id: {}", id.clone()),
+            Err(e) => println!("Publish error, {:?}", e),
+        }
+    }
+}
 impl NetworkBehaviourEventProcess<GossipsubEvent> for IdentityGossipBehaviour {
     fn inject_event(&mut self, message: GossipsubEvent) {
         if let GossipsubEvent::Message {
@@ -34,10 +48,13 @@ impl NetworkBehaviourEventProcess<GossipsubEvent> for IdentityGossipBehaviour {
             message,
         } = message
         {
-            let id = message.topic.to_string();
-            let id_event: IdentityEvent = serde_json::from_slice(&message.data).unwrap();
-            match id_event.payload {
-
+            let id_mes: IdentityMessage = serde_json::from_slice(&message.data).unwrap();
+            let result = id_mes.handle(&message.topic.to_string(), FileStore {});
+            if let Some(e) = result {
+                let r = self.sender.try_send(e);
+                if r.is_err() {
+                    println!("vent ");
+                }
             }
         }
     }
@@ -62,7 +79,9 @@ impl NetworkBehaviourEventProcess<MdnsEvent> for IdentityGossipBehaviour {
     }
 }
 
-pub async fn create() -> Result<Swarm<IdentityGossipBehaviour>, Box<dyn Error>> {
+pub async fn create_swarm(
+    sender: tokio::sync::mpsc::Sender<IdentityEvent>,
+) -> Result<Swarm<IdentityGossipBehaviour>, Box<dyn Error>> {
     let local_key = identity::Keypair::generate_ed25519();
     let local_peer_id = PeerId::from(local_key.public());
     println!("Local peer id: {:?}", local_peer_id);
@@ -78,13 +97,13 @@ pub async fn create() -> Result<Swarm<IdentityGossipBehaviour>, Box<dyn Error>> 
 
         let gossipsub_config = GossipsubConfigBuilder::default()
             .heartbeat_interval(Duration::from_secs(10))
-            .validation_mode(ValidationMode::Strict)
+            .validation_mode(ValidationMode::Anonymous)
             .message_id_fn(message_id_fn)
             .build()
             .expect("Valid config");
 
         let gossipsub_result = libp2p::gossipsub::Gossipsub::new(
-            MessageAuthenticity::Signed(local_key),
+            MessageAuthenticity::Anonymous,
             gossipsub_config,
         );
         let gossipsub = gossipsub_result.expect("Correct configuration");
@@ -93,6 +112,7 @@ pub async fn create() -> Result<Swarm<IdentityGossipBehaviour>, Box<dyn Error>> 
             gossipsub: gossipsub,
             mdns: mdns,
             identities: HashMap::new(),
+            sender: sender,
         };
         SwarmBuilder::new(transport, behaviour, local_peer_id)
             .executor(Box::new(|fut| {
@@ -100,6 +120,6 @@ pub async fn create() -> Result<Swarm<IdentityGossipBehaviour>, Box<dyn Error>> 
             }))
             .build()
     };
-    swarm.listen_on("/ip4/0.0.0.0/tcp/43727")?;
+    swarm.listen_on("/ip4/0.0.0.0/tcp/43727".parse()?)?;
     Ok(swarm)
 }

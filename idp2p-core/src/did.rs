@@ -96,7 +96,11 @@ mod tests {
             service: vec![],
         };
         let doc = IdDocument::new(input);
-        //did.create_document(&secret, &hash(&ed_key), doc);
+        let change = did.create_document(doc);
+        let signer = secret.to_verification_publickey();
+        let payload = did.microledger.create_event(&signer, &hash(&signer), change);
+        let proof = secret.sign(&payload);
+        did.microledger.save_event(payload, &proof);
         let r = current.is_next(did.clone());
         assert!(r.is_ok(), "{:?}", r);
     }
@@ -115,11 +119,18 @@ mod tests {
             service: vec![],
         };
         let doc = IdDocument::new(input);
-        //did.create_document(&secret, &hash(&ed_key), doc);
+        let change = did.create_document(doc);
+        let signer = secret.to_verification_publickey();
+        let payload = did.microledger.create_event(&signer, &hash(&signer), change);
+        let proof = secret.sign(&payload);
+        did.microledger.save_event(payload, &proof);
         let digest = DocumentDigest { value: vec![] };
-        let change = EventLogChange::SetDocument(digest);
-        //did.microledger.save_event(&secret, &secret, change);
+        let fake_change = EventLogChange::SetDocument(digest);
+        let fake_payload = did.microledger.create_event(&signer, &hash(&signer), fake_change);
+        let fake_proof = secret.sign(&fake_payload);
+        did.microledger.save_event(fake_payload, &fake_proof);
         let result = current.is_next(did);
+        println!("result: {:?}", result);
         let is_err = matches!(result, Err(crate::IdentityError::InvalidDocumentDigest));
         assert!(is_err, "{:?}", result);
     }

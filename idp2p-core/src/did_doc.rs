@@ -1,6 +1,6 @@
+use idp2p_common::*;
 use serde::{Deserialize, Serialize};
 use serde_with::skip_serializing_none;
-use idp2p_common::*;
 
 pub struct CreateDocInput {
     pub id: String,
@@ -93,17 +93,24 @@ impl IdDocument {
     pub fn get_digest(&self) -> Vec<u8> {
         hash(serde_json::to_string(&self).unwrap().as_bytes())
     }
+
+    pub fn get_verification_method(&self, kid: &str) -> Option<VerificationMethod> {
+        self.verification_method
+            .clone()
+            .into_iter()
+            .find(|vm| vm.id == kid)
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
     #[test]
-    fn new_did_doc() {
+    fn new_did_doc_test() {
         let secret = secret::IdSecret::new();
         let ed_key = secret.to_verification_publickey();
         let x_key = secret.to_key_agreement_publickey();
-        let input = CreateDocInput{
+        let input = CreateDocInput {
             id: "123456".to_owned(),
             assertion_key: ed_key.clone(),
             authentication_key: ed_key.clone(),
@@ -114,5 +121,23 @@ mod tests {
         assert_eq!(doc.id, "did:p2p:123456");
         assert_eq!(doc.controller, "did:p2p:123456");
         assert_eq!(doc.verification_method.len(), 3);
+    }
+
+    #[test]
+    fn get_verification_method_test() {
+        let secret = secret::IdSecret::new();
+        let ed_key = secret.to_verification_publickey();
+        let x_key = secret.to_key_agreement_publickey();
+        let input = CreateDocInput {
+            id: "123456".to_owned(),
+            assertion_key: ed_key.clone(),
+            authentication_key: ed_key.clone(),
+            keyagreement_key: x_key.clone(),
+            service: vec![],
+        };
+        let doc = IdDocument::new(input);
+        let kid = format!("did:p2p:123456#{}", encode(&x_key));
+        let vm = doc.get_verification_method(&kid);
+        assert!(vm.is_some());
     }
 }

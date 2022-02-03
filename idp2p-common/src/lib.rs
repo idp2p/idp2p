@@ -5,6 +5,7 @@ use cid::{
 use multibase::*;
 use serde::Serialize;
 use sha2::{Digest, Sha256};
+use rand::prelude::*;
 
 pub const ED25519: &str = "Ed25519VerificationKey2020";
 pub const X25519: &str = "X25519KeyAgreementKey2020";
@@ -40,6 +41,10 @@ pub fn encode(value: &[u8]) -> String {
     multibase::encode(Base::Base32Lower, value)
 }
 
+pub fn encode_base64url(value: &[u8]) -> String{
+    multibase::encode(Base::Base64Url, value)
+}
+
 pub fn decode(s: &str) -> Vec<u8>{
     multibase::decode(s).unwrap().1
 }
@@ -55,6 +60,13 @@ pub fn generate_cid<T: Sized + Serialize>(t: &T) -> String {
     let hash = Code::Sha2_256.digest(content.as_bytes());
     let cid = Cid::new_v1(JSON_CODEC, hash);
     cid.to_string()
+}
+
+pub fn create_random<const N: usize>() -> [u8; N]{
+    let mut key_data = [0u8; N];
+    let mut key_rng = thread_rng();
+    key_rng.fill_bytes(&mut key_data);
+    key_data
 }
 
 #[cfg(test)]

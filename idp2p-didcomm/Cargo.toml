@@ -1,13 +1,19 @@
 [package]
-name = "idp2p_core"
+name = "idp2p_didcomm"
 version = "0.1.0"
 edition = "2018"
 
 [dependencies]
+ed25519-dalek = "1.0.1"
+x25519-dalek = "1.2.0"
+chacha20poly1305 = "0.9.0"
 anyhow = "1.0"
 thiserror = "1.0"
 serde = { version = "1.0.130", features = ["derive"] }
 serde_json = "1.0.68"
+chrono = "0.4.19"
+idp2p_common = { version = "0.1.0", path = "../idp2p-common" }
+idp2p_core = { version = "0.1.0", path = "../idp2p-core" }
 [dependencies.serde_with]
 version = "1.11.0"
 features = [ "macros" ]

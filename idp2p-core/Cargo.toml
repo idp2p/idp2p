@@ -1,5 +1,5 @@
 [package]
-name = "idp2p_core2"
+name = "idp2p_core"
 version = "0.1.0"
 edition = "2018"
 
