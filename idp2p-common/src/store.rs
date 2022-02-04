@@ -5,22 +5,22 @@ use std::fs::OpenOptions;
 use std::io::Read;
 
 pub trait IdStore {
-    fn put<T: Serialize>(&self, entity: &str, id: &str, value: T);
-    fn get<T: DeserializeOwned>(&self, entity: &str, id: &str) -> Option<T>;
+    fn put<T: Serialize>(&self, entity: &str, key: &str, value: T);
+    fn get<T: DeserializeOwned>(&self, entity: &str, key: &str) -> Option<T>;
 }
 
 pub struct FileStore {}
 
 impl FileStore{
-    fn get_path(&self, entity: &str, id: &str) -> String {
+    fn get_path(&self, entity: &str, key: &str) -> String {
         let base_path = std::env::var("BASE_PATH").expect("$BASE_PATH is not set");
-        format!("{}/{}/{}.json", base_path, entity, id)
+        format!("{}/{}/{}.json", base_path, entity, key)
     }
 }
 
 impl IdStore for FileStore{
-    fn put<T: Serialize>(&self, entity: &str, id: &str, value: T) {
-        let path = self.get_path(entity, id);
+    fn put<T: Serialize>(&self, entity: &str, key: &str, value: T) {
+        let path = self.get_path(entity, key);
         if !std::path::Path::new(&path).exists() {
             std::fs::File::create(&path).unwrap();
         }
@@ -28,8 +28,8 @@ impl IdStore for FileStore{
         serde_json::to_writer_pretty(&file, &value).unwrap();
     }
 
-    fn get<T: DeserializeOwned>(&self, entity: &str, id: &str) -> Option<T> {
-        let path = self.get_path(entity, id);
+    fn get<T: DeserializeOwned>(&self, entity: &str, key: &str) -> Option<T> {
+        let path = self.get_path(entity, key);
         let result = File::open(&path);
         if result.is_ok(){
             let mut file = result.unwrap();

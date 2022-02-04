@@ -3,13 +3,16 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Clone)]
 pub struct Jwe {
+    pub iv: String, // random initial vector 12 bytes
+    pub ciphertext: String, // Encrypted message 
+    pub receipents: Vec<>
+}
+
+struct JweProtected{
     pub typ: String, // application/didcomm-encrypted+json
     pub enc: String, // XC20P
     pub alg: String, // ECDH-ES+A256KW
-    pub kid: String, // receipent kid
     pub epk: Jwk,  // sender public key
-    pub iv: String, // initial vector 12 bytes
-    pub ciphertext: String, // Encrypted message 
 }
 
 impl Jwe{

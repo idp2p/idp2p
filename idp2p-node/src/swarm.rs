@@ -1,16 +1,14 @@
-use crate::message::{IdentityEvent, IdentityMessage};
+use crate::behaviour::IdentityGossipBehaviour;
+use crate::message::{IdentityMessageResult};
 use anyhow::Result;
-use idp2p_common::store::FileStore;
 use libp2p::Swarm;
 use libp2p::{
     gossipsub::{
-        Gossipsub, GossipsubConfigBuilder, GossipsubEvent, GossipsubMessage,
-        MessageAuthenticity, MessageId, ValidationMode,IdentTopic
+        GossipsubConfigBuilder, GossipsubMessage,
+        MessageAuthenticity, MessageId, ValidationMode,
     },
     identity,
-    mdns::{Mdns, MdnsEvent},
-    swarm::{NetworkBehaviourEventProcess, SwarmBuilder},
-    NetworkBehaviour, PeerId,
+    swarm::{ SwarmBuilder}, PeerId,
 };
 use std::collections::hash_map::DefaultHasher;
 use std::collections::HashMap;
@@ -18,69 +16,8 @@ use std::error::Error;
 use std::hash::{Hash, Hasher};
 use std::time::Duration;
 
-#[derive(NetworkBehaviour)]
-#[behaviour(event_process = true)]
-pub struct IdentityGossipBehaviour {
-    pub gossipsub: Gossipsub,
-    pub mdns: Mdns,
-    #[behaviour(ignore)]
-    pub identities: HashMap<String, String>,
-    #[behaviour(ignore)]
-    pub sender: tokio::sync::mpsc::Sender<IdentityEvent>,
-}
-
-impl IdentityGossipBehaviour {
-    pub fn publish(&mut self, id: String, mes: IdentityMessage) {
-        let gossip_topic = IdentTopic::new(id.clone());
-        let json_str = serde_json::to_string(&mes).unwrap();
-        let result = self.gossipsub.publish(gossip_topic, json_str.as_bytes());
-        match result {
-            Ok(_) => println!("Published id: {}", id.clone()),
-            Err(e) => println!("Publish error, {:?}", e),
-        }
-    }
-}
-impl NetworkBehaviourEventProcess<GossipsubEvent> for IdentityGossipBehaviour {
-    fn inject_event(&mut self, message: GossipsubEvent) {
-        if let GossipsubEvent::Message {
-            propagation_source: _,
-            message_id: _,
-            message,
-        } = message
-        {
-            let id_mes: IdentityMessage = serde_json::from_slice(&message.data).unwrap();
-            let result = id_mes.handle(&message.topic.to_string(), FileStore {});
-            if let Some(e) = result {
-                let r = self.sender.try_send(e);
-                if r.is_err() {
-                    println!("vent ");
-                }
-            }
-        }
-    }
-}
-
-impl NetworkBehaviourEventProcess<MdnsEvent> for IdentityGossipBehaviour {
-    fn inject_event(&mut self, event: MdnsEvent) {
-        match event {
-            MdnsEvent::Discovered(list) => {
-                for (peer, _) in list {
-                    self.gossipsub.add_explicit_peer(&peer);
-                }
-            }
-            MdnsEvent::Expired(list) => {
-                for (peer, _) in list {
-                    if !self.mdns.has_node(&peer) {
-                        self.gossipsub.remove_explicit_peer(&peer);
-                    }
-                }
-            }
-        }
-    }
-}
-
 pub async fn create_swarm(
-    sender: tokio::sync::mpsc::Sender<IdentityEvent>,
+    sender: tokio::sync::mpsc::Sender<IdentityMessageResult>,
 ) -> Result<Swarm<IdentityGossipBehaviour>, Box<dyn Error>> {
     let local_key = identity::Keypair::generate_ed25519();
     let local_peer_id = PeerId::from(local_key.public());
@@ -102,10 +39,8 @@ pub async fn create_swarm(
             .build()
             .expect("Valid config");
 
-        let gossipsub_result = libp2p::gossipsub::Gossipsub::new(
-            MessageAuthenticity::Anonymous,
-            gossipsub_config,
-        );
+        let gossipsub_result =
+            libp2p::gossipsub::Gossipsub::new(MessageAuthenticity::Anonymous, gossipsub_config);
         let gossipsub = gossipsub_result.expect("Correct configuration");
         let mdns = libp2p::mdns::Mdns::new(Default::default()).await?;
         let behaviour = IdentityGossipBehaviour {
