@@ -17,6 +17,7 @@ use std::hash::{Hash, Hasher};
 use std::time::Duration;
 
 pub async fn create_swarm(
+    port: u16,
     sender: tokio::sync::mpsc::Sender<IdentityMessageResult>,
 ) -> Result<Swarm<IdentityGossipBehaviour>, Box<dyn Error>> {
     let local_key = identity::Keypair::generate_ed25519();
@@ -55,6 +56,7 @@ pub async fn create_swarm(
             }))
             .build()
     };
-    swarm.listen_on("/ip4/0.0.0.0/tcp/43727".parse()?)?;
+    swarm.listen_on(format!("/ip4/0.0.0.0/tcp/{}", port).parse()?)?;
+    //swarm.listen_on("/ip4/0.0.0.0/tcp/43727".parse()?)?;
     Ok(swarm)
 }

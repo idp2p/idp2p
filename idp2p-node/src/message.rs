@@ -4,6 +4,7 @@ use idp2p_core::did::Identity;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
+#[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
 pub enum IdentityMessageResult {
     Skipped,
     Created { id: String },

@@ -40,10 +40,10 @@ impl NetworkBehaviourEventProcess<GossipsubEvent> for IdentityGossipBehaviour {
         {
             let id_mes: IdentityMessage = serde_json::from_slice(&message.data).unwrap();
             let topic = message.topic.to_string();
-            let event = id_mes
+            let result = id_mes
                 .handle(&topic, &mut self.identities, FileStore {})
                 .unwrap();
-            let _ = self.sender.try_send(event);
+            let _ = self.sender.try_send(result);
         }
     }
 }

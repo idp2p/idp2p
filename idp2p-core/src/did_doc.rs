@@ -100,6 +100,10 @@ impl IdDocument {
             .into_iter()
             .find(|vm| vm.id == kid)
     }
+
+    pub fn get_first_keyagreement(&self) -> String {
+        self.key_agreement[0].clone()
+    }
 }
 
 #[cfg(test)]

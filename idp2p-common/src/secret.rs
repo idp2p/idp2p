@@ -1,5 +1,5 @@
+use crate::hash;
 use ed25519_dalek::{Keypair, PublicKey, SecretKey, Signer};
-use rand::prelude::*;
 use serde::Serialize;
 use std::convert::TryInto;
 use x25519_dalek::StaticSecret;
@@ -18,6 +18,10 @@ impl IdSecret {
         IdSecret(crate::decode(s).to_vec())
     }
 
+    pub fn to_bytes(&self) -> Vec<u8> {
+        self.0.clone()
+    }
+
     pub fn to_verification_keypair(&self) -> Keypair {
         let secret_key = SecretKey::from_bytes(&self.0).unwrap();
         let public_key: PublicKey = PublicKey::from(&secret_key);
@@ -31,6 +35,10 @@ impl IdSecret {
         let keypair: Keypair = self.to_verification_keypair();
         let public = keypair.public.to_bytes().to_vec();
         public
+    }
+
+    pub fn to_publickey_digest(&self) -> Vec<u8> {
+        hash(&self.to_verification_publickey())
     }
 
     pub fn to_key_agreement_publickey(&self) -> Vec<u8> {

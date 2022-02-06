@@ -28,7 +28,7 @@ impl Identity {
         did
     }
 
-    pub fn create_document(&mut self, document: IdDocument) -> EventLogChange {
+    pub fn save_document(&mut self, document: IdDocument) -> EventLogChange {
         let digest = DocumentDigest {
             value: document.get_digest(),
         };
@@ -96,7 +96,7 @@ mod tests {
             service: vec![],
         };
         let doc = IdDocument::new(input);
-        let change = did.create_document(doc);
+        let change = did.save_document(doc);
         let signer = secret.to_verification_publickey();
         let payload = did.microledger.create_event(&signer, &hash(&signer), change);
         let proof = secret.sign(&payload);
@@ -119,7 +119,7 @@ mod tests {
             service: vec![],
         };
         let doc = IdDocument::new(input);
-        let change = did.create_document(doc);
+        let change = did.save_document(doc);
         let signer = secret.to_verification_publickey();
         let payload = did.microledger.create_event(&signer, &hash(&signer), change);
         let proof = secret.sign(&payload);
