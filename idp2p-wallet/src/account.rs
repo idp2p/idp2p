@@ -1,14 +1,18 @@
+use anyhow::Result;
+use anyhow::*;
+use hmac::{Hmac, Mac, NewMac};
 use idp2p_common::encode_vec;
 use idp2p_common::secret::IdSecret;
 use idp2p_core::did::Identity;
 use idp2p_core::did_doc::CreateDocInput;
 use idp2p_core::did_doc::IdDocument;
 use serde::{Deserialize, Serialize};
-
+use sha2::Sha512;
+type HmacSha512 = Hmac<Sha512>;
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
 pub struct Account {
     pub name: String,
-    pub id: String,
+    pub identity: Identity,
     #[serde(with = "encode_vec")]
     pub next_secret: Vec<u8>,
     #[serde(with = "encode_vec")]
@@ -18,17 +22,17 @@ pub struct Account {
 }
 
 impl Account {
-    pub fn init(name: &str) -> u16 {
-        let base_path = format!("../target/{}", name);
-        std::env::set_var("BASE_PATH", base_path.clone());
-        let id_path = format!("{}/identities", base_path);
-        std::fs::create_dir_all(id_path).unwrap();
-        let acc_path = format!("{}/accounts", base_path);
-        std::fs::create_dir_all(acc_path).unwrap();
-        let mut port = 5000;
-        if name == "bob" {
-            port = 6000;
-        }
+    pub fn create(name: &str) -> Result<Account> {
+        let seed = idp2p_common::create_random::<16>();
+        let mut mac = HmacSha512::new_varkey("idp2p seed".as_ref()).unwrap();
+        mac.update(&seed);
+        let bytes = mac.finalize().into_bytes().to_vec();
+        let secret = bytes[..32].to_vec();
+        let chain_code = bytes[32..64].to_vec();
+        //let secret_key = SecretKey::from_bytes(&bytes[..32])?;
+        //let chain_code = idp2p_common::create_random::<32>();
+        let master_xpriv = "";
+        let master_xpub = "";
         let next_secret = IdSecret::new();
         let signer_key = next_secret.to_verification_publickey();
         let next_key_digest = next_secret.to_publickey_digest();
@@ -48,7 +52,7 @@ impl Account {
         let store = FileStore {};
         let account = Account {
             name: name.to_owned(),
-            id: identity.id.clone(),
+            identity: identity.clone(),
             next_secret: next_secret.to_bytes(),
             authentication_secret: next_secret.to_bytes(),
             keyagreement_secret: next_secret.to_bytes(),
@@ -56,20 +60,6 @@ impl Account {
         println!("Created identity: {:?}", identity.id.clone());
         store.put("identities", &identity.id.clone(), identity);
         store.put("accounts", name, account);*/
-        return port;
-    }
-
-    pub fn handle_command(&self, input: &str) {
-        let split = input.split(" ");
-        let input: Vec<&str> = split.collect();
-        match input[0] {
-            "get" => {
-                let id = input[1].to_string();
-                //return Some(IdentityCommand::Get { id });
-            }
-            _ => {
-                println!("Unknown command");
-            }
-        }
+        Err(anyhow!(""))
     }
 }

@@ -1,5 +1,5 @@
+use crate::behaviour::IdentityGossipEvent;
 use crate::behaviour::IdentityGossipBehaviour;
-use crate::message::{IdentityMessageResult};
 use anyhow::Result;
 use libp2p::Swarm;
 use libp2p::{
@@ -18,7 +18,7 @@ use std::time::Duration;
 
 pub async fn create_swarm(
     port: u16,
-    sender: tokio::sync::mpsc::Sender<IdentityMessageResult>,
+    sender: tokio::sync::mpsc::Sender<IdentityGossipEvent>,
 ) -> Result<Swarm<IdentityGossipBehaviour>, Box<dyn Error>> {
     let local_key = identity::Keypair::generate_ed25519();
     let local_peer_id = PeerId::from(local_key.public());

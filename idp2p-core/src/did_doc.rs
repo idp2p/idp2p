@@ -6,8 +6,7 @@ pub struct CreateDocInput {
     pub id: String,
     pub assertion_key: Vec<u8>,
     pub authentication_key: Vec<u8>,
-    pub keyagreement_key: Vec<u8>,
-    pub service: Vec<Service>,
+    pub keyagreement_key: Vec<u8>
 }
 
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
@@ -44,13 +43,10 @@ pub struct IdDocument {
     pub authentication: Vec<String>,
     #[serde(rename = "keyAgreement")]
     pub key_agreement: Vec<String>,
-    #[serde(rename = "service")]
-    #[serde(skip_serializing_if = "Vec::is_empty", default)]
-    pub services: Vec<Service>,
 }
 
 impl IdDocument {
-    pub fn new(input: CreateDocInput) -> IdDocument {
+    pub fn new(input: CreateDocInput) -> Self {
         let doc_id = format!("did:p2p:{}", input.id);
         let assertion_id = format!("{}#{}", doc_id, encode(&input.assertion_key));
         let authentication_id = format!("{}#{}", doc_id, encode(&input.authentication_key));
@@ -84,8 +80,7 @@ impl IdDocument {
             verification_method: vec![assertion_method, authentication, key_agreement],
             authentication: vec![authentication_id],
             assertion_method: vec![assertion_id],
-            key_agreement: vec![keyagreement_id],
-            services: vec![],
+            key_agreement: vec![keyagreement_id]
         };
         document
     }
@@ -118,8 +113,7 @@ mod tests {
             id: "123456".to_owned(),
             assertion_key: ed_key.clone(),
             authentication_key: ed_key.clone(),
-            keyagreement_key: x_key.clone(),
-            service: vec![],
+            keyagreement_key: x_key.clone()
         };
         let doc = IdDocument::new(input);
         assert_eq!(doc.id, "did:p2p:123456");
@@ -137,7 +131,6 @@ mod tests {
             assertion_key: ed_key.clone(),
             authentication_key: ed_key.clone(),
             keyagreement_key: x_key.clone(),
-            service: vec![],
         };
         let doc = IdDocument::new(input);
         let kid = format!("did:p2p:123456#{}", encode(&x_key));

@@ -1,20 +1,22 @@
 use crate::hash;
 use ed25519_dalek::{Keypair, PublicKey, SecretKey, Signer};
-use serde::Serialize;
+use serde::{Serialize, Deserialize};
 use std::convert::TryInto;
 use x25519_dalek::StaticSecret;
+
+#[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
 pub struct IdSecret(Vec<u8>);
 
 impl IdSecret {
-    pub fn new() -> IdSecret {
+    pub fn new() -> Self {
         IdSecret(crate::create_random::<32>().to_vec())
     }
 
-    pub fn from(data: &[u8]) -> IdSecret {
+    pub fn from(data: &[u8]) -> Self {
         IdSecret(data.to_vec())
     }
 
-    pub fn from_str(s: &str) -> IdSecret {
+    pub fn from_str(s: &str) -> Self {
         IdSecret(crate::decode(s).to_vec())
     }
 

@@ -1,13 +1,13 @@
 use crate::message::IdentityMessage;
-use crate::message::IdentityMessageResult;
-use idp2p_common::store::FileStore;
 use libp2p::{
     gossipsub::{Gossipsub, GossipsubEvent, IdentTopic},
     mdns::{Mdns, MdnsEvent},
     swarm::NetworkBehaviourEventProcess,
     NetworkBehaviour,
 };
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+
 #[derive(NetworkBehaviour)]
 #[behaviour(event_process = true)]
 pub struct IdentityGossipBehaviour {
@@ -16,7 +16,13 @@ pub struct IdentityGossipBehaviour {
     #[behaviour(ignore)]
     pub identities: HashMap<String, String>,
     #[behaviour(ignore)]
-    pub sender: tokio::sync::mpsc::Sender<IdentityMessageResult>,
+    pub sender: tokio::sync::mpsc::Sender<IdentityGossipEvent>,
+}
+
+#[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
+pub struct IdentityGossipEvent {
+    pub topic: String,
+    pub message: IdentityMessage,
 }
 
 impl IdentityGossipBehaviour {
@@ -30,6 +36,7 @@ impl IdentityGossipBehaviour {
         }
     }
 }
+
 impl NetworkBehaviourEventProcess<GossipsubEvent> for IdentityGossipBehaviour {
     fn inject_event(&mut self, message: GossipsubEvent) {
         if let GossipsubEvent::Message {
@@ -38,12 +45,9 @@ impl NetworkBehaviourEventProcess<GossipsubEvent> for IdentityGossipBehaviour {
             message,
         } = message
         {
-            let id_mes: IdentityMessage = serde_json::from_slice(&message.data).unwrap();
             let topic = message.topic.to_string();
-            let result = id_mes
-                .handle(&topic, &mut self.identities, FileStore {})
-                .unwrap();
-            let _ = self.sender.try_send(result);
+            let message: IdentityMessage = serde_json::from_slice(&message.data).unwrap();
+            self.sender.try_send(IdentityGossipEvent { topic, message });
         }
     }
 }

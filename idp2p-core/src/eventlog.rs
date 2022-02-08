@@ -1,5 +1,5 @@
 use idp2p_common::{encode_vec, IdKey, IdKeyDigest};
-use ed25519_dalek::{PublicKey, Signature, Signer, Verifier};
+use ed25519_dalek::{PublicKey, Signature, Verifier};
 use serde::{Deserialize, Serialize};
 use std::convert::TryInto;
 use idp2p_common::*;
@@ -17,7 +17,7 @@ pub struct RecoverStatement {
     #[serde(rename = "keyType")]
     pub key_type: String,
     #[serde(with = "encode_vec")]
-    #[serde(rename = "recoveryKeyDigest")]
+    #[serde(rename = "masterKeyDigest")]
     pub recovery_key_digest: IdKeyDigest,
 }
 
@@ -73,7 +73,7 @@ impl EventLog {
         public_key.verify(bytes, &signature).is_ok()
     }
 
-    pub fn new(payload: EventLogPayload, proof: &[u8]) -> EventLog {
+    pub fn new(payload: EventLogPayload, proof: &[u8]) -> Self {
         let event_log = EventLog {
             payload: payload,
             proof: proof.to_vec(),

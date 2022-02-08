@@ -1,6 +1,6 @@
+use idp2p_node::behaviour::IdentityGossipEvent;
 use crate::account::Account;
 use dotenv::dotenv;
-use idp2p_node::message::IdentityMessageResult;
 use idp2p_node::swarm::create_swarm;
 use libp2p::futures::StreamExt;
 use libp2p::swarm::SwarmEvent;
@@ -21,7 +21,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let opt = Opt::from_args();
     let port = Account::init(&opt.id);
     let mut stdin = io::BufReader::new(io::stdin()).lines();
-    let (sender, mut receiver) = tokio::sync::mpsc::channel::<IdentityMessageResult>(100);
+    let (sender, mut receiver) = tokio::sync::mpsc::channel::<IdentityGossipEvent>(100);
     let mut swarm = create_swarm(port, sender.clone()).await?;
     //let cmd_sender = sender.clone();
     loop {

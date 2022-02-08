@@ -7,13 +7,13 @@ use serde::Serialize;
 use sha2::{Digest, Sha256};
 use rand::prelude::*;
 
+pub const IDP2P_ED25519 : &str = "Idp2pEd25519Key";
 pub const ED25519: &str = "Ed25519VerificationKey2020";
 pub const X25519: &str = "X25519KeyAgreementKey2020";
 const JSON_CODEC: u64 = 0x0200;
 pub type IdKeySecret = Vec<u8>;
 pub type IdKey = Vec<u8>;
 pub type IdKeyDigest = Vec<u8>;
-pub mod store;
 pub mod secret;
 pub mod encode_vec {
     use multibase::Base;
@@ -52,7 +52,7 @@ pub fn decode(s: &str) -> Vec<u8>{
 pub fn hash(bytes: &[u8]) -> Vec<u8> {
     let mut hasher = Sha256::default();
     hasher.update(bytes);
-    (&hasher.finalize()).to_vec()
+    hasher.finalize().to_vec()
 }
 
 pub fn generate_cid<T: Sized + Serialize>(t: &T) -> String {

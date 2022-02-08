@@ -1,3 +1,4 @@
+use crate::did::Identity;
 use thiserror::Error;
 
 #[derive(Error, Debug)]
@@ -18,6 +19,11 @@ pub enum IdentityError {
     InvalidNext,
     #[error("Unknown")]
     Unknown,
+}
+
+pub trait IdStore {
+    fn put(&self, id: &str, value: Identity);
+    fn get(&self, id: &str) -> Option<Identity>;
 }
 
 macro_rules! check {
