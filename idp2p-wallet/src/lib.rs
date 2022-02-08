@@ -1,10 +1,10 @@
 use idp2p_common::encode;
-use anyhow::*;
+use anyhow::Result;
 use hmac::{Hmac, Mac, NewMac};
 use sha2::Sha512;
 use pbkdf2::{
     password_hash::{
-        PasswordHash, PasswordHasher, PasswordVerifier, SaltString
+        PasswordHash, PasswordHasher, PasswordVerifier, SaltString,Error
     },
     Pbkdf2
 };
@@ -18,14 +18,18 @@ pub fn create_wallet() -> Vec<u8> {
     mac.finalize().into_bytes().to_vec()
 }
 
-pub fn create_acc(password: &str) -> Result<bool, >{
-    let seed = idp2p_common::create_random::<16>();
-    let salt_str = format!("{}#{}", encode(&seed), password);
-    let salt = SaltString::new(&salt_str).unwrap();
-    let password_hash = Pbkdf2.hash_password(password.as_bytes(), &salt).unwrap().to_string();
-
+pub fn create_acc(password: &str) -> Result<bool, Error >{
+    // plain seed
+    // encrypted seed with pwd
+    // plain keys
+    // encrypted keys with pwd
+    // let s = format!("Abc {password}");
+    let seed = idp2p_common::create_random::<16>(); 
+    let salt_str = encode(&idp2p_common::create_random::<16>());
+    let salt = SaltString::new(&salt_str)?;
+    let password_hash = Pbkdf2.hash_password(password.as_bytes(), &salt)?.to_string();
     let parsed_hash = PasswordHash::new(&password_hash)?;
-    assert!(Pbkdf2.verify_password(password, &parsed_hash).is_ok());
+    assert!(Pbkdf2.verify_password(password.as_bytes(), &parsed_hash).is_ok());
     Ok(true)
 }
 

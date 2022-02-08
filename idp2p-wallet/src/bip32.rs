@@ -4,7 +4,7 @@ use hmac::{Hmac, Mac, NewMac};
 use sha2::Sha512;
 use std::convert::TryInto;
 
-const ED25519_BIP32_NAME: &str = "ed25519 seed";
+const IDP2P_BIP32_NAME: &str = "idp2p seed";
 
 #[derive(PartialEq, Debug, Clone)]
 pub struct ExtendedSecretKey {
@@ -18,7 +18,7 @@ type HmacSha512 = Hmac<Sha512>;
 
 impl ExtendedSecretKey {
     pub fn from_seed(seed: &[u8]) -> Result<Self> {
-        let mut mac = HmacSha512::new_varkey(ED25519_BIP32_NAME.as_ref()).unwrap();
+        let mut mac = HmacSha512::new_varkey(IDP2P_BIP32_NAME.as_ref()).unwrap();
         mac.update(seed);
         let bytes = mac.finalize().into_bytes().to_vec();
         let mut chain_code = [0; 32];

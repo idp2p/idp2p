@@ -8,13 +8,13 @@ use idp2p_core::did_doc::CreateDocInput;
 use idp2p_core::did_doc::IdDocument;
 use serde::{Deserialize, Serialize};
 use sha2::Sha512;
+
 type HmacSha512 = Hmac<Sha512>;
+
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
 pub struct Account {
     pub name: String,
     pub identity: Identity,
-    #[serde(with = "encode_vec")]
-    pub next_secret: Vec<u8>,
     #[serde(with = "encode_vec")]
     pub authentication_secret: Vec<u8>,
     #[serde(with = "encode_vec")]
