@@ -7,7 +7,7 @@ use chacha20poly1305::aead::{Aead, NewAead};
 use chacha20poly1305::ChaCha20Poly1305;
 use chacha20poly1305::Key;
 use chacha20poly1305::Nonce;
-use idp2p_common::secret::IdSecret;
+use idp2p_common::ed_secret::EdSecret;
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Clone)]
@@ -43,20 +43,24 @@ impl JweProtected {
 }
 
 impl Jwe {
-    pub fn from(jwm: Jwm, secret: IdSecret) -> Result<Jwe> {
+    pub fn from(jwm: Jwm, secret: EdSecret) -> Result<Jwe> {
         let jws = Jws::from(jwm.clone(), secret);
         let raw = serde_json::to_string(&jws).unwrap();
-        let enc_secret = IdSecret::new();
+        let enc_secret = EdSecret::new();
         let to_doc = jwm.to.document.unwrap();
         let to_kid = to_doc.get_first_keyagreement();
-        let to_public = to_doc.get_verification_method(&to_kid).unwrap();
-        let shared_secret = enc_secret.to_shared_secret(&to_public.bytes);
+        let to_ver_method = to_doc.get_verification_method(&to_kid).unwrap();
+        let to_public: [u8; 32] = to_ver_method
+            .bytes
+            .try_into()
+            .expect("Key size is not suitable");
+        let shared_secret = enc_secret.to_shared_secret(to_public);
         let iv = idp2p_common::create_random::<12>();
         let key = Key::from_slice(shared_secret.as_bytes());
         let cipher = ChaCha20Poly1305::new(&key);
         let nonce = Nonce::from_slice(&iv);
         let ciphertext = cipher.encrypt(nonce, raw.as_ref()).unwrap();
-        let protected = JweProtected::new(&enc_secret.to_key_agreement_publickey());
+        let protected = JweProtected::new(&enc_secret.to_key_agreement());
         let protected_str = serde_json::to_string(&protected).unwrap();
         let jwe = Jwe {
             protected: idp2p_common::encode_base64url(protected_str.as_bytes()),

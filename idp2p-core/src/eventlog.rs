@@ -85,15 +85,15 @@ impl EventLog {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use idp2p_common::secret::*;
+    use idp2p_common::ed_secret::EdSecret;
     use chrono::prelude::*;
     #[test]
     fn event_verify_test() {
-        let secret = secret::IdSecret::new();
-        let signer_key = secret.to_verification_publickey();
+        let secret = EdSecret::new();
+        let signer_key = secret.to_publickey();
         let payload = EventLogPayload {
             previous: "1".to_string(),
-            signer_key: signer_key.clone(),
+            signer_key: signer_key.to_vec(),
             next_key_digest: vec![],
             change: EventLogChange::SetDocument(DocumentDigest { value: vec![] }),
             timestamp: Utc::now().timestamp()
@@ -106,12 +106,13 @@ mod tests {
 
     #[test]
     fn event_create_test() {
-        let secret = IdSecret::from_str("bclc5pn2tfuhkqmupbr3lkyc5o4g4je6glfwkix6nrtf7hch7b3kq");
-        let signer_key = secret.to_verification_publickey();
+        let secret_str = "bclc5pn2tfuhkqmupbr3lkyc5o4g4je6glfwkix6nrtf7hch7b3kq";
+        let secret = EdSecret::from_str(secret_str).unwrap();
+        let signer_key = secret.to_publickey();
         let timestamp = 0;
         let payload = EventLogPayload {
             previous: "1".to_string(),
-            signer_key: signer_key.clone(),
+            signer_key: signer_key.to_vec(),
             next_key_digest: hash(&signer_key),
             change: EventLogChange::SetDocument(DocumentDigest { value: vec![] }),
             timestamp: timestamp

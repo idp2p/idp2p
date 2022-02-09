@@ -98,14 +98,14 @@ mod tests {
     use super::*;
     #[test]
     fn new_did_doc_test() {
-        let secret = secret::IdSecret::new();
-        let ed_key = secret.to_verification_publickey();
-        let x_key = secret.to_key_agreement_publickey();
+        let secret = ed_secret::EdSecret::new();
+        let ed_key = secret.to_publickey();
+        let x_key = secret.to_key_agreement();
         let input = CreateDocInput {
             id: "123456".to_owned(),
-            assertion_key: ed_key.clone(),
-            authentication_key: ed_key.clone(),
-            keyagreement_key: x_key.clone()
+            assertion_key: ed_key.to_vec(),
+            authentication_key: ed_key.to_vec(),
+            keyagreement_key: x_key.to_vec()
         };
         let doc = IdDocument::new(input);
         assert_eq!(doc.id, "did:p2p:123456");
@@ -115,14 +115,14 @@ mod tests {
 
     #[test]
     fn get_verification_method_test() {
-        let secret = secret::IdSecret::new();
-        let ed_key = secret.to_verification_publickey();
-        let x_key = secret.to_key_agreement_publickey();
+        let secret = ed_secret::EdSecret::new();
+        let ed_key = secret.to_publickey();
+        let x_key = secret.to_key_agreement();
         let input = CreateDocInput {
             id: "123456".to_owned(),
-            assertion_key: ed_key.clone(),
-            authentication_key: ed_key.clone(),
-            keyagreement_key: x_key.clone(),
+            assertion_key: ed_key.to_vec(),
+            authentication_key: ed_key.to_vec(),
+            keyagreement_key: x_key.to_vec(),
         };
         let doc = IdDocument::new(input);
         let kid = format!("did:p2p:123456#{}", encode(&x_key));

@@ -3,18 +3,19 @@ use cid::{
     Cid,
 };
 use multibase::*;
+use rand::prelude::*;
 use serde::Serialize;
 use sha2::{Digest, Sha256};
-use rand::prelude::*;
 
-pub const IDP2P_ED25519 : &str = "Idp2pEd25519Key";
+pub const IDP2P_ED25519: &str = "Idp2pEd25519Key";
 pub const ED25519: &str = "Ed25519VerificationKey2020";
 pub const X25519: &str = "X25519KeyAgreementKey2020";
 const JSON_CODEC: u64 = 0x0200;
 pub type IdKeySecret = Vec<u8>;
 pub type IdKey = Vec<u8>;
 pub type IdKeyDigest = Vec<u8>;
-pub mod secret;
+pub mod ed_secret;
+//pub mod secret;
 pub mod encode_vec {
     use multibase::Base;
     use serde::{Deserialize, Deserializer, Serialize, Serializer};
@@ -41,16 +42,22 @@ pub fn encode(value: &[u8]) -> String {
     multibase::encode(Base::Base32Lower, value)
 }
 
-pub fn encode_base64url(value: &[u8]) -> String{
+pub fn encode_base64url(value: &[u8]) -> String {
     multibase::encode(Base::Base64Url, value)
 }
 
-pub fn encode_base64(value: &[u8]) -> String{
+pub fn encode_base64(value: &[u8]) -> String {
     multibase::encode(Base::Base64, value)
 }
 
-pub fn decode(s: &str) -> Vec<u8>{
+pub fn decode(s: &str) -> Vec<u8> {
     multibase::decode(s).unwrap().1
+}
+
+pub fn decode_<const N: usize>(s: &str) -> anyhow::Result<[u8; N]> {
+    let r = multibase::decode(s)?.1;
+    let data: [u8; N] = r.try_into().expect("Data size is not equal to given size");
+    Ok(data)
 }
 
 pub fn hash(bytes: &[u8]) -> Vec<u8> {
@@ -66,7 +73,7 @@ pub fn generate_cid<T: Sized + Serialize>(t: &T) -> String {
     cid.to_string()
 }
 
-pub fn create_random<const N: usize>() -> [u8; N]{
+pub fn create_random<const N: usize>() -> [u8; N] {
     let mut key_data = [0u8; N];
     let mut key_rng = thread_rng();
     key_rng.fill_bytes(&mut key_data);

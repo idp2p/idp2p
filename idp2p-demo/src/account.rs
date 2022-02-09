@@ -1,5 +1,5 @@
+use idp2p_common::ed_secret::EdSecret;
 use idp2p_common::encode_vec;
-use idp2p_common::secret::IdSecret;
 use idp2p_core::did::Identity;
 use idp2p_core::did_doc::CreateDocInput;
 use idp2p_core::did_doc::IdDocument;
@@ -29,16 +29,16 @@ impl Account {
         if name == "bob" {
             port = 6000;
         }
-        let next_secret = IdSecret::new();
-        let signer_key = next_secret.to_verification_publickey();
-        let next_key_digest = next_secret.to_publickey_digest();
-        let recovery_key_digest = next_secret.to_publickey_digest();
+        let next_secret = EdSecret::new();
+        let signer_key = next_secret.to_publickey();
+        let next_key_digest = next_secret.to_publickey_digest().unwrap();
+        let recovery_key_digest = next_secret.to_publickey_digest().unwrap();
         let mut identity = Identity::new(&next_key_digest, &recovery_key_digest);
         let create_doc_input = CreateDocInput {
             id: identity.id.clone(),
-            assertion_key: next_secret.to_verification_publickey(),
-            authentication_key: next_secret.to_verification_publickey(),
-            keyagreement_key: next_secret.to_key_agreement_publickey(),
+            assertion_key: next_secret.to_publickey().to_vec(),
+            authentication_key: next_secret.to_publickey().to_vec(),
+            keyagreement_key: next_secret.to_key_agreement().to_vec(),
         };
         let identity_doc = IdDocument::new(create_doc_input);
         /*let change = identity.save_document(identity_doc);

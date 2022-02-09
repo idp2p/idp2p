@@ -1,6 +1,6 @@
+use idp2p_common::ed_secret::EdSecret;
 use crate::jwe::Jwe;
 use chrono::Utc;
-use idp2p_common::secret::IdSecret;
 use idp2p_core::did::Identity;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -27,11 +27,11 @@ impl Jwm {
         }
     }
 
-    pub fn resolve(jwe: Jwe, enc_secret: IdSecret) -> Result<Jwm> {
+    pub fn resolve(jwe: Jwe, enc_secret: EdSecret) -> Result<Jwm> {
         anyhow::bail!("Missing");
     }
 
-    pub fn seal(&self, sig_secret: IdSecret) -> Result<Jwe> {
+    pub fn seal(&self, sig_secret: EdSecret) -> Result<Jwe> {
         Jwe::from(self.clone(), sig_secret)
     }
 

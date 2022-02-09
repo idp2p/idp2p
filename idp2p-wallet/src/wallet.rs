@@ -5,7 +5,7 @@ use chacha20poly1305::aead::{Aead, NewAead};
 use chacha20poly1305::{ChaCha20Poly1305, Key, Nonce};
 use derivation_path::ChildIndex;
 use idp2p_common::encode;
-use idp2p_common::secret::IdSecret;
+use idp2p_common::ed_secret::EdSecret;
 use idp2p_core::did::Identity;
 use pbkdf2::{
     password_hash::{Error, PasswordHasher, SaltString},
@@ -74,8 +74,8 @@ impl WalletPayload {
     pub fn create_account(&mut self, name: &str) -> Result<WalletAccount> {
         let (next_secret, next_index) = self.derive_key().unwrap();
         let (recovery_secret, recovery_index) = self.derive_key().unwrap();
-        let next_key_digest = IdSecret::from(&next_secret).to_publickey_digest();
-        let recovery_key_digest = IdSecret::from(&recovery_secret).to_publickey_digest();
+        let next_key_digest = EdSecret::from(next_secret).to_publickey_digest()?;
+        let recovery_key_digest = EdSecret::from(recovery_secret).to_publickey_digest()?;
         let identity = Identity::new(&next_key_digest, &recovery_key_digest);
         let account = WalletAccount {
             name: name.to_owned(),

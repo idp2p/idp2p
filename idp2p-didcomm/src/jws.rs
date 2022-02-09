@@ -1,5 +1,5 @@
 use crate::jwm::Jwm;
-use idp2p_common::secret::IdSecret;
+use idp2p_common::ed_secret::EdSecret;
 use crate::JwmHeader;
 use serde::{Deserialize, Serialize};
 
@@ -18,7 +18,7 @@ pub struct JwsSignature{
 
 impl Jws{
     
-    pub fn from(jwm: Jwm, secret: IdSecret) -> Jws{
+    pub fn from(jwm: Jwm, secret: EdSecret) -> Jws{
         let protected = r#"{"typ":"application/didcomm-signed+json","alg":"EdDSA"}"#;
         //let payload = idp2p_common::encode_base64url(value: &[u8])(serde_json::to_string(&self.to_jpm()));
         Jws{

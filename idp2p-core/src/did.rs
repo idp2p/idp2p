@@ -104,8 +104,8 @@ mod tests {
         let digest = DocumentDigest { value: vec![] };
         let fake_change = EventLogChange::SetDocument(digest);
         let fake_payload = did.microledger.create_event(
-            &secret.to_verification_publickey(),
-            &secret.to_publickey_digest(),
+            &secret.to_publickey(),
+            &secret.to_publickey_digest().unwrap(),
             fake_change,
         );
         let fake_proof = secret.sign(&fake_payload);
@@ -115,27 +115,27 @@ mod tests {
         assert!(is_err, "{:?}", result);
     }
 
-    fn create_did() -> (Identity, secret::IdSecret) {
+    fn create_did() -> (Identity, ed_secret::EdSecret) {
         let secret_str = "beilmx4d76udjmug5ykpy657qa3pfsqbcu7fbbtuk3mgrdrxssseq";
-        let secret = secret::IdSecret::from(&decode(secret_str));
-        let ed_key_digest = secret.to_publickey_digest();
+        let secret = ed_secret::EdSecret::from_str(secret_str).unwrap();
+        let ed_key_digest = secret.to_publickey_digest().unwrap();
         (Identity::new(&ed_key_digest, &ed_key_digest), secret)
     }
 
-    fn save_doc(did: &mut Identity, secret: secret::IdSecret) {
-        let ed_key = secret.to_verification_publickey();
-        let x_key = secret.to_key_agreement_publickey();
+    fn save_doc(did: &mut Identity, secret: ed_secret::EdSecret) {
+        let ed_key = secret.to_publickey();
+        let x_key = secret.to_key_agreement();
         let input = CreateDocInput {
             id: did.id.clone(),
-            assertion_key: ed_key.clone(),
-            authentication_key: ed_key.clone(),
-            keyagreement_key: x_key.clone(),
+            assertion_key: ed_key.to_vec(),
+            authentication_key: ed_key.to_vec(),
+            keyagreement_key: x_key.to_vec(),
         };
         let doc = IdDocument::new(input);
         let doc_digest = doc.get_digest();
         did.document = Some(doc);
         let change = EventLogChange::SetDocument(DocumentDigest { value: doc_digest });
-        let signer = secret.to_verification_publickey();
+        let signer = secret.to_publickey();
         let payload = did
             .microledger
             .create_event(&signer, &hash(&signer), change);
