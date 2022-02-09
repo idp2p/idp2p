@@ -45,6 +45,10 @@ pub fn encode_base64url(value: &[u8]) -> String{
     multibase::encode(Base::Base64Url, value)
 }
 
+pub fn encode_base64(value: &[u8]) -> String{
+    multibase::encode(Base::Base64, value)
+}
+
 pub fn decode(s: &str) -> Vec<u8>{
     multibase::decode(s).unwrap().1
 }

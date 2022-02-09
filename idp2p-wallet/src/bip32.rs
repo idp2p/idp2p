@@ -17,9 +17,9 @@ pub struct ExtendedSecretKey {
 type HmacSha512 = Hmac<Sha512>;
 
 impl ExtendedSecretKey {
-    pub fn from_seed(seed: &[u8]) -> Result<Self> {
+    pub fn from_seed(seed: [u8; 16]) -> Result<Self> {
         let mut mac = HmacSha512::new_varkey(IDP2P_BIP32_NAME.as_ref()).unwrap();
-        mac.update(seed);
+        mac.update(&seed);
         let bytes = mac.finalize().into_bytes().to_vec();
         let mut chain_code = [0; 32];
         chain_code.copy_from_slice(&bytes[32..]);
@@ -73,24 +73,27 @@ mod tests {
     use super::*;
     use derivation_path::DerivationPath;
     use idp2p_common::decode;
+    use std::convert::TryInto;
 
     fn root(seed: &str) -> ExtendedSecretKey {
-        ExtendedSecretKey::from_seed(&decode(seed)).unwrap()
+        ExtendedSecretKey::from_seed(decode(seed).try_into().unwrap()).unwrap()
     }
 
     #[test]
     fn from_seed_test() {
         let vector1_path: DerivationPath = "m/0'/1'/2'/2'/1000000000'".parse().unwrap();
-        //let vector2_path: DerivationPath = "m/0'/2147483647'/1'/2147483646'/2'".parse().unwrap();
-
         let node = root("f000102030405060708090a0b0c0d0e0f")
             .derive(&vector1_path)
             .unwrap();
         assert_eq!(node.depth, 5);
         assert_eq!(node.child_index, ChildIndex::Hardened(1000000000));
-        assert_eq!(
-            node.chain_code.as_ref(),
-            decode("f68789923a0cac2cd5a29172a475fe9e0fb14cd6adb5ad98a3fa70333e7afa230")
-        );
+        let expected = [
+            121, 29, 14, 253, 141, 151, 23, 206, 190, 120, 46, 147, 125, 107, 208, 230, 211, 26,
+            126, 226, 171, 73, 76, 252, 161, 249, 155, 240, 101, 170, 157, 85,
+        ];
+        let node2 = node.derive_child(ChildIndex::hardened(1000000001).unwrap()).unwrap();
+        println!("{}", idp2p_common::encode(&node.secret_key));
+        println!("{}", idp2p_common::encode(&node2.secret_key));
+        assert_eq!(node.chain_code.as_ref(), expected);
     }
 }

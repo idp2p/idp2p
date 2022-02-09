@@ -1,7 +1,7 @@
 [package]
 name = "idp2p_wallet"
 version = "0.1.0"
-edition = "2018"
+edition = "2021"
 copyright = "2022, Adem Caglin"
 authors = ["adem caglin <adem.caglin@gmail.com>"] 
 
@@ -10,6 +10,7 @@ anyhow = "1.0"
 pbkdf2 = "0.10.0"
 serde_json = "1.0.68"
 sha2 = "0.9.8"
+chacha20poly1305 = "0.9.0"
 derivation-path = { version = "0.1.3", default-features = false }
 hmac = { version = "0.9.0", default-features = false }
 serde = { version = "1.0.130", features = ["derive"] }

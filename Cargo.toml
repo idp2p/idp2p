@@ -1,5 +1,5 @@
 [workspace]
-edition = "2018"
+edition = "2021"
 
 members = [
     "idp2p-common",

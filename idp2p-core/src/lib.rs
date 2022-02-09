@@ -38,3 +38,4 @@ pub mod did;
 pub mod did_doc;
 pub mod eventlog;
 pub mod microledger;
+pub mod ver_cred;

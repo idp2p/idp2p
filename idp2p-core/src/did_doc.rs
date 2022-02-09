@@ -9,14 +9,6 @@ pub struct CreateDocInput {
     pub keyagreement_key: Vec<u8>
 }
 
-#[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
-pub struct Service {
-    pub id: String,
-    #[serde(rename = "type")]
-    pub typ: String,
-    #[serde(rename = "serviceEndpoint")]
-    pub endpoint: String,
-}
 
 #[skip_serializing_none]
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
