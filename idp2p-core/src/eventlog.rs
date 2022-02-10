@@ -1,8 +1,9 @@
-use idp2p_common::{encode_vec, IdKey, IdKeyDigest};
-use ed25519_dalek::{PublicKey, Signature, Verifier};
+use idp2p_common::{
+    ed25519_dalek::{PublicKey, Signature, Verifier},
+    encode_vec, serde_json, generate_cid, IdKey, IdKeyDigest,
+};
 use serde::{Deserialize, Serialize};
 use std::convert::TryInto;
-use idp2p_common::*;
 
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
 pub struct ProofStatement {
@@ -48,7 +49,7 @@ pub struct EventLogPayload {
     #[serde(rename = "nextKeyDigest")]
     pub next_key_digest: IdKeyDigest,
     pub change: EventLogChange,
-    pub timestamp: i64
+    pub timestamp: i64,
 }
 
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
@@ -57,7 +58,6 @@ pub struct EventLog {
     #[serde(with = "encode_vec")]
     pub proof: Vec<u8>, // if recover assume recovery key
 }
-
 
 impl EventLog {
     pub fn get_id(&self) -> String {
@@ -85,8 +85,8 @@ impl EventLog {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use idp2p_common::ed_secret::EdSecret;
-    use chrono::prelude::*;
+    use idp2p_common::chrono::prelude::*;
+    use idp2p_common::{ed_secret::EdSecret, hash, serde_json};
     #[test]
     fn event_verify_test() {
         let secret = EdSecret::new();
@@ -96,7 +96,7 @@ mod tests {
             signer_key: signer_key.to_vec(),
             next_key_digest: vec![],
             change: EventLogChange::SetDocument(DocumentDigest { value: vec![] }),
-            timestamp: Utc::now().timestamp()
+            timestamp: Utc::now().timestamp(),
         };
         let proof = secret.sign(&payload);
         let log = EventLog::new(payload, &proof);
@@ -115,7 +115,7 @@ mod tests {
             signer_key: signer_key.to_vec(),
             next_key_digest: hash(&signer_key),
             change: EventLogChange::SetDocument(DocumentDigest { value: vec![] }),
-            timestamp: timestamp
+            timestamp: timestamp,
         };
         let proof = secret.sign(&payload);
         let log = EventLog::new(payload, &proof);
@@ -131,6 +131,9 @@ mod tests {
             "proof": "bvxrlrdqsehngru6c3k77d3a4cye7jis3yakkvqanb4btvg3la5a2cqchfpjmyotqhm3mye5j4dp27w2nwdp3tskwjvpnza3y6udg6cq"
         }"#;
         let expected: EventLog = serde_json::from_str(expected_json).unwrap();
-        assert_eq!(serde_json::to_string(&log).unwrap(), serde_json::to_string(&expected).unwrap());
+        assert_eq!(
+            serde_json::to_string(&log).unwrap(),
+            serde_json::to_string(&expected).unwrap()
+        );
     }
 }

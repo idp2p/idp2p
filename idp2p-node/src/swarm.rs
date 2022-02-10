@@ -1,14 +1,14 @@
-use crate::behaviour::IdentityGossipEvent;
 use crate::behaviour::IdentityGossipBehaviour;
-use anyhow::Result;
+use crate::behaviour::IdentityGossipEvent;
+use idp2p_common::anyhow::Result;
 use libp2p::Swarm;
 use libp2p::{
     gossipsub::{
-        GossipsubConfigBuilder, GossipsubMessage,
-        MessageAuthenticity, MessageId, ValidationMode,
+        GossipsubConfigBuilder, GossipsubMessage, MessageAuthenticity, MessageId, ValidationMode,
     },
     identity,
-    swarm::{ SwarmBuilder}, PeerId,
+    swarm::SwarmBuilder,
+    PeerId,
 };
 use std::collections::hash_map::DefaultHasher;
 use std::collections::HashMap;

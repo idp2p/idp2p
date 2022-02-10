@@ -7,6 +7,7 @@ use libp2p::{
 };
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use idp2p_common::serde_json;
 
 #[derive(NetworkBehaviour)]
 #[behaviour(event_process = true)]

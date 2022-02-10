@@ -1,5 +1,5 @@
 use idp2p_core::IdStore;
-use anyhow::Result;
+use idp2p_common::anyhow::Result;
 use idp2p_core::did::Identity;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;

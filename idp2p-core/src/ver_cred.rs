@@ -1,5 +1,5 @@
-use serde::{Deserialize, Serialize};
 
+use serde::{Serialize, Deserialize};
 
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
 pub struct VerifiableCredential {

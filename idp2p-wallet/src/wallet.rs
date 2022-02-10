@@ -1,6 +1,6 @@
 use crate::account::WalletAccount;
 use crate::bip32::ExtendedSecretKey;
-use anyhow::Result;
+use idp2p_common::anyhow::Result;
 use chacha20poly1305::aead::{Aead, NewAead};
 use chacha20poly1305::{ChaCha20Poly1305, Key, Nonce};
 use derivation_path::ChildIndex;
@@ -12,6 +12,7 @@ use pbkdf2::{
     Pbkdf2,
 };
 use serde::{Deserialize, Serialize};
+use idp2p_common::serde_json;
 
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
 pub struct Wallet {

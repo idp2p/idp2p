@@ -1,10 +1,8 @@
 use idp2p_common::ed_secret::EdSecret;
 use crate::jwe::Jwe;
-use chrono::Utc;
 use idp2p_core::did::Identity;
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
-use anyhow::Result;
+use idp2p_common::{serde_json, chrono::Utc, anyhow::Result};
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub struct Jwm {
@@ -12,7 +10,7 @@ pub struct Jwm {
     pub from: Identity,
     pub to: Identity,
     pub created_time: i64,
-    pub body: Value,
+    pub body: serde_json::Value,
 }
 
 impl Jwm {
@@ -28,7 +26,7 @@ impl Jwm {
     }
 
     pub fn resolve(jwe: Jwe, enc_secret: EdSecret) -> Result<Jwm> {
-        anyhow::bail!("Missing");
+        idp2p_common::anyhow::bail!("Missing");
     }
 
     pub fn seal(&self, sig_secret: EdSecret) -> Result<Jwe> {

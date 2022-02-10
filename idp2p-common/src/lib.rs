@@ -15,7 +15,15 @@ pub type IdKeySecret = Vec<u8>;
 pub type IdKey = Vec<u8>;
 pub type IdKeyDigest = Vec<u8>;
 pub mod ed_secret;
-//pub mod secret;
+
+pub use anyhow;
+pub use thiserror;
+pub use serde_json;
+pub use serde_with;
+pub use sha2;
+pub use chrono;
+pub use ed25519_dalek;
+
 pub mod encode_vec {
     use multibase::Base;
     use serde::{Deserialize, Deserializer, Serialize, Serializer};
@@ -54,16 +62,14 @@ pub fn decode(s: &str) -> Vec<u8> {
     multibase::decode(s).unwrap().1
 }
 
-pub fn decode_<const N: usize>(s: &str) -> anyhow::Result<[u8; N]> {
+pub fn decode_sized<const N: usize>(s: &str) -> anyhow::Result<[u8; N]> {
     let r = multibase::decode(s)?.1;
     let data: [u8; N] = r.try_into().expect("Data size is not equal to given size");
     Ok(data)
 }
 
 pub fn hash(bytes: &[u8]) -> Vec<u8> {
-    let mut hasher = Sha256::default();
-    hasher.update(bytes);
-    hasher.finalize().to_vec()
+    Sha256::digest(bytes).to_vec()
 }
 
 pub fn generate_cid<T: Sized + Serialize>(t: &T) -> String {

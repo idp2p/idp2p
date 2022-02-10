@@ -3,7 +3,7 @@ use std::fs::OpenOptions;
 use std::io::Read;
 use idp2p_core::did::Identity;
 use idp2p_core::IdStore;
-
+use idp2p_common::serde_json;
 
 pub struct FileIdStore {}
 

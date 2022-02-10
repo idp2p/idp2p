@@ -18,7 +18,7 @@ impl EdSecret {
     }
 
     pub fn from_str(s: &str) -> Result<Self> {
-        Ok(EdSecret(crate::decode_(s)?))
+        Ok(EdSecret(crate::decode_sized(s)?))
     }
 
     pub fn to_bytes(&self) -> [u8; 32] {
@@ -74,4 +74,44 @@ mod tests {
     use super::*;
     use crate::encode;
     use ed25519_dalek::{PublicKey, Signer, Verifier};
+    #[test]
+    fn proof_test() {
+        let secret_str = "bclc5pn2tfuhkqmupbr3lkyc5o4g4je6glfwkix6nrtf7hch7b3kq";
+        let secret = EdSecret::from_str(secret_str).unwrap();
+        let keypair = secret.to_keypair();
+        let sig = keypair.sign(&vec![0]);
+        let public_key_bytes = secret.to_publickey();
+        let public_key = PublicKey::from_bytes(&public_key_bytes).unwrap();
+        let is_valid = public_key.verify(&vec![0], &sig).is_ok();
+        assert!(is_valid);
+    }
+
+    #[test]
+    fn to_publickey_test() {
+        let secret_str = "bclc5pn2tfuhkqmupbr3lkyc5o4g4je6glfwkix6nrtf7hch7b3kq";
+        let secret = EdSecret::from_str(secret_str).unwrap();
+        let expected = "brgzkmbdnyevdth3sczvxjumd6bdl6ngn6eqbsbpazuvq42bfzk2a";
+        let public_key = secret.to_publickey();
+        assert_eq!(encode(&public_key), expected);
+    }
+
+    #[test]
+    fn to_agreement_key_test() {
+        let secret_str = "bclc5pn2tfuhkqmupbr3lkyc5o4g4je6glfwkix6nrtf7hch7b3kq";
+        let secret = EdSecret::from_str(secret_str).unwrap();
+        let expected = "bbgitzmdocc3y2gvcmtiihr2gyw4xjppux7ea3gdo6afwy6gbrmpa";
+        let public_key = secret.to_key_agreement();
+        assert_eq!(encode(&public_key), expected);
+    }
+
+    #[test]
+    fn to_shared_key_test() {
+        let alice_secret = EdSecret::new();
+        let bob_secret = EdSecret::new();
+        let alice_public = alice_secret.to_key_agreement();
+        let bob_public = bob_secret.to_key_agreement();
+        let alice_shared = alice_secret.to_shared_secret(bob_public);
+        let bob_shared = bob_secret.to_shared_secret(alice_public);
+        assert_eq!(alice_shared.as_bytes(), bob_shared.as_bytes());
+    }
 }

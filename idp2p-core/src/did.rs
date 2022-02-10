@@ -1,10 +1,6 @@
-use crate::did_doc::IdDocument;
-use crate::microledger::MicroLedger;
-use crate::IdentityError;
-use anyhow::Result;
-use idp2p_common::*;
+use crate::{did_doc::IdDocument, microledger::MicroLedger, IdentityError};
+use idp2p_common::{anyhow::Result, encode, hash, serde_json, serde_with::skip_serializing_none};
 use serde::{Deserialize, Serialize};
-use serde_with::skip_serializing_none;
 
 #[skip_serializing_none]
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
@@ -30,8 +26,8 @@ impl Identity {
         let id = self.microledger.inception.get_id();
         let verified = self.microledger.verify(&id)?;
         if let Some(document) = self.document.clone() {
-            let doc_json = serde_json::to_string(&document).unwrap();
-            let did_doc_digest = hash(doc_json.as_bytes());
+            let doc_json = idp2p_common::serde_json::to_string(&document).unwrap();
+            let did_doc_digest = idp2p_common::hash(doc_json.as_bytes());
             check!(
                 did_doc_digest == verified.document_digest,
                 IdentityError::InvalidDocumentDigest
@@ -64,9 +60,11 @@ impl Identity {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::did_doc::CreateDocInput;
-    use crate::eventlog::DocumentDigest;
-    use crate::eventlog::EventLogChange;
+    use crate::{
+        did_doc::CreateDocInput,
+        eventlog::{DocumentDigest, EventLogChange},
+    };
+    use idp2p_common::{ed_secret::EdSecret, hash};
 
     #[test]
     fn is_next_ok_test() {
@@ -92,7 +90,7 @@ mod tests {
         let current = did.clone();
         did.document = None;
         let result = current.is_next(did);
-        let is_err = matches!(result, Err(crate::IdentityError::InvalidDocumentDigest));
+        let is_err = matches!(result, Err(IdentityError::InvalidDocumentDigest));
         assert!(is_err, "{:?}", result);
     }
 
@@ -111,18 +109,18 @@ mod tests {
         let fake_proof = secret.sign(&fake_payload);
         did.microledger.save_event(fake_payload, &fake_proof);
         let result = current.is_next(did);
-        let is_err = matches!(result, Err(crate::IdentityError::InvalidDocumentDigest));
+        let is_err = matches!(result, Err(IdentityError::InvalidDocumentDigest));
         assert!(is_err, "{:?}", result);
     }
 
-    fn create_did() -> (Identity, ed_secret::EdSecret) {
+    fn create_did() -> (Identity, EdSecret) {
         let secret_str = "beilmx4d76udjmug5ykpy657qa3pfsqbcu7fbbtuk3mgrdrxssseq";
-        let secret = ed_secret::EdSecret::from_str(secret_str).unwrap();
+        let secret = EdSecret::from_str(secret_str).unwrap();
         let ed_key_digest = secret.to_publickey_digest().unwrap();
         (Identity::new(&ed_key_digest, &ed_key_digest), secret)
     }
 
-    fn save_doc(did: &mut Identity, secret: ed_secret::EdSecret) {
+    fn save_doc(did: &mut Identity, secret: EdSecret) {
         let ed_key = secret.to_publickey();
         let x_key = secret.to_key_agreement();
         let input = CreateDocInput {

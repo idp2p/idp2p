@@ -3,12 +3,13 @@
 //! master_key_digest: Master public key digest
 //! next_key_digest: Next public key digest
 
-use crate::eventlog::EventLogPayload;
-use crate::eventlog::{EventLog, EventLogChange};
-use crate::IdentityError;
-use anyhow::Result;
-use chrono::prelude::*;
-use idp2p_common::*;
+use crate::{
+    eventlog::{EventLog, EventLogChange, EventLogPayload},
+    IdentityError,
+};
+use idp2p_common::{
+    anyhow::Result, chrono::prelude::*, encode_vec, generate_cid, hash, IdKeyDigest, IDP2P_ED25519,
+};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
@@ -132,6 +133,7 @@ mod tests {
     use super::*;
     use crate::eventlog::*;
     use idp2p_common::ed_secret::EdSecret;
+    use idp2p_common::ED25519;
 
     #[test]
     fn id_test() {
@@ -245,9 +247,9 @@ mod tests {
         assert!(is_err, "{:?}", result);
     }
 
-    fn create_microledger() -> (MicroLedger, ed_secret::EdSecret) {
+    fn create_microledger() -> (MicroLedger, idp2p_common::ed_secret::EdSecret) {
         let secret_str = "bd6yg2qeifnixj4x3z2fclp5wd3i6ysjlfkxewqqt2thie6lfnkma";
-        let secret = ed_secret::EdSecret::from_str(secret_str).unwrap();
+        let secret = idp2p_common::ed_secret::EdSecret::from_str(secret_str).unwrap();
         let d = secret.to_publickey_digest().unwrap();
         let ledger = MicroLedger::new(&d, &d);
         (ledger, secret)

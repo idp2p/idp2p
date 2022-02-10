@@ -1,5 +1,5 @@
 use crate::did::Identity;
-use thiserror::Error;
+use idp2p_common::thiserror::Error;
 
 #[derive(Error, Debug)]
 pub enum IdentityError {

@@ -1,7 +1,6 @@
 use crate::jwm::Jwm;
-use chrono::Utc;
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
+use idp2p_common::{chrono::Utc, serde_json} ;
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub struct Jpm {
@@ -12,7 +11,7 @@ pub struct Jpm {
     pub from: String,
     pub to: Vec<String>,
     pub created_time: i64,
-    pub body: Value,
+    pub body: serde_json::Value,
 }
 
 impl Jpm {

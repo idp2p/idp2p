@@ -1,7 +1,6 @@
-use anyhow::*;
 use derivation_path::ChildIndex;
 use hmac::{Hmac, Mac, NewMac};
-use sha2::Sha512;
+use idp2p_common::{anyhow::*, sha2::Sha512};
 use std::convert::TryInto;
 
 const IDP2P_BIP32_NAME: &str = "idp2p seed";
@@ -91,7 +90,9 @@ mod tests {
             121, 29, 14, 253, 141, 151, 23, 206, 190, 120, 46, 147, 125, 107, 208, 230, 211, 26,
             126, 226, 171, 73, 76, 252, 161, 249, 155, 240, 101, 170, 157, 85,
         ];
-        let node2 = node.derive_child(ChildIndex::hardened(1000000001).unwrap()).unwrap();
+        let node2 = node
+            .derive_child(ChildIndex::hardened(1000000001).unwrap())
+            .unwrap();
         println!("{}", idp2p_common::encode(&node.secret_key));
         println!("{}", idp2p_common::encode(&node2.secret_key));
         assert_eq!(node.chain_code.as_ref(), expected);

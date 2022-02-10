@@ -2,13 +2,14 @@ use crate::jwk::Jwk;
 use crate::jwm::Jwm;
 use crate::jws::Jws;
 use crate::JwmHeader;
-use anyhow::Result;
+use idp2p_common::anyhow::Result;
 use chacha20poly1305::aead::{Aead, NewAead};
 use chacha20poly1305::ChaCha20Poly1305;
 use chacha20poly1305::Key;
 use chacha20poly1305::Nonce;
 use idp2p_common::ed_secret::EdSecret;
 use serde::{Deserialize, Serialize};
+use idp2p_common::serde_json;
 
 #[derive(Serialize, Deserialize, Clone)]
 pub struct Jwe {
