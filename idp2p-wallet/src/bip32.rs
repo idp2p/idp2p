@@ -31,7 +31,6 @@ impl ExtendedSecretKey {
         })
     }
 
-    /// Derive an extended secret key fom the current using a derivation path
     pub fn derive<P: AsRef<[ChildIndex]>>(&self, path: &P) -> Result<Self> {
         let mut path = path.as_ref().into_iter();
         let mut next = match path.next() {
@@ -44,7 +43,6 @@ impl ExtendedSecretKey {
         Ok(next)
     }
 
-    /// Derive a child extended secret key with an index
     pub fn derive_child(&self, index: ChildIndex) -> Result<Self> {
         if index.is_normal() {
             return Err(anyhow!("Invalid should be hardened"));

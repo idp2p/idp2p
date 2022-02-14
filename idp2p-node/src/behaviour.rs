@@ -1,4 +1,5 @@
 use crate::message::IdentityMessage;
+use idp2p_common::serde_json;
 use libp2p::{
     gossipsub::{Gossipsub, GossipsubEvent, IdentTopic},
     mdns::{Mdns, MdnsEvent},
@@ -7,7 +8,6 @@ use libp2p::{
 };
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use idp2p_common::serde_json;
 
 #[derive(NetworkBehaviour)]
 #[behaviour(event_process = true)]
@@ -47,8 +47,9 @@ impl NetworkBehaviourEventProcess<GossipsubEvent> for IdentityGossipBehaviour {
         } = message
         {
             let topic = message.topic.to_string();
-            let message: IdentityMessage = serde_json::from_slice(&message.data).unwrap();
-            self.sender.try_send(IdentityGossipEvent { topic, message });
+            let message: IdentityMessage = serde_json::from_slice(&message.data).expect("");
+            let e = IdentityGossipEvent { topic, message };
+            self.sender.try_send(e).expect("");
         }
     }
 }

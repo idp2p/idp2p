@@ -1,3 +1,5 @@
+use crate::jpm::Jpm;
+use crate::jws::Jws;
 use idp2p_common::ed_secret::EdSecret;
 use crate::jwe::Jwe;
 use idp2p_core::did::Identity;
@@ -21,16 +23,19 @@ impl Jwm {
             from: from,
             to: to,
             created_time: Utc::now().timestamp(),
-            body: serde_json::from_str(body).unwrap(),
+            body: serde_json::json!(body),
         }
     }
 
     pub fn resolve(jwe: Jwe, enc_secret: EdSecret) -> Result<Jwm> {
+        
         idp2p_common::anyhow::bail!("Missing");
     }
 
     pub fn seal(&self, sig_secret: EdSecret) -> Result<Jwe> {
-        Jwe::from(self.clone(), sig_secret)
+        let jws = Jws::from(Jpm::from(self.clone()), sig_secret)?;
+        let jwe = Jwe::encrypt(jws, self.to.clone())?;
+        Ok(jwe)
     }
 
 }
@@ -38,5 +43,12 @@ impl Jwm {
 mod tests {
     use super::*;
     #[test]
-    fn new_test() {}
+    fn new_test() {
+        let from = Identity::new(&vec![], &vec![]);
+        let to = Identity::new(&vec![], &vec![]);
+        let jwm = Jwm::new(from, to, r#"{ "body" : "body" }"#);
+        assert_eq!(jwm.from.id, "bagaaierakioikcmj4ooqw54zqsedryl7lnuubne64ga443cpkegei4xftata");
+        assert_eq!(jwm.to.id, "bagaaierakioikcmj4ooqw54zqsedryl7lnuubne64ga443cpkegei4xftata");
+        assert_eq!(jwm.body.as_str(), Some(r#"{ "body" : "body" }"#));
+    }
 }

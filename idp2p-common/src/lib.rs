@@ -15,6 +15,8 @@ pub type IdKeySecret = Vec<u8>;
 pub type IdKey = Vec<u8>;
 pub type IdKeyDigest = Vec<u8>;
 pub mod ed_secret;
+pub mod secret;
+pub mod base64url;
 
 pub use anyhow;
 pub use thiserror;
@@ -23,6 +25,7 @@ pub use serde_with;
 pub use sha2;
 pub use chrono;
 pub use ed25519_dalek;
+pub use multibase;
 
 pub mod encode_vec {
     use multibase::Base;
@@ -48,14 +51,6 @@ pub mod encode_vec {
 
 pub fn encode(value: &[u8]) -> String {
     multibase::encode(Base::Base32Lower, value)
-}
-
-pub fn encode_base64url(value: &[u8]) -> String {
-    multibase::encode(Base::Base64Url, value)
-}
-
-pub fn encode_base64(value: &[u8]) -> String {
-    multibase::encode(Base::Base64, value)
 }
 
 pub fn decode(s: &str) -> Vec<u8> {

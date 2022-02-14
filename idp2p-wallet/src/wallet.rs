@@ -1,24 +1,33 @@
 use crate::account::WalletAccount;
 use crate::bip32::ExtendedSecretKey;
-use idp2p_common::anyhow::Result;
 use chacha20poly1305::aead::{Aead, NewAead};
 use chacha20poly1305::{ChaCha20Poly1305, Key, Nonce};
 use derivation_path::ChildIndex;
-use idp2p_common::encode;
+use idp2p_common::anyhow;
+use idp2p_common::anyhow::Result;
 use idp2p_common::ed_secret::EdSecret;
+use idp2p_common::encode;
+use idp2p_common::serde_json;
 use idp2p_core::did::Identity;
+use idp2p_core::did_doc::CreateDocInput;
+use idp2p_core::did_doc::IdDocument;
 use pbkdf2::{
     password_hash::{Error, PasswordHasher, SaltString},
     Pbkdf2,
 };
 use serde::{Deserialize, Serialize};
-use idp2p_common::serde_json;
 
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
 pub struct Wallet {
     pub salt: [u8; 16],
     pub iv: [u8; 12],
     pub ciphertext: Vec<u8>,
+}
+
+#[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
+pub struct WalletCommandResult {
+    pub account: WalletAccount,
+    pub derivation_index: u32,
 }
 
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
@@ -29,7 +38,7 @@ pub struct WalletPayload {
 }
 
 impl Wallet {
-    pub fn new(password: &str, seed: [u8;16]) -> Result<(Self, String)> {
+    pub fn new(password: &str, seed: [u8; 16]) -> Result<(Self, String)> {
         let iv = idp2p_common::create_random::<12>();
         let payload = WalletPayload {
             seed: seed,
@@ -64,40 +73,103 @@ impl Wallet {
 }
 
 impl WalletPayload {
-    pub fn derive_key(&mut self) -> Result<([u8; 32], ChildIndex)> {
-        let extended_secret = ExtendedSecretKey::from_seed(self.seed).unwrap();
-        self.derivation_index += 1;
-        let index = ChildIndex::hardened(self.derivation_index).unwrap();
-        let key = extended_secret.derive_child(index).unwrap();
-        Ok((key.secret_key, index))
-    }
-
-    pub fn create_account(&mut self, name: &str) -> Result<WalletAccount> {
-        let (next_secret, next_index) = self.derive_key().unwrap();
-        let (recovery_secret, recovery_index) = self.derive_key().unwrap();
+    pub fn create_account(&self, name: &str) -> Result<WalletCommandResult> {
+        if self.accounts.iter().any(|x| x.name == name) {
+            anyhow::bail!("Account already exists")
+        }
+        let next_index = self.derivation_index + 1;
+        let recovery_index = next_index + 1;
+        let next_secret = derive_key(self.seed, next_index)?;
+        let recovery_secret = derive_key(self.seed, recovery_index)?;
         let next_key_digest = EdSecret::from(next_secret).to_publickey_digest()?;
         let recovery_key_digest = EdSecret::from(recovery_secret).to_publickey_digest()?;
         let identity = Identity::new(&next_key_digest, &recovery_key_digest);
         let account = WalletAccount {
             name: name.to_owned(),
             id: identity.id,
-            credentials: vec![],
-            next_derivation_index: next_index.to_u32(),
-            recovery_derivation_index: recovery_index.to_u32(),
+            next_derivation_index: next_index,
+            recovery_derivation_index: recovery_index,
             assertion_derivation_index: None,
             authentication_derivation_index: None,
             keyagreement_derivation_index: None,
+            credentials: None,
         };
-        Ok(account)
+        //self.accounts.push(account);
+        //self.derivation_index = recovery_index;
+        Ok(WalletCommandResult {
+            account: account,
+            derivation_index: recovery_index,
+        })
+    }
+
+    pub fn set_document(&self, name: &str) -> Result<WalletCommandResult> {
+        let account_r = self.accounts.iter().find(|x| x.name == name);
+        if let Some(acc) = account_r {
+            let next_index = self.derivation_index + 1;
+            let assertion_index = next_index + 1;
+            let authentication_index = assertion_index + 1;
+            let keyagreement_index = authentication_index + 1;
+            let next_secret_data = derive_key(self.seed, next_index)?;
+            let assertion_secret_data = derive_key(self.seed, assertion_index)?;
+            let authentication_secret_data = derive_key(self.seed, authentication_index)?;
+            let keyagreement_secret_data = derive_key(self.seed, keyagreement_index)?;
+            let next_secret = EdSecret::from(next_secret_data);
+            let next_key_digest = next_secret.to_publickey_digest()?;
+            let assertion_secret = EdSecret::from(assertion_secret_data);
+            let authentication_secret = EdSecret::from(authentication_secret_data);
+            let keyagreement_secret = EdSecret::from(keyagreement_secret_data);
+            let create_doc_input = CreateDocInput {
+                id: acc.id.clone(),
+                assertion_key: assertion_secret.to_publickey().to_vec(),
+                authentication_key: authentication_secret.to_publickey().to_vec(),
+                keyagreement_key: keyagreement_secret.to_key_agreement().to_vec(),
+            };
+            let identity_doc = IdDocument::new(create_doc_input);
+            return Ok(WalletCommandResult {
+                account: WalletAccount {
+                    next_derivation_index: next_index,
+                    assertion_derivation_index: Some(assertion_index),
+                    authentication_derivation_index: Some(authentication_index),
+                    keyagreement_derivation_index: Some(keyagreement_index),
+                    ..acc.clone()
+                },
+                derivation_index: keyagreement_index,
+            });
+        }
+        anyhow::bail!("Account not found")
+    }
+
+    pub fn set_proof(&mut self, name: &str) -> Result<()> {
+        let account_r = self.accounts.iter_mut().find(|x| x.name == name);
+        if let Some(mut acc) = account_r {
+            let n = WalletAccount {
+                name: "".to_owned(),
+                ..acc.clone()
+            };
+        }
+
+        Ok(())
+    }
+
+    pub fn recover(&mut self, name: &str) -> Result<()> {
+        //let (next_secret, next_index) = self.derive_key()?;
+        //let (recovery_secret, recovery_index) = self.derive_key()?;
+        Ok(())
     }
 }
 
+fn derive_key(seed: [u8; 16], derivation_index: u32) -> Result<[u8; 32]> {
+    let extended_secret = ExtendedSecretKey::from_seed(seed).unwrap();
+    let index = ChildIndex::hardened(derivation_index + 1).unwrap();
+    let key = extended_secret.derive_child(index).unwrap();
+    Ok(key.secret_key)
+}
+
 fn get_enc_key(password: &str, salt: &[u8]) -> Result<Vec<u8>, Error> {
-    let salt = SaltString::new(&idp2p_common::encode_base64(&salt))?;
-    let enc_key_hash = Pbkdf2
-        .hash_password(password.as_bytes(), &salt)?
-        .hash
-        .unwrap();
+    let salt_b64 = idp2p_common::multibase::encode(idp2p_common::multibase::Base::Base64, salt);
+    let salt = SaltString::new(&salt_b64[1..])?;
+    let enc_key = Pbkdf2.hash_password(password.as_bytes(), &salt)?;
+    let enc_key_hash = enc_key.hash.unwrap();
     Ok(enc_key_hash.as_bytes().to_vec())
 }
 
@@ -125,78 +197,3 @@ mod tests {
         println!("{:?}", acc);
     }
 }
-
-/*
-
-let seed = idp2p_common::create_random::<16>();
-        let mut mac = HmacSha512::new_varkey("idp2p seed".as_ref()).unwrap();
-        mac.update(&seed);
-        let bytes = mac.finalize().into_bytes().to_vec();
-        let secret = bytes[..32].to_vec();
-        let chain_code = bytes[32..64].to_vec();
-        //let secret_key = SecretKey::from_bytes(&bytes[..32])?;
-        //let chain_code = idp2p_common::create_random::<32>();
-        let master_xpriv = "";
-        let master_xpub = "";
-        let next_secret = IdSecret::new();
-        let signer_key = next_secret.to_verification_publickey();
-        let next_key_digest = next_secret.to_publickey_digest();
-        let recovery_key_digest = next_secret.to_publickey_digest();
-        let mut identity = Identity::new(&next_key_digest, &recovery_key_digest);
-        let create_doc_input = CreateDocInput {
-            id: identity.id.clone(),
-            assertion_key: next_secret.to_verification_publickey(),
-            authentication_key: next_secret.to_verification_publickey(),
-            keyagreement_key: next_secret.to_key_agreement_publickey(),
-        };
-        let identity_doc = IdDocument::new(create_doc_input);
-        /*let change = identity.save_document(identity_doc);
-        let payload = identity.microledger.create_event(&signer_key, &next_key_digest, change);
-        let proof = next_secret.sign(&payload);
-        identity.microledger.save_event(payload, &proof);
-        let store = FileStore {};
-        let account = Account {
-            name: name.to_owned(),
-            identity: identity.clone(),
-            next_secret: next_secret.to_bytes(),
-            authentication_secret: next_secret.to_bytes(),
-            keyagreement_secret: next_secret.to_bytes(),
-        };
-        println!("Created identity: {:?}", identity.id.clone());
-        store.put("identities", &identity.id.clone(), identity);
-        store.put("accounts", name, account);*/
-        Err(anyhow!(""))
-use idp2p_common::encode;
-use anyhow::Result;
-use hmac::{Hmac, Mac, NewMac};
-use sha2::Sha512;
-use pbkdf2::{
-    password_hash::{
-        PasswordHash, PasswordHasher, PasswordVerifier, SaltString,Error
-    },
-    Pbkdf2
-};
-
-type HmacSha512 = Hmac<Sha512>;
-
-pub fn create_wallet() -> Vec<u8> {
-    let seed = idp2p_common::create_random::<16>();
-    let mut mac = HmacSha512::new_varkey("idp2p seed".as_ref()).unwrap();
-    mac.update(&seed);
-    mac.finalize().into_bytes().to_vec()
-}
-
-pub fn create_acc(password: &str) -> Result<bool, Error >{
-    // plain seed
-    // encrypted seed with pwd
-    // plain keys
-    // encrypted keys with pwd
-    let seed = idp2p_common::create_random::<16>();
-    let salt_str = encode(&idp2p_common::create_random::<16>());
-    let salt = SaltString::new(&salt_str)?;
-    let password_hash = Pbkdf2.hash_password(password.as_bytes(), &salt)?.to_string();
-    let parsed_hash = PasswordHash::new(&password_hash)?;
-    assert!(Pbkdf2.verify_password(password.as_bytes(), &parsed_hash).is_ok());
-    Ok(true)
-}
-*/

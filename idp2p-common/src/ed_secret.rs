@@ -67,6 +67,12 @@ impl EdSecret {
         let keypair = self.to_keypair();
         keypair.sign(&bytes).to_bytes()
     }
+
+    pub fn sign_str(&self, s: &str) -> [u8; 64] {
+        let bytes = s.as_bytes();
+        let keypair = self.to_keypair();
+        keypair.sign(&bytes).to_bytes()
+    }
 }
 
 #[cfg(test)]
