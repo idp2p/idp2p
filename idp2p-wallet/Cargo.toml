@@ -9,7 +9,7 @@ authors = ["adem caglin <adem.caglin@gmail.com>"]
 pbkdf2 = "0.10.0"
 chacha20poly1305 = "0.9.0"
 derivation-path = { version = "0.1.3", default-features = false }
-hmac = { version = "0.9.0", default-features = false }
+hmac = { version = "0.12.0", default-features = false }
 serde = { version = "1.0.130", features = ["derive"] }
 idp2p_common = { version = "0.1.0", path = "../idp2p-common" }
 idp2p_core = { version = "0.1.0", path = "../idp2p-core" }

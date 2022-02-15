@@ -12,7 +12,7 @@ cid = "0.7.0"
 rand = "0.8.0"
 ed25519-dalek = "1.0.1"
 x25519-dalek = "1.2.0"
-sha2 = "0.9.8"
+sha2 = "0.10.1"
 serde = { version = "1.0.130", features = ["derive"] }
 serde_json = { version = "1.0.68", features = ["raw_value"] }
 [dependencies.serde_with]

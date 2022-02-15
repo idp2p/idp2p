@@ -1,5 +1,5 @@
 use derivation_path::ChildIndex;
-use hmac::{Hmac, Mac, NewMac};
+use hmac::{Hmac, Mac};
 use idp2p_common::{anyhow::*, sha2::Sha512};
 use std::convert::TryInto;
 
@@ -17,7 +17,7 @@ type HmacSha512 = Hmac<Sha512>;
 
 impl ExtendedSecretKey {
     pub fn from_seed(seed: [u8; 16]) -> Result<Self> {
-        let mut mac = HmacSha512::new_varkey(IDP2P_BIP32_NAME.as_ref()).unwrap();
+        let mut mac = HmacSha512::new_from_slice(IDP2P_BIP32_NAME.as_ref()).unwrap();
         mac.update(&seed);
         let bytes = mac.finalize().into_bytes().to_vec();
         let mut chain_code = [0; 32];
@@ -48,7 +48,7 @@ impl ExtendedSecretKey {
             return Err(anyhow!("Invalid should be hardened"));
         }
 
-        let mut mac = HmacSha512::new_varkey(&self.chain_code).unwrap();
+        let mut mac = HmacSha512::new_from_slice(&self.chain_code).unwrap();
         mac.update(&[0u8]);
         mac.update(&self.secret_key);
         mac.update(index.to_bits().to_be_bytes().as_ref());
