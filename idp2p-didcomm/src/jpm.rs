@@ -72,8 +72,8 @@ mod tests {
             created_time: Utc::now().timestamp(),
             body: serde_json::json!({ "body" : "body" }),
         };
-        let jpm_str = serde_json::to_string(&j).unwrap();
-        let r = Jpm::from_str(&jpm_str);
+        let jpm_b64 = base64url::encode(&j).unwrap();
+        let r = Jpm::from_str(&jpm_b64);
         assert!(r.is_err());
     }
 

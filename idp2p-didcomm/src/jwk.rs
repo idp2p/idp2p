@@ -18,7 +18,7 @@ impl Jwk {
         Ok(Jwk {
             kty: KTY.to_owned(),
             crv: CRV.to_owned(),
-            x: mb64[1..].to_owned(),
+            x: mb64.to_owned(),
         })
     }
 

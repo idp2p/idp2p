@@ -17,6 +17,12 @@ pub fn decode<T: DeserializeOwned>(value: &str) -> Result<T> {
     Ok(t)
 }
 
+pub fn decode_str(value: &str) -> Result<Vec<u8>> {
+    let m64 = format!("u{}", value);
+    let vec = crate::decode(&m64);
+    Ok(vec)
+}
+
 pub fn encode_bytes(value: &[u8]) -> Result<String> {
     let mb64 = multibase::encode(Base::Base64Url, value);
     Ok(mb64[1..].to_owned())

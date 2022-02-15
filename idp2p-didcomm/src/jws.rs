@@ -1,14 +1,16 @@
-use idp2p_common::encode;
 use crate::jpm::Jpm;
 use crate::JwmHeader;
 use idp2p_common::anyhow::Result;
+use idp2p_common::base64url;
 use idp2p_common::decode;
 use idp2p_common::ed_secret::EdSecret;
+use idp2p_common::encode;
 use idp2p_common::serde_json;
 use idp2p_common::serde_json::json;
 use idp2p_core::did::Identity;
 use serde::{Deserialize, Serialize};
-use idp2p_common::base64url;
+use idp2p_common::ed25519_dalek::{PublicKey, Signature, Verifier};
+use std::convert::TryInto;
 
 const TYP: &str = "application/didcomm-signed+json";
 const ALG: &str = "EdDSA";
@@ -25,12 +27,18 @@ pub struct JwsSignature {
     pub header: JwmHeader,
 }
 
+impl JwsSignature{
+    fn get_signature_bytes(&self) -> Result<[u8;64]>{
+        let sig_vec = base64url::decode_str(&self.signature)?;
+        Ok(sig_vec.try_into().unwrap())
+    }
+}
+
 impl Jws {
-    pub fn from(jpm: Jpm, secret: EdSecret) -> Result<Jws> {
+    pub fn new(jpm: Jpm, secret: EdSecret) -> Result<Jws> {
         let kid = format!("{}#{}", jpm.from, encode(&secret.to_publickey()));
         let header = JwmHeader { kid: kid };
-        let payload_str = jpm.body.as_str().unwrap();
-        let payload_b64 = base64url::encode_str(payload_str)?;
+        let payload_b64 = base64url::encode(jpm)?;
         let protected_json = json!({"typ": TYP.to_owned(), "alg": ALG.to_owned()});
         let protected_b64 = base64url::encode_str(&protected_json.to_string())?;
         let compact = format!("{protected_b64}.{payload_b64}");
@@ -47,10 +55,18 @@ impl Jws {
         })
     }
 
-    pub fn verify(&self, from: Identity) -> Result<bool> {
+    pub fn verify(&self, from: Identity) -> Result<Jpm> {
         let payload_bytes = decode(&format!("u{}", self.payload));
         let jpm = serde_json::from_slice(&payload_bytes)?;
-        Ok(false)
+        let doc = from.document.expect("Document not found");
+        let ver_method = doc
+            .get_verification_method(&self.signatures[0].header.kid)
+            .expect("Public key not found");
+        let public_key: PublicKey = PublicKey::from_bytes(&ver_method.bytes)?;
+        let signature_bytes = self.signatures[0].get_signature_bytes()?;
+        let signature = Signature::from(signature_bytes);
+        public_key.verify(&payload_bytes, &signature)?;
+        Ok(jpm)
     }
 }
 
@@ -65,9 +81,13 @@ mod tests {
         let secret = EdSecret::from_str(secret_str).unwrap();
         let digest = secret.to_publickey_digest().unwrap();
         let from = Identity::new(&digest, &digest);
+        
         let to = Identity::new(&vec![], &vec![]);
-        let jwm = Jwm::new(from, to, r#"{ "body" : "body" }"#);
-        let jws = Jws::from(Jpm::from(jwm), secret).unwrap();
-        println!("{:?}", idp2p_common::serde_json::to_string(&jws));
+        let jwm = Jwm::new(from.clone(), to, r#"{ "body" : "body" }"#);
+        let jws = Jws::new(Jpm::from(jwm), secret).unwrap();
+        println!("{:?}", jws);
+        let r = jws.verify(from);
+        println!("{:?}", r);
+        assert!(r.is_ok());
     }
 }
