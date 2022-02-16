@@ -1,5 +1,7 @@
-use crate::behaviour::IdentityGossipBehaviour;
+use crate::store::IdStore;
 use crate::behaviour::IdentityGossipEvent;
+use crate::message::IdentityMessageResult;
+use crate::behaviour::IdentityGossipBehaviour;
 use idp2p_common::anyhow::Result;
 use libp2p::Swarm;
 use libp2p::{
@@ -12,14 +14,16 @@ use libp2p::{
 };
 use std::collections::hash_map::DefaultHasher;
 use std::collections::HashMap;
-use std::error::Error;
 use std::hash::{Hash, Hasher};
 use std::time::Duration;
+use tokio::sync::mpsc::Sender;
 
-pub async fn create_swarm(
-    port: u16,
-    sender: tokio::sync::mpsc::Sender<IdentityGossipEvent>,
-) -> Result<Swarm<IdentityGossipBehaviour>, Box<dyn Error>> {
+pub struct SwarmOptions {
+    pub port: u16,
+    pub sender: Sender<IdentityGossipEvent>,
+}
+
+pub async fn create_swarm(options: SwarmOptions) -> Result<Swarm<IdentityGossipBehaviour>> {
     let local_key = identity::Keypair::generate_ed25519();
     let local_peer_id = PeerId::from(local_key.public());
     println!("Local peer id: {:?}", local_peer_id);
@@ -44,11 +48,12 @@ pub async fn create_swarm(
             libp2p::gossipsub::Gossipsub::new(MessageAuthenticity::Anonymous, gossipsub_config);
         let gossipsub = gossipsub_result.expect("Correct configuration");
         let mdns = libp2p::mdns::Mdns::new(Default::default()).await?;
+       
         let behaviour = IdentityGossipBehaviour {
             gossipsub: gossipsub,
             mdns: mdns,
             identities: HashMap::new(),
-            sender: sender,
+            sender: options.sender,
         };
         SwarmBuilder::new(transport, behaviour, local_peer_id)
             .executor(Box::new(|fut| {
@@ -56,7 +61,7 @@ pub async fn create_swarm(
             }))
             .build()
     };
-    swarm.listen_on(format!("/ip4/0.0.0.0/tcp/{}", port).parse()?)?;
+    swarm.listen_on(format!("/ip4/0.0.0.0/tcp/{}", options.port).parse()?)?;
     //swarm.listen_on("/ip4/0.0.0.0/tcp/43727".parse()?)?;
     Ok(swarm)
 }

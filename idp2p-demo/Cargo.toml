@@ -15,4 +15,5 @@ tokio = { version = "1.13.0", features = ["full"] }
 idp2p_common = { version = "0.1.0", path = "../idp2p-common" }
 idp2p_core = { version = "0.1.0", path = "../idp2p-core" }
 idp2p_node = { version = "0.1.0", path = "../idp2p-node" }
+idp2p_wallet = { version = "0.1.0", path = "../idp2p-wallet" }
 libp2p = {version = "0.41.0", features= ["tcp-tokio", "mdns"]}

@@ -26,8 +26,9 @@ pub struct Wallet {
 }
 
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
-pub struct WalletCommandResult {
+pub struct CreateAccountResult {
     pub account: WalletAccount,
+    pub did: Identity,
     pub next_index: u32,
 }
 
@@ -72,7 +73,7 @@ impl Wallet {
 }
 
 impl WalletPayload {
-    pub fn create_account(&self, name: &str, seed: [u8; 16]) -> Result<WalletCommandResult> {
+    pub fn create_account(&self, name: &str, seed: [u8; 16]) -> Result<CreateAccountResult> {
         if self.accounts.iter().any(|x| x.name == name) {
             anyhow::bail!("Account already exists")
         }
@@ -107,15 +108,16 @@ impl WalletPayload {
         identity.microledger.save_event(payload, &proof);
         let account = WalletAccount {
             name: name.to_owned(),
-            id: identity.id,
+            id: identity.id.clone(),
             assertion_secret: assertion_secret.to_bytes().to_vec(),
             authentication_secret: authentication_secret.to_bytes().to_vec(),
             keyagreement_secret: keyagreement_secret.to_bytes().to_vec(),
             next_secret: next_secret.to_bytes().to_vec(),
             credentials: None,
         };
-        Ok(WalletCommandResult {
+        Ok(CreateAccountResult {
             account: account,
+            did: identity,
             next_index: next_index,
         })
     }

@@ -21,11 +21,6 @@ pub enum IdentityError {
     Unknown,
 }
 
-pub trait IdStore {
-    fn put(&self, id: &str, value: Identity);
-    fn get(&self, id: &str) -> Option<Identity>;
-}
-
 macro_rules! check {
     ($e: expr, $err: expr) => {{
         if !$e {

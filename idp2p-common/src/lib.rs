@@ -15,7 +15,6 @@ pub type IdKeySecret = Vec<u8>;
 pub type IdKey = Vec<u8>;
 pub type IdKeyDigest = Vec<u8>;
 pub mod ed_secret;
-pub mod secret;
 pub mod base64url;
 
 pub use anyhow;

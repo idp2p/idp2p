@@ -1,4 +1,4 @@
-use idp2p_core::IdStore;
+use crate::store::IdStore;
 use idp2p_common::anyhow::Result;
 use idp2p_core::did::Identity;
 use serde::{Deserialize, Serialize};
@@ -91,7 +91,6 @@ impl IdentityMessage {
 
 #[cfg(test)]
 mod tests {
-    use idp2p_core::IdStore;
     use super::*;
     #[test]
     fn new_test() {

@@ -8,6 +8,7 @@ use libp2p::{
 };
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use tokio::sync::mpsc::Sender;
 
 #[derive(NetworkBehaviour)]
 #[behaviour(event_process = true)]
@@ -17,7 +18,7 @@ pub struct IdentityGossipBehaviour {
     #[behaviour(ignore)]
     pub identities: HashMap<String, String>,
     #[behaviour(ignore)]
-    pub sender: tokio::sync::mpsc::Sender<IdentityGossipEvent>,
+    pub sender: Sender<IdentityGossipEvent>,
 }
 
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
@@ -47,9 +48,10 @@ impl NetworkBehaviourEventProcess<GossipsubEvent> for IdentityGossipBehaviour {
         } = message
         {
             let topic = message.topic.to_string();
-            let message: IdentityMessage = serde_json::from_slice(&message.data).expect("");
+            let message: IdentityMessage =
+                serde_json::from_slice(&message.data).expect("Message is not well-formed");
             let e = IdentityGossipEvent { topic, message };
-            self.sender.try_send(e).expect("");
+            self.sender.try_send(e).expect("Couldn't send event");
         }
     }
 }
