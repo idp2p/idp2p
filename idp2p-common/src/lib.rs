@@ -14,17 +14,18 @@ const JSON_CODEC: u64 = 0x0200;
 pub type IdKeySecret = Vec<u8>;
 pub type IdKey = Vec<u8>;
 pub type IdKeyDigest = Vec<u8>;
+pub mod base64url;
 pub mod ed_secret;
 pub mod base64url;
 
 pub use anyhow;
-pub use thiserror;
-pub use serde_json;
-pub use serde_with;
-pub use sha2;
 pub use chrono;
 pub use ed25519_dalek;
 pub use multibase;
+pub use serde_json;
+pub use serde_with;
+pub use sha2;
+pub use thiserror;
 
 pub mod encode_vec {
     use multibase::Base;
