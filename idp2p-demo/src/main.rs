@@ -1,4 +1,3 @@
-use idp2p_node::store::IdStore;
 use crate::store::FileStore;
 use dotenv::dotenv;
 use idp2p_common::anyhow::Result;
@@ -53,10 +52,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
         sender: tx.clone(),
     };
     let mut swarm = create_swarm(options).await?;
-    let gossipsub_topic = IdentTopic::new(acc_result.account.id.clone());
-    let id_store = FileStore{};
-    id_store.put(&acc_result.did.id.clone(), acc_result.did.clone());
-    swarm.behaviour_mut().gossipsub.subscribe(&gossipsub_topic)?;
+    let did = acc_result.did.clone();
+    swarm.behaviour_mut().create(did, FileStore{});
     loop {
         tokio::select! {
             line = stdin.next_line() => {

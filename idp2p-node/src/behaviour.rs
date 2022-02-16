@@ -1,5 +1,8 @@
 use crate::message::IdentityMessage;
+use crate::store::IdStore;
+use idp2p_common::anyhow::Result;
 use idp2p_common::serde_json;
+use idp2p_core::did::Identity;
 use libp2p::{
     gossipsub::{Gossipsub, GossipsubEvent, IdentTopic},
     mdns::{Mdns, MdnsEvent},
@@ -36,6 +39,13 @@ impl IdentityGossipBehaviour {
             Ok(_) => println!("Published id: {}", id.clone()),
             Err(e) => println!("Publish error, {:?}", e),
         }
+    }
+
+    pub fn create(&mut self, did: Identity, store: impl IdStore) -> Result<()> {
+        let gossipsub_topic = IdentTopic::new(did.id.clone());
+        store.put(&did.id.clone(), did.clone());
+        self.gossipsub.subscribe(&gossipsub_topic)?;
+        Ok(())
     }
 }
 

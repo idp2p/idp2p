@@ -16,7 +16,6 @@ pub type IdKey = Vec<u8>;
 pub type IdKeyDigest = Vec<u8>;
 pub mod base64url;
 pub mod ed_secret;
-pub mod base64url;
 
 pub use anyhow;
 pub use chrono;
