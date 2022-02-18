@@ -1,6 +1,5 @@
 use crate::store::IdStore;
-use crate::behaviour::IdentityGossipEvent;
-use crate::message::IdentityMessageResult;
+use crate::behaviour::IdentityEvent;
 use crate::behaviour::IdentityGossipBehaviour;
 use idp2p_common::anyhow::Result;
 use libp2p::Swarm;
@@ -20,7 +19,8 @@ use tokio::sync::mpsc::Sender;
 
 pub struct SwarmOptions {
     pub port: u16,
-    pub sender: Sender<IdentityGossipEvent>,
+    pub sender: Sender<IdentityEvent>,
+    pub store: Box<dyn IdStore + Send>
 }
 
 pub async fn create_swarm(options: SwarmOptions) -> Result<Swarm<IdentityGossipBehaviour>> {
@@ -54,6 +54,7 @@ pub async fn create_swarm(options: SwarmOptions) -> Result<Swarm<IdentityGossipB
             mdns: mdns,
             identities: HashMap::new(),
             sender: options.sender,
+            store: options.store
         };
         SwarmBuilder::new(transport, behaviour, local_peer_id)
             .executor(Box::new(|fut| {

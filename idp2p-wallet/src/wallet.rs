@@ -86,7 +86,7 @@ impl WalletPayload {
         let keyagreement_secret = derive_secret(seed, &mut next_index)?;
         let inception_key_digest = inception_secret.to_publickey_digest()?;
         let recovery_key_digest = recovery_secret.to_publickey_digest()?;
-        let mut identity = Identity::new(&inception_key_digest, &recovery_key_digest);
+        let mut identity = Identity::new(&recovery_key_digest, &inception_key_digest);
         let create_doc_input = CreateDocInput {
             id: identity.id.clone(),
             assertion_key: assertion_secret.to_publickey().to_vec(),
@@ -160,6 +160,7 @@ mod tests {
         let w = Wallet::new(password)?;
         let payload = w.get_payload(password)?;
         let result = payload.create_account("ademcaglin", seed)?;
+        result.did.verify()?;
         assert_eq!(result.next_index, 1000000006);
         Ok(())
     }

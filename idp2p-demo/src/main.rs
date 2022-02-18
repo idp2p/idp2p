@@ -1,8 +1,9 @@
-use idp2p_node::store::IdStore;
+use crate::commands::handle_command;
 use crate::store::FileStore;
 use dotenv::dotenv;
 use idp2p_common::anyhow::Result;
-use idp2p_node::behaviour::IdentityGossipEvent;
+use idp2p_node::behaviour::IdentityEvent;
+use idp2p_node::store::IdStore;
 use idp2p_node::swarm::create_swarm;
 use idp2p_node::swarm::SwarmOptions;
 use idp2p_wallet::wallet::CreateAccountResult;
@@ -46,20 +47,21 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let opt = Opt::from_args();
     let (port, acc_result) = init(&opt.id)?;
     let mut stdin = io::BufReader::new(io::stdin()).lines();
-    let (tx, mut rx) = channel::<IdentityGossipEvent>(100);
+    let (tx, mut rx) = channel::<IdentityEvent>(100);
     let options = SwarmOptions {
         port: port,
         sender: tx.clone(),
+        store: Box::new(FileStore{})
     };
     let mut swarm = create_swarm(options).await?;
     let did = acc_result.did.clone();
-    FileStore{}.put(&did.id.clone(), did.clone());
-    swarm.behaviour_mut().subscribe(did.id);
+    FileStore {}.put(&did.id.clone(), did.clone());
+    swarm.behaviour_mut().subscribe(did.id)?;
     loop {
         tokio::select! {
             line = stdin.next_line() => {
                 let line = line?.expect("stdin closed");
-                println!("{}", line);
+                handle_command(&line, swarm.behaviour_mut())?;
             }
             listen_event = swarm.select_next_some() => {
                 if let SwarmEvent::NewListenAddr { address, .. } = listen_event {
@@ -68,14 +70,11 @@ async fn main() -> Result<(), Box<dyn Error>> {
             }
             event = rx.recv() => {
                 if let Some(event) = event{
-                    println!("{:?}", event);
-                    let id_store = FileStore{};
-                    let ids = &mut swarm.behaviour_mut().identities;
-                    let result = event.message.handle(&event.topic, ids, id_store);
+                    /*let result = event.message.handle(input, swarm.behaviour_mut(), FileStore{});
                     match result{
                         Ok(r) => println!("{:?}", r),
                         Err(_) => println!("Err")
-                    }
+                    }*/
                 }
             }
         }

@@ -1,17 +1,5 @@
-use crate::store::IdStore;
-use idp2p_common::anyhow::Result;
 use idp2p_core::did::Identity;
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
-
-#[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
-pub enum IdentityMessageResult {
-    Skipped,
-    Created { id: String },
-    Updated { id: String },
-    Requested { message: IdentityMessage },
-    ReceivedJwm { id: String, jwm: String },
-}
 
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
 pub struct IdentityMessage {
@@ -35,57 +23,6 @@ impl IdentityMessage {
         let rnd = idp2p_common::create_random::<32>();
         let id: String = idp2p_common::encode(&rnd);
         IdentityMessage { id, payload }
-    }
-
-    pub fn handle(
-        &self,
-        topic: &str,
-        identities: &mut HashMap<String, String>,
-        store: impl IdStore,
-    ) -> Result<IdentityMessageResult> {
-        match &self.payload {
-            IdentityMessagePayload::Get => {
-                let identity: Identity = store.get(&topic).unwrap();
-                let payload = IdentityMessagePayload::Post {
-                    digest: identity.get_digest(),
-                    identity: identity.clone(),
-                };
-                let mes = IdentityMessage::new(payload);
-                Ok(IdentityMessageResult::Requested { message: mes })
-            }
-            IdentityMessagePayload::Post { digest, identity } => {
-                let current = identities.get(&identity.id);
-                match current {
-                    None => {
-                        identity.verify()?;
-                        identities.insert(identity.id.clone(), identity.get_digest());
-                        store.put( &identity.id, identity.clone());
-                        Ok(IdentityMessageResult::Created {
-                            id: identity.id.clone(),
-                        })
-                    }
-                    Some(current_digest) => {
-                        if digest == current_digest {
-                            return Ok(IdentityMessageResult::Skipped);
-                        }
-                        let current_did: Identity = store.get(&identity.id).unwrap();
-                        current_did.is_next(identity.clone())?;
-                        identities.insert(identity.id.clone(), identity.get_digest());
-                        store.put(&identity.id, identity.clone());
-                        Ok(IdentityMessageResult::Updated {
-                            id: identity.id.clone(),
-                        })
-                    }
-                }
-            }
-            IdentityMessagePayload::Jwm { message } => {
-                let result = IdentityMessageResult::ReceivedJwm {
-                    id: topic.to_owned(),
-                    jwm: message.to_owned(),
-                };
-                Ok(result)
-            }
-        }
     }
 }
 

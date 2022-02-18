@@ -11,8 +11,8 @@ pub struct Identity {
 }
 
 impl Identity {
-    pub fn new(base_key_digest: &[u8], next_key_digest: &[u8]) -> Self {
-        let ledger = MicroLedger::new(base_key_digest, next_key_digest);
+    pub fn new(recovery_key_digest: &[u8], next_key_digest: &[u8]) -> Self {
+        let ledger = MicroLedger::new(recovery_key_digest, next_key_digest);
         let id = ledger.inception.get_id();
         let did = Identity {
             id: id.clone(),

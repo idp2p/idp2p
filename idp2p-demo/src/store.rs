@@ -4,6 +4,7 @@ use std::fs::OpenOptions;
 use std::io::Read;
 use idp2p_core::did::Identity;
 use idp2p_common::serde_json;
+use serde::{Deserialize, Serialize};
 
 pub struct FileStore {}
 
@@ -37,6 +38,7 @@ impl IdStore for FileStore {
     }
 }
 
+#[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
 pub struct SwarmAccount{
     pub name: String,
     pub id: String,
