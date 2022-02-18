@@ -1,4 +1,3 @@
-use idp2p_common::ed_secret::EdSecret;
 use idp2p_node::store::IdStore;
 use std::fs::File;
 use std::fs::OpenOptions;

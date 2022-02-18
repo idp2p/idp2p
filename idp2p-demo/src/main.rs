@@ -1,3 +1,4 @@
+use idp2p_node::store::IdStore;
 use crate::store::FileStore;
 use dotenv::dotenv;
 use idp2p_common::anyhow::Result;
@@ -8,7 +9,6 @@ use idp2p_wallet::wallet::CreateAccountResult;
 use idp2p_wallet::wallet::Wallet;
 use libp2p::futures::StreamExt;
 use libp2p::swarm::SwarmEvent;
-use libp2p::gossipsub::IdentTopic;
 use std::error::Error;
 use structopt::StructOpt;
 use tokio::io::{self, AsyncBufReadExt};
@@ -53,7 +53,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
     };
     let mut swarm = create_swarm(options).await?;
     let did = acc_result.did.clone();
-    swarm.behaviour_mut().create(did, FileStore{});
+    FileStore{}.put(&did.id.clone(), did.clone());
+    swarm.behaviour_mut().subscribe(did.id);
     loop {
         tokio::select! {
             line = stdin.next_line() => {
