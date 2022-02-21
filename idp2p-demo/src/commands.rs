@@ -34,13 +34,17 @@ impl IdCommand {
                 let mut wallet = Wallet::new(password)?;
                 let mut payload = wallet.resolve(password)?;
                 let result = payload.create_account(name, seed)?;
+                let id = result.account.did.id.clone();
                 payload.accounts.push(result.account.clone());
                 payload.next_index = result.next_index;
+                let doc_result = payload.set_document(&name, seed.try_into().unwrap())?;
+                payload.accounts[0] = doc_result.account.clone();
+                payload.next_index = doc_result.next_index;
                 wallet.save(password, payload.clone());
-                store.put(&result.account.did.id.clone(), result.account.did.clone());
+                store.put(&id, doc_result.account.did.clone());
                 store.put_wallet(name, wallet);
-                println!("Id: {}", result.account.did.id);
-                behaviour.subscribe(result.account.did.id)?;
+                println!("Id: {}", id);
+                behaviour.subscribe(id)?;
             }
             Self::SetDocument => {
                 let seed = idp2p_common::decode(&std::env::var("WALLET_SEED")?);
@@ -127,8 +131,8 @@ pub fn handle_jwm(jwm: &str) -> Result<()> {
     let jwe: Jwe = serde_json::from_str(jwm)?;
     let json = jwe.decrypt(dec_secret)?;
     let jws: Jws = serde_json::from_str(&json)?;
-    let payload_bytes: Vec<u8> = base64url::decode(&jws.payload)?;
-    let jpm: Jpm = serde_json::from_slice(&payload_bytes)?;
+    let jpm: Jpm = base64url::decode(&jws.payload)?;
+    println!("Jpm: {:?}", jpm);
     let from = store.get(&jpm.from).unwrap();
     let jpm = jws.verify(from)?;
     println!("Received jwm {:?}", jpm);

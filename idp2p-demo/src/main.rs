@@ -24,7 +24,7 @@ struct Opt {
 async fn main() -> Result<(), Box<dyn Error>> {
     dotenv().ok();
     let opt = Opt::from_args();
-    let base_path = format!("../target/{}", opt.port);
+    let base_path = format!("target/{}", opt.port);
     std::env::set_var("BASE_PATH", base_path.clone());
     let id_path = format!("{}/identities", base_path);
     std::fs::create_dir_all(id_path).unwrap();

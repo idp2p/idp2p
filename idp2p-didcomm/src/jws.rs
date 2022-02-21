@@ -47,27 +47,27 @@ impl Jws {
         let jws_signature = JwsSignature {
             protected: protected_b64,
             signature: sig_b64,
-            header: header,
-        };
+            header: header,        };
         Ok(Jws {
             payload: payload_b64,
             signatures: vec![jws_signature],
         })
     }
 
-    pub fn verify(&self, from: Identity) -> Result<Jpm> {
-        let payload_bytes = decode(&format!("u{}", self.payload));
-        let jpm = serde_json::from_slice(&payload_bytes)?;
+    pub fn verify(&self, from: Identity) -> Result<bool> {
+        let protected_json = json!({"typ": TYP.to_owned(), "alg": ALG.to_owned()});
+        let protected_b64 = base64url::encode_str(&protected_json.to_string())?;
+        let payload_b64 = self.payload.clone();
+        let compact = format!("{protected_b64}.{payload_b64}");
         let doc = from.document.expect("Document not found");
-        println!("doc : {:?}", doc);
         let ver_method = doc
             .get_verification_method(&self.signatures[0].header.kid)
             .expect("Public key not found");
         let public_key: PublicKey = PublicKey::from_bytes(&ver_method.bytes)?;
         let signature_bytes = self.signatures[0].get_signature_bytes()?;
         let signature = Signature::from(signature_bytes);
-        public_key.verify(&payload_bytes, &signature)?;
-        Ok(jpm)
+        public_key.verify(compact.as_bytes(), &signature)?;
+        Ok(true)
     }
 }
 
@@ -83,7 +83,7 @@ mod tests {
         let digest = secret.to_publickey_digest().unwrap();
         let from = Identity::new(&digest, &digest);
         
-        let to = Identity::new(&vec![], &vec![]);
+        let to = Identity::new(&digest, &digest);
         let jwm = Jwm::new(from.clone(), to, r#"{ "body" : "body" }"#);
         let jws = Jws::new(Jpm::from(jwm), secret).unwrap();
         let r = jws.verify(from);

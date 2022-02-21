@@ -18,7 +18,8 @@ impl FileStore {
 
 impl IdStore for FileStore {
     fn put(&self, id: &str, value: Identity) {
-        let path = self.get_path("identities", id);
+        let file_id = id[8..].to_string();
+        let path = self.get_path("identities", &file_id);
         if !std::path::Path::new(&path).exists() {
             std::fs::File::create(&path).unwrap();
         }
@@ -27,7 +28,8 @@ impl IdStore for FileStore {
     }
 
     fn get(&self, id: &str) -> Option<Identity> {
-        let path = self.get_path("identities", id);
+        let file_id = id[8..].to_string();
+        let path = self.get_path("identities", &file_id);
         let result = File::open(&path);
         if result.is_ok() {
             let mut file = result.unwrap();
