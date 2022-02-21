@@ -1,10 +1,10 @@
 use crate::jpm::Jpm;
+use crate::jwe::Jwe;
 use crate::jws::Jws;
 use idp2p_common::ed_secret::EdSecret;
-use crate::jwe::Jwe;
+use idp2p_common::{anyhow::Result, chrono::Utc, serde_json};
 use idp2p_core::did::Identity;
 use serde::{Deserialize, Serialize};
-use idp2p_common::{serde_json, chrono::Utc, anyhow::Result};
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub struct Jwm {
@@ -27,17 +27,11 @@ impl Jwm {
         }
     }
 
-    pub fn resolve(jwe: Jwe, enc_secret: EdSecret) -> Result<Jwm> {
-        
-        idp2p_common::anyhow::bail!("Missing");
-    }
-
     pub fn seal(&self, sig_secret: EdSecret) -> Result<Jwe> {
         let jws = Jws::new(Jpm::from(self.clone()), sig_secret)?;
         let jwe = Jwe::encrypt(jws, self.to.clone())?;
         Ok(jwe)
     }
-
 }
 #[cfg(test)]
 mod tests {
@@ -47,8 +41,14 @@ mod tests {
         let from = Identity::new(&vec![], &vec![]);
         let to = Identity::new(&vec![], &vec![]);
         let jwm = Jwm::new(from, to, r#"{ "body" : "body" }"#);
-        assert_eq!(jwm.from.id, "bagaaierakioikcmj4ooqw54zqsedryl7lnuubne64ga443cpkegei4xftata");
-        assert_eq!(jwm.to.id, "bagaaierakioikcmj4ooqw54zqsedryl7lnuubne64ga443cpkegei4xftata");
+        assert_eq!(
+            jwm.from.id,
+            "did:p2p:bagaaierakioikcmj4ooqw54zqsedryl7lnuubne64ga443cpkegei4xftata"
+        );
+        assert_eq!(
+            jwm.to.id,
+            "did:p2p:bagaaierakioikcmj4ooqw54zqsedryl7lnuubne64ga443cpkegei4xftata"
+        );
         assert_eq!(jwm.body.as_str(), Some(r#"{ "body" : "body" }"#));
     }
 }

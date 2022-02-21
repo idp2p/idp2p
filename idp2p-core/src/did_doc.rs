@@ -43,25 +43,24 @@ impl IdDocument {
         let assertion_key_str = encode(&input.assertion_key);
         let authentication_key_str = encode(&input.authentication_key);
         let keyagreement_key_str = encode(&input.keyagreement_key);
-        let doc_id = format!("did:p2p:{id_str}");
-        let assertion_id = format!("{doc_id}#{assertion_key_str}");
-        let authentication_id = format!("{doc_id}#{authentication_key_str}");
-        let keyagreement_id = format!("{doc_id}#{keyagreement_key_str}");
+        let assertion_id = format!("{id_str}#{assertion_key_str}");
+        let authentication_id = format!("{id_str}#{authentication_key_str}");
+        let keyagreement_id = format!("{id_str}#{keyagreement_key_str}");
         let assertion_method = VerificationMethod {
             id: assertion_id.clone(),
-            controller: doc_id.clone(),
+            controller: id_str.clone(),
             typ: ED25519.to_string(),
             bytes: input.assertion_key.to_owned(),
         };
         let authentication = VerificationMethod {
             id: authentication_id.clone(),
-            controller: doc_id.clone(),
+            controller: id_str.clone(),
             typ: ED25519.to_string(),
             bytes: input.authentication_key.to_owned(),
         };
         let key_agreement = VerificationMethod {
             id: keyagreement_id.clone(),
-            controller: doc_id.clone(),
+            controller: id_str.clone(),
             typ: X25519.to_string(),
             bytes: input.keyagreement_key.to_owned(),
         };
@@ -71,8 +70,8 @@ impl IdDocument {
                 "https://w3id.org/security/suites/ed25519-2020/v1".to_string(),
                 "https://w3id.org/security/suites/x25519-2020/v1".to_string(),
             ],
-            id: doc_id.clone(),
-            controller: doc_id.clone(),
+            id: id_str.clone(),
+            controller: id_str.clone(),
             verification_method: vec![assertion_method, authentication, key_agreement],
             authentication: vec![authentication_id],
             assertion_method: vec![assertion_id],
@@ -107,7 +106,7 @@ mod tests {
         let ed_key = secret.to_publickey();
         let x_key = secret.to_key_agreement();
         let input = CreateDocInput {
-            id: "123456".to_owned(),
+            id: "did:p2p:123456".to_owned(),
             assertion_key: ed_key.to_vec(),
             authentication_key: ed_key.to_vec(),
             keyagreement_key: x_key.to_vec(),
@@ -124,7 +123,7 @@ mod tests {
         let ed_key = secret.to_publickey();
         let x_key = secret.to_key_agreement();
         let input = CreateDocInput {
-            id: "123456".to_owned(),
+            id: "did:p2p:123456".to_owned(),
             assertion_key: ed_key.to_vec(),
             authentication_key: ed_key.to_vec(),
             keyagreement_key: x_key.to_vec(),

@@ -17,6 +17,10 @@ impl EdSecret {
         EdSecret(data)
     }
 
+    pub fn from_bytes(data: &[u8]) -> Self {
+        EdSecret(data.try_into().unwrap())
+    }
+
     pub fn from_str(s: &str) -> Result<Self> {
         Ok(EdSecret(crate::decode_sized(s)?))
     }

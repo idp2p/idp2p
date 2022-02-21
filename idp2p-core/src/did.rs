@@ -15,7 +15,7 @@ impl Identity {
         let ledger = MicroLedger::new(recovery_key_digest, next_key_digest);
         let id = ledger.inception.get_id();
         let did = Identity {
-            id: id.clone(),
+            id: format!("did:p2p:{id}"),
             microledger: ledger,
             document: None,
         };

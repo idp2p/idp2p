@@ -1,4 +1,5 @@
 use crate::commands::get_command;
+use crate::commands::handle_jwm;
 use crate::store::FileStore;
 use dotenv::dotenv;
 use idp2p_common::anyhow::Result;
@@ -53,13 +54,15 @@ async fn main() -> Result<(), Box<dyn Error>> {
             event = rx.recv() => {
                 if let Some(event) = event{
                     match event{
-                        IdentityEvent::ReceivedJwm{id, jwm} => println!("{}{}", id, jwm),
+                        IdentityEvent::ReceivedJwm{ jwm} => {
+                            let result = handle_jwm(&jwm);
+                            match result{
+                                Ok(())=> println!("Success"),
+                                Err(err) => println!("Error: {:?}", err)
+                            }
+                        }
                         _ => println!("{:?}", event)
                     }
-                    // check  typ, enc, alg
-                    //let kid = self.recipients[0].header.kid.clone();
-                    //if kid != format!("{}")
-                    // check kid and secret
                 }
             }
         }

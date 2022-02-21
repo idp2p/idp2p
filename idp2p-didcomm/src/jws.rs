@@ -59,6 +59,7 @@ impl Jws {
         let payload_bytes = decode(&format!("u{}", self.payload));
         let jpm = serde_json::from_slice(&payload_bytes)?;
         let doc = from.document.expect("Document not found");
+        println!("doc : {:?}", doc);
         let ver_method = doc
             .get_verification_method(&self.signatures[0].header.kid)
             .expect("Public key not found");
