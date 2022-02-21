@@ -17,11 +17,14 @@ use pbkdf2::{
     Pbkdf2,
 };
 use serde::{Deserialize, Serialize};
+use idp2p_common::encode_vec;
 
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
 pub struct Wallet {
     pub salt: [u8; 16],
     pub iv: [u8; 12],
+    #[serde(with = "encode_vec")]
+    #[serde(skip_serializing_if = "Vec::is_empty", default)]
     pub ciphertext: Vec<u8>,
 }
 
@@ -87,6 +90,45 @@ impl WalletPayload {
         let inception_key_digest = inception_secret.to_publickey_digest()?;
         let recovery_key_digest = recovery_secret.to_publickey_digest()?;
         let mut identity = Identity::new(&recovery_key_digest, &inception_key_digest);
+        let create_doc_input = CreateDocInput {
+            id: identity.id.clone(),
+            assertion_key: assertion_secret.to_publickey().to_vec(),
+            authentication_key: authentication_secret.to_publickey().to_vec(),
+            keyagreement_key: keyagreement_secret.to_key_agreement().to_vec(),
+        };
+        let identity_doc = IdDocument::new(create_doc_input);
+        let change = EventLogChange::SetDocument(DocumentDigest {
+            value: identity_doc.get_digest(),
+        });
+        identity.document = Some(identity_doc);
+        let next_secret = derive_secret(seed, &mut next_index)?;
+        let next_digest = next_secret.to_publickey_digest()?;
+        let signer = inception_secret.to_publickey();
+        let payload = identity
+            .microledger
+            .create_event(&signer, &next_digest, change);
+        let proof = inception_secret.sign(&payload);
+        identity.microledger.save_event(payload, &proof);
+        let account = WalletAccount {
+            name: name.to_owned(),
+            id: identity.id.clone(),
+            assertion_secret: assertion_secret.to_bytes().to_vec(),
+            authentication_secret: authentication_secret.to_bytes().to_vec(),
+            keyagreement_secret: keyagreement_secret.to_bytes().to_vec(),
+            next_secret: next_secret.to_bytes().to_vec(),
+            credentials: None,
+        };
+        Ok(CreateAccountResult {
+            account: account,
+            did: identity,
+            next_index: next_index,
+        })
+    }
+
+    pub fn set_document(&self, name: &str, seed: [u8; 16]) -> Result<CreateAccountResult> {
+        if self.accounts.iter().any(|x| x.name == name) {
+            anyhow::bail!("Account already exists")
+        }
         let create_doc_input = CreateDocInput {
             id: identity.id.clone(),
             assertion_key: assertion_secret.to_publickey().to_vec(),

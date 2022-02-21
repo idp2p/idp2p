@@ -1,4 +1,3 @@
-use idp2p_core::did::Identity;
 use crate::jwk::Jwk;
 use crate::jws::Jws;
 use crate::JwmHeader;
@@ -7,13 +6,13 @@ use chacha20poly1305::ChaCha20Poly1305;
 use chacha20poly1305::Key;
 use chacha20poly1305::Nonce;
 use idp2p_common::anyhow::Result;
+use idp2p_common::base64url;
 use idp2p_common::decode;
 use idp2p_common::decode_sized;
 use idp2p_common::ed_secret::EdSecret;
 use idp2p_common::serde_json;
+use idp2p_core::did::Identity;
 use serde::{Deserialize, Serialize};
-use idp2p_common::base64url;
-
 
 const TYP: &str = "application/didcomm-encrypted+json";
 const ENC: &str = "XC20P";
@@ -49,11 +48,6 @@ impl JweProtected {
             epk: Jwk::from_bytes(epk_bytes)?,
         })
     }
-
-    fn from_str(s: &str) -> Result<JweProtected>{
-        let protected = serde_json::from_str(s)?;
-        Ok(protected)
-    }
 }
 
 impl Jwe {
@@ -82,16 +76,12 @@ impl Jwe {
         Ok(jwe)
     }
 
-    pub fn decrypt(&self, enc_secret: EdSecret) -> Result<String> {
+    pub fn decrypt(&self, dec_secret: EdSecret) -> Result<String> {
         let protected_bytes = decode(&format!("u{}", self.protected));
         let protected_str = std::str::from_utf8(&protected_bytes)?;
         let protected: JweProtected = serde_json::from_str(protected_str)?;
-        // check  typ, enc, alg
-        //let kid = self.recipients[0].header.kid.clone();
-        //if kid != format!("{}")
-        // check kid and secret
-        let from_public = decode_sized::<32>(&format!("u{}", protected.epk.x))?;
-        let shared_secret = enc_secret.to_shared_secret(from_public);
+        let epk_public = decode_sized::<32>(&format!("u{}", protected.epk.x))?;
+        let shared_secret = dec_secret.to_shared_secret(epk_public);
         let key = Key::from_slice(shared_secret.as_bytes());
         let cipher = ChaCha20Poly1305::new(&key);
         let iv_b64 = decode(&format!("u{}", self.iv));
@@ -106,6 +96,12 @@ impl Jwe {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::jpm::Jpm;
+    use crate::jwm::Jwm;
+    use idp2p_core::did_doc::CreateDocInput;
+    use idp2p_core::did_doc::IdDocument;
+    use idp2p_core::eventlog::DocumentDigest;
+    use idp2p_core::eventlog::EventLogChange;
     #[test]
     fn jwe_protected_test() {
         let protected = JweProtected::new([0; 32]).unwrap();
@@ -114,5 +110,45 @@ mod tests {
         assert_eq!(protected.enc, "XC20P");
         assert_eq!(protected.typ, "application/didcomm-encrypted+json");
         assert_eq!(protected.epk, jwk);
+    }
+    #[test]
+    fn jwe_encrypt_test() -> Result<()> {
+        let (mut from_id, from_secret) = create_did();
+        save_doc(&mut from_id, from_secret.clone());
+
+        let (mut to_id, to_secret) = create_did();
+        save_doc(&mut to_id, to_secret.clone());
+        let jwm = Jwm::new(from_id.clone(), to_id.clone(), r#"{ "body" : "body" }"#);
+        let jws = Jws::new(Jpm::from(jwm), from_secret.clone())?;
+        let jwe = Jwe::encrypt(jws, to_id.clone())?;
+        let result = jwe.decrypt(to_secret.clone())?;
+        println!("result: {:?}", result);
+        Ok(())
+    }
+
+    fn create_did() -> (Identity, EdSecret) {
+        let secret = EdSecret::new();
+        let ed_key_digest = secret.to_publickey_digest().unwrap();
+        (Identity::new(&ed_key_digest, &ed_key_digest), secret)
+    }
+
+    fn save_doc(did: &mut Identity, secret: EdSecret) {
+        let ed_key = secret.to_publickey();
+        let x_key = secret.to_key_agreement();
+        let input = CreateDocInput {
+            id: did.id.clone(),
+            assertion_key: ed_key.to_vec(),
+            authentication_key: ed_key.to_vec(),
+            keyagreement_key: x_key.to_vec(),
+        };
+        let doc = IdDocument::new(input);
+        let doc_digest = doc.get_digest();
+        did.document = Some(doc);
+        let change = EventLogChange::SetDocument(DocumentDigest { value: doc_digest });
+        let signer = secret.to_publickey();
+        let next_digest = secret.to_publickey_digest().unwrap();
+        let payload = did.microledger.create_event(&signer, &next_digest, change);
+        let proof = secret.sign(&payload);
+        did.microledger.save_event(payload, &proof);
     }
 }

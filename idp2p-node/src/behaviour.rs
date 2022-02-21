@@ -92,12 +92,16 @@ impl IdentityGossipBehaviour {
         }
     }
     fn handle_jwm(&self, id: &str, message: String) -> Result<IdentityEvent> {
-        Ok(IdentityEvent::Requested { id: id.to_owned() })
+        Ok(IdentityEvent::ReceivedJwm {
+            id: id.to_owned(),
+            jwm: message,
+        })
     }
 }
 
 impl NetworkBehaviourEventProcess<GossipsubEvent> for IdentityGossipBehaviour {
     fn inject_event(&mut self, message: GossipsubEvent) {
+        println!("{:?}", message);
         if let GossipsubEvent::Message {
             propagation_source: _,
             message_id: _,

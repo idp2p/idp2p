@@ -85,9 +85,7 @@ mod tests {
         let to = Identity::new(&vec![], &vec![]);
         let jwm = Jwm::new(from.clone(), to, r#"{ "body" : "body" }"#);
         let jws = Jws::new(Jpm::from(jwm), secret).unwrap();
-        println!("{:?}", jws);
         let r = jws.verify(from);
-        println!("{:?}", r);
         assert!(r.is_ok());
     }
 }
