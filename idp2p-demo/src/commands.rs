@@ -1,16 +1,17 @@
+use idp2p_wallet::wallet::WalletStore;
 use crate::FileStore;
 use idp2p_common::anyhow::*;
 use idp2p_node::behaviour::IdentityGossipBehaviour;
 use idp2p_node::message::{IdentityMessage, IdentityMessagePayload};
 use idp2p_node::store::IdStore;
 use idp2p_wallet::wallet::Wallet;
+use std::convert::TryInto;
 
 pub enum IdCommand {
     Create(String),
-    SetDocument(String),
+    SetDocument,
     Get(String),
     SendJwm {
-        from: String,
         to: String,
         message: String,
     },
@@ -23,20 +24,45 @@ impl IdCommand {
             Self::Create(name) => {
                 let seed = idp2p_common::create_random::<16>();
                 let password = "123456";
-                let wallet = Wallet::new(password)?;
-                let payload = wallet.get_payload(password)?;
+                std::env::set_var("WALLET_SEED", idp2p_common::encode(&seed));
+                std::env::set_var("WALLET_PASSWORD", password);
+                std::env::set_var("ACCOUNT_NAME", name);
+                let mut wallet = Wallet::new(password)?;
+                let mut payload = wallet.resolve(password)?;
                 let result = payload.create_account(name, seed)?;
-                store.put(&result.did.id.clone(), result.did.clone());
-                behaviour.subscribe(result.did.id)?;
+                payload.accounts.push(result.account.clone()); 
+                payload.next_index = result.next_index;
+                wallet.save(password, payload.clone());
+                store.put(&result.account.did.id.clone(), result.account.did.clone());
+                store.put_wallet(name, wallet);
+                println!("Id: {}", result.account.did.id);
+                behaviour.subscribe(result.account.did.id)?;
             }
-            Self::SetDocument(name) => {}
+            Self::SetDocument => {
+                let seed = idp2p_common::decode(&std::env::var("WALLET_SEED")?);
+                let password = "123456";
+                let name = std::env::var("ACCOUNT_NAME")?;
+                let mut wallet = store.get_wallet(&name).unwrap();  
+                let mut payload = wallet.resolve(password)?;
+                let result = payload.set_document(&name, seed.try_into().unwrap())?;
+                payload.accounts[0] = result.account.clone();
+                payload.next_index = result.next_index;
+                wallet.save(password, payload.clone());
+                store.put(&result.account.did.id.clone(), result.account.did.clone());
+                store.put_wallet(&name, wallet);
+                let mes_payload = IdentityMessagePayload::Post{
+                    digest:result.account.did.get_digest(),
+                    identity: result.account.did.clone() 
+                };
+                let mes = IdentityMessage::new(mes_payload);
+                behaviour.publish(result.account.did.id.clone(), mes)?;   
+            }
             Self::Get(id) => {
                 behaviour.subscribe(id.clone())?;
-                let mes_payload = IdentityMessagePayload::Get;
-                let mes = IdentityMessage::new(mes_payload);
+                let mes = IdentityMessage::new(IdentityMessagePayload::Get);
                 behaviour.publish(id.to_owned(), mes)?;
             }
-            Self::SendJwm { from, to, message } => {}
+            Self::SendJwm { to, message } => {}
         }
         Ok(())
     }
@@ -52,18 +78,17 @@ pub fn get_command(input: &str) -> Option<IdCommand> {
         }
         "set-document" => {
             // set-document for alice
-            return Some(IdCommand::SetDocument(input[2].to_owned()));
+            return Some(IdCommand::SetDocument);
         }
         "get" => {
             // get <id>
             return Some(IdCommand::Get(input[1].to_owned()));
         }
-        "send-message" => {
-            // send-message from <name> to <id> <message>
+        "send" => {
+            // send <message> to <id> 
             return Some(IdCommand::SendJwm {
-                from: input[2].to_owned(),
-                to: input[4].to_owned(),
-                message: input[5].to_owned(),
+                to: input[3].to_owned(),
+                message: input[1].to_owned(),
             });
         }
         _ => {
@@ -71,44 +96,3 @@ pub fn get_command(input: &str) -> Option<IdCommand> {
         }
     }
 }
-
-/*
-
-"create" => {
-            let name = input[1];
-            let base_path = format!("../target/{}", name);
-            std::env::set_var("BASE_PATH", base_path.clone());
-            let id_path = format!("{}/identities", base_path);
-            std::fs::create_dir_all(id_path).unwrap();
-            let acc_path = format!("{}/accounts", base_path);
-            std::fs::create_dir_all(acc_path).unwrap();
-            let seed = idp2p_common::create_random::<16>();
-            let password = "123456";
-            let wallet = Wallet::new(password)?;
-            let payload = wallet.get_payload(password)?;
-            let result = payload.create_account(name, seed)?;
-        }
-        "set-document" => {
-            let name = input[1];
-        }
-        "get" => {
-            let id = input[1].to_string();
-            behaviour.subscribe(id.clone())?;
-            let mes_payload = IdentityMessagePayload::Get;
-            let mes = IdentityMessage::new(mes_payload);
-            behaviour.publish(id, mes)?;
-        }
-        "send-message" => {
-            let message_data = input[1].to_owned();
-            let receiver_id = input[2].to_owned();
-            let mes_payload = IdentityMessagePayload::Jwm {
-                message: message_data,
-            };
-            let mes = IdentityMessage::new(mes_payload);
-
-            behaviour.publish(receiver_id, mes)?;
-        }
-        _ => {
-            println!("Unknown command");
-        }
-*/

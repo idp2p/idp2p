@@ -44,7 +44,6 @@ async fn main() -> Result<(), Box<dyn Error>> {
                 if let Some(cmd) = get_command(&line){
                     cmd.handle(swarm.behaviour_mut())?;
                 }
-                
             }
             listen_event = swarm.select_next_some() => {
                 if let SwarmEvent::NewListenAddr { address, .. } = listen_event {
@@ -54,7 +53,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
             event = rx.recv() => {
                 if let Some(event) = event{
                     match event{
-                        IdentityEvent::ReceivedJwm{id, jwm} => println!(""),
+                        IdentityEvent::ReceivedJwm{id, jwm} => println!("{}{}", id, jwm),
                         _ => println!("{:?}", event)
                     }
                     // check  typ, enc, alg

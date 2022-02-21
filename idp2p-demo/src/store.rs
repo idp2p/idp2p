@@ -1,10 +1,11 @@
+use idp2p_wallet::wallet::WalletStore;
+use idp2p_wallet::wallet::Wallet;
 use idp2p_node::store::IdStore;
 use std::fs::File;
 use std::fs::OpenOptions;
 use std::io::Read;
 use idp2p_core::did::Identity;
 use idp2p_common::serde_json;
-use serde::{Deserialize, Serialize};
 
 pub struct FileStore {}
 
@@ -38,18 +39,30 @@ impl IdStore for FileStore {
     }
 }
 
-#[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
-pub struct SwarmAccount{
-    pub name: String,
-    pub id: String,
-    pub authentication_secret: Vec<u8>,
-    pub agreement_secret: Vec<u8>,
+impl WalletStore for FileStore {
+    fn put_wallet(&self, name: &str, value: Wallet) {
+        let path = self.get_path("accounts", name);
+        if !std::path::Path::new(&path).exists() {
+            std::fs::File::create(&path).unwrap();
+        }
+        let file = OpenOptions::new().write(true).open(&path).unwrap();
+        serde_json::to_writer_pretty(&file, &value).unwrap();
+    }
+
+    fn get_wallet(&self, name: &str) -> Option<Wallet> {
+        let path = self.get_path("accounts", name);
+        let result = File::open(&path);
+        if result.is_ok() {
+            let mut file = result.unwrap();
+            let mut buff = String::new();
+            file.read_to_string(&mut buff).unwrap();
+            return Some(serde_json::from_str::<Wallet>(&buff).unwrap());
+        }
+        None
+    }
 }
 
-pub trait AccountStore {
-    fn put(&self, key: &str, value: SwarmAccount);
-    fn get(&self, key: &str) -> Option<SwarmAccount>;
-}
+
 
 #[cfg(test)]
 mod tests {
