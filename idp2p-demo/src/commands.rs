@@ -132,10 +132,9 @@ pub fn handle_jwm(jwm: &str) -> Result<()> {
     let json = jwe.decrypt(dec_secret)?;
     let jws: Jws = serde_json::from_str(&json)?;
     let jpm: Jpm = base64url::decode(&jws.payload)?;
-    println!("Jpm: {:?}", jpm);
     let from = store.get(&jpm.from).unwrap();
-    let jpm = jws.verify(from)?;
-    println!("Received jwm {:?}", jpm);
+    jws.verify(from)?;
+    println!("Received message {}", jpm.body.to_string());
     Ok(())
     // check  typ, enc, alg
     //let kid = self.recipients[0].header.kid.clone();

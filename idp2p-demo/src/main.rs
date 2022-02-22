@@ -55,11 +55,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
                 if let Some(event) = event{
                     match event{
                         IdentityEvent::ReceivedJwm{ jwm} => {
-                            let result = handle_jwm(&jwm);
-                            match result{
-                                Ok(())=> println!("Success"),
-                                Err(err) => println!("Error: {:?}", err)
-                            }
+                            handle_jwm(&jwm)?;
                         }
                         _ => println!("{:?}", event)
                     }
