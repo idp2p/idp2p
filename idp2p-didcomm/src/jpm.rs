@@ -53,7 +53,7 @@ mod tests {
         let to = Identity::new(&vec![], &vec![]);
         let jwm = Jwm::new(from, to, r#"{ "body" : "body" }"#);
         let jpm = Jpm::from(jwm);
-        let expected = "bagaaierakioikcmj4ooqw54zqsedryl7lnuubne64ga443cpkegei4xftata";
+        let expected = "did:p2p:bagaaierakioikcmj4ooqw54zqsedryl7lnuubne64ga443cpkegei4xftata";
         assert_eq!(jpm.from, expected);
         assert_eq!(jpm.to[0], expected);
         assert_eq!(jpm.body.as_str(), Some(r#"{ "body" : "body" }"#));

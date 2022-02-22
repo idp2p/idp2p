@@ -8,8 +8,8 @@
 
 #### Generate peers
 
-- ```cargo run -- -p 5000 -d ../target/alice```
-- ```cargo run -- -p 6000 -d ../target/bob```
+- ```cargo run```
+- ```cargo run -- -p 5000```
 
 #### Create identity
 
@@ -19,11 +19,11 @@
 #### Subscribe to identity
 
 - cmd: ```get <id>```
-- ex: `get bagaaieraam4...`
+- ex: `get did:p2p:bagaaieraam4`
 
-#### Create DID Document
+#### Send message
 
-- cmd: ```set-document```
+- cmd: ```send <message> to did:p2p:bagaaieraam4```
 
 #### Recover
 
