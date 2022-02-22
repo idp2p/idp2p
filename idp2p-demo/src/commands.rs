@@ -1,4 +1,5 @@
 use crate::FileStore;
+use colored::Colorize;
 use idp2p_common::anyhow::*;
 use idp2p_common::base64url;
 use idp2p_common::ed_secret::EdSecret;
@@ -43,7 +44,7 @@ impl IdCommand {
                 wallet.save(password, payload.clone());
                 store.put(&id, doc_result.account.did.clone());
                 store.put_wallet(name, wallet);
-                println!("Id: {}", id);
+                println!("Id: {}", id.red());
                 behaviour.subscribe(id)?;
             }
             Self::SetDocument => {
@@ -83,7 +84,7 @@ impl IdCommand {
                 let json = serde_json::to_string(&jwe)?;
                 let mes_payload = IdentityMessagePayload::Jwm { message: json };
                 let mes = IdentityMessage::new(mes_payload);
-                behaviour.publish(payload.accounts[0].did.id.clone(), mes)?;
+                behaviour.publish(to.to_owned(), mes)?;
             }
         }
         Ok(())
@@ -119,25 +120,27 @@ pub fn get_command(input: &str) -> Option<IdCommand> {
     }
 }
 
-pub fn handle_jwm(jwm: &str) -> Result<()> {
+pub fn handle_jwm(id: &str, jwm: &str) -> Result<String> {
     let store = FileStore {};
     let password = "123456";
     let name = std::env::var("ACCOUNT_NAME")?;
     let wallet = store.get_wallet(&name).unwrap();
     let payload = wallet.resolve(password)?;
     let acc = payload.accounts[0].clone();
-    let doc = acc.documents.unwrap()[0].clone();
-    let dec_secret = EdSecret::from_bytes(&doc.keyagreement_secret);
-    let jwe: Jwe = serde_json::from_str(jwm)?;
-    let json = jwe.decrypt(dec_secret)?;
-    let jws: Jws = serde_json::from_str(&json)?;
-    let jpm: Jpm = base64url::decode(&jws.payload)?;
-    let from = store.get(&jpm.from).unwrap();
-    jws.verify(from)?;
-    println!("Received message {}", jpm.body.to_string());
-    Ok(())
-    // check  typ, enc, alg
-    //let kid = self.recipients[0].header.kid.clone();
-    //if kid != format!("{}")
-    // check kid and secret
+    println!("Account did id: {}", acc.did.id);
+    println!("Topic: {}", id);
+    if acc.did.id == id {
+        let doc = acc.documents.unwrap()[0].clone();
+        let dec_secret = EdSecret::from_bytes(&doc.keyagreement_secret);
+        let jwe: Jwe = serde_json::from_str(jwm)?;
+        // check if message for me?
+        let json = jwe.decrypt(dec_secret)?;
+        let jws: Jws = serde_json::from_str(&json)?;
+        let jpm: Jpm = base64url::decode(&jws.payload)?;
+        let from = store.get(&jpm.from).unwrap();
+        jws.verify(from)?;
+        let rec_mes = format!("Received message {}", jpm.body.to_string().green());
+        return Ok(rec_mes);
+    }
+    Ok("Skipped message".to_owned())
 }

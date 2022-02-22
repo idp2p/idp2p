@@ -32,7 +32,7 @@ pub enum IdentityEvent {
     Created { id: String },
     Updated { id: String },
     Requested { id: String },
-    ReceivedJwm { jwm: String },
+    ReceivedJwm { id: String, jwm: String },
 }
 
 impl IdentityGossipBehaviour {
@@ -91,11 +91,6 @@ impl IdentityGossipBehaviour {
             }
         }
     }
-    fn handle_jwm(&self, message: String) -> Result<IdentityEvent> {
-        Ok(IdentityEvent::ReceivedJwm {
-            jwm: message,
-        })
-    }
 }
 
 impl NetworkBehaviourEventProcess<GossipsubEvent> for IdentityGossipBehaviour {
@@ -115,9 +110,10 @@ impl NetworkBehaviourEventProcess<GossipsubEvent> for IdentityGossipBehaviour {
                 IdentityMessagePayload::Post { digest, identity } => {
                     self.handle_post(digest, identity)
                 }
-                IdentityMessagePayload::Jwm { message } => {
-                    self.handle_jwm(message.to_owned())
-                }
+                IdentityMessagePayload::Jwm { message } => Ok(IdentityEvent::ReceivedJwm {
+                    id: topic.to_owned(),
+                    jwm: message.to_owned(),
+                }),
             };
             self.sender
                 .try_send(event.unwrap())
