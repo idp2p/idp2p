@@ -12,7 +12,6 @@ impl EdSecret {
     pub fn new() -> Self {
         EdSecret(crate::create_random::<32>())
     }
-
     pub fn from(data: [u8; 32]) -> Self {
         EdSecret(data)
     }

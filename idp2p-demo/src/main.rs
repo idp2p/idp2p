@@ -54,7 +54,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
             event = rx.recv() => {
                 if let Some(event) = event{
                     match event{
-                        IdentityEvent::ReceivedJwm{ id, jwm} => {
+                        IdentityEvent::ReceivedJwm { id, jwm} => {
                             let mes = handle_jwm(&id, &jwm)?;
                             println!("{mes}");
                         }
