@@ -8,6 +8,7 @@ use idp2p_node::swarm::create_swarm;
 use idp2p_node::swarm::SwarmOptions;
 use libp2p::futures::StreamExt;
 use libp2p::swarm::SwarmEvent;
+use libp2p::mdns::{ Mdns, MdnsEvent};
 use std::error::Error;
 use structopt::StructOpt;
 use tokio::io::{self, AsyncBufReadExt};
@@ -46,9 +47,15 @@ async fn main() -> Result<(), Box<dyn Error>> {
                     cmd.handle(swarm.behaviour_mut())?;
                 }
             }
-            listen_event = swarm.select_next_some() => {
-                if let SwarmEvent::NewListenAddr { address, .. } = listen_event {
-                    println!("Listening on {:?}", address);
+            swarm_event = swarm.select_next_some() => {
+                match swarm_event {
+                    SwarmEvent::NewListenAddr { address, .. } => {
+                        println!("Listening on {:?}", address);
+                    }
+                    SwarmEvent::ConnectionEstablished{peer_id, ..}=> {
+                            println!("discovered {}", peer_id);
+                    }
+                    _ => {}
                 }
             }
             event = rx.recv() => {

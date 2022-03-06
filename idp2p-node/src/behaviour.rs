@@ -59,6 +59,8 @@ impl IdentityGossipBehaviour {
             digest: identity.get_digest(),
             identity: identity.clone(),
         };
+        // is node owner ? post id : wait 2 sec 
+        // posted 
         let mes = IdentityMessage::new(payload);
         self.publish(identity.id.clone(), mes)?;
         Ok(IdentityEvent::Requested { id: identity.id })

@@ -1,11 +1,12 @@
-use crate::store::IdStore;
 use crate::behaviour::IdentityEvent;
 use crate::behaviour::IdentityGossipBehaviour;
+use crate::store::IdStore;
 use idp2p_common::anyhow::Result;
 use libp2p::Swarm;
 use libp2p::{
     gossipsub::{
-        GossipsubConfigBuilder, GossipsubMessage, MessageAuthenticity, MessageId, ValidationMode,
+        Gossipsub, GossipsubConfigBuilder, GossipsubMessage, MessageAuthenticity, MessageId,
+        ValidationMode,
     },
     identity,
     swarm::SwarmBuilder,
@@ -20,7 +21,7 @@ use tokio::sync::mpsc::Sender;
 pub struct SwarmOptions {
     pub port: u16,
     pub sender: Sender<IdentityEvent>,
-    pub store: Box<dyn IdStore + Send>
+    pub store: Box<dyn IdStore + Send>,
 }
 
 pub async fn create_swarm(options: SwarmOptions) -> Result<Swarm<IdentityGossipBehaviour>> {
@@ -44,17 +45,15 @@ pub async fn create_swarm(options: SwarmOptions) -> Result<Swarm<IdentityGossipB
             .build()
             .expect("Valid config");
 
-        let gossipsub_result =
-            libp2p::gossipsub::Gossipsub::new(MessageAuthenticity::Anonymous, gossipsub_config);
+        let gossipsub_result = Gossipsub::new(MessageAuthenticity::Anonymous, gossipsub_config);
         let gossipsub = gossipsub_result.expect("Correct configuration");
         let mdns = libp2p::mdns::Mdns::new(Default::default()).await?;
-       
         let behaviour = IdentityGossipBehaviour {
             gossipsub: gossipsub,
             mdns: mdns,
             identities: HashMap::new(),
             sender: options.sender,
-            store: options.store
+            store: options.store,
         };
         SwarmBuilder::new(transport, behaviour, local_peer_id)
             .executor(Box::new(|fut| {
@@ -63,6 +62,5 @@ pub async fn create_swarm(options: SwarmOptions) -> Result<Swarm<IdentityGossipB
             .build()
     };
     swarm.listen_on(format!("/ip4/0.0.0.0/tcp/{}", options.port).parse()?)?;
-    //swarm.listen_on("/ip4/0.0.0.0/tcp/43727".parse()?)?;
     Ok(swarm)
 }
