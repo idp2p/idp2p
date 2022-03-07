@@ -53,6 +53,7 @@ pub async fn create_swarm(options: SwarmOptions) -> Result<Swarm<IdentityGossipB
             gossipsub: gossipsub,
             mdns: mdns,
             identities: HashMap::new(),
+            accounts: HashMap::new(),
             sender: options.sender,
             store: options.store
         };

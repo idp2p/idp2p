@@ -21,6 +21,8 @@ pub struct IdentityGossipBehaviour {
     #[behaviour(ignore)]
     pub identities: HashMap<String, String>,
     #[behaviour(ignore)]
+    pub accounts: HashMap<String, bool>,
+    #[behaviour(ignore)]
     pub sender: Sender<IdentityEvent>,
     #[behaviour(ignore)]
     pub store: Box<dyn IdStore + Send>,
