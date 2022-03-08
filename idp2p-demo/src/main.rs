@@ -1,3 +1,4 @@
+use idp2p_node::store::IdStore;
 use crate::commands::get_command;
 use crate::commands::handle_jwm;
 use crate::store::FileStore;
@@ -34,8 +35,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let (tx, mut rx) = channel::<IdentityEvent>(100);
     let options = SwarmOptions {
         port: opt.port,
-        sender: tx.clone(),
-        store: Box::new(FileStore {}),
+        store: IdStore::new(tx.clone())
     };
     let mut swarm = create_swarm(options).await?;
     loop {
@@ -46,16 +46,23 @@ async fn main() -> Result<(), Box<dyn Error>> {
                     cmd.handle(swarm.behaviour_mut())?;
                 }
             }
-            listen_event = swarm.select_next_some() => {
-                if let SwarmEvent::NewListenAddr { address, .. } = listen_event {
-                    println!("Listening on {:?}", address);
+            swarm_event = swarm.select_next_some() => {
+                match swarm_event {
+                    SwarmEvent::NewListenAddr { address, .. } => {
+                        println!("Listening on {:?}", address);
+                    }
+                    SwarmEvent::ConnectionEstablished{peer_id, ..}=> {
+                            println!("discovered {}", peer_id);
+                    }
+                    _ => {}
                 }
             }
             event = rx.recv() => {
                 if let Some(event) = event{
                     match event{
-                        IdentityEvent::ReceivedJwm{ jwm} => {
-                            handle_jwm(&jwm)?;
+                        IdentityEvent::ReceivedJwm {id, jwm} => {
+                            let mes = handle_jwm(&id, &jwm, swarm.behaviour_mut())?;
+                            println!("{mes}");
                         }
                         _ => println!("{:?}", event)
                     }

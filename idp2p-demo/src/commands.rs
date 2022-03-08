@@ -1,4 +1,5 @@
 use crate::FileStore;
+use colored::Colorize;
 use idp2p_common::anyhow::*;
 use idp2p_common::base64url;
 use idp2p_common::ed_secret::EdSecret;
@@ -9,7 +10,6 @@ use idp2p_didcomm::jwm::Jwm;
 use idp2p_didcomm::jws::Jws;
 use idp2p_node::behaviour::IdentityGossipBehaviour;
 use idp2p_node::message::{IdentityMessage, IdentityMessagePayload};
-use idp2p_node::store::IdStore;
 use idp2p_wallet::wallet::Wallet;
 use idp2p_wallet::wallet::WalletStore;
 use std::convert::TryInto;
@@ -41,7 +41,7 @@ impl IdCommand {
                 payload.accounts[0] = doc_result.account.clone();
                 payload.next_index = doc_result.next_index;
                 wallet.save(password, payload.clone());
-                store.put(&id, doc_result.account.did.clone());
+                //store.put(&id, doc_result.account.did.clone());
                 store.put_wallet(name, wallet);
                 println!("Id: {}", id);
                 behaviour.subscribe(id)?;
@@ -56,7 +56,7 @@ impl IdCommand {
                 payload.accounts[0] = result.account.clone();
                 payload.next_index = result.next_index;
                 wallet.save(password, payload.clone());
-                store.put(&result.account.did.id.clone(), result.account.did.clone());
+                //store.put(&result.account.did.id.clone(), result.account.did.clone());
                 store.put_wallet(&name, wallet);
                 let mes_payload = IdentityMessagePayload::Post {
                     digest: result.account.did.get_digest(),
@@ -77,7 +77,7 @@ impl IdCommand {
                 let payload = wallet.resolve(password)?;
                 let acc = payload.accounts[0].clone();
                 let doc = acc.documents.unwrap()[0].clone();
-                let to_did = store.get(&to).unwrap();
+                let to_did = behaviour.store.get(&to).unwrap().did;
                 let jwm = Jwm::new(acc.did.clone(), to_did, &message);
                 let jwe = jwm.seal(EdSecret::from_bytes(&doc.authentication_secret))?;
                 let json = serde_json::to_string(&jwe)?;
@@ -119,25 +119,27 @@ pub fn get_command(input: &str) -> Option<IdCommand> {
     }
 }
 
-pub fn handle_jwm(jwm: &str) -> Result<()> {
+pub fn handle_jwm(id: &str, jwm: &str, behaviour: &mut IdentityGossipBehaviour) -> Result<String> {
     let store = FileStore {};
     let password = "123456";
     let name = std::env::var("ACCOUNT_NAME")?;
     let wallet = store.get_wallet(&name).unwrap();
     let payload = wallet.resolve(password)?;
     let acc = payload.accounts[0].clone();
-    let doc = acc.documents.unwrap()[0].clone();
-    let dec_secret = EdSecret::from_bytes(&doc.keyagreement_secret);
-    let jwe: Jwe = serde_json::from_str(jwm)?;
-    let json = jwe.decrypt(dec_secret)?;
-    let jws: Jws = serde_json::from_str(&json)?;
-    let jpm: Jpm = base64url::decode(&jws.payload)?;
-    let from = store.get(&jpm.from).unwrap();
-    jws.verify(from)?;
-    println!("Received message {}", jpm.body.to_string());
-    Ok(())
-    // check  typ, enc, alg
-    //let kid = self.recipients[0].header.kid.clone();
-    //if kid != format!("{}")
-    // check kid and secret
+    println!("Account did id: {}", acc.did.id);
+    println!("Topic: {}", id);
+    if acc.did.id == id {
+        let doc = acc.documents.unwrap()[0].clone();
+        let dec_secret = EdSecret::from_bytes(&doc.keyagreement_secret);
+        let jwe: Jwe = serde_json::from_str(jwm)?;
+        // check if message for me?
+        let json = jwe.decrypt(dec_secret)?;
+        let jws: Jws = serde_json::from_str(&json)?;
+        let jpm: Jpm = base64url::decode(&jws.payload)?;
+        let from = behaviour.store.get(&jpm.from).unwrap().did;
+        jws.verify(from)?;
+        let rec_mes = format!("Received message {}", jpm.body.to_string().green());
+        return Ok(rec_mes);
+    }
+    Ok("Skipped message".to_owned())
 }

@@ -16,7 +16,7 @@ impl FileStore {
     }
 }
 
-impl IdStore for FileStore {
+/*impl IdStore for FileStore {
     fn put(&self, id: &str, value: Identity) {
         let file_id = id[8..].to_string();
         let path = self.get_path("identities", &file_id);
@@ -39,7 +39,7 @@ impl IdStore for FileStore {
         }
         None
     }
-}
+}*/
 
 impl WalletStore for FileStore {
     fn put_wallet(&self, name: &str, value: Wallet) {
