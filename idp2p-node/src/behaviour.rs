@@ -58,7 +58,7 @@ impl IdentityGossipBehaviour {
                 let mes = IdentityMessage::new(payload);
                 self.publish(entry.did.id.clone(), mes)?;
             } else {
-                // to do
+                // to do()
             }
         }
         Ok(())
@@ -69,21 +69,18 @@ impl IdentityGossipBehaviour {
         match current {
             None => {
                 identity.verify()?;
-                /*let entry = IdEntry{
-                    di
-                };
-                self.store.put(&identity.id, identity.clone());*/
+                let entry = IdEntry::from(identity.clone());
+                self.store.put(&identity.id, entry);
             }
             Some(entry) => {
-                /*if digest == current_digest {
-                    return Ok(IdentityEvent::Skipped);
+                if digest != entry.digest {
+                    entry.did.is_next(identity.clone())?;
+                    let new_entry = IdEntry {
+                        did: identity.clone(),
+                        ..entry
+                    };
+                    self.store.put(&identity.id, new_entry);
                 }
-                let current_did: Identity = self.store.get(&identity.id).unwrap();
-                current_did.is_next(identity.clone())?;
-                self.store.put(&identity.id, identity.clone());
-                return Ok(IdentityEvent::Updated {
-                    id: identity.id.clone(),
-                });*/
             }
         }
         Ok(())
@@ -92,6 +89,7 @@ impl IdentityGossipBehaviour {
 
 impl NetworkBehaviourEventProcess<GossipsubEvent> for IdentityGossipBehaviour {
     fn inject_event(&mut self, message: GossipsubEvent) {
+        println!("Got message: {:?}", message);
         if let GossipsubEvent::Message {
             propagation_source: _,
             message_id: _,
@@ -99,9 +97,9 @@ impl NetworkBehaviourEventProcess<GossipsubEvent> for IdentityGossipBehaviour {
         } = message
         {
             let topic = message.topic.to_string();
-            let message: IdentityMessage =
-                serde_json::from_slice(&message.data).expect("Message is not well-formed");
-            let r = match &message.payload {
+            let message: IdentityMessage = serde_json::from_slice(&message.data)
+                .expect("Message is not well-formed. It should be json");
+            let _ = match &message.payload {
                 IdentityMessagePayload::Get => self.handle_get(&topic),
                 IdentityMessagePayload::Post { digest, identity } => {
                     self.handle_post(digest, identity)

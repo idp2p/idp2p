@@ -3,8 +3,8 @@ use idp2p_core::did::Identity;
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::sync::Mutex;
-use tokio::sync::mpsc::channel;
 use tokio::sync::mpsc::Sender;
+use idp2p_common::chrono::Utc;
 
 pub struct IdStore {
     pub shared: Arc<IdShared>,
@@ -23,7 +23,7 @@ pub struct IdState {
 #[derive(PartialEq, Debug, Clone)]
 pub struct IdEntry {
     pub is_hosted: bool,
-    pub digest: Vec<u8>,
+    pub digest: String,
     pub did: Identity,
     pub last_updated: i64,
 }
@@ -41,6 +41,7 @@ impl IdStore {
             shared: Arc::new(shared),
         }
     }
+
     pub fn get(&self, id: &str) -> Option<IdEntry> {
         let state = self.shared.state.lock().unwrap();
         state.entries.get(id).map(|entry| entry.clone())
@@ -50,4 +51,26 @@ impl IdStore {
         let mut state = self.shared.state.lock().unwrap();
         state.entries.insert(id.to_owned(), entry);
     }
+}
+
+impl IdEntry {
+    pub fn new(did: Identity) -> Self {
+        IdEntry {
+            digest: did.get_digest(),
+            last_updated: Utc::now().timestamp(),
+            is_hosted: true,
+            did: did,
+        }
+    }
+
+    pub fn from(did: Identity) -> Self {
+        IdEntry {
+            digest: did.get_digest(),
+            last_updated: Utc::now().timestamp(),
+            is_hosted: false,
+            did: did,
+        }
+    }
+
+    
 }

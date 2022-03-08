@@ -10,6 +10,7 @@ use idp2p_didcomm::jwm::Jwm;
 use idp2p_didcomm::jws::Jws;
 use idp2p_node::behaviour::IdentityGossipBehaviour;
 use idp2p_node::message::{IdentityMessage, IdentityMessagePayload};
+use idp2p_node::store::IdEntry;
 use idp2p_wallet::wallet::Wallet;
 use idp2p_wallet::wallet::WalletStore;
 use std::convert::TryInto;
@@ -18,6 +19,7 @@ pub enum IdCommand {
     Create(String),
     SetDocument,
     Get(String),
+    Resolve(String),
     SendJwm { to: String, message: String },
 }
 
@@ -41,7 +43,8 @@ impl IdCommand {
                 payload.accounts[0] = doc_result.account.clone();
                 payload.next_index = doc_result.next_index;
                 wallet.save(password, payload.clone());
-                //store.put(&id, doc_result.account.did.clone());
+                let entry = IdEntry::new(doc_result.account.did.clone());
+                behaviour.store.put(&id, entry);
                 store.put_wallet(name, wallet);
                 println!("Id: {}", id);
                 behaviour.subscribe(id)?;
@@ -56,19 +59,26 @@ impl IdCommand {
                 payload.accounts[0] = result.account.clone();
                 payload.next_index = result.next_index;
                 wallet.save(password, payload.clone());
-                //store.put(&result.account.did.id.clone(), result.account.did.clone());
+                let id = result.account.did.id.clone();
+                let digest = result.account.did.get_digest();
+                let mut entry = behaviour.store.get(&id).unwrap();
+                entry.did = result.account.did.clone();
+                behaviour.store.put(&id, entry);
                 store.put_wallet(&name, wallet);
                 let mes_payload = IdentityMessagePayload::Post {
-                    digest: result.account.did.get_digest(),
-                    identity: result.account.did.clone(),
+                    digest: digest,
+                    identity: result.account.did,
                 };
                 let mes = IdentityMessage::new(mes_payload);
-                behaviour.publish(result.account.did.id.clone(), mes)?;
+                behaviour.publish(id, mes)?;
             }
             Self::Get(id) => {
                 behaviour.subscribe(id.clone())?;
                 let mes = IdentityMessage::new(IdentityMessagePayload::Get);
                 behaviour.publish(id.to_owned(), mes)?;
+            }
+            Self::Resolve(id) => {
+                println!("{:?}", behaviour.store.get(&id).unwrap().did)
             }
             Self::SendJwm { to, message } => {
                 let password = "123456";
@@ -105,6 +115,10 @@ pub fn get_command(input: &str) -> Option<IdCommand> {
         "get" => {
             // get <id>
             return Some(IdCommand::Get(input[1].to_owned()));
+        }
+        "resolve" => {
+            // get <id>
+            return Some(IdCommand::Resolve(input[1].to_owned()));
         }
         "send" => {
             // send <message> to <id>
