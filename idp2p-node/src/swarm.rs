@@ -1,4 +1,3 @@
-use crate::behaviour::IdentityEvent;
 use crate::behaviour::IdentityGossipBehaviour;
 use crate::store::IdStore;
 use idp2p_common::anyhow::Result;
@@ -8,18 +7,18 @@ use libp2p::{
         Gossipsub, GossipsubConfigBuilder, GossipsubMessage, MessageAuthenticity, MessageId,
         ValidationMode,
     },
-    identity,
+    identify::{Identify, IdentifyConfig},
+    identity, rendezvous, ping,
     swarm::SwarmBuilder,
     PeerId,
 };
 use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
 use std::time::Duration;
-use tokio::sync::mpsc::Sender;
 
 pub struct SwarmOptions {
     pub port: u16,
-    pub store: IdStore
+    pub store: IdStore,
 }
 
 pub async fn create_swarm(options: SwarmOptions) -> Result<Swarm<IdentityGossipBehaviour>> {
@@ -45,18 +44,19 @@ pub async fn create_swarm(options: SwarmOptions) -> Result<Swarm<IdentityGossipB
 
         let gossipsub_result = Gossipsub::new(MessageAuthenticity::Anonymous, gossipsub_config);
         let gossipsub = gossipsub_result.expect("Correct configuration");
-        let mdns = libp2p::mdns::Mdns::new(Default::default()).await?;
-        /*let behaviour = IdentityGossipBehaviour {
-            gossipsub: gossipsub,
-            mdns: mdns,
-            identities: HashMap::new(),
-            sender: options.sender,
-            store: options.store,
-        };*/
+        let identify = Identify::new(IdentifyConfig::new(
+            "rendezvous-example/1.0.0".to_string(),
+            local_key.public(),
+        ));
+        let rendezvous = rendezvous::client::Behaviour::new(local_key.clone());
+        let ping = ping::Ping::new(ping::Config::new().with_keep_alive(true));
+
         let behaviour = IdentityGossipBehaviour {
+            identify: identify,
+            rendezvous: rendezvous,
+            ping: ping,
             gossipsub: gossipsub,
-            mdns: mdns,
-            store:options.store
+            store: options.store,
         };
         let executor = Box::new(|fut| {
             tokio::spawn(fut);

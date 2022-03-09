@@ -14,10 +14,7 @@ impl FileStore {
         let base_path = std::env::var("BASE_PATH").expect("$BASE_PATH is not set");
         format!("{}/{}/{}.json", base_path, entity, id)
     }
-}
-
-/*impl IdStore for FileStore {
-    fn put(&self, id: &str, value: Identity) {
+    pub fn put(&self, id: &str, value: Identity) {
         let file_id = id[8..].to_string();
         let path = self.get_path("identities", &file_id);
         if !std::path::Path::new(&path).exists() {
@@ -27,7 +24,7 @@ impl FileStore {
         serde_json::to_writer_pretty(&file, &value).unwrap();
     }
 
-    fn get(&self, id: &str) -> Option<Identity> {
+    pub fn get(&self, id: &str) -> Option<Identity> {
         let file_id = id[8..].to_string();
         let path = self.get_path("identities", &file_id);
         let result = File::open(&path);
@@ -39,7 +36,9 @@ impl FileStore {
         }
         None
     }
-}*/
+}
+
+
 
 impl WalletStore for FileStore {
     fn put_wallet(&self, name: &str, value: Wallet) {

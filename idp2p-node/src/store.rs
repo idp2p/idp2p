@@ -70,7 +70,5 @@ impl IdEntry {
             is_hosted: false,
             did: did,
         }
-    }
-
-    
+    }   
 }

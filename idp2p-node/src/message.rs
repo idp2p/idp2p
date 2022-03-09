@@ -34,21 +34,4 @@ mod tests {
         let message = IdentityMessage::new(IdentityMessagePayload::Get);
         assert_eq!(idp2p_common::decode(&message.id).len(), 32);
     }
-
-    /*#[test]
-    fn handle_get_test() {
-        let message = IdentityMessage::new(IdentityMessagePayload::Get);
-        let store = MockIdStore{};
-        let r = message.handle("did:p2p:1234", &mut map, store);
-        assert!(r.is_ok());
-    }
-
-    struct MockIdStore {}
-
-    impl IdStore for MockIdStore {
-        fn put(&self, key: &str, value: Identity) {}
-        fn get(&self, key: &str) -> Option<Identity> {
-            Identity::new(&vec![], &vec![])
-        }
-    }*/
 }

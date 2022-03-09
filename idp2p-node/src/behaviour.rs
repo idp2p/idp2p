@@ -6,28 +6,41 @@ use idp2p_common::serde_json;
 use idp2p_core::did::Identity;
 use libp2p::{
     gossipsub::{Gossipsub, GossipsubEvent, IdentTopic},
-    mdns::{Mdns, MdnsEvent},
+    identify::{Identify, IdentifyEvent},
+    multiaddr::Protocol,
+    ping::{Ping, PingEvent},
+    rendezvous,
     swarm::NetworkBehaviourEventProcess,
-    NetworkBehaviour,
+    Multiaddr, NetworkBehaviour,
 };
 use serde::{Deserialize, Serialize};
 
 #[derive(NetworkBehaviour)]
 #[behaviour(event_process = true)]
+#[behaviour(out_event = "BootstrapEvent")]
 pub struct IdentityGossipBehaviour {
+    pub identify: Identify,
+    pub rendezvous: rendezvous::client::Behaviour,
+    pub ping: Ping,
     pub gossipsub: Gossipsub,
-    pub mdns: Mdns,
     #[behaviour(ignore)]
     pub store: IdStore,
 }
 
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
 pub enum IdentityEvent {
-    Skipped,
+    Discovered { addr: Multiaddr },
     Created { id: String },
     Updated { id: String },
     Requested { id: String },
     ReceivedJwm { id: String, jwm: String },
+}
+
+#[derive(Debug)]
+pub enum BootstrapEvent {
+    Rendezvous(rendezvous::client::Event),
+    Ping(PingEvent),
+    Identify(IdentifyEvent),
 }
 
 impl IdentityGossipBehaviour {
@@ -121,19 +134,44 @@ impl NetworkBehaviourEventProcess<GossipsubEvent> for IdentityGossipBehaviour {
     }
 }
 
-impl NetworkBehaviourEventProcess<MdnsEvent> for IdentityGossipBehaviour {
-    fn inject_event(&mut self, event: MdnsEvent) {
-        match event {
-            MdnsEvent::Discovered(list) => {
-                for (peer, _) in list {
-                    self.gossipsub.add_explicit_peer(&peer);
-                }
-            }
-            MdnsEvent::Expired(list) => {
-                for (peer, _) in list {
-                    if !self.mdns.has_node(&peer) {
-                        self.gossipsub.remove_explicit_peer(&peer);
-                    }
+impl NetworkBehaviourEventProcess<IdentifyEvent> for IdentityGossipBehaviour {
+    fn inject_event(&mut self, event: IdentifyEvent) {
+        if let IdentifyEvent::Received { peer_id, .. } = event {
+            println!("Identify event: {}", peer_id);
+            self.rendezvous.register(
+                rendezvous::Namespace::from_static("rendezvous"),
+                peer_id,
+                None,
+            );
+        }
+    }
+}
+
+impl NetworkBehaviourEventProcess<PingEvent> for IdentityGossipBehaviour {
+    fn inject_event(&mut self, _: PingEvent) {}
+}
+
+impl NetworkBehaviourEventProcess<rendezvous::client::Event> for IdentityGossipBehaviour {
+    fn inject_event(&mut self, event: rendezvous::client::Event) {
+        if let rendezvous::client::Event::Discovered { registrations, .. } = event {
+            for registration in registrations {
+                for address in registration.record.addresses() {
+                    let peer = registration.record.peer_id();
+                    let p2p_suffix = Protocol::P2p(*peer.as_ref());
+                    let address_with_p2p =
+                        if !address.ends_with(&Multiaddr::empty().with(p2p_suffix.clone())) {
+                            address.clone().with(p2p_suffix)
+                        } else {
+                            address.clone()
+                        };
+                    self.store
+                        .shared
+                        .sender
+                        .try_send(IdentityEvent::Discovered {
+                            addr: address_with_p2p,
+                        })
+                        .expect("Couldn't send event");
+                    println!("Peer {}, Addr: {}", peer, address);
                 }
             }
         }
