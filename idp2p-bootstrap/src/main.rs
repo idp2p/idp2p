@@ -1,4 +1,5 @@
 use crate::ping::PingEvent;
+use idp2p_common::decode_sized;
 use libp2p::core::identity;
 use libp2p::core::PeerId;
 use libp2p::futures::StreamExt;
@@ -9,12 +10,11 @@ use libp2p::swarm::NetworkBehaviourEventProcess;
 use libp2p::swarm::{Swarm, SwarmEvent};
 use libp2p::NetworkBehaviour;
 use libp2p::{development_transport, rendezvous};
-use idp2p_common::decode_sized;
 
 #[tokio::main]
 async fn main() {
     let args: Vec<String> = std::env::args().collect();
-    let bytes: [u8;32] = decode_sized(&args[1]).unwrap();
+    let bytes: [u8; 32] = decode_sized(&args[1]).unwrap();
     let key = identity::ed25519::SecretKey::from_bytes(bytes).unwrap();
     let identity = identity::Keypair::Ed25519(key.into());
     println!("Peer id: {}", identity.public().to_peer_id());
@@ -34,12 +34,15 @@ async fn main() {
     swarm.listen_on(addr.parse().unwrap()).unwrap();
     while let Some(event) = swarm.next().await {
         match event {
+            SwarmEvent::NewListenAddr { address, .. } => {
+                println!("Listening on {:?}", address);
+            }
             SwarmEvent::ConnectionEstablished { peer_id, .. } => {
                 println!("Connected to {}", peer_id);
             }
             SwarmEvent::ConnectionClosed { peer_id, .. } => {
                 println!("Disconnected from {}", peer_id);
-            },
+            }
             _ => {}
         }
     }
@@ -58,7 +61,7 @@ pub enum BootstrapEvent {
 struct BootstrapBehaviour {
     identify: Identify,
     rendezvous: rendezvous::server::Behaviour,
-    ping: Ping
+    ping: Ping,
 }
 
 impl NetworkBehaviourEventProcess<IdentifyEvent> for BootstrapBehaviour {

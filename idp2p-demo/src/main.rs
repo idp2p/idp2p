@@ -21,11 +21,13 @@ use tokio::sync::mpsc::channel;
 struct Opt {
     #[structopt(short = "p", long = "port", default_value = "43727")]
     port: u16,
-    #[structopt(short = "a", long = "addr", default_value = "/ip4/127.0.0.1/tcp/43727")]
+    #[structopt(short = "a", long = "addr", default_value = "0.0.0.0")]
+    address: String,
+    #[structopt(short = "r", long = "r_addr", default_value = "/ip4/127.0.0.1/tcp/43727")]
     rendezvous_address: String,
     #[structopt(
         short = "i",
-        long = "id",
+        long = "r_id",
         default_value = "12D3KooWDpJ7As7BWAwRMfu1VU2WCqNjvq387JEYKDBj4kx6nXTN"
     )]
     rendezvous_id: String,
@@ -42,6 +44,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let mut stdin = io::BufReader::new(io::stdin()).lines();
     let (tx, mut rx) = channel::<IdentityEvent>(100);
     let options = SwarmOptions {
+        addr: opt.address,
         port: opt.port,
         store: IdStore::new(tx.clone()),
     };

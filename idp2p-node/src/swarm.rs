@@ -17,6 +17,7 @@ use std::hash::{Hash, Hasher};
 use std::time::Duration;
 
 pub struct SwarmOptions {
+    pub addr: String, 
     pub port: u16,
     pub store: IdStore,
 }
@@ -65,6 +66,6 @@ pub async fn create_swarm(options: SwarmOptions) -> Result<Swarm<IdentityGossipB
             .executor(executor)
             .build()
     };
-    swarm.listen_on(format!("/ip4/0.0.0.0/tcp/{}", options.port).parse()?)?;
+    swarm.listen_on(format!("/ip4/{}/tcp/{}", options.addr, options.port).parse()?)?;
     Ok(swarm)
 }
