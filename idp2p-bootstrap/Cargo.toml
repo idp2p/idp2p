@@ -6,6 +6,9 @@ copyright = "2022, Adem Caglin"
 authors = ["adem caglin <adem.caglin@gmail.com>"] 
 
 [dependencies]
-dotenv = "0.15.0"
+idp2p_common = { version = "0.1.0", path = "../idp2p-common" }
 tokio = { version = "1.13.0", features = ["full"] }
 libp2p = {version = "0.41.0", features= ["tcp-tokio"]}
+
+[dev-dependencies]
+cargo-deb = "1.36.0"
