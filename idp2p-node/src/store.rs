@@ -1,10 +1,10 @@
 use crate::behaviour::IdentityEvent;
+use idp2p_common::chrono::Utc;
 use idp2p_core::did::Identity;
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::sync::Mutex;
 use tokio::sync::mpsc::Sender;
-use idp2p_common::chrono::Utc;
 
 pub struct IdStore {
     pub shared: Arc<IdShared>,
@@ -51,6 +51,13 @@ impl IdStore {
         let mut state = self.shared.state.lock().unwrap();
         state.entries.insert(id.to_owned(), entry);
     }
+
+    pub fn publish_event(&self, event: IdentityEvent) {
+        self.shared
+            .sender
+            .try_send(event)
+            .expect("Couldn't send event");
+    }
 }
 
 impl IdEntry {
@@ -70,5 +77,5 @@ impl IdEntry {
             is_hosted: false,
             did: did,
         }
-    }   
+    }
 }

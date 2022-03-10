@@ -70,6 +70,8 @@ impl IdentityGossipBehaviour {
                 };
                 let mes = IdentityMessage::new(payload);
                 self.publish(entry.did.id.clone(), mes)?;
+                let event = IdentityEvent::Requested { id: id.to_owned() };
+                self.store.publish_event(event);
             } else {
                 // to do()
             }
@@ -84,6 +86,10 @@ impl IdentityGossipBehaviour {
                 identity.verify()?;
                 let entry = IdEntry::from(identity.clone());
                 self.store.put(&identity.id, entry);
+                let event = IdentityEvent::Created {
+                    id: identity.id.clone(),
+                };
+                self.store.publish_event(event);
             }
             Some(entry) => {
                 if digest != entry.digest {
@@ -94,6 +100,10 @@ impl IdentityGossipBehaviour {
                     };
                     self.store.put(&identity.id, new_entry);
                 }
+                let event = IdentityEvent::Updated {
+                    id: identity.id.clone(),
+                };
+                self.store.publish_event(event);
             }
         }
         Ok(())
@@ -118,16 +128,12 @@ impl NetworkBehaviourEventProcess<GossipsubEvent> for IdentityGossipBehaviour {
                     self.handle_post(digest, identity)
                 }
                 IdentityMessagePayload::Jwm { message } => {
-                    Ok(())
-                    /*let event = IdentityEvent::ReceivedJwm {
+                    let event = IdentityEvent::ReceivedJwm {
                         id: topic.to_owned(),
                         jwm: message.to_owned(),
                     };
-                    self.store
-                        .shared
-                        .sender
-                        .try_send(event)
-                        .expect("Couldn't send event");*/
+                    self.store.publish_event(event);
+                    Ok(())
                 }
             };
         }
@@ -164,13 +170,9 @@ impl NetworkBehaviourEventProcess<rendezvous::client::Event> for IdentityGossipB
                         } else {
                             address.clone()
                         };
-                    self.store
-                        .shared
-                        .sender
-                        .try_send(IdentityEvent::Discovered {
-                            addr: address_with_p2p,
-                        })
-                        .expect("Couldn't send event");
+                    self.store.publish_event(IdentityEvent::Discovered {
+                        addr: address_with_p2p,
+                    });
                     println!("Peer {}, Addr: {}", peer, address);
                 }
             }

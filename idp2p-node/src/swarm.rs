@@ -3,23 +3,52 @@ use crate::store::IdStore;
 use idp2p_common::anyhow::Result;
 use libp2p::Swarm;
 use libp2p::{
+    core,
+    core::muxing::StreamMuxerBox,
+    core::transport::Boxed,
+    dns,
     gossipsub::{
         Gossipsub, GossipsubConfigBuilder, GossipsubMessage, MessageAuthenticity, MessageId,
         ValidationMode,
     },
     identify::{Identify, IdentifyConfig},
-    identity, rendezvous, ping,
+    identity, mplex, noise, ping, rendezvous,
     swarm::SwarmBuilder,
-    PeerId,
+    tcp, websocket, yamux, PeerId, Transport,
 };
 use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
 use std::time::Duration;
 
 pub struct SwarmOptions {
-    pub addr: String, 
+    pub addr: String,
     pub port: u16,
     pub store: IdStore,
+}
+
+pub async fn build_transport(
+    keypair: identity::Keypair,
+) -> std::io::Result<Boxed<(PeerId, StreamMuxerBox)>> {
+    let transport = {
+        let tcp = tcp::TcpConfig::new().nodelay(true);
+        let dns_tcp = dns::DnsConfig::system(tcp).await?;
+        let ws_dns_tcp = websocket::WsConfig::new(dns_tcp.clone());
+        dns_tcp.or_transport(ws_dns_tcp)
+    };
+
+    let noise_keys = noise::Keypair::<noise::X25519Spec>::new()
+        .into_authentic(&keypair)
+        .expect("Signing libp2p-noise static DH keypair failed.");
+
+    Ok(transport
+        .upgrade(core::upgrade::Version::V1)
+        .authenticate(noise::NoiseConfig::xx(noise_keys).into_authenticated())
+        .multiplex(core::upgrade::SelectUpgrade::new(
+            yamux::YamuxConfig::default(),
+            mplex::MplexConfig::default(),
+        ))
+        .timeout(std::time::Duration::from_secs(20))
+        .boxed())
 }
 
 pub async fn create_swarm(options: SwarmOptions) -> Result<Swarm<IdentityGossipBehaviour>> {
@@ -27,7 +56,7 @@ pub async fn create_swarm(options: SwarmOptions) -> Result<Swarm<IdentityGossipB
     let local_peer_id = PeerId::from(local_key.public());
     println!("Local peer id: {:?}", local_peer_id);
 
-    let transport = libp2p::development_transport(local_key.clone()).await?;
+    let transport = build_transport(local_key.clone()).await?;
 
     let mut swarm = {
         let message_id_fn = |message: &GossipsubMessage| {
