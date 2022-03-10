@@ -17,4 +17,4 @@ idp2p_core = { version = "0.1.0", path = "../idp2p-core" }
 idp2p_node = { version = "0.1.0", path = "../idp2p-node" }
 idp2p_wallet = { version = "0.1.0", path = "../idp2p-wallet" }
 idp2p_didcomm = { version = "0.1.0", path = "../idp2p-didcomm" }
-libp2p = {version = "0.41.0", features= ["tcp-tokio", "mdns"]}
+libp2p = "0.43.0"

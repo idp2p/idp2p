@@ -9,7 +9,7 @@ use libp2p::{
     identify::{Identify, IdentifyEvent},
     multiaddr::Protocol,
     ping::{Ping, PingEvent},
-    rendezvous,
+    rendezvous, autonat,
     swarm::NetworkBehaviourEventProcess,
     Multiaddr, NetworkBehaviour,
 };
@@ -20,6 +20,7 @@ use serde::{Deserialize, Serialize};
 #[behaviour(out_event = "BootstrapEvent")]
 pub struct IdentityGossipBehaviour {
     pub identify: Identify,
+    pub auto_nat: autonat::Behaviour,
     pub rendezvous: rendezvous::client::Behaviour,
     pub ping: Ping,
     pub gossipsub: Gossipsub,
@@ -155,6 +156,12 @@ impl NetworkBehaviourEventProcess<IdentifyEvent> for IdentityGossipBehaviour {
 
 impl NetworkBehaviourEventProcess<PingEvent> for IdentityGossipBehaviour {
     fn inject_event(&mut self, _: PingEvent) {}
+}
+
+impl NetworkBehaviourEventProcess<autonat::Event> for IdentityGossipBehaviour {
+    fn inject_event(&mut self, event: autonat::Event) {
+        //println!("{:?}", event);
+    }
 }
 
 impl NetworkBehaviourEventProcess<rendezvous::client::Event> for IdentityGossipBehaviour {

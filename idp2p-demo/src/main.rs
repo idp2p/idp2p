@@ -23,7 +23,11 @@ struct Opt {
     port: u16,
     #[structopt(short = "a", long = "addr", default_value = "0.0.0.0")]
     address: String,
-    #[structopt(short = "r", long = "r_addr", default_value = "/ip4/127.0.0.1/tcp/43727")]
+    #[structopt(
+        short = "r",
+        long = "r_addr",
+        default_value = "/ip4/127.0.0.1/tcp/43727"
+    )]
     rendezvous_address: String,
     #[structopt(
         short = "i",
@@ -51,7 +55,11 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let mut swarm = create_swarm(options).await?;
     let rendezvous_address = opt.rendezvous_address.parse::<Multiaddr>().unwrap();
     let rendezvous_point = opt.rendezvous_id.parse::<PeerId>().unwrap();
-    swarm.dial(rendezvous_address).unwrap();
+    swarm.dial(rendezvous_address.clone()).unwrap();
+    swarm
+        .behaviour_mut()
+        .auto_nat
+        .add_server(rendezvous_point, Some(rendezvous_address));
     loop {
         tokio::select! {
             line = stdin.next_line() => {

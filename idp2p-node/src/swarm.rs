@@ -12,7 +12,7 @@ use libp2p::{
         ValidationMode,
     },
     identify::{Identify, IdentifyConfig},
-    identity, mplex, noise, ping, rendezvous,
+    identity, mplex, noise, ping, rendezvous, autonat,
     swarm::SwarmBuilder,
     tcp, websocket, yamux, PeerId, Transport,
 };
@@ -80,13 +80,15 @@ pub async fn create_swarm(options: SwarmOptions) -> Result<Swarm<IdentityGossipB
         ));
         let rendezvous = rendezvous::client::Behaviour::new(local_key.clone());
         let ping = ping::Ping::new(ping::Config::new().with_keep_alive(true));
-
+        let auto_nat =
+            autonat::Behaviour::new(local_key.public().to_peer_id(), autonat::Config::default());
         let behaviour = IdentityGossipBehaviour {
             identify: identify,
             rendezvous: rendezvous,
             ping: ping,
             gossipsub: gossipsub,
             store: options.store,
+            auto_nat: auto_nat
         };
         let executor = Box::new(|fut| {
             tokio::spawn(fut);
