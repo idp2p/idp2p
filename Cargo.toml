@@ -8,5 +8,6 @@ members = [
     "idp2p-node",
     "idp2p-wallet",
     "idp2p-bootstrap",
-    "idp2p-demo"
+    "idp2p-demo",
+    "dctur-client"
 ]

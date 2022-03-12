@@ -11,14 +11,13 @@ use libp2p::swarm::{Swarm, SwarmEvent};
 use libp2p::NetworkBehaviour;
 use libp2p::{development_transport, rendezvous};
 use libp2p::relay::v2::relay::{self, Relay};
-//use std::collections::hash_map::DefaultHasher;
-//use std::hash::{Hash, Hasher};
-//use std::time::Duration;
-//use libp2p::autonat;
-/*use libp2p::gossipsub::{
+use std::collections::hash_map::DefaultHasher;
+use std::hash::{Hash, Hasher};
+use std::time::Duration;
+use libp2p::gossipsub::{
     Gossipsub, GossipsubConfigBuilder, GossipsubEvent, GossipsubMessage, MessageAuthenticity,
     MessageId, ValidationMode,
-};*/
+};
 
 #[tokio::main]
 async fn main() {
@@ -26,7 +25,7 @@ async fn main() {
     let bytes: [u8; 32] = decode_sized(&args[1]).unwrap();
     let key = identity::ed25519::SecretKey::from_bytes(bytes).unwrap();
     let identity = identity::Keypair::Ed25519(key.into());
-    /*let message_id_fn = |message: &GossipsubMessage| {
+    let message_id_fn = |message: &GossipsubMessage| {
         let mut s = DefaultHasher::new();
         message.data.hash(&mut s);
         MessageId::from(s.finish().to_string())
@@ -38,10 +37,8 @@ async fn main() {
         .message_id_fn(message_id_fn)
         .build()
         .expect("Valid config");
-    let auto_nat =
-        autonat::Behaviour::new(identity.public().to_peer_id(), autonat::Config::default());
     let gossipsub_result = Gossipsub::new(MessageAuthenticity::Anonymous, gossipsub_config);
-    let gossipsub = gossipsub_result.expect("Correct configuration");*/
+    let gossipsub = gossipsub_result.expect("Correct configuration");
     let ping = Ping::new(ping::Config::new().with_keep_alive(true));
     let rendezvous = rendezvous::server::Behaviour::new(rendezvous::server::Config::default());
     let identify = Identify::new(IdentifyConfig::new(
@@ -56,9 +53,8 @@ async fn main() {
             identify,
             rendezvous,
             ping,
-            relay
-            //auto_nat,
-            //gossipsub,
+            relay,
+            gossipsub,
         },
         PeerId::from(identity.public()),
     );
@@ -86,7 +82,6 @@ pub enum BootstrapEvent {
     Ping(PingEvent),
     Identify(IdentifyEvent),
     Relay(relay::Event)
-    //AutoNat(autonat::Event),
 }
 
 #[derive(NetworkBehaviour)]
@@ -96,9 +91,8 @@ struct BootstrapBehaviour {
     identify: Identify,
     rendezvous: rendezvous::server::Behaviour,
     ping: Ping,
-    relay: Relay
-    //auto_nat: autonat::Behaviour,
-    //gossipsub: Gossipsub,
+    relay: Relay,
+    gossipsub: Gossipsub,
 }
 
 impl NetworkBehaviourEventProcess<IdentifyEvent> for BootstrapBehaviour {
@@ -125,15 +119,9 @@ impl NetworkBehaviourEventProcess<rendezvous::server::Event> for BootstrapBehavi
     }
 }
 
-/*impl NetworkBehaviourEventProcess<GossipsubEvent> for BootstrapBehaviour {
+impl NetworkBehaviourEventProcess<GossipsubEvent> for BootstrapBehaviour {
     fn inject_event(&mut self, e: GossipsubEvent) {
         println!("{:?}", e);
     }
 }
 
-
-impl NetworkBehaviourEventProcess<autonat::Event> for BootstrapBehaviour {
-    fn inject_event(&mut self, event: autonat::Event) {
-        //println!("{:?}", event);
-    }
-}*/

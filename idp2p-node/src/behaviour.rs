@@ -4,12 +4,15 @@ use crate::store::IdStore;
 use idp2p_common::anyhow::Result;
 use idp2p_common::serde_json;
 use idp2p_core::did::Identity;
+use libp2p::dcutr;
+use libp2p::relay::v2::client::{self, Client};
 use libp2p::{
+    autonat,
     gossipsub::{Gossipsub, GossipsubEvent, IdentTopic},
     identify::{Identify, IdentifyEvent},
     multiaddr::Protocol,
     ping::{Ping, PingEvent},
-    rendezvous, autonat,
+    rendezvous,
     swarm::NetworkBehaviourEventProcess,
     Multiaddr, NetworkBehaviour,
 };
@@ -24,6 +27,8 @@ pub struct IdentityGossipBehaviour {
     pub rendezvous: rendezvous::client::Behaviour,
     pub ping: Ping,
     pub gossipsub: Gossipsub,
+    pub relay_client: Client,
+    pub dcutr: dcutr::behaviour::Behaviour,
     #[behaviour(ignore)]
     pub store: IdStore,
 }
@@ -159,8 +164,17 @@ impl NetworkBehaviourEventProcess<PingEvent> for IdentityGossipBehaviour {
 }
 
 impl NetworkBehaviourEventProcess<autonat::Event> for IdentityGossipBehaviour {
-    fn inject_event(&mut self, event: autonat::Event) {
-        //println!("{:?}", event);
+    fn inject_event(&mut self, _: autonat::Event) {}
+}
+
+impl NetworkBehaviourEventProcess<client::Event> for IdentityGossipBehaviour {
+    fn inject_event(&mut self, event: client::Event) {
+        println!("{:?}", event);
+    }
+}
+impl NetworkBehaviourEventProcess<dcutr::behaviour::Event> for IdentityGossipBehaviour {
+    fn inject_event(&mut self, event: dcutr::behaviour::Event) {
+        println!("{:?}", event);
     }
 }
 

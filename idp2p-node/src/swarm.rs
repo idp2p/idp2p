@@ -82,13 +82,16 @@ pub async fn create_swarm(options: SwarmOptions) -> Result<Swarm<IdentityGossipB
         let ping = ping::Ping::new(ping::Config::new().with_keep_alive(true));
         let auto_nat =
             autonat::Behaviour::new(local_key.public().to_peer_id(), autonat::Config::default());
+        let dctur = dcutr::behaviour::Behaviour::new();
         let behaviour = IdentityGossipBehaviour {
             identify: identify,
             rendezvous: rendezvous,
             ping: ping,
             gossipsub: gossipsub,
             store: options.store,
-            auto_nat: auto_nat
+            auto_nat: auto_nat,
+            dctur: dcutr,
+            relay_client: 
         };
         let executor = Box::new(|fut| {
             tokio::spawn(fut);
