@@ -56,10 +56,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let rendezvous_address = opt.rendezvous_address.parse::<Multiaddr>().unwrap();
     let rendezvous_point = opt.rendezvous_id.parse::<PeerId>().unwrap();
     swarm.dial(rendezvous_address.clone()).unwrap();
-    swarm
-        .behaviour_mut()
-        .auto_nat
-        .add_server(rendezvous_point, Some(rendezvous_address));
+    
     loop {
         tokio::select! {
             line = stdin.next_line() => {

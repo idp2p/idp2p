@@ -7,7 +7,6 @@ use idp2p_core::did::Identity;
 use libp2p::dcutr;
 use libp2p::relay::v2::client::{self, Client};
 use libp2p::{
-    autonat,
     gossipsub::{Gossipsub, GossipsubEvent, IdentTopic},
     identify::{Identify, IdentifyEvent},
     multiaddr::Protocol,
@@ -23,7 +22,6 @@ use serde::{Deserialize, Serialize};
 #[behaviour(out_event = "BootstrapEvent")]
 pub struct IdentityGossipBehaviour {
     pub identify: Identify,
-    pub auto_nat: autonat::Behaviour,
     pub rendezvous: rendezvous::client::Behaviour,
     pub ping: Ping,
     pub gossipsub: Gossipsub,
@@ -161,10 +159,6 @@ impl NetworkBehaviourEventProcess<IdentifyEvent> for IdentityGossipBehaviour {
 
 impl NetworkBehaviourEventProcess<PingEvent> for IdentityGossipBehaviour {
     fn inject_event(&mut self, _: PingEvent) {}
-}
-
-impl NetworkBehaviourEventProcess<autonat::Event> for IdentityGossipBehaviour {
-    fn inject_event(&mut self, _: autonat::Event) {}
 }
 
 impl NetworkBehaviourEventProcess<client::Event> for IdentityGossipBehaviour {

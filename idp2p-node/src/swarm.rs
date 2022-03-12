@@ -12,13 +12,15 @@ use libp2p::{
         ValidationMode,
     },
     identify::{Identify, IdentifyConfig},
-    identity, mplex, noise, ping, rendezvous, autonat,
+    identity, mplex, noise, ping, rendezvous,
     swarm::SwarmBuilder,
     tcp, websocket, yamux, PeerId, Transport,
 };
 use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
 use std::time::Duration;
+use libp2p::relay::v2::client::{self, Client};
+use libp2p::dcutr;
 
 pub struct SwarmOptions {
     pub addr: String,
@@ -55,7 +57,7 @@ pub async fn create_swarm(options: SwarmOptions) -> Result<Swarm<IdentityGossipB
     let local_key = identity::Keypair::generate_ed25519();
     let local_peer_id = PeerId::from(local_key.public());
     println!("Local peer id: {:?}", local_peer_id);
-
+    let (relay_transport, client) = Client::new_transport_and_behaviour(local_peer_id);
     let transport = build_transport(local_key.clone()).await?;
 
     let mut swarm = {
@@ -80,18 +82,16 @@ pub async fn create_swarm(options: SwarmOptions) -> Result<Swarm<IdentityGossipB
         ));
         let rendezvous = rendezvous::client::Behaviour::new(local_key.clone());
         let ping = ping::Ping::new(ping::Config::new().with_keep_alive(true));
-        let auto_nat =
-            autonat::Behaviour::new(local_key.public().to_peer_id(), autonat::Config::default());
-        let dctur = dcutr::behaviour::Behaviour::new();
+        
+        let dcutr = dcutr::behaviour::Behaviour::new();
         let behaviour = IdentityGossipBehaviour {
             identify: identify,
             rendezvous: rendezvous,
             ping: ping,
             gossipsub: gossipsub,
             store: options.store,
-            auto_nat: auto_nat,
-            dctur: dcutr,
-            relay_client: 
+            dcutr: dcutr,
+            relay_client: client
         };
         let executor = Box::new(|fut| {
             tokio::spawn(fut);
