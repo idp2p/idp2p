@@ -1,0 +1,13 @@
+[package]
+name = "idp2p_peer"
+version = "0.1.0"
+edition = "2021"
+copyright = "2022, Adem Caglin"
+authors = ["adem caglin <adem.caglin@gmail.com>"] 
+
+[dependencies]
+serde = { version = "1.0.130", features = ["derive"] }
+tokio = { version = "1.13.0", features = ["full"] }
+libp2p = {version = "0.43.0", features=["default", "dcutr"] }
+idp2p_common = { version = "0.1.0", path = "../idp2p-common" }
+idp2p_core = { version = "0.1.0", path = "../idp2p-core" }

@@ -7,7 +7,4 @@ members = [
     "idp2p-didcomm",
     "idp2p-node",
     "idp2p-wallet",
-    "idp2p-bootstrap",
-    "idp2p-demo",
-    "dctur-client"
 ]

@@ -26,6 +26,7 @@ use std::net::Ipv4Addr;
 use std::str::FromStr;
 use std::time::Duration;
 use structopt::StructOpt;
+use tokio::io::{self, AsyncBufReadExt};
 
 #[derive(Debug, StructOpt)]
 #[structopt(name = "libp2p DCUtR client")]
@@ -63,7 +64,6 @@ impl FromStr for Mode {
         }
     }
 }
-
 fn main() -> Result<(), Box<dyn Error>> {
     let opts = Opts::from_args();
 
@@ -170,8 +170,15 @@ fn main() -> Result<(), Box<dyn Error>> {
                 .with(Protocol::Tcp(0)),
         )
         .unwrap();
-
+    if opts.mode == Mode::Listen {
+        swarm
+            .behaviour_mut()
+            .gossipsub
+            .subscribe(&IdentTopic::new("hayyam"))
+            .unwrap();
+    }
     // Wait to listen on all interfaces.
+    let mut stdin = io::BufReader::new(io::stdin()).lines();
     block_on(async {
         let mut delay = futures_timer::Delay::new(std::time::Duration::from_secs(1)).fuse();
         loop {
@@ -195,25 +202,10 @@ fn main() -> Result<(), Box<dyn Error>> {
     match opts.mode {
         Mode::Dial => {
             swarm.dial(opts.relay_address.clone()).unwrap();
-            swarm
-                .behaviour_mut()
-                .gossipsub
-                .subscribe(&IdentTopic::new("hayyam"))
-                .unwrap();
-            swarm
-                .behaviour_mut()
-                .gossipsub
-                .publish(IdentTopic::new("hayyam"), "adem")
-                .unwrap();
         }
         Mode::Listen => {
             swarm
                 .listen_on(opts.relay_address.clone().with(Protocol::P2pCircuit))
-                .unwrap();
-            swarm
-                .behaviour_mut()
-                .gossipsub
-                .subscribe(&IdentTopic::new("hayyam"))
                 .unwrap();
         }
     }
@@ -250,6 +242,11 @@ fn main() -> Result<(), Box<dyn Error>> {
                     .with(Protocol::P2p(opts.remote_peer_id.unwrap().into())),
             )
             .unwrap();
+        swarm
+            .behaviour_mut()
+            .gossipsub
+            .subscribe(&IdentTopic::new("hayyam"))
+            .unwrap();
     }
 
     block_on(async {
@@ -275,6 +272,13 @@ fn main() -> Result<(), Box<dyn Error>> {
                     peer_id, endpoint, ..
                 } => {
                     println!("Established connection to {:?} via {:?}", peer_id, endpoint);
+                    if opts.mode == Mode::Dial{
+                        swarm
+                     .behaviour_mut()
+                     .gossipsub
+                    .publish(IdentTopic::new("hayyam"), "mmmm".to_owned())
+                    .unwrap();
+                    }
                 }
                 SwarmEvent::OutgoingConnectionError { peer_id, error } => {
                     println!("Outgoing connection error to {:?}: {:?}", peer_id, error);
@@ -282,7 +286,8 @@ fn main() -> Result<(), Box<dyn Error>> {
                 _ => {}
             }
         }
-    })
+    });
+    Ok(())
 }
 
 fn generate_ed25519(secret_key_seed: u8) -> identity::Keypair {
