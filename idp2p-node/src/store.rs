@@ -1,8 +1,8 @@
+use crate::IdentityEvent;
 use tokio::sync::mpsc::Sender;
-use crate::did::Identity;
+use idp2p_core::did::Identity;
 use idp2p_common::anyhow::Result;
 use idp2p_common::chrono::Utc;
-use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::sync::Mutex;
@@ -14,19 +14,12 @@ pub struct IdStore {
 pub struct IdShared {
     pub state: Mutex<IdState>,
     pub tx: Sender<IdentityEvent>,
+    pub owner: Identity,
 }
 
 #[derive(PartialEq, Debug, Clone)]
 pub struct IdState {
     pub entries: HashMap<String, IdEntry>,
-}
-
-#[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
-pub enum IdentityEvent {
-    Created { id: String },
-    Updated { id: String },
-    Skipped { id: String },
-    Published { id: String }
 }
 
 #[derive(PartialEq, Debug, Clone)]
@@ -39,12 +32,13 @@ pub struct IdEntry {
 }
 
 impl IdStore {
-    pub fn new(tx: Sender<IdentityEvent>) -> IdStore {
+    pub fn new(tx: Sender<IdentityEvent>, owner: Identity) -> IdStore {
         let state = IdState {
             entries: HashMap::new(),
         };
         let shared = Arc::new(IdShared {
             state: Mutex::new(state),
+            owner: owner,
             tx: tx
         });
         tokio::spawn(listen_events(shared.clone()));

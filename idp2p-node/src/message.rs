@@ -1,4 +1,5 @@
-use crate::did::Identity;
+use idp2p_core::did::Identity;
+use libp2p::gossipsub::{Gossipsub, IdentTopic};
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
@@ -31,6 +32,16 @@ impl IdentityMessage {
             identity: did,
         };
         Self::new(payload)
+    }
+
+    pub(crate) fn publish(&self, gossip: &mut Gossipsub, id: &str) {
+        let gossip_topic = IdentTopic::new(id);
+        let json_str = idp2p_common::serde_json::to_string(&self).unwrap();
+        let result = gossip.publish(gossip_topic, json_str.as_bytes());
+        match result {
+            Ok(_) => println!("Published id: {}", id),
+            Err(e) => println!("Publish error, {:?}", e),
+        }
     }
 }
 
