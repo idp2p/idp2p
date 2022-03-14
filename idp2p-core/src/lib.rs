@@ -1,4 +1,3 @@
-use crate::did::Identity;
 use idp2p_common::thiserror::Error;
 
 #[derive(Error, Debug)]
@@ -33,4 +32,6 @@ pub mod did;
 pub mod did_doc;
 pub mod eventlog;
 pub mod microledger;
+pub mod message;
+pub mod store;
 pub mod ver_cred;

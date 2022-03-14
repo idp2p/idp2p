@@ -1,5 +1,7 @@
+use idp2p_core::store::IdentityEvent;
+use tokio::sync::mpsc::Sender;
 use crate::behaviour::IdentityGossipBehaviour;
-use crate::store::IdStore;
+use idp2p_core::store::IdStore;
 use idp2p_common::anyhow::Result;
 use libp2p::Swarm;
 use libp2p::{
@@ -12,20 +14,18 @@ use libp2p::{
         ValidationMode,
     },
     identify::{Identify, IdentifyConfig},
-    identity, mplex, noise, ping, rendezvous,
+    identity, mplex, noise, rendezvous,
     swarm::SwarmBuilder,
     tcp, websocket, yamux, PeerId, Transport,
 };
 use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
 use std::time::Duration;
-use libp2p::relay::v2::client::{self, Client};
-use libp2p::dcutr;
+use libp2p::relay::v2::relay::Relay;
 
 pub struct SwarmOptions {
-    pub addr: String,
     pub port: u16,
-    pub store: IdStore,
+    pub tx: Sender<IdentityEvent>
 }
 
 pub async fn build_transport(
@@ -57,7 +57,6 @@ pub async fn create_swarm(options: SwarmOptions) -> Result<Swarm<IdentityGossipB
     let local_key = identity::Keypair::generate_ed25519();
     let local_peer_id = PeerId::from(local_key.public());
     println!("Local peer id: {:?}", local_peer_id);
-    let (relay_transport, client) = Client::new_transport_and_behaviour(local_peer_id);
     let transport = build_transport(local_key.clone()).await?;
 
     let mut swarm = {
@@ -80,18 +79,15 @@ pub async fn create_swarm(options: SwarmOptions) -> Result<Swarm<IdentityGossipB
             "rendezvous-example/1.0.0".to_string(),
             local_key.public(),
         ));
-        let rendezvous = rendezvous::client::Behaviour::new(local_key.clone());
-        let ping = ping::Ping::new(ping::Config::new().with_keep_alive(true));
-        
-        let dcutr = dcutr::behaviour::Behaviour::new();
+        let rendezvous = rendezvous::server::Behaviour::new(rendezvous::server::Config::default());
+        let relay = Relay::new(local_key.public().to_peer_id(), Default::default());
+        let id_store = IdStore::new(options.tx.clone());
         let behaviour = IdentityGossipBehaviour {
             identify: identify,
             rendezvous: rendezvous,
-            ping: ping,
             gossipsub: gossipsub,
-            store: options.store,
-            dcutr: dcutr,
-            relay_client: client
+            relay: relay,
+            id_store: id_store
         };
         let executor = Box::new(|fut| {
             tokio::spawn(fut);
@@ -100,6 +96,6 @@ pub async fn create_swarm(options: SwarmOptions) -> Result<Swarm<IdentityGossipB
             .executor(executor)
             .build()
     };
-    swarm.listen_on(format!("/ip4/{}/tcp/{}", options.addr, options.port).parse()?)?;
+    swarm.listen_on(format!("/ip4/0.0.0.0/tcp/{}", options.port).parse()?)?;
     Ok(swarm)
 }
