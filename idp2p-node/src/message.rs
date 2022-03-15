@@ -1,3 +1,4 @@
+use idp2p_common::serde_json;
 use idp2p_core::did::Identity;
 use libp2p::gossipsub::{Gossipsub, IdentTopic};
 use serde::{Deserialize, Serialize};
@@ -32,6 +33,11 @@ impl IdentityMessage {
             identity: did,
         };
         Self::new(payload)
+    }
+
+    pub fn from_bytes(mes: &[u8]) -> Self {
+        let err_msg = "Message is not well-formed. It should be json";
+        serde_json::from_slice(mes).expect(err_msg)
     }
 
     pub(crate) fn publish(&self, gossip: &mut Gossipsub, id: &str) {

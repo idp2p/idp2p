@@ -1,11 +1,11 @@
 use crate::IdentityEvent;
-use tokio::sync::mpsc::Sender;
-use idp2p_core::did::Identity;
 use idp2p_common::anyhow::Result;
 use idp2p_common::chrono::Utc;
+use idp2p_core::did::Identity;
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::sync::Mutex;
+use tokio::sync::mpsc::Sender;
 
 pub struct IdStore {
     pub shared: Arc<IdShared>,
@@ -14,7 +14,7 @@ pub struct IdStore {
 pub struct IdShared {
     pub state: Mutex<IdState>,
     pub tx: Sender<IdentityEvent>,
-    pub owner: Identity,
+    pub owner: String,
 }
 
 #[derive(PartialEq, Debug, Clone)]
@@ -38,8 +38,8 @@ impl IdStore {
         };
         let shared = Arc::new(IdShared {
             state: Mutex::new(state),
-            owner: owner,
-            tx: tx
+            owner: owner.id.clone(),
+            tx: tx,
         });
         tokio::spawn(listen_events(shared.clone()));
         IdStore { shared: shared }
@@ -59,7 +59,7 @@ impl IdStore {
         }
     }
 
-    pub fn handle_post(&self, digest: &str, identity: &Identity) -> Result<IdentityEvent> {
+    pub fn handle_post(&self, digest: &str, identity: &Identity) -> Result<()> {
         let mut state = self.shared.state.lock().unwrap();
         let current = state.entries.get(&identity.id).map(|entry| entry.clone());
         match current {
@@ -67,10 +67,6 @@ impl IdStore {
                 identity.verify()?;
                 let entry = IdEntry::from(identity.clone());
                 state.entries.insert(identity.id.clone(), entry);
-                let event = IdentityEvent::Created {
-                    id: identity.id.clone(),
-                };
-                return Ok(event);
             }
             Some(entry) => {
                 if digest != entry.digest {
@@ -80,15 +76,18 @@ impl IdStore {
                         ..entry
                     };
                     state.entries.insert(identity.id.clone(), new_entry);
-                    return Ok(IdentityEvent::Updated {
+                    let event = IdentityEvent::Updated {
                         id: identity.id.clone(),
-                    });
+                    };
+                }else{
+
                 }
             }
         }
-        Ok(IdentityEvent::Skipped {
+        let event = IdentityEvent::Skipped {
             id: identity.id.clone(),
-        })
+        };
+        Ok(())
     }
 }
 
@@ -115,5 +114,6 @@ impl IdEntry {
 }
 
 async fn listen_events(shared: Arc<IdShared>) {
+    let _ = shared.tx.send(IdentityEvent::Skipped { id: "".to_owned() }).await;
     //shared.tx.send()
 }
