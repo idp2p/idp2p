@@ -14,6 +14,9 @@ use idp2p_node::IdentityEvent;
 use libp2p::futures::StreamExt;
 use libp2p::gossipsub::IdentTopic;
 use libp2p::swarm::SwarmEvent;
+use libp2p::Multiaddr;
+use libp2p::PeerId;
+use std::str::FromStr;
 use structopt::StructOpt;
 use tokio::io::AsyncBufReadExt;
 use tokio::sync::mpsc::channel;
@@ -23,8 +26,8 @@ use tokio::sync::mpsc::channel;
 struct Opt {
     #[structopt(short = "p", long = "port", default_value = "43727")]
     port: u16,
-    #[structopt(short = "a", long = "address")]
-    address: Option<String>,
+    #[structopt(short = "r", long = "remote")]
+    remote: Option<String>,
 }
 
 pub fn handle_jwm(jwm: &str, behaviour: &mut IdentityNodeBehaviour) {
@@ -89,10 +92,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     };
     let mut swarm = build_swarm(options).await?;
     let topic = IdentTopic::new(&did.id);
-    swarm.behaviour_mut().gossipsub.subscribe(&topic).unwrap();
+    swarm.behaviour_mut().gossipsub.subscribe(&topic)?;
     swarm.behaviour_mut().id_store.push(did);
-    if opt.address.is_some() {
-        println!("{}", opt.address.unwrap());
+    if let Some(remote) = opt.remote {
+        let vec = remote.split("/").collect::<Vec<&str>>();
+        let to_dial = format!("/ip4/{}/tcp/{}", vec[2], vec[4]);
+        let addr :Multiaddr = to_dial.parse().unwrap();
+        let peer_id = PeerId::from_str(vec[6])?;
+        swarm.dial(addr)?;
+        swarm.behaviour_mut().gossipsub.add_explicit_peer(&peer_id);
     }
     loop {
         tokio::select! {
@@ -106,12 +114,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                         println!("Listening on {:?}", address);
                     }
                     SwarmEvent::Behaviour(IdentityNodeEvent::Gossipsub(event)) =>{
-                       swarm.behaviour_mut().handle_gossipevent(event).await;
+                        println!("Got message: {:?}", event);
+                        swarm.behaviour_mut().handle_gossipevent(event).await;
                     }
                     SwarmEvent::Behaviour(IdentityNodeEvent::Mdns(event)) =>{
                         swarm.behaviour_mut().handle_mdnsevent(event);
                     }
-                    _ => {}
+                    other => {println!("{:?}", other);}
                 }
             }
             event = rx.recv() => {
