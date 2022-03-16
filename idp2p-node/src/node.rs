@@ -5,11 +5,9 @@ use idp2p_common::anyhow::Result;
 use idp2p_core::did::Identity;
 use tokio::sync::mpsc::Sender;
 
-use libp2p::gossipsub::error::GossipsubHandlerError;
 use libp2p::{
     core::muxing::StreamMuxerBox,
     core::transport::Boxed,
-    core::{self, either::EitherError},
     dns,
     gossipsub::{
         Gossipsub, GossipsubConfigBuilder, GossipsubEvent, GossipsubMessage, IdentTopic,
@@ -17,8 +15,8 @@ use libp2p::{
     },
     identity::Keypair,
     mdns::{Mdns, MdnsEvent},
-    mplex, noise,
-    swarm::{Swarm, SwarmBuilder, SwarmEvent},
+    mplex, noise, core,
+    swarm::{Swarm, SwarmBuilder},
     tcp, websocket, yamux, NetworkBehaviour, PeerId, Transport,
 };
 use std::collections::hash_map::DefaultHasher;
@@ -52,7 +50,9 @@ impl IdentityNodeBehaviour {
                     IdentityMessagePayload::Post { digest, identity } => {
                         self.id_store.handle_post(digest, identity).await.unwrap();
                     }
-                    _ => {}
+                    IdentityMessagePayload::Jwm { message } => {
+                        self.id_store.handle_jwm(&topic, message).await;
+                    }
                 }
             }
         }

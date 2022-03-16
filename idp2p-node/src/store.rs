@@ -16,7 +16,7 @@ pub struct IdStore {
 pub struct IdShared {
     state: Mutex<IdState>,
     tx: Sender<IdentityEvent>,
-    owner: String,
+    owner: Identity,
 }
 
 #[derive(PartialEq, Debug, Clone)]
@@ -36,13 +36,13 @@ pub struct IdEntry {
 
 impl IdStore {
     pub fn new(tx: Sender<IdentityEvent>, owner: Identity) -> IdStore {
-        let state = IdState {
+        let mut state = IdState {
             entries: HashMap::new(),
             events: BTreeMap::new(),
         };
         let shared = Arc::new(IdShared {
             state: Mutex::new(state),
-            owner: owner.id.clone(),
+            owner: owner,
             tx: tx,
         });
         tokio::spawn(listen_events(shared.clone()));
@@ -55,11 +55,23 @@ impl IdStore {
         entry.unwrap().did
     }
 
+    pub fn get_owner(&self) -> Identity {
+        self.shared.owner.clone()
+    }
+
     pub fn push(&self, did: Identity) {
         let mut state = self.shared.state.lock().unwrap();
         let id = did.id.clone();
         let entry = IdEntry::new(did);
         state.entries.insert(id, entry);
+    }
+
+    pub async fn handle_jwm(&self, id: &str, jwm: &str) {
+        let event = IdentityEvent::ReceivedJwm {
+            id: id.to_owned(),
+            jwm: jwm.to_owned(),
+        };
+        self.shared.tx.send(event).await.unwrap();
     }
 
     pub async fn handle_get(&self, id: &str) {
@@ -131,10 +143,10 @@ impl IdEntry {
 }
 
 async fn listen_events(shared: Arc<IdShared>) {
-    println!("To do owner: {}", shared.owner);
+    //println!("To do owner: {}", shared.owner.id);
     /*let _ = shared
-        .tx
-        .send(IdentityEvent::Published { id: "".to_owned() })
-        .await;*/
+    .tx
+    .send(IdentityEvent::Published { id: "".to_owned() })
+    .await;*/
     //shared.tx.send()
 }

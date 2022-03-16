@@ -5,6 +5,7 @@ pub enum IdentityEvent {
     Created { id: String },
     Updated { id: String },
     Published { id: String },
+    ReceivedJwm { id: String, jwm: String },
 }
 
 pub mod message;
