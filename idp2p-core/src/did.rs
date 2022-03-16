@@ -1,4 +1,8 @@
+use crate::eventlog::DocumentDigest;
+use crate::eventlog::EventLogChange;
+use crate::did_doc::CreateDocInput;
 use crate::{did_doc::IdDocument, microledger::MicroLedger, IdentityError};
+use idp2p_common::ed_secret::EdSecret;
 use idp2p_common::{anyhow::Result, encode, hash, serde_json, serde_with::skip_serializing_none};
 use serde::{Deserialize, Serialize};
 
@@ -19,6 +23,32 @@ impl Identity {
             microledger: ledger,
             document: None,
         };
+        did
+    }
+
+    pub fn from_secret(secret: EdSecret) -> Self {
+        let mut did = Identity::new(
+            &secret.to_publickey_digest().unwrap(),
+            &secret.to_publickey_digest().unwrap(),
+        );
+        let create_doc_input = CreateDocInput {
+            id: did.id.clone(),
+            assertion_key: secret.to_publickey().to_vec(),
+            authentication_key: secret.to_publickey().to_vec(),
+            keyagreement_key: secret.to_key_agreement().to_vec(),
+        };
+        let identity_doc = IdDocument::new(create_doc_input);
+        let change = EventLogChange::SetDocument(DocumentDigest {
+            value: identity_doc.get_digest(),
+        });
+        did.document = Some(identity_doc.clone());
+        let payload = did.microledger.create_event(
+            &secret.to_publickey(),
+            &secret.to_publickey_digest().unwrap(),
+            change,
+        );
+        let proof = secret.sign(&payload);
+        did.microledger.save_event(payload, &proof);
         did
     }
 
@@ -64,7 +94,7 @@ mod tests {
         did_doc::CreateDocInput,
         eventlog::{DocumentDigest, EventLogChange},
     };
-    use idp2p_common::{ed_secret::EdSecret, hash};
+    use idp2p_common::hash;
 
     #[test]
     fn is_next_ok_test() {

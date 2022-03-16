@@ -21,11 +21,11 @@ pub use anyhow;
 pub use chrono;
 pub use ed25519_dalek;
 pub use multibase;
+pub use regex;
 pub use serde_json;
 pub use serde_with;
 pub use sha2;
 pub use thiserror;
-pub use regex;
 
 pub mod encode_vec {
     use multibase::Base;
@@ -81,7 +81,7 @@ pub fn create_random<const N: usize>() -> [u8; N] {
     key_data
 }
 
-pub fn is_idp2p(id: &str) -> bool{
+pub fn is_idp2p(id: &str) -> bool {
     let re = regex::Regex::new(r"did:p2p:*").unwrap();
     re.is_match(id)
 }

@@ -1,102 +1,101 @@
-use idp2p_wallet::wallet::WalletStore;
-use idp2p_wallet::wallet::Wallet;
-use idp2p_node::store::IdStore;
-use std::fs::File;
-use std::fs::OpenOptions;
-use std::io::Read;
+use idp2p_common::ed_secret::EdSecret;
 use idp2p_core::did::Identity;
-use idp2p_common::serde_json;
+use idp2p_node::message::{IdentityMessage, IdentityMessagePayload};
+use idp2p_node::node::build_swarm;
+use idp2p_node::node::IdentityNodeBehaviour;
+use idp2p_node::node::IdentityNodeEvent;
+use idp2p_node::node::SwarmOptions;
+use idp2p_node::IdentityEvent;
+use libp2p::futures::StreamExt;
+use libp2p::gossipsub::IdentTopic;
+use libp2p::swarm::SwarmEvent;
+use structopt::StructOpt;
+use tokio::io::AsyncBufReadExt;
+use tokio::sync::mpsc::channel;
 
 #[derive(Debug, StructOpt)]
 #[structopt(name = "idp2p", about = "Usage of idp2p.")]
 struct Opt {
     #[structopt(short = "p", long = "port", default_value = "43727")]
     port: u16,
+    #[structopt(short = "a", long = "address")]
+    address: Option<String>,
 }
 
-fn get_command(input: &str) -> Option<IdCommand> {
+fn run_command(input: &str, behaviour: &mut IdentityNodeBehaviour) {
     let split = input.split(" ");
     let input: Vec<&str> = split.collect();
     match input[0] {
         "create" => {
-            // create alice
-            return Some(IdCommand::Create(input[1].to_owned()));
-        }
-        "set-document" => {
-            // set-document for alice
-            return Some(IdCommand::SetDocument);
+            let secret = EdSecret::new();
+            std::env::set_var(
+                format!("{}_secret", input[1]),
+                idp2p_common::encode(&secret.to_bytes()),
+            );
+            let did = Identity::from_secret(secret);
+            let topic = IdentTopic::new(&did.id);
+            behaviour.gossipsub.subscribe(&topic).unwrap();
+            println!("Created: {}", did.id);
+            behaviour.id_store.push(did);
         }
         "get" => {
-            // get <id>
-            return Some(IdCommand::Get(input[1].to_owned()));
+            let topic = IdentTopic::new(input[1]);
+            behaviour.gossipsub.subscribe(&topic).unwrap();
+            let message = IdentityMessage::new(IdentityMessagePayload::Get);
+            let data = idp2p_common::serde_json::to_vec(&message).unwrap();
+            behaviour.gossipsub.publish(topic, data).unwrap();
         }
         "resolve" => {
-            // get <id>
-            return Some(IdCommand::Resolve(input[1].to_owned()));
+            let did = behaviour.id_store.get_did(input[1]);
+            println!("Resolved: {:?}", did);
         }
-        "send" => {
-            // send <message> to <id>
-            return Some(IdCommand::SendJwm {
-                to: input[3].to_owned(),
-                message: input[1].to_owned(),
-            });
-        }
-        _ => {
-            return None;
-        }
+        "send" => {}
+        _ => {}
     }
 }
 
 #[tokio::main]
-async fn main() -> Result<(), Box<dyn Error>> {
-    dotenv().ok();
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let opt = Opt::from_args();
-    let base_path = format!("../target/{}", opt.port);
-    std::env::set_var("BASE_PATH", base_path.clone());
-    let acc_path = format!("{}/accounts", base_path);
-    std::fs::create_dir_all(acc_path).unwrap();
-    let mut stdin = io::BufReader::new(io::stdin()).lines();
+    let mut stdin = tokio::io::BufReader::new(tokio::io::stdin()).lines();
     let (tx, mut rx) = channel::<IdentityEvent>(100);
     let options = SwarmOptions {
-        addr: opt.address,
         port: opt.port,
-        store: IdStore::new(tx.clone()),
+        owner: Identity::new(&vec![], &vec![]),
+        event_sender: tx.clone(),
     };
     let mut swarm = build_swarm(options).await?;
-    
+    if opt.address.is_some() {
+        println!("{}", opt.address.unwrap());
+    }
     loop {
         tokio::select! {
             line = stdin.next_line() => {
                 let line = line?.expect("stdin closed");
-                if let Some(cmd) = get_command(&line){
-                    cmd.handle(swarm.behaviour_mut())?;
-                }
+                run_command(&line, swarm.behaviour_mut());
             }
             swarm_event = swarm.select_next_some() => {
                 match swarm_event {
                     SwarmEvent::NewListenAddr { address, .. } => {
                         println!("Listening on {:?}", address);
                     }
-                    SwarmEvent::ConnectionEstablished{peer_id, ..} => {
-                        println!("Established {:?}", peer_id);
+                    SwarmEvent::Behaviour(IdentityNodeEvent::Gossipsub(event)) =>{
+                       swarm.behaviour_mut().handle_gossipevent(event).await;
                     }
-                    other => {
-                        println!("Unhandled {:?}", other);
+                    SwarmEvent::Behaviour(IdentityNodeEvent::Mdns(event)) =>{
+                        swarm.behaviour_mut().handle_mdnsevent(event);
                     }
+                    _ => {}
                 }
             }
             event = rx.recv() => {
                 if let Some(event) = event{
                     match event{
-                        IdentityEvent::ReceivedJwm {id, jwm} => {
-                            let mes = handle_jwm(&id, &jwm, swarm.behaviour_mut())?;
-                            println!("{mes}");
-                        }
-                        _ => println!("{:?}", event)
+                        IdentityEvent::Published{id} => {swarm.behaviour_mut().post(&id);}
+                        _ => { println!("Event: {:?}", event); }
                     }
                 }
             }
         }
     }
 }
-

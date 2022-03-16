@@ -8,8 +8,8 @@
 
 #### Generate peers
 
-- ```cargo run```
-- ```cargo run -- -p 5000```
+- ```cargo run --example demo```
+- ```cargo run --example demo -- -p 5000```
 
 #### Create identity
 
@@ -24,10 +24,6 @@
 #### Send message
 
 - cmd: ```send <message> to did:p2p:bagaaieraam4```
-
-#### Recover
-
-- cmd: ```recover```
 
 ## Contributions
 

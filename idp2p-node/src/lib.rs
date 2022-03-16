@@ -4,7 +4,6 @@ use serde::{Deserialize, Serialize};
 pub enum IdentityEvent {
     Created { id: String },
     Updated { id: String },
-    Skipped { id: String },
     Published { id: String },
 }
 
