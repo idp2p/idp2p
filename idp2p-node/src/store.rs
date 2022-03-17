@@ -59,7 +59,7 @@ impl IdStore {
         self.shared.owner.clone()
     }
 
-    pub fn push(&self, did: Identity) {
+    pub fn push_did(&self, did: Identity) {
         let mut state = self.shared.state.lock().unwrap();
         let id = did.id.clone();
         let entry = IdEntry::new(did);

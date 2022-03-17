@@ -1,11 +1,12 @@
 [package]
-name = "idp2p_point"
+name = "idp2p_relay"
 version = "0.1.0"
 edition = "2021"
 copyright = "2022, Adem Caglin"
 authors = ["adem caglin <adem.caglin@gmail.com>"] 
 
 [dependencies]
+async-trait = "0.1.52"
 structopt = "0.3.25"
 env_logger = "0.9.0"
 dotenv = "0.15.0"

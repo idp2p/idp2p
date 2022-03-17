@@ -6,16 +6,19 @@ use idp2p_didcomm::jwe::Jwe;
 use idp2p_didcomm::jwm::Jwm;
 use idp2p_didcomm::jws::Jws;
 use idp2p_node::message::{IdentityMessage, IdentityMessagePayload};
-use idp2p_node::node::build_swarm;
-use idp2p_node::node::IdentityNodeBehaviour;
-use idp2p_node::node::IdentityNodeEvent;
-use idp2p_node::node::SwarmOptions;
+use idp2p_node::node::build_gossipsub;
+use idp2p_node::node::build_transport;
+use idp2p_node::store::IdStore;
 use idp2p_node::IdentityEvent;
-use libp2p::futures::StreamExt;
-use libp2p::gossipsub::IdentTopic;
-use libp2p::swarm::SwarmEvent;
 use libp2p::Multiaddr;
-use libp2p::PeerId;
+use libp2p::{
+    futures::StreamExt,
+    gossipsub::{Gossipsub, GossipsubEvent, IdentTopic},
+    identity::{ed25519::SecretKey, Keypair},
+    mdns::{Mdns, MdnsEvent},
+    swarm::{SwarmBuilder, SwarmEvent},
+    NetworkBehaviour, PeerId,
+};
 use std::str::FromStr;
 use structopt::StructOpt;
 use tokio::io::AsyncBufReadExt;
@@ -24,12 +27,96 @@ use tokio::sync::mpsc::channel;
 #[derive(Debug, StructOpt)]
 #[structopt(name = "idp2p", about = "Usage of idp2p.")]
 struct Opt {
+    #[structopt(short = "i", long = "ip", default_value = "0.0.0.0")]
+    ip: String,
     #[structopt(short = "p", long = "port", default_value = "43727")]
     port: u16,
     #[structopt(short = "r", long = "remote")]
     remote: Option<String>,
 }
 
+#[derive(NetworkBehaviour)]
+#[behaviour(out_event = "IdentityNodeEvent")]
+pub struct IdentityNodeBehaviour {
+    mdns: Mdns,
+    pub gossipsub: Gossipsub,
+    #[behaviour(ignore)]
+    pub id_store: IdStore,
+}
+
+impl IdentityNodeBehaviour {
+    pub async fn handle_gossipevent(&mut self, event: GossipsubEvent) {
+        if let GossipsubEvent::Message {
+            propagation_source: _,
+            message_id: _,
+            message,
+        } = event
+        {
+            let topic = message.topic.to_string();
+            if idp2p_common::is_idp2p(&topic) {
+                let message = IdentityMessage::from_bytes(&message.data);
+                match &message.payload {
+                    IdentityMessagePayload::Get => {
+                        self.id_store.handle_get(&topic).await;
+                    }
+                    IdentityMessagePayload::Post { digest, identity } => {
+                        self.id_store.handle_post(digest, identity).await.unwrap();
+                    }
+                    IdentityMessagePayload::Jwm { message } => {
+                        self.id_store.handle_jwm(&topic, message).await;
+                    }
+                }
+            }
+        }
+    }
+
+    pub fn handle_mdnsevent(&mut self, event: MdnsEvent) {
+        match event {
+            MdnsEvent::Discovered(list) => {
+                for (peer, _) in list {
+                    self.gossipsub.add_explicit_peer(&peer);
+                }
+            }
+            MdnsEvent::Expired(list) => {
+                for (peer, _) in list {
+                    if !self.mdns.has_node(&peer) {
+                        self.gossipsub.remove_explicit_peer(&peer);
+                    }
+                }
+            }
+        }
+    }
+
+    pub fn post(&mut self, id: &str) {
+        let did = self.id_store.get_did(id);
+        let gossip_topic = IdentTopic::new(id);
+        let message = IdentityMessage::new_post(did);
+        let json_str = idp2p_common::serde_json::to_string(&message).unwrap();
+        let result = self.gossipsub.publish(gossip_topic, json_str.as_bytes());
+        match result {
+            Ok(_) => println!("Published id: {}", id),
+            Err(e) => println!("Publish error, {:?}", e),
+        }
+    }
+}
+
+#[derive(Debug)]
+pub enum IdentityNodeEvent {
+    Mdns(MdnsEvent),
+    Gossipsub(GossipsubEvent),
+}
+
+impl From<MdnsEvent> for IdentityNodeEvent {
+    fn from(event: MdnsEvent) -> Self {
+        IdentityNodeEvent::Mdns(event)
+    }
+}
+
+impl From<GossipsubEvent> for IdentityNodeEvent {
+    fn from(event: GossipsubEvent) -> Self {
+        IdentityNodeEvent::Gossipsub(event)
+    }
+}
 pub fn handle_jwm(jwm: &str, behaviour: &mut IdentityNodeBehaviour) {
     let secret_str = std::env::var("secret").unwrap();
     let dec_secret = EdSecret::from_str(&secret_str).unwrap();
@@ -85,19 +172,32 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let did = Identity::from_secret(secret.clone());
     std::env::set_var("secret", idp2p_common::encode(&secret.to_bytes()));
     println!("Created: {}", did.id);
-    let options = SwarmOptions {
-        port: opt.port,
-        owner: did.clone(),
-        event_sender: tx.clone(),
+    let secret_key = SecretKey::from_bytes(secret.to_bytes())?;
+    let local_key = Keypair::Ed25519(secret_key.into());
+    let transport = build_transport(local_key.clone()).await;
+    let mut swarm = {
+        let mdns = Mdns::new(Default::default()).await?;
+        let id_store = IdStore::new(tx.clone(), did.clone());
+        let behaviour = IdentityNodeBehaviour {
+            mdns: mdns,
+            gossipsub: build_gossipsub(),
+            id_store: id_store,
+        };
+        let executor = Box::new(|fut| {
+            tokio::spawn(fut);
+        });
+        SwarmBuilder::new(transport, behaviour, local_key.public().to_peer_id())
+            .executor(executor)
+            .build()
     };
-    let mut swarm = build_swarm(options).await?;
+    swarm.listen_on(format!("/ip4/{}/tcp/{}", opt.ip, opt.port).parse()?)?;
     let topic = IdentTopic::new(&did.id);
     swarm.behaviour_mut().gossipsub.subscribe(&topic)?;
-    swarm.behaviour_mut().id_store.push(did);
+    swarm.behaviour_mut().id_store.push_did(did);
     if let Some(remote) = opt.remote {
         let vec = remote.split("/").collect::<Vec<&str>>();
         let to_dial = format!("/ip4/{}/tcp/{}", vec[2], vec[4]);
-        let addr :Multiaddr = to_dial.parse().unwrap();
+        let addr: Multiaddr = to_dial.parse().unwrap();
         let peer_id = PeerId::from_str(vec[6])?;
         swarm.dial(addr)?;
         swarm.behaviour_mut().gossipsub.add_explicit_peer(&peer_id);

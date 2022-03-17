@@ -24,8 +24,5 @@ members = [
     "idp2p-didcomm",
     "idp2p-node",
     "idp2p-wallet",
-    "idp2p-point"
+    "idp2p-relay"
 ]
-
-[[example]]
-name = "demo"
