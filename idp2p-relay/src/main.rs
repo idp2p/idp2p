@@ -9,23 +9,11 @@ use libp2p::identity::ed25519::SecretKey;
 use libp2p::identity::Keypair;
 use libp2p::swarm::SwarmEvent;
 use libp2p::gossipsub::IdentTopic;
-use std::env;
-use structopt::StructOpt;
 use tokio::io::AsyncBufReadExt;
-
-#[derive(Debug, StructOpt)]
-#[structopt(name = "idp2p", about = "Usage of idp2p.")]
-struct Opt {
-    #[structopt(short = "i", long = "ip", default_value = "0.0.0.0")]
-    ip: String,
-    #[structopt(short = "p", long = "port", default_value = "43727")]
-    port: u16,
-}
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     dotenv().ok();
-    let opt = Opt::from_args();
     let mut stdin = tokio::io::BufReader::new(tokio::io::stdin()).lines();
     let secret = EdSecret::new();
     let secret_key = SecretKey::from_bytes(secret.to_bytes())?;
@@ -34,7 +22,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let owner = local_key.public().to_peer_id().to_base58();
     let topic = IdentTopic::new(&owner);
     swarm.behaviour_mut().gossipsub.subscribe(&topic).unwrap();
-    swarm.listen_on(format!("/ip4/{}/tcp/{}", opt.ip, opt.port).parse()?)?;
+    swarm.listen_on("/ip4/0.0.0.0/tcp/43727".parse()?)?;
 
     loop {
         tokio::select! {

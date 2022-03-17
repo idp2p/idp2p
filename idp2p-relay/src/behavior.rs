@@ -6,7 +6,6 @@ use libp2p::Multiaddr;
 use libp2p::PeerId;
 use libp2p::{
     gossipsub::{Gossipsub, GossipsubEvent, IdentTopic},
-    mdns::{Mdns, MdnsEvent},
     swarm::Swarm,
     NetworkBehaviour,
 };
@@ -16,7 +15,6 @@ pub async fn build_swarm(local_key: Keypair) -> Swarm<IdentityRelayBehaviour> {
     let transport = build_transport(local_key.clone()).await;
     let swarm = {
         let behaviour = IdentityRelayBehaviour {
-            mdns: Mdns::new(Default::default()).await.unwrap(),
             gossipsub: build_gossipsub(),
         };
         let executor = Box::new(|fut| {
@@ -32,7 +30,6 @@ pub async fn build_swarm(local_key: Keypair) -> Swarm<IdentityRelayBehaviour> {
 #[derive(NetworkBehaviour)]
 #[behaviour(out_event = "IdentityRelayEvent")]
 pub struct IdentityRelayBehaviour {
-    mdns: Mdns,
     pub gossipsub: Gossipsub,
 }
 
@@ -51,40 +48,16 @@ impl IdentityRelayBehaviour {
             }
         }
     }
-
-    pub fn handle_mdnsevent(&mut self, event: MdnsEvent) {
-        match event {
-            MdnsEvent::Discovered(list) => {
-                for (peer, _) in list {
-                    self.gossipsub.add_explicit_peer(&peer);
-                }
-            }
-            MdnsEvent::Expired(list) => {
-                for (peer, _) in list {
-                    if !self.mdns.has_node(&peer) {
-                        self.gossipsub.remove_explicit_peer(&peer);
-                    }
-                }
-            }
-        }
-    }
 }
 
 #[derive(Debug)]
 pub enum IdentityRelayEvent {
-    Mdns(MdnsEvent),
     Gossipsub(GossipsubEvent),
 }
 
 impl From<GossipsubEvent> for IdentityRelayEvent {
     fn from(event: GossipsubEvent) -> Self {
         IdentityRelayEvent::Gossipsub(event)
-    }
-}
-
-impl From<MdnsEvent> for IdentityRelayEvent {
-    fn from(event: MdnsEvent) -> Self {
-        IdentityRelayEvent::Mdns(event)
     }
 }
 
@@ -101,15 +74,7 @@ pub fn run_command(
             let peer_id = PeerId::from_str(input[3])?;
             swarm.dial(addr)?;
             swarm.behaviour_mut().gossipsub.add_explicit_peer(&peer_id);
-            swarm.behaviour_mut().gossipsub.subscribe(&IdentTopic::new(input[3]))?;
-        }
-        "subscribe" => {
-            let topic = IdentTopic::new(input[1]);
-            swarm
-                .behaviour_mut()
-                .gossipsub
-                .publish(topic, input[2].as_bytes())
-                .unwrap();
+            //swarm.behaviour_mut().gossipsub.subscribe(&IdentTopic::new(input[3]))?;
         }
         _ => {}
     }
