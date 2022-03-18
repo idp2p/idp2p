@@ -104,12 +104,12 @@ fn run_command(input: &str, swarm: &mut Swarm<IdentityRelayBehaviour>) -> Result
             swarm
                 .behaviour_mut()
                 .gossipsub
-                .subscribe(&IdentTopic::new(input[2]))?;
-            swarm
+                .subscribe(&IdentTopic::new(input[1]))?;
+            /*swarm
                 .behaviour_mut()
                 .gossipsub
                 .publish(IdentTopic::new(input[1]), input[2].as_bytes())
-                .unwrap();
+                .unwrap();*/
         }
         "publish" => {
             let topic = IdentTopic::new(input[1]);

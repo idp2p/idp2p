@@ -1,19 +1,16 @@
-use idp2p_node::req_res::IdResponse;
-use idp2p_node::req_res::IdRequest;
 use idp2p_node::node::build_gossipsub;
 use idp2p_node::node::build_transport;
+use idp2p_node::req_res::IdRequest;
+use idp2p_node::req_res::IdResponse;
 use libp2p::identity::Keypair;
 use libp2p::swarm::SwarmBuilder;
 use libp2p::Multiaddr;
 use libp2p::PeerId;
 use libp2p::{
     gossipsub::{Gossipsub, GossipsubEvent, IdentTopic},
+    request_response::RequestResponseEvent,
     swarm::Swarm,
     NetworkBehaviour,
-    request_response::{
-        ProtocolSupport, RequestId, RequestResponse, RequestResponseCodec, RequestResponseEvent,
-        RequestResponseMessage, ResponseChannel,
-    }
 };
 use std::str::FromStr;
 
@@ -42,7 +39,7 @@ pub struct IdentityRelayBehaviour {
 #[derive(Debug)]
 pub enum IdentityRelayEvent {
     Gossipsub(GossipsubEvent),
-    RequestResponse(RequestResponseEvent<IdRequest, IdResponse>)
+    RequestResponse(RequestResponseEvent<IdRequest, IdResponse>),
 }
 
 impl From<GossipsubEvent> for IdentityRelayEvent {
@@ -50,7 +47,6 @@ impl From<GossipsubEvent> for IdentityRelayEvent {
         IdentityRelayEvent::Gossipsub(event)
     }
 }
-
 
 impl From<RequestResponseEvent<IdRequest, IdResponse>> for IdentityRelayEvent {
     fn from(event: RequestResponseEvent<IdRequest, IdResponse>) -> Self {
@@ -71,14 +67,17 @@ pub fn run_command(
             let peer_id = PeerId::from_str(input[3])?;
             swarm.dial(addr)?;
             swarm.behaviour_mut().gossipsub.add_explicit_peer(&peer_id);
-            //swarm.behaviour_mut().gossipsub.join(topic_hash: &TopicHash);
-            //swarm.behaviour_mut().gossipsub.subscribe(&IdentTopic::new(input[3]))?;
+        }
+        "subscribe" => {
+            swarm
+                .behaviour_mut()
+                .gossipsub
+                .subscribe(&IdentTopic::new(input[1]))?;
         }
         _ => {}
     }
     Ok(())
 }
-
 
 impl IdentityRelayBehaviour {
     pub async fn handle_gossip_event(&mut self, owner: &str, event: GossipsubEvent) {
