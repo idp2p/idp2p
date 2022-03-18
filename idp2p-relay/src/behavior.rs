@@ -1,5 +1,5 @@
-use crate::reqres::IdResponse;
-use crate::reqres::IdRequest;
+use idp2p_node::req_res::IdResponse;
+use idp2p_node::req_res::IdRequest;
 use idp2p_node::node::build_gossipsub;
 use idp2p_node::node::build_transport;
 use libp2p::identity::Keypair;

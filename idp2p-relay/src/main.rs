@@ -51,4 +51,3 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 pub mod behavior;
-pub mod reqres;
