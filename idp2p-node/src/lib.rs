@@ -11,4 +11,3 @@ pub enum IdentityEvent {
 pub mod message;
 pub mod node;
 pub mod store;
-pub mod req_res;

@@ -1,14 +1,11 @@
 use idp2p_node::node::build_gossipsub;
 use idp2p_node::node::build_transport;
-use idp2p_node::req_res::IdRequest;
-use idp2p_node::req_res::IdResponse;
 use libp2p::identity::Keypair;
 use libp2p::swarm::SwarmBuilder;
 use libp2p::Multiaddr;
 use libp2p::PeerId;
 use libp2p::{
     gossipsub::{Gossipsub, GossipsubEvent, IdentTopic},
-    request_response::RequestResponseEvent,
     swarm::Swarm,
     NetworkBehaviour,
 };
@@ -38,19 +35,12 @@ pub struct IdentityRelayBehaviour {
 
 #[derive(Debug)]
 pub enum IdentityRelayEvent {
-    Gossipsub(GossipsubEvent),
-    RequestResponse(RequestResponseEvent<IdRequest, IdResponse>),
+    Gossipsub(GossipsubEvent)
 }
 
 impl From<GossipsubEvent> for IdentityRelayEvent {
     fn from(event: GossipsubEvent) -> Self {
         IdentityRelayEvent::Gossipsub(event)
-    }
-}
-
-impl From<RequestResponseEvent<IdRequest, IdResponse>> for IdentityRelayEvent {
-    fn from(event: RequestResponseEvent<IdRequest, IdResponse>) -> Self {
-        IdentityRelayEvent::RequestResponse(event)
     }
 }
 
@@ -68,30 +58,26 @@ pub fn run_command(
             swarm.dial(addr)?;
             swarm.behaviour_mut().gossipsub.add_explicit_peer(&peer_id);
         }
-        "subscribe" => {
-            swarm
-                .behaviour_mut()
-                .gossipsub
-                .subscribe(&IdentTopic::new(input[1]))?;
-        }
         _ => {}
     }
     Ok(())
 }
 
 impl IdentityRelayBehaviour {
-    pub async fn handle_gossip_event(&mut self, owner: &str, event: GossipsubEvent) {
-        if let GossipsubEvent::Message {
-            propagation_source: _,
-            message_id: _,
-            message,
+    pub async fn handle_gossip_event(&mut self, event: GossipsubEvent) {
+        if let GossipsubEvent::Subscribed {
+            peer_id,
+            topic
         } = event
         {
-            let topic = message.topic.to_string();
-            if topic == owner {
-                let new_topic = IdentTopic::new(idp2p_common::encode(&message.data));
+            if self.is_authorized_peer(peer_id){
+                let new_topic = IdentTopic::new(topic.into_string());
                 self.gossipsub.subscribe(&new_topic).unwrap();
             }
         }
+    }
+
+    fn is_authorized_peer(&self, peer_id: PeerId) -> bool{
+        true
     }
 }
