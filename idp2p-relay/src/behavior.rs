@@ -1,3 +1,5 @@
+use crate::reqres::IdResponse;
+use crate::reqres::IdRequest;
 use idp2p_node::node::build_gossipsub;
 use idp2p_node::node::build_transport;
 use libp2p::identity::Keypair;
@@ -8,6 +10,10 @@ use libp2p::{
     gossipsub::{Gossipsub, GossipsubEvent, IdentTopic},
     swarm::Swarm,
     NetworkBehaviour,
+    request_response::{
+        ProtocolSupport, RequestId, RequestResponse, RequestResponseCodec, RequestResponseEvent,
+        RequestResponseMessage, ResponseChannel,
+    }
 };
 use std::str::FromStr;
 
@@ -33,31 +39,22 @@ pub struct IdentityRelayBehaviour {
     pub gossipsub: Gossipsub,
 }
 
-impl IdentityRelayBehaviour {
-    pub async fn handle_gossip_event(&mut self, owner: &str, event: GossipsubEvent) {
-        if let GossipsubEvent::Message {
-            propagation_source: _,
-            message_id: _,
-            message,
-        } = event
-        {
-            let topic = message.topic.to_string();
-            if topic == owner {
-                let new_topic = IdentTopic::new(idp2p_common::encode(&message.data));
-                self.gossipsub.subscribe(&new_topic).unwrap();
-            }
-        }
-    }
-}
-
 #[derive(Debug)]
 pub enum IdentityRelayEvent {
     Gossipsub(GossipsubEvent),
+    RequestResponse(RequestResponseEvent<IdRequest, IdResponse>)
 }
 
 impl From<GossipsubEvent> for IdentityRelayEvent {
     fn from(event: GossipsubEvent) -> Self {
         IdentityRelayEvent::Gossipsub(event)
+    }
+}
+
+
+impl From<RequestResponseEvent<IdRequest, IdResponse>> for IdentityRelayEvent {
+    fn from(event: RequestResponseEvent<IdRequest, IdResponse>) -> Self {
+        IdentityRelayEvent::RequestResponse(event)
     }
 }
 
@@ -74,9 +71,28 @@ pub fn run_command(
             let peer_id = PeerId::from_str(input[3])?;
             swarm.dial(addr)?;
             swarm.behaviour_mut().gossipsub.add_explicit_peer(&peer_id);
+            //swarm.behaviour_mut().gossipsub.join(topic_hash: &TopicHash);
             //swarm.behaviour_mut().gossipsub.subscribe(&IdentTopic::new(input[3]))?;
         }
         _ => {}
     }
     Ok(())
+}
+
+
+impl IdentityRelayBehaviour {
+    pub async fn handle_gossip_event(&mut self, owner: &str, event: GossipsubEvent) {
+        if let GossipsubEvent::Message {
+            propagation_source: _,
+            message_id: _,
+            message,
+        } = event
+        {
+            let topic = message.topic.to_string();
+            if topic == owner {
+                let new_topic = IdentTopic::new(idp2p_common::encode(&message.data));
+                self.gossipsub.subscribe(&new_topic).unwrap();
+            }
+        }
+    }
 }

@@ -1,6 +1,6 @@
-use crate::behavior::build_swarm;
-use crate::behavior::run_command;
-use crate::behavior::IdentityRelayEvent;
+use self::behavior::build_swarm;
+use self::behavior::run_command;
+use self::behavior::IdentityRelayEvent;
 use dotenv::dotenv;
 use idp2p_common::anyhow::Result;
 use idp2p_common::ed_secret::EdSecret;
@@ -36,8 +36,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                         println!("Listening on {:?}", address);
                     }
                     SwarmEvent::Behaviour(IdentityRelayEvent::Gossipsub(event)) =>{
-                        println!("Got message: {:?}", event);
-                        swarm.behaviour_mut().handle_gossip_event(&owner, event).await;
+                        println!("Got gossip message: {:?}", event);
+                        
+                        //swarm.behaviour_mut().handle_gossip_event(&owner, event).await;
+                    }
+                    SwarmEvent::Behaviour(IdentityRelayEvent::RequestResponse(event)) =>{
+                        println!("Got request: {:?}", event);
                     }
                     other => { println!("{:?}", other); }
                 }
@@ -47,3 +51,4 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 pub mod behavior;
+pub mod reqres;

@@ -6,6 +6,7 @@ copyright = "2022, Adem Caglin"
 authors = ["adem caglin <adem.caglin@gmail.com>"] 
 
 [dependencies]
+async-trait = "0.1.52"
 serde = { version = "1.0.130", features = ["derive"] }
 tokio = { version = "1.13.0", features = ["full"] }
 libp2p = {version = "0.43.0", features=["default", "dcutr"] }

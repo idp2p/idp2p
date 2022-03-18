@@ -1,23 +1,14 @@
-use crate::message::{IdentityMessage, IdentityMessagePayload};
-use crate::store::IdStore;
-use crate::IdentityEvent;
-use idp2p_common::anyhow::Result;
-use idp2p_core::did::Identity;
-use tokio::sync::mpsc::Sender;
-
 use libp2p::{
     core::muxing::StreamMuxerBox,
     core::transport::Boxed,
     dns,
     gossipsub::{
-        Gossipsub, GossipsubConfigBuilder, GossipsubEvent, GossipsubMessage, IdentTopic,
+        Gossipsub, GossipsubConfigBuilder, GossipsubMessage,
         MessageAuthenticity, MessageId, ValidationMode,
     },
-    identity::{Keypair,  ed25519::SecretKey},
-    mdns::{Mdns, MdnsEvent},
+    identity::Keypair,
     mplex, noise, core,
-    swarm::{Swarm, SwarmBuilder},
-    tcp, websocket, yamux, NetworkBehaviour, PeerId, Transport,
+    tcp, websocket, yamux, PeerId, Transport,
 };
 use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};

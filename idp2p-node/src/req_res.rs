@@ -1,11 +1,13 @@
 use libp2p::{
     core::upgrade::{read_length_prefixed, write_length_prefixed, ProtocolName},
-}
+    request_response::{
+        RequestResponseCodec
+    }
+};
 use libp2p::futures::io::{AsyncRead, AsyncWrite};
 use libp2p::futures::AsyncWriteExt;
 use async_trait::async_trait;
 use std::io;
-use std::iter;
 
 #[derive(Debug, Clone)]
 pub struct IdExchangeProtocol();
@@ -16,15 +18,9 @@ pub struct IdRequest(String);
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct IdResponse(String);
 
-impl From<RequestResponseEvent<IdRequest, IdResponse>> for IdentityRelayEvent {
-    fn from(event: RequestResponseEvent<IdRequest, IdResponse>) -> Self {
-        IdentityRelayEvent::RequestResponse(event)
-    }
-}
-
 impl ProtocolName for IdExchangeProtocol {
     fn protocol_name(&self) -> &[u8] {
-        "/file-exchange/1".as_bytes()
+        "/idp2p/1".as_bytes()
     }
 }
 
