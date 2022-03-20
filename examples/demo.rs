@@ -63,7 +63,7 @@ impl IdentityNodeBehaviour {
                         self.id_store.handle_post(digest, identity).await.unwrap();
                     }
                     IdentityMessagePayload::Jwm { message } => {
-                        self.id_store.handle_jwm(&topic, message).await;
+                        handle_jwm(&message, self);
                     }
                 }
             }

@@ -36,7 +36,7 @@ pub struct IdEntry {
 
 impl IdStore {
     pub fn new(tx: Sender<IdentityEvent>, owner: Identity) -> IdStore {
-        let mut state = IdState {
+        let state = IdState {
             entries: HashMap::new(),
             events: BTreeMap::new(),
         };
@@ -64,14 +64,6 @@ impl IdStore {
         let id = did.id.clone();
         let entry = IdEntry::new(did);
         state.entries.insert(id, entry);
-    }
-
-    pub async fn handle_jwm(&self, id: &str, jwm: &str) {
-        let event = IdentityEvent::ReceivedJwm {
-            id: id.to_owned(),
-            jwm: jwm.to_owned(),
-        };
-        self.shared.tx.send(event).await.unwrap();
     }
 
     pub async fn handle_get(&self, id: &str) {
