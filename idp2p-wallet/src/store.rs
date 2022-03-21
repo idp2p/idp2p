@@ -1,12 +1,16 @@
 use crate::wallet::Wallet;
 use idp2p_common::anyhow::Result;
-use idp2p_node::IdentityEvent;
+use idp2p_core::did::Identity;
 use std::fs::File;
 use std::io::Read;
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::sync::Mutex;
 use tokio::sync::mpsc::Sender;
+
+pub enum WalletEvent {
+    AccountCreated,
+}
 
 pub struct WalletResult {
     pub has_wallet: bool,
@@ -20,11 +24,11 @@ pub struct WalletStore {
 
 pub struct WalletShared {
     wallet: Mutex<Option<Wallet>>,
-    event_sender: Sender<IdentityEvent>,
+    event_sender: Sender<WalletEvent>,
 }
 
 impl WalletStore {
-    pub fn new(wallet_path: PathBuf, event_sender: Sender<IdentityEvent>) -> Result<Self> {
+    pub fn new(wallet_path: PathBuf, event_sender: Sender<WalletEvent>) -> Result<Self> {
         let wallet = if wallet_path.is_file() {
             let mut file = File::open(wallet_path.as_path())?;
             let mut buff = String::new();
@@ -38,26 +42,23 @@ impl WalletStore {
             wallet: Mutex::new(wallet),
             event_sender: event_sender,
         });
-        tokio::spawn(listen_changes(shared.clone()));
         Ok(WalletStore {
             wallet_path: wallet_path,
             shared: shared,
         })
     }
 
-    pub async fn create_wallet(&self) {
-        self.shared
+    pub async fn register(&self, password: &str) -> Result<()> {
+        let _ = self.shared
             .event_sender
-            .send(IdentityEvent::Published {
-                id: "id".to_owned(),
-            })
-            .await
-            .unwrap();
+            .send(WalletEvent::AccountCreated)
+            .await;
+        Ok(())
     }
 
-    pub fn create_session(&self) {}
+    pub fn login(&self, password: &str) {}
 
-    pub fn remove_session(&self) {}
+    pub fn logout(&self, password: &str) {}
 
     pub fn get_state(&self) -> WalletResult {
         let wallet = self.shared.wallet.lock().unwrap();
@@ -69,4 +70,3 @@ impl WalletStore {
     }
 }
 
-async fn listen_changes(shared: Arc<WalletShared>) {}
