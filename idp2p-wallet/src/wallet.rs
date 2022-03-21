@@ -20,11 +20,6 @@ use pbkdf2::{
 };
 use serde::{Deserialize, Serialize};
 
-pub trait WalletStore {
-    fn put_wallet(&self, key: &str, value: Wallet);
-    fn get_wallet(&self, key: &str) -> Option<Wallet>;
-}
-
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
 pub struct Wallet {
     #[serde(with = "encode_vec")]

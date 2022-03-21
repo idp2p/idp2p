@@ -9,13 +9,18 @@ use std::sync::Mutex;
 use std::time::Instant;
 use tokio::sync::mpsc::Sender;
 
+pub struct IdStoreOptions {
+    pub owner: Identity,
+    pub event_sender: Sender<IdentityEvent>,
+    pub entries: HashMap<String, IdEntry>,
+}
 pub struct IdStore {
     shared: Arc<IdShared>,
 }
 
 pub struct IdShared {
     state: Mutex<IdState>,
-    tx: Sender<IdentityEvent>,
+    event_sender: Sender<IdentityEvent>,
     owner: Identity,
 }
 
@@ -35,15 +40,15 @@ pub struct IdEntry {
 }
 
 impl IdStore {
-    pub fn new(tx: Sender<IdentityEvent>, owner: Identity) -> IdStore {
+    pub fn new(options: IdStoreOptions) -> IdStore {
         let state = IdState {
-            entries: HashMap::new(),
+            entries: options.entries,
             events: BTreeMap::new(),
         };
         let shared = Arc::new(IdShared {
             state: Mutex::new(state),
-            owner: owner,
-            tx: tx,
+            owner: options.owner,
+            event_sender: options.event_sender,
         });
         tokio::spawn(listen_events(shared.clone()));
         IdStore { shared: shared }
@@ -72,7 +77,7 @@ impl IdStore {
         if let Some(entry) = entry {
             if entry.is_hosted {
                 let event = IdentityEvent::Published { id: id.to_owned() };
-                self.shared.tx.send(event).await.unwrap();
+                self.shared.event_sender.send(event).await.unwrap();
             } else {
                 // add queue to publish
                 // to do()
@@ -91,7 +96,7 @@ impl IdStore {
                 let event = IdentityEvent::Created {
                     id: identity.id.clone(),
                 };
-                self.shared.tx.send(event).await.unwrap();
+                self.shared.event_sender.send(event).await.unwrap();
             }
             Some(entry) => {
                 if digest != entry.digest {
@@ -104,7 +109,7 @@ impl IdStore {
                     let event = IdentityEvent::Updated {
                         id: identity.id.clone(),
                     };
-                    self.shared.tx.send(event).await.unwrap();
+                    self.shared.event_sender.send(event).await.unwrap();
                 }
             }
         }

@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+use idp2p_node::store::IdStoreOptions;
 use colored::Colorize;
 use idp2p_common::ed_secret::EdSecret;
 use idp2p_core::did::Identity;
@@ -177,7 +179,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let transport = build_transport(local_key.clone()).await;
     let mut swarm = {
         let mdns = Mdns::new(Default::default()).await?;
-        let id_store = IdStore::new(tx.clone(), did.clone());
+        let options = IdStoreOptions{
+             owner: did.clone(),
+             event_sender: tx.clone(),
+             entries: HashMap::new()
+        };
+        let id_store = IdStore::new(options);
         let behaviour = IdentityNodeBehaviour {
             mdns: mdns,
             gossipsub: build_gossipsub(),
