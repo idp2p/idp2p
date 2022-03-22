@@ -1,12 +1,10 @@
-use crate::account::WalletAccount;
-use crate::account::WalletAccountDocument;
-use crate::bip32::ExtendedSecretKey;
+use idp2p_core::ver_cred::VerifiableCredential;
+use crate::derive_secret;
+use crate::get_enc_key;
+use idp2p_common::serde_with::skip_serializing_none;
 use chacha20poly1305::aead::{Aead, NewAead};
 use chacha20poly1305::{ChaCha20Poly1305, Key, Nonce};
-use derivation_path::ChildIndex;
-use idp2p_common::anyhow;
 use idp2p_common::anyhow::Result;
-use idp2p_common::ed_secret::EdSecret;
 use idp2p_common::encode_vec;
 use idp2p_common::serde_json;
 use idp2p_core::did::Identity;
@@ -14,12 +12,29 @@ use idp2p_core::did_doc::CreateDocInput;
 use idp2p_core::did_doc::IdDocument;
 use idp2p_core::eventlog::DocumentDigest;
 use idp2p_core::eventlog::EventLogChange;
-use pbkdf2::{
-    password_hash::{Error, PasswordHasher, SaltString},
-    Pbkdf2,
-};
 use serde::{Deserialize, Serialize};
 
+#[skip_serializing_none]
+#[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
+pub struct WalletAccount {
+    pub name: String,
+    pub did: Identity,
+    pub recovery_secret_index: u32,
+    pub next_secret_index: u32,
+    pub credentials: Option<Vec<VerifiableCredential>>, 
+    pub documents: Option<Vec<WalletAccountDocument>>, 
+}
+
+#[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
+pub struct WalletAccountDocument{
+    #[serde(with = "encode_vec")]
+    pub assertion_secret: Vec<u8>,
+    #[serde(with = "encode_vec")]
+    pub authentication_secret: Vec<u8>,
+    #[serde(with = "encode_vec")]
+    pub keyagreement_secret: Vec<u8>,
+    pub document: IdDocument,
+}
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
 pub struct Wallet {
     #[serde(with = "encode_vec")]
@@ -91,7 +106,7 @@ impl Wallet {
 impl WalletPayload {
     pub fn create_account(&self, name: &str, seed: [u8; 16]) -> Result<AccountCommandResult> {
         if self.accounts.iter().any(|x| x.name == name) {
-            anyhow::bail!("Account already exists")
+            idp2p_common::anyhow::bail!("Account already exists")
         }
 
         let mut next_index = self.next_index;
@@ -164,26 +179,11 @@ impl WalletPayload {
                 next_index,
             });
         }
-        anyhow::bail!("Account not found")
+        idp2p_common::anyhow::bail!("Account not found")
     }
 }
 
-fn get_enc_key(password: &str, salt: &[u8]) -> Result<Vec<u8>, Error> {
-    let salt_b64 = idp2p_common::multibase::encode(idp2p_common::multibase::Base::Base64, salt);
-    let salt = SaltString::new(&salt_b64[1..])?;
-    let enc_key = Pbkdf2.hash_password(password.as_bytes(), &salt)?;
-    let enc_key_hash = enc_key.hash.unwrap();
-    Ok(enc_key_hash.as_bytes().to_vec())
-}
 
-fn derive_secret(seed: [u8; 16], derivation_index: &mut u32) -> Result<EdSecret> {
-    let extended_secret = ExtendedSecretKey::from_seed(seed)?;
-    let index = ChildIndex::hardened(derivation_index.clone()).unwrap();
-    let key = extended_secret.derive_child(index)?;
-    let secret = EdSecret::from(key.secret_key);
-    *derivation_index += 1;
-    Ok(secret)
-}
 
 #[cfg(test)]
 mod tests {

@@ -10,23 +10,21 @@ use std::time::Instant;
 use tokio::sync::mpsc::Sender;
 
 pub struct IdStoreOptions {
-    pub owner: Identity,
     pub event_sender: Sender<IdentityEvent>,
     pub entries: HashMap<String, IdEntry>,
 }
 pub struct IdStore {
-    shared: Arc<IdShared>,
+    pub shared: Arc<IdShared>,
 }
 
 pub struct IdShared {
-    state: Mutex<IdState>,
-    event_sender: Sender<IdentityEvent>,
-    owner: Identity,
+    pub state: Mutex<IdState>,
+    event_sender: Sender<IdentityEvent>
 }
 
 #[derive(PartialEq, Debug, Clone)]
 pub struct IdState {
-    entries: HashMap<String, IdEntry>,
+    pub entries: HashMap<String, IdEntry>,
     events: BTreeMap<Instant, String>,
 }
 
@@ -47,7 +45,6 @@ impl IdStore {
         };
         let shared = Arc::new(IdShared {
             state: Mutex::new(state),
-            owner: options.owner,
             event_sender: options.event_sender,
         });
         tokio::spawn(listen_events(shared.clone()));
@@ -58,10 +55,6 @@ impl IdStore {
         let state = self.shared.state.lock().unwrap();
         let entry = state.entries.get(id).map(|entry| entry.clone());
         entry.unwrap().did
-    }
-
-    pub fn get_owner(&self) -> Identity {
-        self.shared.owner.clone()
     }
 
     pub fn push_did(&self, did: Identity) {

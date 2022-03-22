@@ -132,7 +132,7 @@ pub fn handle_jwm(jwm: &str, behaviour: &mut IdentityNodeBehaviour) {
     println!("{rec_mes}");
 }
 
-fn run_command(input: &str, behaviour: &mut IdentityNodeBehaviour) {
+fn run_command(input: &str, behaviour: &mut IdentityNodeBehaviour, owner: Identity) {
     let split = input.split(" ");
     let input: Vec<&str> = split.collect();
     match input[0] {
@@ -150,9 +150,8 @@ fn run_command(input: &str, behaviour: &mut IdentityNodeBehaviour) {
         "send-message" => {
             let secret_str = std::env::var("secret").unwrap();
             let secret = EdSecret::from_str(&secret_str).unwrap();
-            let from_did = behaviour.id_store.get_owner();
             let to_did = behaviour.id_store.get_did(input[1]);
-            let jwm = Jwm::new(from_did.clone(), to_did, input[2]);
+            let jwm = Jwm::new(owner, to_did, input[2]);
             let jwe = jwm.seal(secret).unwrap();
             let json = idp2p_common::serde_json::to_string(&jwe).unwrap();
             let mes_payload = IdentityMessagePayload::Jwm { message: json };
@@ -180,7 +179,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut swarm = {
         let mdns = Mdns::new(Default::default()).await?;
         let options = IdStoreOptions{
-             owner: did.clone(),
              event_sender: tx.clone(),
              entries: HashMap::new()
         };
@@ -200,7 +198,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     swarm.listen_on(format!("/ip4/{}/tcp/{}", opt.ip, opt.port).parse()?)?;
     let topic = IdentTopic::new(&did.id);
     swarm.behaviour_mut().gossipsub.subscribe(&topic)?;
-    swarm.behaviour_mut().id_store.push_did(did);
+    swarm.behaviour_mut().id_store.push_did(did.clone());
     if let Some(remote) = opt.remote {
         let vec = remote.split("/").collect::<Vec<&str>>();
         let to_dial = format!("/ip4/{}/tcp/{}", vec[2], vec[4]);
@@ -213,7 +211,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         tokio::select! {
             line = stdin.next_line() => {
                 let line = line?.expect("stdin closed");
-                run_command(&line, swarm.behaviour_mut());
+                run_command(&line, swarm.behaviour_mut(), did.clone());
             }
             swarm_event = swarm.select_next_some() => {
                 match swarm_event {
