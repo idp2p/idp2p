@@ -3,12 +3,16 @@ use crate::get_enc_key;
 use chacha20poly1305::aead::{Aead, NewAead};
 use chacha20poly1305::{ChaCha20Poly1305, Key, Nonce};
 use idp2p_common::anyhow::Result;
+use idp2p_common::base64url;
 use idp2p_common::ed_secret::EdSecret;
 use idp2p_common::encode_vec;
 use idp2p_common::serde_json;
 use idp2p_core::did::Identity;
 use idp2p_core::ver_cred::VerifiableCredential;
+use idp2p_didcomm::jpm::Jpm;
+use idp2p_didcomm::jwe::Jwe;
 use idp2p_didcomm::jwm::Jwm;
+use idp2p_didcomm::jws::Jws;
 use idp2p_node::store::IdShared;
 use serde::{Deserialize, Serialize};
 use std::fs::File;
@@ -124,6 +128,26 @@ impl WalletPayload {
     }
 }
 
+impl WalletSession {
+    async fn persist(&self, wallet_path: &PathBuf) {
+        let enc_key_bytes = get_enc_key(&self.password, &self.salt).unwrap();
+        let enc_key = Key::from_slice(&enc_key_bytes);
+        let cipher = ChaCha20Poly1305::new(enc_key);
+        let nonce = Nonce::from_slice(&self.iv);
+        let p_str = serde_json::to_string(&self.payload).unwrap();
+        let ciphertext = cipher
+            .encrypt(nonce, p_str.as_bytes())
+            .expect("encryption failure!");
+        let enc_wallet = EncryptedWallet {
+            salt: self.salt.to_vec(),
+            iv: self.iv.to_vec(),
+            ciphertext: ciphertext,
+        };
+        let file = OpenOptions::new().write(true).open(wallet_path).unwrap();
+        serde_json::to_writer_pretty(&file, &enc_wallet).unwrap();
+    }
+}
+
 impl WalletStore {
     pub fn new(options: WalletOptions) -> Result<Self> {
         let state = WalletState {
@@ -134,6 +158,9 @@ impl WalletStore {
             state: Mutex::new(state),
             event_sender: options.event_sender,
         });
+        if !std::path::Path::new(&options.wallet_path).exists() {
+            std::fs::File::create(&options.wallet_path)?;
+        }
         Ok(WalletStore {
             wallet_path: options.wallet_path,
             shared: shared,
@@ -164,9 +191,6 @@ impl WalletStore {
             iv: iv.to_vec(),
             ciphertext: ciphertext,
         };
-        if !std::path::Path::new(&self.wallet_path).exists() {
-            std::fs::File::create(&self.wallet_path)?;
-        }
         let file = OpenOptions::new()
             .write(true)
             .open(&self.wallet_path)
@@ -208,66 +232,56 @@ impl WalletStore {
     }
 
     pub async fn add_connection(&self, username: &str, id: &str) {
-        {
-            let mut state = self.shared.state.lock().unwrap();
-            if let Some(ref mut session) = state.session {
-                let connection = Connection {
-                    id: id.to_owned(),
-                    username: username.to_owned(),
-                    messages: vec![],
-                };
-                session.payload.connections.push(connection);
-            }
+        let mut state = self.shared.state.lock().unwrap();
+        if let Some(ref mut session) = state.session {
+            let connection = Connection {
+                id: id.to_owned(),
+                username: username.to_owned(),
+                messages: vec![],
+            };
+            session.payload.connections.push(connection);
+            session.persist(&self.wallet_path).await;
         }
-        self.persist().await;
     }
 
     pub async fn send_message(&self, to: &str, message: &str) -> Result<()> {
-        let session = self.shared.state.lock().unwrap().clone().session.unwrap();
-        let id_state = self.id_shared.state.lock().unwrap();
-        let to_did = id_state.entries.get(to).map(|entry| entry.clone()).unwrap();
-        let jwm = Jwm::new(session.payload.identity.clone(), to_did.did, message);
-        let jwe = jwm
-            .seal(EdSecret::from_bytes(
-                &session.payload.keyagreement_secret.to_vec(),
-            ))
-            .unwrap();
-        let json = idp2p_common::serde_json::to_string(&jwe).unwrap();
-        // create a message
-        // get
-        // encrpt
-        // send event
-        self.persist().await;
+        let mut state = self.shared.state.lock().unwrap();
+        if let Some(ref mut session) = state.session {
+            let id_state = self.id_shared.state.lock().unwrap();
+            let to_did = id_state.entries.get(to).map(|entry| entry.clone()).unwrap();
+            let jwm = Jwm::new(session.payload.identity.clone(), to_did.did, message);
+            let enc_secret = EdSecret::from_bytes(&session.payload.keyagreement_secret.to_vec());
+            let jwe = jwm.seal(enc_secret).unwrap();
+            let json = idp2p_common::serde_json::to_string(&jwe).unwrap();
+            // create a message
+            // get
+            // encrpt
+            // send event
+        }
         Ok(())
     }
 
-    pub async fn receive_message(&self, jwm: &str) {
-        // dfdf
-        self.persist().await;
-    }
-
-    async fn persist(&self) {
-        let shared = self.shared.clone();
-        let state = shared.state.lock().unwrap();
-        let session = state.session.clone().unwrap();
-        let enc_key_bytes = get_enc_key(&session.password, &session.salt).unwrap();
-        let enc_key = Key::from_slice(&enc_key_bytes);
-        let cipher = ChaCha20Poly1305::new(enc_key);
-        let nonce = Nonce::from_slice(&session.iv);
-        let p_str = serde_json::to_string(&session.payload).unwrap();
-        let ciphertext = cipher
-            .encrypt(nonce, p_str.as_bytes())
-            .expect("encryption failure!");
-        let enc_wallet = EncryptedWallet {
-            salt: session.salt.to_vec(),
-            iv: session.iv.to_vec(),
-            ciphertext: ciphertext,
-        };
-        let file = OpenOptions::new()
-            .write(true)
-            .open(&self.wallet_path)
-            .unwrap();
-        serde_json::to_writer_pretty(&file, &enc_wallet).unwrap();
+    pub async fn handle_jwm(&self, jwm: &str) -> Result<()> {
+        let mut state = self.shared.state.lock().unwrap();
+        if let Some(ref mut session) = state.session {
+            let doc = session.payload.identity.document.clone().unwrap();
+            let jwe: Jwe = serde_json::from_str(jwm)?;
+            if doc.get_first_keyagreement() != jwe.recipients[0].header.kid {
+                idp2p_common::anyhow::bail!("INVALID_KID");
+            }
+            let dec_secret = EdSecret::from_bytes(&session.payload.keyagreement_secret);
+            let json = jwe.decrypt(dec_secret)?;
+            let jws: Jws = serde_json::from_str(&json)?;
+            let jpm: Jpm = base64url::decode(&jws.payload)?;
+            let id_state = self.id_shared.state.lock().unwrap();
+            let from = id_state
+                .entries
+                .get(&jpm.from)
+                .map(|entry| entry.clone())
+                .unwrap();
+            jws.verify(from.did).unwrap();
+        }
+        Ok(())
     }
 }
 

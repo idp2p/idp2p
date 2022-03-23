@@ -7,10 +7,6 @@ use pbkdf2::{
     Pbkdf2,
 };
 
-pub mod bip32;
-pub mod wallet;
-pub mod store;
-
 pub(crate) fn get_enc_key(password: &str, salt: &[u8]) -> Result<Vec<u8>, Error> {
     let salt_b64 = idp2p_common::multibase::encode(idp2p_common::multibase::Base::Base64, salt);
     let salt = SaltString::new(&salt_b64[1..])?;
@@ -27,3 +23,12 @@ pub(crate) fn derive_secret(seed: [u8; 16], derivation_index: &mut u32) -> Resul
     *derivation_index += 1;
     Ok(secret)
 }
+
+pub mod bip32;
+pub mod wallet;
+pub mod store;
+pub mod raw_wallet;
+pub mod secret_wallet;
+pub mod enc_wallet;
+pub mod wallet_session;
+pub mod store_;

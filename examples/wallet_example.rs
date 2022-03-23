@@ -1,3 +1,4 @@
+use idp2p_common::{anyhow::Result, serde_json};
 use idp2p_node::node::build_gossipsub;
 use idp2p_node::node::build_transport;
 use idp2p_node::store::IdStore;
@@ -10,6 +11,7 @@ use libp2p::{
     futures::StreamExt,
     gossipsub::{Gossipsub, GossipsubEvent, IdentTopic},
     identity::Keypair,
+    mdns::{Mdns, MdnsEvent},
     swarm::{SwarmBuilder, SwarmEvent},
     NetworkBehaviour,
 };
@@ -23,6 +25,7 @@ use tokio::sync::mpsc::channel;
 #[derive(NetworkBehaviour)]
 #[behaviour(out_event = "IdentityNodeEvent")]
 pub struct IdentityNodeBehaviour {
+    mdns: Mdns,
     pub gossipsub: Gossipsub,
     #[behaviour(ignore)]
     pub id_store: IdStore,
@@ -30,26 +33,32 @@ pub struct IdentityNodeBehaviour {
 
 #[derive(Debug)]
 pub enum IdentityNodeEvent {
+    Mdns(MdnsEvent),
     Gossipsub(GossipsubEvent),
 }
 
+impl From<MdnsEvent> for IdentityNodeEvent {
+    fn from(event: MdnsEvent) -> Self {
+        IdentityNodeEvent::Mdns(event)
+    }
+}
 impl From<GossipsubEvent> for IdentityNodeEvent {
     fn from(event: GossipsubEvent) -> Self {
         IdentityNodeEvent::Gossipsub(event)
     }
 }
 
-fn run_command(input: &str, store: WalletStore) {
+fn run_command(input: &str, store: WalletStore) -> Result<()> {
     let split = input.split(" ");
     let input: Vec<&str> = split.collect();
     match input[0] {
         "get" => {
-            let state =
-                idp2p_common::serde_json::to_string_pretty(&store.get_state().unwrap()).unwrap();
+            let state = serde_json::to_string_pretty(&store.get_state()?)?;
             println!("{}", state);
         }
         _ => {}
     }
+    Ok(())
 }
 
 #[tokio::main]
@@ -63,8 +72,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         entries: HashMap::new(),
     };
     let id_store = IdStore::new(options);
+    let mdns = Mdns::new(Default::default()).await?;
     let mut swarm = {
         let behaviour = IdentityNodeBehaviour {
+            mdns: mdns,
             gossipsub: build_gossipsub(),
             id_store: id_store,
         };
@@ -75,7 +86,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             .executor(executor)
             .build()
     };
-    let (w_tx, w_rx) = channel::<WalletEvent>(100);
+    let (w_tx, _) = channel::<WalletEvent>(100);
     let wallet_opt = WalletOptions {
         wallet_path: PathBuf::from_str("./wallet.json")?,
         event_sender: w_tx.clone(),
@@ -96,7 +107,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         tokio::select! {
             line = stdin.next_line() => {
                 let line = line?.expect("stdin closed");
-                run_command(&line, wallet_store.clone());
+                run_command(&line, wallet_store.clone())?;
             }
             swarm_event = swarm.select_next_some() => {
                 match swarm_event {

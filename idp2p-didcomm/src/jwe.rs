@@ -28,7 +28,7 @@ pub struct Jwe {
 
 #[derive(Serialize, Deserialize, Clone)]
 pub struct JweRecipient {
-    header: JwmHeader,
+    pub header: JwmHeader,
 }
 
 #[derive(Serialize, Deserialize, Clone)]
