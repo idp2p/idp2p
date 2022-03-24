@@ -29,6 +29,4 @@ pub mod wallet;
 pub mod store;
 pub mod raw_wallet;
 pub mod secret_wallet;
-pub mod enc_wallet;
 pub mod wallet_session;
-pub mod store_;

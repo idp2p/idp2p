@@ -132,7 +132,7 @@ impl IdEntry {
     }
 }
 
-async fn listen_events(shared: Arc<IdShared>) {
+async fn listen_events(_shared: Arc<IdShared>) {
     //println!("To do owner: {}", shared.owner.id);
     /*let _ = shared
     .tx
