@@ -13,11 +13,8 @@ pub struct IdStoreOptions {
     pub event_sender: Sender<IdentityEvent>,
     pub entries: HashMap<String, IdEntry>,
 }
-pub struct IdStore {
-    pub shared: Arc<IdShared>,
-}
 
-pub struct IdShared {
+pub struct IdStore {
     pub state: Mutex<IdState>,
     event_sender: Sender<IdentityEvent>
 }
@@ -38,39 +35,38 @@ pub struct IdEntry {
 }
 
 impl IdStore {
-    pub fn new(options: IdStoreOptions) -> IdStore {
+    pub fn new(options: IdStoreOptions) -> Self {
         let state = IdState {
             entries: options.entries,
             events: BTreeMap::new(),
         };
-        let shared = Arc::new(IdShared {
+        let store = IdStore {
             state: Mutex::new(state),
             event_sender: options.event_sender,
-        });
-        tokio::spawn(listen_events(shared.clone()));
-        IdStore { shared: shared }
+        };
+        store
     }
 
     pub fn get_did(&self, id: &str) -> Identity {
-        let state = self.shared.state.lock().unwrap();
+        let state = self.state.lock().unwrap();
         let entry = state.entries.get(id).map(|entry| entry.clone());
         entry.unwrap().did
     }
 
     pub fn push_did(&self, did: Identity) {
-        let mut state = self.shared.state.lock().unwrap();
+        let mut state = self.state.lock().unwrap();
         let id = did.id.clone();
         let entry = IdEntry::new(did);
         state.entries.insert(id, entry);
     }
 
     pub async fn handle_get(&self, id: &str) {
-        let state = self.shared.state.lock().unwrap();
+        let state = self.state.lock().unwrap();
         let entry = state.entries.get(id).map(|entry| entry.clone());
         if let Some(entry) = entry {
             if entry.is_hosted {
                 let event = IdentityEvent::Published { id: id.to_owned() };
-                self.shared.event_sender.send(event).await.unwrap();
+                self.event_sender.send(event).await.unwrap();
             } else {
                 // add queue to publish
                 // to do()
@@ -79,7 +75,7 @@ impl IdStore {
     }
 
     pub async fn handle_post(&self, digest: &str, identity: &Identity) -> Result<()> {
-        let mut state = self.shared.state.lock().unwrap();
+        let mut state = self.state.lock().unwrap();
         let current = state.entries.get(&identity.id).map(|entry| entry.clone());
         match current {
             None => {
@@ -89,7 +85,7 @@ impl IdStore {
                 let event = IdentityEvent::Created {
                     id: identity.id.clone(),
                 };
-                self.shared.event_sender.send(event).await.unwrap();
+                self.event_sender.send(event).await.unwrap();
             }
             Some(entry) => {
                 if digest != entry.digest {
@@ -102,7 +98,7 @@ impl IdStore {
                     let event = IdentityEvent::Updated {
                         id: identity.id.clone(),
                     };
-                    self.shared.event_sender.send(event).await.unwrap();
+                    self.event_sender.send(event).await.unwrap();
                 }
             }
         }
@@ -132,7 +128,7 @@ impl IdEntry {
     }
 }
 
-async fn listen_events(_shared: Arc<IdShared>) {
+async fn listen_events(_store: Arc<IdStore>) {
     //println!("To do owner: {}", shared.owner.id);
     /*let _ = shared
     .tx

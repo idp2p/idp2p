@@ -1,3 +1,4 @@
+use std::sync::Arc;
 use std::collections::HashMap;
 use idp2p_node::store::IdStoreOptions;
 use colored::Colorize;
@@ -43,7 +44,7 @@ pub struct IdentityNodeBehaviour {
     mdns: Mdns,
     pub gossipsub: Gossipsub,
     #[behaviour(ignore)]
-    pub id_store: IdStore,
+    pub id_store: Arc<IdStore>,
 }
 
 impl IdentityNodeBehaviour {
@@ -186,7 +187,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         let behaviour = IdentityNodeBehaviour {
             mdns: mdns,
             gossipsub: build_gossipsub(),
-            id_store: id_store,
+            id_store: Arc::new(id_store),
         };
         let executor = Box::new(|fut| {
             tokio::spawn(fut);

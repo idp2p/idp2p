@@ -19,17 +19,9 @@ use libp2p::{
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::str::FromStr;
-
-use structopt::StructOpt;
+use std::sync::Arc;
 use tokio::io::AsyncBufReadExt;
 use tokio::sync::mpsc::channel;
-
-#[derive(Debug, StructOpt)]
-#[structopt(name = "idp2p", about = "Usage of idp2p.")]
-struct Opt {
-    #[structopt(short = "p", long = "port", default_value = "43727")]
-    port: u16,
-}
 
 #[derive(NetworkBehaviour)]
 #[behaviour(out_event = "IdentityNodeEvent")]
@@ -37,7 +29,9 @@ pub struct IdentityNodeBehaviour {
     mdns: Mdns,
     pub gossipsub: Gossipsub,
     #[behaviour(ignore)]
-    pub id_store: IdStore,
+    pub id_store: Arc<IdStore>,
+    #[behaviour(ignore)]
+    pub wallet_store: Option<Arc<WalletStore>>,
 }
 
 #[derive(Debug)]
@@ -113,41 +107,44 @@ impl IdentityNodeBehaviour {
     }
 }
 
-async fn run_command(input: &str, store: WalletStore) -> Result<()> {
-    let split = input.split(" ");
-    let input: Vec<&str> = split.collect();
-    match input[0] {
-        "get" => {
-            let state = serde_json::to_string_pretty(&store.get_state()?)?;
-            println!("{state}");
+async fn run_command(input: Vec<&str>, behaviour: &mut IdentityNodeBehaviour) -> Result<()> {
+   if let Some(ref mut store) = behaviour.wallet_store {
+        match input[0] {
+            "get" => {
+                let state = serde_json::to_string_pretty(&store.get_state()?)?;
+                println!("{state}");
+            }
+            "create" => {
+                store.register(input[1], input[2]).await?;
+                let state = store.get_state()?;
+                println!("Id: {}", state.session_wallet.unwrap().identity.id);
+            }
+            "login" => {
+                store.login(input[1]).await?;
+            }
+            "logout" => {
+                store.logout().await;
+            }
+            "connect" => {
+                store.connect(input[1], input[2]).await?;
+            }
+            "send-message" => {
+                store
+                    .send_message(behaviour.id_store.clone(), input[1], input[2])
+                    .await?;
+            }
+            _ => {}
         }
-        "create" => {
-            store.register(input[1], input[2]).await?;
-            let state = store.get_state()?;
-            println!("Id: {}", state.session_wallet.unwrap().identity.id);
-        }
-        "login" => {
-            store.login(input[1]).await?;
-        }
-        "logout" => {
-            store.logout().await;
-        }
-        "connect" => {
-            store.connect(input[1], input[2]).await?;
-        }
-        "send-message" => {
-            store.send_message(input[1], input[2]).await?;
-        }
-        _ => {}
     }
     Ok(())
 }
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let opt = Opt::from_args();
     let mut stdin = tokio::io::BufReader::new(tokio::io::stdin()).lines();
     let (tx, mut rx) = channel::<IdentityEvent>(100);
+    let (wallet_tx, mut wallet_rx) = channel::<WalletEvent>(100);
+
     let local_key = Keypair::generate_ed25519();
     let transport = build_transport(local_key.clone()).await;
     let options = IdStoreOptions {
@@ -160,7 +157,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         let behaviour = IdentityNodeBehaviour {
             mdns: mdns,
             gossipsub: build_gossipsub(),
-            id_store: id_store,
+            id_store: Arc::new(id_store),
+            wallet_store: None,
         };
         let executor = Box::new(|fut| {
             tokio::spawn(fut);
@@ -169,24 +167,28 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             .executor(executor)
             .build()
     };
-    let (wallet_tx, mut wallet_rx) = channel::<WalletEvent>(100);
-    let base_path = format!("./target/{}", opt.port);
-    std::fs::create_dir_all(base_path.clone())?;
-    let wallet_opt = WalletOptions {
-        wallet_path: PathBuf::from_str(&format!("{base_path}/wallet.json"))?,
-        event_sender: wallet_tx.clone(),
-        id_shared: swarm.behaviour_mut().id_store.shared.clone(),
-    };
-    let wallet_store = WalletStore::new(wallet_opt)?;
-    swarm.listen_on(format!("/ip4/0.0.0.0/tcp/{}", opt.port).parse()?)?;
-    //let topic = IdentTopic::new(&did.id);
-    //swarm.behaviour_mut().gossipsub.subscribe(&topic)?;
-    //swarm.behaviour_mut().id_store.push_did(did.clone());
+    
     loop {
         tokio::select! {
             line = stdin.next_line() => {
                 let line = line?.expect("stdin closed");
-                run_command(&line, wallet_store.clone()).await?;
+                let split = line.split(" ");
+                let input: Vec<&str> = split.collect();
+                if swarm.behaviour_mut().wallet_store.is_some() {
+                    run_command(input, swarm.behaviour_mut()).await?;
+                }
+                else if input[0] == "listen"{
+                    let base_path = format!("./target/{}", input[1]);
+                    std::fs::create_dir_all(base_path.clone())?;
+                    let wallet_opt = WalletOptions {
+                        wallet_path: PathBuf::from_str(&format!("{base_path}/wallet.json"))?,
+                        event_sender: wallet_tx.clone(),
+                    };
+                    let wallet_store = WalletStore::new(wallet_opt)?;
+                    swarm.behaviour_mut().wallet_store = Some(Arc::new(wallet_store));
+                    swarm.listen_on(format!("/ip4/0.0.0.0/tcp/{}", input[1]).parse()?)?;
+
+                }
             }
             swarm_event = swarm.select_next_some() => {
                 match swarm_event {
@@ -224,7 +226,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                         WalletEvent::Created(did) => {
                             let topic = IdentTopic::new(did.id.clone());
                             swarm.behaviour_mut().id_store.push_did(did.clone());
-                            swarm.behaviour_mut().gossipsub.subscribe(&topic).unwrap();   
+                            swarm.behaviour_mut().gossipsub.subscribe(&topic).unwrap();
                         }
                         _ => {  }
                     }

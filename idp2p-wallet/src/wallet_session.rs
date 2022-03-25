@@ -1,3 +1,4 @@
+use idp2p_node::store::IdStore;
 use crate::raw_wallet::RawWallet;
 use crate::secret_wallet::SecretWallet;
 use idp2p_common::ed_secret::EdSecret;
@@ -6,7 +7,6 @@ use idp2p_didcomm::jpm::Jpm;
 use idp2p_didcomm::jwe::Jwe;
 use idp2p_didcomm::jwm::Jwm;
 use idp2p_didcomm::jws::Jws;
-use idp2p_node::store::IdShared;
 use std::sync::Arc;
 
 pub struct WalletSession {
@@ -22,11 +22,11 @@ pub struct WalletSession {
 impl WalletSession {
     pub fn send_message(
         &mut self,
-        id_shared: Arc<IdShared>,
+        id_store: Arc<IdStore>,
         to: &str,
         message: &str,
     ) -> Result<String> {
-        let id_state = id_shared.state.lock().unwrap();
+        let id_state = id_store.state.lock().unwrap();
         let to_did = id_state.entries.get(to).map(|entry| entry.clone()).unwrap();
         let jwm = Jwm::new(self.raw.identity.clone(), to_did.did, message);
         let enc_secret = EdSecret::from_bytes(&self.secret.keyagreement_secret.to_vec());
@@ -36,7 +36,7 @@ impl WalletSession {
         Ok(json)
     }
 
-    pub fn handle_jwm(&mut self, id_shared: Arc<IdShared>, jwm: &str) -> Result<()> {
+    pub fn handle_jwm(&mut self, id_store: Arc<IdStore>, jwm: &str) -> Result<()> {
         let doc = self.raw.identity.document.clone().unwrap();
         let jwe: Jwe = serde_json::from_str(jwm)?;
         if doc.get_first_keyagreement() != jwe.recipients[0].header.kid {
@@ -46,7 +46,7 @@ impl WalletSession {
         let json = jwe.decrypt(dec_secret)?;
         let jws: Jws = serde_json::from_str(&json)?;
         let jpm: Jpm = base64url::decode(&jws.payload)?;
-        let id_state = id_shared.state.lock().unwrap();
+        let id_state = id_store.state.lock().unwrap();
         let from = id_state
             .entries
             .get(&jpm.from)
@@ -76,19 +76,19 @@ mod tests {
         Ok(())
     }
 
-    fn init() -> (WalletSession, Arc<IdShared>) {
+    fn init() -> (WalletSession, Arc<IdStore>) {
         let secret = EdSecret::new();
         let did = Identity::from_secret(secret);
         let (tx, mut rx) = channel::<IdentityEvent>(100);
         let entry = IdEntry::new(did);
-        let id_shared = IdShared {
+        let id_store = IdStore {
             state: Mutex::new(IdState {
                 entries: vec![entry],
                 events: BTreeMap::new(),
             }),
             event_sender: tx.clone(),
         };
-        let id_shared = Arc::new(id_shared);
+        let id_store = Arc::new(id_store);
         let raw_wallet = RawWallet::new("adem", did);
         let secret_wallet = SecretWallet {
             next_index: 0,
@@ -107,6 +107,6 @@ mod tests {
             salt: [0u8; 16],
             iv: [0u8; 12],
         };
-        (session, id_shared)
+        (session, id_store)
     }
 }

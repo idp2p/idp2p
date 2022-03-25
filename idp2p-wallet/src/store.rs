@@ -2,7 +2,7 @@ use idp2p_core::did::Identity;
 use crate::raw_wallet::RawWallet;
 use crate::wallet::Wallet;
 use idp2p_common::anyhow::Result;
-use idp2p_node::store::IdShared;
+use idp2p_node::store::IdStore;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -13,13 +13,12 @@ use tokio::sync::mpsc::Sender;
 pub enum WalletEvent {
     Created(Identity),
     Connected(String),
-    MessageReceived,
+    MessageReceived(String),
 }
 
 pub struct WalletOptions {
     pub wallet_path: PathBuf,
     pub event_sender: Sender<WalletEvent>,
-    pub id_shared: Arc<IdShared>,
 }
 
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
@@ -30,15 +29,9 @@ pub struct WalletState {
     pub session_wallet: Option<RawWallet>,
 }
 
-pub struct WalletShared {
+pub struct WalletStore {
     pub wallet: Mutex<Wallet>,
     pub event_sender: Sender<WalletEvent>,
-}
-
-#[derive(Clone)]
-pub struct WalletStore {
-    pub wallet_shared: Arc<WalletShared>,
-    pub id_shared: Arc<IdShared>,
 }
 
 impl WalletStore {
@@ -47,18 +40,15 @@ impl WalletStore {
             path: options.wallet_path.clone(),
             session: None,
         };
-        let shared = Arc::new(WalletShared {
+        let store =WalletStore {
             wallet: Mutex::new(wallet),
             event_sender: options.event_sender,
-        });
-        Ok(WalletStore {
-            wallet_shared: shared,
-            id_shared: options.id_shared,
-        })
+        };
+        Ok(store)
     }
 
     pub fn get_state(&self) -> Result<WalletState> {
-        let wallet = self.wallet_shared.wallet.lock().unwrap();
+        let wallet = self.wallet.lock().unwrap();
         let mut state = WalletState {
             is_exist: true,
             session_crat: None,
@@ -78,50 +68,50 @@ impl WalletStore {
     }
 
     pub async fn register(&self, username: &str, password: &str) -> Result<Vec<u8>> {
-        let mut wallet = self.wallet_shared.wallet.lock().unwrap();
+        let mut wallet = self.wallet.lock().unwrap();
         std::fs::File::create(&wallet.path)?;
         let (did, _) = wallet.register(username, password)?;
         wallet.persist()?;
         let event = WalletEvent::Created(did);
-        self.wallet_shared.event_sender.send(event).await.unwrap();
+        self.event_sender.send(event).await.unwrap();
         Ok(vec![])
     }
 
     pub async fn login(&self, password: &str) -> Result<()> {
-        let mut wallet = self.wallet_shared.wallet.lock().unwrap();
+        let mut wallet = self.wallet.lock().unwrap();
         wallet.login(password)?;
         Ok(())
     }
 
     pub async fn logout(&self) {
-        let mut wallet = self.wallet_shared.wallet.lock().unwrap();
+        let mut wallet = self.wallet.lock().unwrap();
         wallet.session = None;
     }
 
     pub async fn connect(&self, id: &str, username: &str) -> Result<()> {
-        let mut wallet = self.wallet_shared.wallet.lock().unwrap();
+        let mut wallet = self.wallet.lock().unwrap();
         if let Some(ref mut session) = wallet.session {
             session.raw.add_conn(id, username);
             wallet.persist()?;
         }
         let event = WalletEvent::Connected(id.to_owned());
-        self.wallet_shared.event_sender.send(event).await.unwrap();
+        self.event_sender.send(event).await.unwrap();
         Ok(())
     }
 
-    pub async fn send_message(&self, to: &str, message: &str) -> Result<()> {
-        let mut wallet = self.wallet_shared.wallet.lock().unwrap();
+    pub async fn send_message(&self, id_store: Arc<IdStore>, to: &str, message: &str) -> Result<()> {
+        let mut wallet = self.wallet.lock().unwrap();
         if let Some(ref mut session) = wallet.session {
-            session.send_message(self.id_shared.clone(), to, message)?;
+            session.send_message(id_store, to, message)?;
             wallet.persist()?;
         }
         Ok(())
     }
 
-    pub async fn handle_jwm(&self, jwm: &str) -> Result<()> {
-        let mut wallet = self.wallet_shared.wallet.lock().unwrap();
+    pub async fn handle_jwm(&self, id_store: Arc<IdStore>, jwm: &str) -> Result<()> {
+        let mut wallet = self.wallet.lock().unwrap();
         if let Some(ref mut session) = wallet.session {
-            session.handle_jwm(self.id_shared.clone(), jwm)?;
+            session.handle_jwm(id_store, jwm)?;
             wallet.persist()?;
         }
         Ok(())
