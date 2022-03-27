@@ -1,8 +1,8 @@
 use idp2p_core::did::Identity;
-use crate::raw_wallet::RawWallet;
+use crate::raw::RawWallet;
 use crate::wallet::Wallet;
 use idp2p_common::anyhow::Result;
-use idp2p_node::store::IdStore;
+use idp2p_core::store::IdStore;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 use std::sync::Arc;

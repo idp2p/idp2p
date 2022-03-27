@@ -1,8 +1,8 @@
 use crate::derive_secret;
 use crate::get_enc_key;
-use crate::raw_wallet::RawWallet;
-use crate::secret_wallet::SecretWallet;
-use crate::wallet_session::WalletSession;
+use crate::raw::RawWallet;
+use crate::secret::SecretWallet;
+use crate::session::WalletSession;
 use chacha20poly1305::aead::{Aead, NewAead};
 use chacha20poly1305::{ChaCha20Poly1305, Key, Nonce};
 use idp2p_common::{anyhow::Result, encode_vec, serde_json};

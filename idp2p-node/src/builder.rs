@@ -1,19 +1,23 @@
+use crate::behaviour::IdentityRelayBehaviour;
+use libp2p::Swarm;
+use libp2p::identity::ed25519::SecretKey;
+use idp2p_common::ed_secret::EdSecret;
 use libp2p::{
+    core,
     core::muxing::StreamMuxerBox,
     core::transport::Boxed,
     dns,
     gossipsub::{
-        Gossipsub, GossipsubConfigBuilder, GossipsubMessage,
-        MessageAuthenticity, MessageId, ValidationMode,
+        Gossipsub, GossipsubConfigBuilder, GossipsubMessage, MessageAuthenticity, MessageId,
+        ValidationMode,
     },
     identity::Keypair,
-    mplex, noise, core,
-    tcp, websocket, yamux, PeerId, Transport,
+    mplex, noise, tcp, websocket, yamux, PeerId, Transport,
 };
 use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
 use std::time::Duration;
-
+use idp2p_common::anyhow::Result;
 
 pub fn build_gossipsub() -> Gossipsub {
     let message_id_fn = |message: &GossipsubMessage| {
@@ -41,11 +45,9 @@ pub async fn build_transport(local_key: Keypair) -> Boxed<(PeerId, StreamMuxerBo
         let ws_dns_tcp = websocket::WsConfig::new(dns_tcp.clone());
         dns_tcp.or_transport(ws_dns_tcp)
     };
-
     let noise_keys = noise::Keypair::<noise::X25519Spec>::new()
         .into_authentic(&local_key)
         .expect("Signing libp2p-noise static DH keypair failed.");
-
     let boxed = transport
         .upgrade(core::upgrade::Version::V1)
         .authenticate(noise::NoiseConfig::xx(noise_keys).into_authenticated())

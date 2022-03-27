@@ -1,13 +1,17 @@
 use idp2p_core::did::Identity;
-use idp2p_core::ver_cred::VerifiableCredential;
+use idp2p_didcomm::vcs::VerifiableCredential;
 use serde::{Deserialize, Serialize};
+use idp2p_common::encode_vec;
 
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
 pub struct Connection {
     /// Id of connection
     pub id: String,
-    /// Username of connection
+    /// Username of id
     pub username: String,
+    /// Photo of id
+    #[serde(with = "encode_vec")]
+    pub photo: Vec<u8>,
     /// Sent or Recieved messages
     pub messages: Vec<Message>,
 }
@@ -42,6 +46,7 @@ impl RawWallet {
         let connection = Connection {
             id: id.to_owned(),
             username: username.to_owned(),
+            photo: vec![],
             messages: vec![],
         };
         self.connections.push(connection);
@@ -76,7 +81,7 @@ mod tests {
     #[test]
     fn new_wallet_test() {
         let did = Identity::from_secret(EdSecret::new());
-        let w = RawWallet::new("adem", did);
+        let w = RawWallet::new("adem", did.clone());
         assert_eq!(w.identity, did);
     }
 

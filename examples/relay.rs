@@ -1,13 +1,16 @@
-use libp2p::futures::StreamExt;
-use std::str::FromStr;
-use libp2p::PeerId;
-use libp2p::Multiaddr;
-use self::behavior::{build_swarm, IdentityRelayEvent};
+use idp2p_node::{
+    get_peer_info,
+    behaviour::{build_swarm, IdentityRelayEvent}
+};
 use idp2p_common::anyhow::Result;
 use idp2p_common::ed_secret::EdSecret;
+use libp2p::futures::StreamExt;
 use libp2p::identity::ed25519::SecretKey;
 use libp2p::identity::Keypair;
 use libp2p::swarm::SwarmEvent;
+use libp2p::Multiaddr;
+use libp2p::PeerId;
+use std::str::FromStr;
 use structopt::StructOpt;
 
 #[derive(Debug, StructOpt)]
@@ -25,15 +28,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let local_key = Keypair::Ed25519(secret_key.into());
     let mut swarm = build_swarm(local_key.clone()).await;
     swarm.listen_on("/ip4/0.0.0.0/tcp/43727".parse()?)?;
-    if let Some(connect) = opt.connect{
-        let split: Vec<&str> = connect.split("/").collect();
-        let to_dial = format!("/ip4/{}/tcp/{}", split[2], split[4]);
-        let addr: Multiaddr = to_dial.parse().unwrap();
-        let peer_id = PeerId::from_str(split[6])?;
+    if let Some(connect) = opt.connect {
+        let (addr, peer_id) = get_peer_info(&connect)?;
         swarm.dial(addr)?;
         swarm.behaviour_mut().gossipsub.add_explicit_peer(&peer_id);
     }
-   
     loop {
         tokio::select! {
             swarm_event = swarm.select_next_some() => {
@@ -50,5 +49,3 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
     }
 }
-
-pub mod behavior;

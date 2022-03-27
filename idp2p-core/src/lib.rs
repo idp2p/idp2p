@@ -1,4 +1,5 @@
 use idp2p_common::thiserror::Error;
+use serde::{Deserialize, Serialize};
 
 #[derive(Error, Debug)]
 pub enum IdentityError {
@@ -20,6 +21,14 @@ pub enum IdentityError {
     Unknown,
 }
 
+#[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
+pub enum IdentityEvent {
+    Created { id: String },
+    Updated { id: String },
+    Published { id: String },
+    ReceivedJwm { id: String, jwm: String },
+}
+
 macro_rules! check {
     ($e: expr, $err: expr) => {{
         if !$e {
@@ -32,4 +41,5 @@ pub mod did;
 pub mod did_doc;
 pub mod eventlog;
 pub mod microledger;
-pub mod ver_cred;
+pub mod message;
+pub mod store;

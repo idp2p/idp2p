@@ -1,8 +1,8 @@
-use idp2p_node::store::IdStore;
-use crate::raw_wallet::RawWallet;
-use crate::secret_wallet::SecretWallet;
+use crate::raw::RawWallet;
+use crate::secret::SecretWallet;
 use idp2p_common::ed_secret::EdSecret;
 use idp2p_common::{anyhow::Result, base64url, serde_json};
+use idp2p_core::store::IdStore;
 use idp2p_didcomm::jpm::Jpm;
 use idp2p_didcomm::jwe::Jwe;
 use idp2p_didcomm::jwm::Jwm;
@@ -62,28 +62,32 @@ mod tests {
     use super::*;
     use idp2p_common::ed_secret::EdSecret;
     use idp2p_core::did::Identity;
-    use idp2p_node::store::IdEntry;
-    use idp2p_node::store::IdState;
-    use idp2p_node::IdentityEvent;
+    use idp2p_core::store::IdEntry;
+    use idp2p_core::store::IdState;
+    use idp2p_core::IdentityEvent;
     use std::collections::BTreeMap;
+    use std::collections::HashMap;
     use std::sync::Mutex;
     use tokio::sync::mpsc::channel;
 
     #[test]
     fn send_message_test() -> Result<()> {
-        let (session, id_shared) = init();
-        session.send_message(id_shared, "", "Heyyy");
+        let (mut session, id_store) = init();
+        session.send_message(id_store, "", "Heyyy")?;
         Ok(())
     }
 
     fn init() -> (WalletSession, Arc<IdStore>) {
         let secret = EdSecret::new();
-        let did = Identity::from_secret(secret);
+        let did = Identity::from_secret(secret.clone());
+        let id = did.id.clone();
         let (tx, mut rx) = channel::<IdentityEvent>(100);
-        let entry = IdEntry::new(did);
+        let entry = IdEntry::new(did.clone());
+        let mut entries = HashMap::new();
+        entries.insert(id, entry);
         let id_store = IdStore {
             state: Mutex::new(IdState {
-                entries: vec![entry],
+                entries: entries,
                 events: BTreeMap::new(),
             }),
             event_sender: tx.clone(),

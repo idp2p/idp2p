@@ -10,3 +10,4 @@ pub mod jwk;
 pub mod jws;
 pub mod jwm;
 pub mod jpm;
+pub mod vcs;

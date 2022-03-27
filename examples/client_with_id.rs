@@ -1,6 +1,6 @@
 use std::sync::Arc;
 use std::collections::HashMap;
-use idp2p_node::store::IdStoreOptions;
+use idp2p_core::store::IdStoreOptions;
 use colored::Colorize;
 use idp2p_common::ed_secret::EdSecret;
 use idp2p_core::did::Identity;
@@ -8,11 +8,11 @@ use idp2p_didcomm::jpm::Jpm;
 use idp2p_didcomm::jwe::Jwe;
 use idp2p_didcomm::jwm::Jwm;
 use idp2p_didcomm::jws::Jws;
-use idp2p_node::message::{IdentityMessage, IdentityMessagePayload};
-use idp2p_node::node::build_gossipsub;
-use idp2p_node::node::build_transport;
-use idp2p_node::store::IdStore;
-use idp2p_node::IdentityEvent;
+use idp2p_core::message::*;
+use builder::build_gossipsub;
+use builder::build_transport;
+use idp2p_core::store::IdStore;
+use idp2p_core::IdentityEvent;
 use libp2p::Multiaddr;
 use libp2p::{
     futures::StreamExt,
@@ -65,8 +65,8 @@ impl IdentityNodeBehaviour {
                     IdentityMessagePayload::Post { digest, identity } => {
                         self.id_store.handle_post(digest, identity).await.unwrap();
                     }
-                    IdentityMessagePayload::Jwm { message } => {
-                        handle_jwm(&message, self);
+                    IdentityMessagePayload::Jwm { jwm } => {
+                        handle_jwm(&jwm, self);
                     }
                 }
             }
@@ -140,7 +140,7 @@ fn run_command(input: &str, behaviour: &mut IdentityNodeBehaviour, owner: Identi
         "get" => {
             let topic = IdentTopic::new(input[1]);
             behaviour.gossipsub.subscribe(&topic).unwrap();
-            let message = IdentityMessage::new(IdentityMessagePayload::Get);
+            let message = IdentityMessage::new_get(input[1]);
             let data = idp2p_common::serde_json::to_vec(&message).unwrap();
             behaviour.gossipsub.publish(topic, data).unwrap();
         }
@@ -155,8 +155,7 @@ fn run_command(input: &str, behaviour: &mut IdentityNodeBehaviour, owner: Identi
             let jwm = Jwm::new(owner, to_did, input[2]);
             let jwe = jwm.seal(secret).unwrap();
             let json = idp2p_common::serde_json::to_string(&jwe).unwrap();
-            let mes_payload = IdentityMessagePayload::Jwm { message: json };
-            let mes = IdentityMessage::new(mes_payload);
+            let mes = IdentityMessage::new_jwm(input[1], &json);
             let topic = IdentTopic::new(input[1]);
             let data = idp2p_common::serde_json::to_vec(&mes).unwrap();
             behaviour.gossipsub.publish(topic, data).unwrap();
@@ -233,11 +232,68 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 if let Some(event) = event{
                     match event{
                         IdentityEvent::Published { id } => { swarm.behaviour_mut().post(&id); }
-                        IdentityEvent::ReceivedJwm { id, jwm  } => { handle_jwm(&jwm, swarm.behaviour_mut()) }
+                        IdentityEvent::ReceivedJwm { id: _, jwm  } => { handle_jwm(&jwm, swarm.behaviour_mut()) }
                         _ => {  }
                     }
                 }
             }
         }
+    }
+}
+
+mod builder {
+    use libp2p::{
+        core,
+        core::muxing::StreamMuxerBox,
+        core::transport::Boxed,
+        dns,
+        gossipsub::{
+            Gossipsub, GossipsubConfigBuilder, GossipsubMessage, MessageAuthenticity, MessageId,
+            ValidationMode,
+        },
+        identity::Keypair,
+        mplex, noise, tcp, websocket, yamux, PeerId, Transport,
+    };
+    use std::collections::hash_map::DefaultHasher;
+    use std::hash::{Hash, Hasher};
+    use std::time::Duration;
+    pub fn build_gossipsub() -> Gossipsub {
+        let message_id_fn = |message: &GossipsubMessage| {
+            let mut s = DefaultHasher::new();
+            message.data.hash(&mut s);
+            MessageId::from(s.finish().to_string())
+        };
+        let gossipsub_config = GossipsubConfigBuilder::default()
+            .heartbeat_interval(Duration::from_secs(10))
+            .validation_mode(ValidationMode::Anonymous)
+            .message_id_fn(message_id_fn)
+            .build()
+            .expect("Valid config");
+        let gossipsub_result = Gossipsub::new(MessageAuthenticity::Anonymous, gossipsub_config);
+        let gossipsub = gossipsub_result.expect("Correct configuration");
+        gossipsub
+    }
+    pub async fn build_transport(local_key: Keypair) -> Boxed<(PeerId, StreamMuxerBox)> {
+        let local_peer_id = PeerId::from(local_key.public());
+        println!("Local peer id: {:?}", local_peer_id);
+        let transport = {
+            let tcp = tcp::TcpConfig::new().nodelay(true);
+            let dns_tcp = dns::DnsConfig::system(tcp).await.unwrap();
+            let ws_dns_tcp = websocket::WsConfig::new(dns_tcp.clone());
+            dns_tcp.or_transport(ws_dns_tcp)
+        };
+        let noise_keys = noise::Keypair::<noise::X25519Spec>::new()
+            .into_authentic(&local_key)
+            .expect("Signing libp2p-noise static DH keypair failed.");
+        let boxed = transport
+            .upgrade(core::upgrade::Version::V1)
+            .authenticate(noise::NoiseConfig::xx(noise_keys).into_authenticated())
+            .multiplex(core::upgrade::SelectUpgrade::new(
+                yamux::YamuxConfig::default(),
+                mplex::MplexConfig::default(),
+            ))
+            .timeout(std::time::Duration::from_secs(20))
+            .boxed();
+        boxed
     }
 }

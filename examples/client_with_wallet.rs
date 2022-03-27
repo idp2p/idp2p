@@ -1,10 +1,10 @@
+use crate::builder::build_gossipsub;
+use crate::builder::build_transport;
 use idp2p_common::{anyhow::Result, serde_json};
-use idp2p_node::message::{IdentityMessage, IdentityMessagePayload};
-use idp2p_node::node::build_gossipsub;
-use idp2p_node::node::build_transport;
-use idp2p_node::store::IdStore;
-use idp2p_node::store::IdStoreOptions;
-use idp2p_node::IdentityEvent;
+use idp2p_core::message::{IdentityMessage, IdentityMessagePayload};
+use idp2p_core::store::IdStore;
+use idp2p_core::store::IdStoreOptions;
+use idp2p_core::IdentityEvent;
 use idp2p_wallet::store::WalletEvent;
 use idp2p_wallet::store::WalletOptions;
 use idp2p_wallet::store::WalletStore;
@@ -69,7 +69,7 @@ impl IdentityNodeBehaviour {
                     IdentityMessagePayload::Post { digest, identity } => {
                         self.id_store.handle_post(digest, identity).await.unwrap();
                     }
-                    IdentityMessagePayload::Jwm { message } => {
+                    _ => {
                         //handle_jwm(&message, self);
                     }
                 }
@@ -217,9 +217,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 if let Some(event) = event{
                     match event{
                         WalletEvent::Connected(id) => {
-                            let topic = IdentTopic::new(id);
+                            let topic = IdentTopic::new(id.clone());
                             swarm.behaviour_mut().gossipsub.subscribe(&topic).unwrap();
-                            let message = IdentityMessage::new(IdentityMessagePayload::Get);
+                            let message = IdentityMessage::new_get(&id);
                             let data = idp2p_common::serde_json::to_vec(&message).unwrap();
                             swarm.behaviour_mut().gossipsub.publish(topic, data).unwrap();
                         }
@@ -233,5 +233,62 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 }
             }
         }
+    }
+}
+
+mod builder {
+    use libp2p::{
+        core,
+        core::muxing::StreamMuxerBox,
+        core::transport::Boxed,
+        dns,
+        gossipsub::{
+            Gossipsub, GossipsubConfigBuilder, GossipsubMessage, MessageAuthenticity, MessageId,
+            ValidationMode,
+        },
+        identity::Keypair,
+        mplex, noise, tcp, websocket, yamux, PeerId, Transport,
+    };
+    use std::collections::hash_map::DefaultHasher;
+    use std::hash::{Hash, Hasher};
+    use std::time::Duration;
+    pub fn build_gossipsub() -> Gossipsub {
+        let message_id_fn = |message: &GossipsubMessage| {
+            let mut s = DefaultHasher::new();
+            message.data.hash(&mut s);
+            MessageId::from(s.finish().to_string())
+        };
+        let gossipsub_config = GossipsubConfigBuilder::default()
+            .heartbeat_interval(Duration::from_secs(10))
+            .validation_mode(ValidationMode::Anonymous)
+            .message_id_fn(message_id_fn)
+            .build()
+            .expect("Valid config");
+        let gossipsub_result = Gossipsub::new(MessageAuthenticity::Anonymous, gossipsub_config);
+        let gossipsub = gossipsub_result.expect("Correct configuration");
+        gossipsub
+    }
+    pub async fn build_transport(local_key: Keypair) -> Boxed<(PeerId, StreamMuxerBox)> {
+        let local_peer_id = PeerId::from(local_key.public());
+        println!("Local peer id: {:?}", local_peer_id);
+        let transport = {
+            let tcp = tcp::TcpConfig::new().nodelay(true);
+            let dns_tcp = dns::DnsConfig::system(tcp).await.unwrap();
+            let ws_dns_tcp = websocket::WsConfig::new(dns_tcp.clone());
+            dns_tcp.or_transport(ws_dns_tcp)
+        };
+        let noise_keys = noise::Keypair::<noise::X25519Spec>::new()
+            .into_authentic(&local_key)
+            .expect("Signing libp2p-noise static DH keypair failed.");
+        let boxed = transport
+            .upgrade(core::upgrade::Version::V1)
+            .authenticate(noise::NoiseConfig::xx(noise_keys).into_authenticated())
+            .multiplex(core::upgrade::SelectUpgrade::new(
+                yamux::YamuxConfig::default(),
+                mplex::MplexConfig::default(),
+            ))
+            .timeout(std::time::Duration::from_secs(20))
+            .boxed();
+        boxed
     }
 }

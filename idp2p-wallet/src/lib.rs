@@ -27,6 +27,6 @@ pub(crate) fn derive_secret(seed: [u8; 16], derivation_index: &mut u32) -> Resul
 pub mod bip32;
 pub mod wallet;
 pub mod store;
-pub mod raw_wallet;
-pub mod secret_wallet;
-pub mod wallet_session;
+pub mod raw;
+pub mod secret;
+pub mod session;

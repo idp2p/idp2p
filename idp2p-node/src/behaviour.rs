@@ -1,5 +1,5 @@
-use idp2p_node::node::build_gossipsub;
-use idp2p_node::node::build_transport;
+use crate::builder::build_gossipsub;
+use crate::builder::build_transport;
 use libp2p::identity::Keypair;
 use libp2p::swarm::SwarmBuilder;
 use libp2p::PeerId;
@@ -28,7 +28,7 @@ pub async fn build_swarm(local_key: Keypair) -> Swarm<IdentityRelayBehaviour> {
 #[derive(NetworkBehaviour)]
 #[behaviour(out_event = "IdentityRelayEvent")]
 pub struct IdentityRelayBehaviour {
-    pub gossipsub: Gossipsub,
+    pub gossipsub: Gossipsub
 }
 
 #[derive(Debug)]
@@ -56,7 +56,7 @@ impl IdentityRelayBehaviour {
         }
     }
 
-    fn is_authorized_peer(&self, peer_id: PeerId) -> bool{
+    fn is_authorized_peer(&self, _peer_id: PeerId) -> bool{
         true
     }
 }

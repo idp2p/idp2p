@@ -1,19 +1,14 @@
 [package]
-name = "idp2p_relay"
+name = "idp2p_client"
 version = "0.1.0"
 edition = "2021"
 copyright = "2022, Adem Caglin"
 authors = ["adem caglin <adem.caglin@gmail.com>"] 
 
 [dependencies]
-structopt = "0.3.25"
-env_logger = "0.9.0"
-colored = "2.0.0"
 libp2p = "0.43.0"
-serde = { version = "1.0.130", features = ["derive"] }
 tokio = { version = "1.13.0", features = ["full"] }
+serde = { version = "1.0.130", features = ["derive"] }
 idp2p_common = { version = "0.1.0", path = "../idp2p-common" }
-idp2p_node = { version = "0.1.0", path = "../idp2p-node" }
-
-[dev-dependencies]
-cargo-deb = "1.36.0"
+idp2p_core = { version = "0.1.0", path = "../idp2p-core" }
+idp2p_wallet = { version = "0.1.0", path = "../idp2p-wallet" }

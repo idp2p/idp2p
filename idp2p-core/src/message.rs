@@ -1,10 +1,12 @@
+use crate::did::Identity;
+use idp2p_common::chrono::Utc;
 use idp2p_common::serde_json;
-use idp2p_core::did::Identity;
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
 pub struct IdentityMessage {
     pub id: String,
+    pub timestamp: i64,
     pub payload: IdentityMessagePayload,
 }
 
@@ -16,22 +18,37 @@ pub enum IdentityMessagePayload {
     #[serde(rename = "post")]
     Post { digest: String, identity: Identity },
     #[serde(rename = "jwm")]
-    Jwm { message: String },
+    Jwm { jwm: String },
 }
 
 impl IdentityMessage {
-    pub fn new(payload: IdentityMessagePayload) -> Self {
-        let rnd = idp2p_common::create_random::<32>();
-        let id: String = idp2p_common::encode(&rnd);
-        IdentityMessage { id, payload }
-    }
-
     pub fn new_post(did: Identity) -> Self {
+        let id = did.id.clone();
         let payload = IdentityMessagePayload::Post {
             digest: did.get_digest(),
             identity: did,
         };
-        Self::new(payload)
+        Self::new(&id, payload)
+    }
+
+    pub fn new_get(id: &str) -> Self {
+        Self::new(id, IdentityMessagePayload::Get)
+    }
+
+    pub fn new_jwm(id: &str, jwm: &str) -> Self {
+        let payload = IdentityMessagePayload::Jwm {
+            jwm: jwm.to_owned(),
+        };
+        Self::new(id, payload)
+    }
+
+    fn new(id: &str, payload: IdentityMessagePayload) -> Self {
+        let message = IdentityMessage {
+            id: id.to_owned(),
+            timestamp: Utc::now().timestamp(),
+            payload: payload,
+        };
+        message
     }
 
     pub fn from_bytes(mes: &[u8]) -> Self {
@@ -45,7 +62,7 @@ mod tests {
     use super::*;
     #[test]
     fn new_test() {
-        let message = IdentityMessage::new(IdentityMessagePayload::Get);
-        assert_eq!(idp2p_common::decode(&message.id).len(), 32);
+        let message = IdentityMessage::new_get("adem");
+        assert_eq!(message.id, "adem");
     }
 }
