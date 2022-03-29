@@ -97,7 +97,8 @@ impl Jwe {
 mod tests {
     use super::*;
     use crate::jpm::Jpm;
-    use crate::jwm::Jwm;
+    use crate::jwm::JwmBody;
+    use crate::jwm::JwmHandler;
     use idp2p_core::did_doc::CreateDocInput;
     use idp2p_core::did_doc::IdDocument;
     use idp2p_core::eventlog::DocumentDigest;
@@ -118,7 +119,7 @@ mod tests {
 
         let (mut to_id, to_secret) = create_did();
         save_doc(&mut to_id, to_secret.clone());
-        let jwm = Jwm::new(from_id.clone(), to_id.clone(), r#"{ "body" : "body" }"#);
+        let jwm = from_id.new_jwm(to_id.clone(), JwmBody::Message("body".to_owned()));
         let jws = Jws::new(Jpm::from(jwm), from_secret.clone())?;
         let jwe = Jwe::encrypt(jws, to_id.clone())?;
         let result = jwe.decrypt(to_secret.clone())?;

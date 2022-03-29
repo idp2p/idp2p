@@ -1,7 +1,3 @@
-use crate::behaviour::IdentityRelayBehaviour;
-use libp2p::Swarm;
-use libp2p::identity::ed25519::SecretKey;
-use idp2p_common::ed_secret::EdSecret;
 use libp2p::{
     core,
     core::muxing::StreamMuxerBox,
@@ -17,9 +13,8 @@ use libp2p::{
 use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
 use std::time::Duration;
-use idp2p_common::anyhow::Result;
 
-pub fn build_gossipsub() -> Gossipsub {
+pub(crate) fn build_gossipsub() -> Gossipsub {
     let message_id_fn = |message: &GossipsubMessage| {
         let mut s = DefaultHasher::new();
         message.data.hash(&mut s);
@@ -36,7 +31,7 @@ pub fn build_gossipsub() -> Gossipsub {
     gossipsub
 }
 
-pub async fn build_transport(local_key: Keypair) -> Boxed<(PeerId, StreamMuxerBox)> {
+pub(crate) async fn build_transport(local_key: Keypair) -> Boxed<(PeerId, StreamMuxerBox)> {
     let local_peer_id = PeerId::from(local_key.public());
     println!("Local peer id: {:?}", local_peer_id);
     let transport = {
@@ -59,3 +54,4 @@ pub async fn build_transport(local_key: Keypair) -> Boxed<(PeerId, StreamMuxerBo
         .boxed();
     boxed
 }
+

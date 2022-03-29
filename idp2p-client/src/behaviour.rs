@@ -10,12 +10,12 @@ use libp2p::{
 #[derive(NetworkBehaviour)]
 #[behaviour(out_event = "IdentityClientEvent")]
 pub struct IdentityClientBehaviour {
-    mdns: Mdns,
+    pub mdns: Mdns,
     pub gossipsub: Gossipsub,
     #[behaviour(ignore)]
-    pub id_store: Arc<IdStore>,
+    pub wallet: Arc<WalletStore>,
     #[behaviour(ignore)]
-    pub wallet_store: Option<Arc<WalletStore>>,
+    pub identities: Arc<IdStore>,
 }
 
 #[derive(Debug)]

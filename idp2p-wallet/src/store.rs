@@ -1,24 +1,16 @@
-use idp2p_core::did::Identity;
 use crate::raw::RawWallet;
 use crate::wallet::Wallet;
 use idp2p_common::anyhow::Result;
+use idp2p_core::did::Identity;
 use idp2p_core::store::IdStore;
+use idp2p_didcomm::jwm::JwmBody;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::sync::Mutex;
-use tokio::sync::mpsc::Sender;
-
-#[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
-pub enum WalletEvent {
-    Created(Identity),
-    Connected(String),
-    MessageReceived(String),
-}
 
 pub struct WalletOptions {
-    pub wallet_path: PathBuf,
-    pub event_sender: Sender<WalletEvent>,
+    pub wallet_path: PathBuf
 }
 
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
@@ -30,8 +22,7 @@ pub struct WalletState {
 }
 
 pub struct WalletStore {
-    pub wallet: Mutex<Wallet>,
-    pub event_sender: Sender<WalletEvent>,
+    pub wallet: Mutex<Wallet>
 }
 
 impl WalletStore {
@@ -40,9 +31,8 @@ impl WalletStore {
             path: options.wallet_path.clone(),
             session: None,
         };
-        let store =WalletStore {
-            wallet: Mutex::new(wallet),
-            event_sender: options.event_sender,
+        let store = WalletStore {
+            wallet: Mutex::new(wallet)
         };
         Ok(store)
     }
@@ -67,14 +57,12 @@ impl WalletStore {
         Ok(state)
     }
 
-    pub async fn register(&self, username: &str, password: &str) -> Result<Vec<u8>> {
+    pub async fn register(&self, username: &str, password: &str) -> Result<(Identity, [u8;16])> {
         let mut wallet = self.wallet.lock().unwrap();
         std::fs::File::create(&wallet.path)?;
-        let (did, _) = wallet.register(username, password)?;
+        let (did, seed) = wallet.register(username, password)?;
         wallet.persist()?;
-        let event = WalletEvent::Created(did);
-        self.event_sender.send(event).await.unwrap();
-        Ok(vec![])
+        Ok((did, seed))
     }
 
     pub async fn login(&self, password: &str) -> Result<()> {
@@ -88,24 +76,32 @@ impl WalletStore {
         wallet.session = None;
     }
 
-    pub async fn connect(&self, id: &str, username: &str) -> Result<()> {
+    pub fn connect(&self, id: &str) -> Result<bool> {
         let mut wallet = self.wallet.lock().unwrap();
         if let Some(ref mut session) = wallet.session {
-            session.raw.add_conn(id, username);
+            session.raw.add_request(id);
             wallet.persist()?;
+            return Ok(true);
         }
-        let event = WalletEvent::Connected(id.to_owned());
-        self.event_sender.send(event).await.unwrap();
-        Ok(())
+        idp2p_common::anyhow::bail!("Session not found");    
     }
 
-    pub async fn send_message(&self, id_store: Arc<IdStore>, to: &str, message: &str) -> Result<()> {
+    pub async fn accept(&self, id: &str) -> Result<bool> {
         let mut wallet = self.wallet.lock().unwrap();
         if let Some(ref mut session) = wallet.session {
-            session.send_message(id_store, to, message)?;
+            //session.raw.add_conn(id);
             wallet.persist()?;
         }
-        Ok(())
+        idp2p_common::anyhow::bail!("Session not found"); 
+    }
+
+    pub fn send_message(&self, id_store: Arc<IdStore>, to: &str, message: &str) -> Result<()> {
+        let mut wallet = self.wallet.lock().unwrap();
+        if let Some(ref mut session) = wallet.session {
+            session.send_jwm(id_store, to, JwmBody::Message(message.to_owned()))?;
+            wallet.persist()?;
+        }
+        idp2p_common::anyhow::bail!("Session not found"); 
     }
 
     pub async fn handle_jwm(&self, id_store: Arc<IdStore>, jwm: &str) -> Result<()> {
@@ -114,7 +110,7 @@ impl WalletStore {
             session.handle_jwm(id_store, jwm)?;
             wallet.persist()?;
         }
-        Ok(())
+        idp2p_common::anyhow::bail!("Session not found"); 
     }
 }
 

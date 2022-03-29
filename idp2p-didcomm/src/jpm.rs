@@ -28,7 +28,7 @@ impl Jpm {
             from: jwm.from.id.to_owned(),
             to: vec![jwm.to.id.to_owned()],
             created_time: Utc::now().timestamp(),
-            body: jwm.body,
+            body: serde_json::json!(serde_json::to_string(&jwm.body).unwrap()),
         }
     }
 
@@ -46,17 +46,19 @@ impl Jpm {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::jwm::JwmBody;
+    use crate::jwm::JwmHandler;
     use idp2p_core::did::Identity;
     #[test]
     fn from_test() {
         let from = Identity::new(&vec![], &vec![]);
         let to = Identity::new(&vec![], &vec![]);
-        let jwm = Jwm::new(from, to, r#"{ "body" : "body" }"#);
+        let jwm = from.new_jwm(to, JwmBody::Message("body".to_owned()));
         let jpm = Jpm::from(jwm);
         let expected = "did:p2p:bagaaierakioikcmj4ooqw54zqsedryl7lnuubne64ga443cpkegei4xftata";
         assert_eq!(jpm.from, expected);
         assert_eq!(jpm.to[0], expected);
-        assert_eq!(jpm.body.as_str(), Some(r#"{ "body" : "body" }"#));
+        assert_eq!(jpm.body.as_str(), Some(r#"{"text":"body"}"#));
         assert_eq!(jpm.m_type, M_TYPE);
         assert_eq!(jpm.typ, TYP);
     }
@@ -90,7 +92,6 @@ mod tests {
         };
         let jpm_b64 = base64url::encode(&j).unwrap();
         let r = Jpm::from_str(&jpm_b64);
-      
         assert!(r.is_ok());
     }
 }

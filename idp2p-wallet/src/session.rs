@@ -1,3 +1,4 @@
+use idp2p_didcomm::jwm::JwmHandler;
 use crate::raw::RawWallet;
 use crate::secret::SecretWallet;
 use idp2p_common::ed_secret::EdSecret;
@@ -5,7 +6,7 @@ use idp2p_common::{anyhow::Result, base64url, serde_json};
 use idp2p_core::store::IdStore;
 use idp2p_didcomm::jpm::Jpm;
 use idp2p_didcomm::jwe::Jwe;
-use idp2p_didcomm::jwm::Jwm;
+use idp2p_didcomm::jwm::JwmBody;
 use idp2p_didcomm::jws::Jws;
 use std::sync::Arc;
 
@@ -20,15 +21,10 @@ pub struct WalletSession {
 }
 
 impl WalletSession {
-    pub fn send_message(
-        &mut self,
-        id_store: Arc<IdStore>,
-        to: &str,
-        message: &str,
-    ) -> Result<String> {
+    pub fn send_jwm(&mut self, id_store: Arc<IdStore>, to: &str, jwm: JwmBody) -> Result<String> {
         let id_state = id_store.state.lock().unwrap();
         let to_did = id_state.entries.get(to).map(|entry| entry.clone()).unwrap();
-        let jwm = Jwm::new(self.raw.identity.clone(), to_did.did, message);
+        let jwm = self.raw.identity.new_jwm(to_did.did, jwm);
         let enc_secret = EdSecret::from_bytes(&self.secret.keyagreement_secret.to_vec());
         let jwe = jwm.seal(enc_secret)?;
         let json = idp2p_common::serde_json::to_string(&jwe)?;
@@ -46,13 +42,10 @@ impl WalletSession {
         let json = jwe.decrypt(dec_secret)?;
         let jws: Jws = serde_json::from_str(&json)?;
         let jpm: Jpm = base64url::decode(&jws.payload)?;
-        let id_state = id_store.state.lock().unwrap();
-        let from = id_state
-            .entries
-            .get(&jpm.from)
-            .map(|entry| entry.clone())
-            .unwrap();
-        jws.verify(from.did)?;
+        let from = id_store.get_did(&jpm.from);
+        jws.verify(from)?;
+        // check m_type
+        // if it is
         Ok(())
     }
 }
@@ -64,16 +57,13 @@ mod tests {
     use idp2p_core::did::Identity;
     use idp2p_core::store::IdEntry;
     use idp2p_core::store::IdState;
-    use idp2p_core::IdentityEvent;
-    use std::collections::BTreeMap;
     use std::collections::HashMap;
     use std::sync::Mutex;
-    use tokio::sync::mpsc::channel;
 
     #[test]
     fn send_message_test() -> Result<()> {
         let (mut session, id_store) = init();
-        session.send_message(id_store, "", "Heyyy")?;
+        session.send_jwm(id_store, "", JwmBody::Message("Heeyy".to_owned()))?;
         Ok(())
     }
 
@@ -81,16 +71,11 @@ mod tests {
         let secret = EdSecret::new();
         let did = Identity::from_secret(secret.clone());
         let id = did.id.clone();
-        let (tx, mut rx) = channel::<IdentityEvent>(100);
         let entry = IdEntry::new(did.clone());
         let mut entries = HashMap::new();
         entries.insert(id, entry);
         let id_store = IdStore {
-            state: Mutex::new(IdState {
-                entries: entries,
-                events: BTreeMap::new(),
-            }),
-            event_sender: tx.clone(),
+            state: Mutex::new(IdState::new(entries)),
         };
         let id_store = Arc::new(id_store);
         let raw_wallet = RawWallet::new("adem", did);

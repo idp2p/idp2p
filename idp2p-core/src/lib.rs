@@ -1,3 +1,4 @@
+use crate::did::Identity;
 use idp2p_common::thiserror::Error;
 use serde::{Deserialize, Serialize};
 
@@ -25,8 +26,7 @@ pub enum IdentityError {
 pub enum IdentityEvent {
     Created { id: String },
     Updated { id: String },
-    Published { id: String },
-    ReceivedJwm { id: String, jwm: String },
+    Skipped { id: String }
 }
 
 macro_rules! check {

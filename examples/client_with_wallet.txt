@@ -1,4 +1,4 @@
-use crate::builder::build_gossipsub;
+/*use crate::builder::build_gossipsub;
 use crate::builder::build_transport;
 use idp2p_common::{anyhow::Result, serde_json};
 use idp2p_core::message::{IdentityMessage, IdentityMessagePayload};
@@ -292,3 +292,4 @@ mod builder {
         boxed
     }
 }
+*/

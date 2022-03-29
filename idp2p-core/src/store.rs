@@ -1,27 +1,21 @@
-use crate::IdentityEvent;
 use crate::did::Identity;
+use crate::message::IdentityMessage;
+use crate::IdentityEvent;
 use idp2p_common::anyhow::Result;
 use idp2p_common::chrono::Utc;
 use std::collections::BTreeMap;
 use std::collections::HashMap;
 use std::sync::Mutex;
 use std::time::Instant;
-use tokio::sync::mpsc::Sender;
-
-pub struct IdStoreOptions {
-    pub event_sender: Sender<IdentityEvent>,
-    pub entries: HashMap<String, IdEntry>,
-}
 
 pub struct IdStore {
     pub state: Mutex<IdState>,
-    pub event_sender: Sender<IdentityEvent>
 }
 
 #[derive(PartialEq, Debug, Clone)]
 pub struct IdState {
     pub entries: HashMap<String, IdEntry>,
-    pub events: BTreeMap<Instant, String>,
+    pub publish_queue: BTreeMap<(Instant, String), IdentityMessage>,
 }
 
 #[derive(PartialEq, Debug, Clone)]
@@ -34,16 +28,10 @@ pub struct IdEntry {
 }
 
 impl IdStore {
-    pub fn new(options: IdStoreOptions) -> Self {
-        let state = IdState {
-            entries: options.entries,
-            events: BTreeMap::new(),
-        };
-        let store = IdStore {
-            state: Mutex::new(state),
-            event_sender: options.event_sender,
-        };
-        store
+    pub fn new(entries: HashMap<String, IdEntry>) -> Self {
+        IdStore {
+            state: Mutex::new(IdState::new(entries)),
+        }
     }
 
     pub fn get_did(&self, id: &str) -> Identity {
@@ -59,21 +47,22 @@ impl IdStore {
         state.entries.insert(id, entry);
     }
 
-    pub async fn handle_get(&self, id: &str) {
-        let state = self.state.lock().unwrap();
+    pub fn handle_get(&self, id: &str) -> Option<IdentityMessage> {
+        let mut state = self.state.lock().unwrap();
         let entry = state.entries.get(id).map(|entry| entry.clone());
         if let Some(entry) = entry {
+            let mes = IdentityMessage::new_post(entry.did.clone());
             if entry.is_hosted {
-                let event = IdentityEvent::Published { id: id.to_owned() };
-                self.event_sender.send(event).await.unwrap();
+                return Some(mes);
             } else {
-                // add queue to publish
-                // to do()
+                let when = Instant::now();
+                state.publish_queue.insert((when, id.to_owned()), mes);
             }
         }
+        None
     }
 
-    pub async fn handle_post(&self, digest: &str, identity: &Identity) -> Result<()> {
+    pub fn handle_post(&self, digest: &str, identity: &Identity) -> Result<IdentityEvent> {
         let mut state = self.state.lock().unwrap();
         let current = state.entries.get(&identity.id).map(|entry| entry.clone());
         match current {
@@ -81,10 +70,9 @@ impl IdStore {
                 identity.verify()?;
                 let entry = IdEntry::from(identity.clone());
                 state.entries.insert(identity.id.clone(), entry);
-                let event = IdentityEvent::Created {
+                return Ok(IdentityEvent::Created {
                     id: identity.id.clone(),
-                };
-                self.event_sender.send(event).await.unwrap();
+                });
             }
             Some(entry) => {
                 if digest != entry.digest {
@@ -94,14 +82,25 @@ impl IdStore {
                         ..entry
                     };
                     state.entries.insert(identity.id.clone(), new_entry);
-                    let event = IdentityEvent::Updated {
+                    return Ok(IdentityEvent::Updated {
                         id: identity.id.clone(),
-                    };
-                    self.event_sender.send(event).await.unwrap();
+                    });
+                } else {
+                    return Ok(IdentityEvent::Skipped {
+                        id: identity.id.clone(),
+                    });
                 }
             }
         }
-        Ok(())
+    }
+}
+
+impl IdState {
+    pub fn new(entries: HashMap<String, IdEntry>) -> Self {
+        IdState {
+            entries: entries,
+            publish_queue: BTreeMap::new(),
+        }
     }
 }
 
@@ -124,5 +123,28 @@ impl IdEntry {
             is_hosted: false,
             did: did,
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use idp2p_common::ed_secret::EdSecret;
+
+    #[test]
+    fn handle_get_test() {
+        let store = create_store();
+        let r = store.handle_get("did:p2p:bagaaierab2xsn6stgdcwfv3wvot7lboh2aewqqjfy56gzh7sibt7vxxtup4q");
+        assert!(r.is_some());
+    }
+
+    fn create_store() -> IdStore {
+        let secret_str = "beilmx4d76udjmug5ykpy657qa3pfsqbcu7fbbtuk3mgrdrxssseq";
+        let secret = EdSecret::from_str(secret_str).unwrap();
+        let ed_key_digest = secret.to_publickey_digest().unwrap();
+        let did = Identity::new(&ed_key_digest, &ed_key_digest);
+        let store = IdStore::new(HashMap::new());
+        store.push_did(did);   
+        store
     }
 }

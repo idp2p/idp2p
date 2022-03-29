@@ -1,62 +1,53 @@
-use crate::builder::build_gossipsub;
-use crate::builder::build_transport;
-use libp2p::identity::Keypair;
-use libp2p::swarm::SwarmBuilder;
+use crate::ClientStore;
+use idp2p_core::store::IdStore;
+use std::sync::Arc;
 use libp2p::PeerId;
 use libp2p::{
     gossipsub::{Gossipsub, GossipsubEvent, IdentTopic},
-    swarm::Swarm,
+    mdns::{Mdns, MdnsEvent},
     NetworkBehaviour,
 };
 
-pub async fn build_swarm(local_key: Keypair) -> Swarm<IdentityRelayBehaviour> {
-    let transport = build_transport(local_key.clone()).await;
-    let swarm = {
-        let behaviour = IdentityRelayBehaviour {
-            gossipsub: build_gossipsub(),
-        };
-        let executor = Box::new(|fut| {
-            tokio::spawn(fut);
-        });
-        SwarmBuilder::new(transport, behaviour, local_key.public().to_peer_id())
-            .executor(executor)
-            .build()
-    };
-    return swarm;
-}
-
 #[derive(NetworkBehaviour)]
-#[behaviour(out_event = "IdentityRelayEvent")]
-pub struct IdentityRelayBehaviour {
-    pub gossipsub: Gossipsub
+#[behaviour(out_event = "IdentityNodeEvent")]
+pub struct IdentityNodeBehaviour {
+    pub(crate) mdns: Mdns,
+    pub(crate) gossipsub: Gossipsub,
+    #[behaviour(ignore)]
+    pub identities: Arc<IdStore>,
+    #[behaviour(ignore)]
+    pub clients: Arc<ClientStore>,
 }
 
 #[derive(Debug)]
-pub enum IdentityRelayEvent {
-    Gossipsub(GossipsubEvent)
+pub enum IdentityNodeEvent {
+    Gossipsub(GossipsubEvent),
+    Mdns(MdnsEvent)
 }
 
-impl From<GossipsubEvent> for IdentityRelayEvent {
+impl From<GossipsubEvent> for IdentityNodeEvent {
     fn from(event: GossipsubEvent) -> Self {
-        IdentityRelayEvent::Gossipsub(event)
+        IdentityNodeEvent::Gossipsub(event)
     }
 }
 
-impl IdentityRelayBehaviour {
+impl From<MdnsEvent> for IdentityNodeEvent {
+    fn from(event: MdnsEvent) -> Self {
+        IdentityNodeEvent::Mdns(event)
+    }
+}
+
+impl IdentityNodeBehaviour {
     pub async fn handle_gossip_event(&mut self, event: GossipsubEvent) {
-        if let GossipsubEvent::Subscribed {
-            peer_id,
-            topic
-        } = event
-        {
-            if self.is_authorized_peer(peer_id){
+        if let GossipsubEvent::Subscribed { peer_id, topic } = event {
+            if self.is_authorized_peer(peer_id) {
                 let new_topic = IdentTopic::new(topic.into_string());
                 self.gossipsub.subscribe(&new_topic).unwrap();
             }
         }
     }
 
-    fn is_authorized_peer(&self, _peer_id: PeerId) -> bool{
+    fn is_authorized_peer(&self, _peer_id: PeerId) -> bool {
         true
     }
 }

@@ -73,7 +73,8 @@ impl Jws {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::jwm::Jwm;
+    use crate::jwm::JwmBody;
+    use crate::jwm::JwmHandler;
     use idp2p_core::did::Identity;
     use idp2p_core::did_doc::CreateDocInput;
     use idp2p_core::did_doc::IdDocument;
@@ -88,7 +89,7 @@ mod tests {
         let mut to = Identity::new(&digest, &digest);
         save_doc(&mut from, secret.clone());
         save_doc(&mut to, secret.clone());
-        let jwm = Jwm::new(from.clone(), to, r#"{ "body" : "body" }"#);
+        let jwm = from.new_jwm(to, JwmBody::Message("body".to_owned()));
         let jws = Jws::new(Jpm::from(jwm), secret).unwrap();
         let r = jws.verify(from);
         assert!(r.is_ok());
