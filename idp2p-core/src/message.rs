@@ -1,7 +1,22 @@
 use crate::did::Identity;
+use idp2p_common::anyhow::Result;
 use idp2p_common::chrono::Utc;
 use idp2p_common::serde_json;
+use libp2p::gossipsub::{Gossipsub, IdentTopic};
 use serde::{Deserialize, Serialize};
+
+pub trait Publisher {
+    fn publish_msg(&mut self, msg: IdentityMessage) -> Result<()>;
+}
+
+impl Publisher for Gossipsub {
+    fn publish_msg(&mut self, msg: IdentityMessage) -> Result<()> {
+        let topic = IdentTopic::new(&msg.id);
+        let data = idp2p_common::serde_json::to_vec(&msg)?;
+        self.publish(topic, data)?;
+        Ok(())
+    }
+}
 
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
 pub struct IdentityMessage {

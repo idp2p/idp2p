@@ -24,6 +24,12 @@ pub(crate) fn derive_secret(seed: [u8; 16], derivation_index: &mut u32) -> Resul
     Ok(secret)
 }
 
+pub trait Persister{
+    fn exists(&self) -> bool;
+    fn get(&self) -> Result<String>;  
+    fn persist(&self);
+}
+
 pub mod bip32;
 pub mod wallet;
 pub mod store;

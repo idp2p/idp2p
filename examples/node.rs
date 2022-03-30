@@ -1,11 +1,14 @@
-use idp2p_core::IdentityEvent;
-use tokio::sync::mpsc::channel;
-use idp2p_common::ed_secret::EdSecret;
 use idp2p_common::anyhow::Result;
-use idp2p_node::{behaviour::IdentityNodeEvent, build_swarm, NodeOptions};
+use idp2p_common::ed_secret::EdSecret;
+use idp2p_core::IdentityEvent;
+use idp2p_node::{
+    behaviour::IdentityNodeEvent,
+    swarm::{build_swarm, NodeOptions},
+};
 use libp2p::futures::StreamExt;
 use libp2p::swarm::SwarmEvent;
 use structopt::StructOpt;
+use tokio::sync::mpsc::channel;
 
 #[derive(Debug, StructOpt)]
 #[structopt(name = "idp2p", about = "Usage of idp2p.")]
@@ -33,6 +36,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     }
                     _ => {  }
                 }
+            }
+            _ = rx.recv() => {
+
             }
         }
     }

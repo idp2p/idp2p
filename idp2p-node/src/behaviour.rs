@@ -1,4 +1,4 @@
-use crate::ClientStore;
+use crate::store::ClientStore;
 use idp2p_core::store::IdStore;
 use std::sync::Arc;
 use libp2p::PeerId;

@@ -33,6 +33,8 @@ pub struct ReceivedMessage {
 pub struct RawWallet {
     pub name: String,
     pub identity: Identity,
+    #[serde(with = "encode_vec")]
+    pub photo: Vec<u8>,
     #[serde(skip_serializing_if = "Vec::is_empty", default)]
     pub requests: Vec<String>,
     #[serde(skip_serializing_if = "Vec::is_empty", default)]
@@ -66,10 +68,11 @@ impl Connection {
 }
 
 impl RawWallet {
-    pub fn new(name: &str, did: Identity) -> Self {
+    pub fn new(name: &str, did: Identity, photo: &[u8]) -> Self {
         RawWallet {
             name: name.to_owned(),
             identity: did,
+            photo: photo.to_vec(),
             requests: vec![],
             connections: vec![],
             credentials: vec![],
@@ -82,6 +85,16 @@ impl RawWallet {
 
     pub fn add_conn(&mut self, conn: Connection) {
         self.connections.push(conn);
+    }
+
+    
+    pub fn accept_conn(&mut self, id: &str) {
+        let conn = self
+            .connections
+            .iter_mut()
+            .find(|conn| conn.id == id)
+            .unwrap();
+        conn.accept();
     }
 
     pub fn add_sent_message(&mut self, id: &str, message: SentMessage) {
@@ -118,7 +131,7 @@ mod tests {
     #[test]
     fn new_wallet_test() {
         let did = Identity::from_secret(EdSecret::new());
-        let w = RawWallet::new("adem", did.clone());
+        let w = RawWallet::new("adem", did.clone(), &vec![]);
         assert_eq!(w.identity, did);
     }
 
@@ -126,7 +139,7 @@ mod tests {
     fn add_conn_test() {
         let did = Identity::from_secret(EdSecret::new());
         let did2 = Identity::from_secret(EdSecret::new());
-        let mut w = RawWallet::new("adem", did);
+        let mut w = RawWallet::new("adem", did, &vec![]);
         w.add_conn(Connection::new(&did2.id, "caglin", &vec![]));
         assert_eq!(w.connections[0].id, did2.id);
     }
@@ -135,7 +148,7 @@ mod tests {
     fn add_message() {
         let did = Identity::from_secret(EdSecret::new());
         let did2 = Identity::from_secret(EdSecret::new());
-        let mut w = RawWallet::new("adem", did);
+        let mut w = RawWallet::new("adem", did, &vec![]);
         w.add_conn(Connection::new(&did2.id, "caglin", &vec![]));
         w.add_sent_message(&did2.id, SentMessage{text: "Heyy".to_owned()});
         assert_eq!(w.connections[0].sent_messages[0].text, "heyyy");
