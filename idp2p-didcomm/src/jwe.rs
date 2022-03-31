@@ -71,7 +71,9 @@ impl Jwe {
             protected: base64url::encode(&protected)?,
             iv: base64url::encode_bytes(&iv)?,
             ciphertext: base64url::encode_bytes(&ciphertext)?,
-            recipients: vec![],
+            recipients: vec![JweRecipient {
+                header: JwmHeader { kid: to_kid },
+            }],
         };
         Ok(jwe)
     }

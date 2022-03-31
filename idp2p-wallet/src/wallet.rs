@@ -112,51 +112,63 @@ where
                 ciphertext: ciphertext,
             };
             let wallet_str = serde_json::to_string_pretty(&enc_wallet)?;
-            self.persister.persist();
+            self.persister.persist(&wallet_str);
         }
         Ok(())
     }
 }
 
-/*let mut file = File::open(self.path.as_path())?;
-let mut buff = String::new();
-file.read_to_string(&mut buff)?;
-let enc_wallet = serde_json::from_str::<EncryptedWallet>(&buff)?;
-let enc_key_bytes = get_enc_key(password, &enc_wallet.salt).unwrap();
-let enc_key = Key::from_slice(&enc_key_bytes);
-let cipher = ChaCha20Poly1305::new(enc_key);
-let nonce = Nonce::from_slice(&enc_wallet.iv);
-let result = cipher
-    .decrypt(nonce, enc_wallet.ciphertext.as_ref())
-    .unwrap();
-let payload: EncryptedWalletPayload = serde_json::from_slice(&result)?;
-self.session = Some(WalletSession {
-    raw: payload.raw,
-    secret: payload.secret,
-    created_at: 0,
-    expire_at: 0,
-    password: password.to_owned(),
-    salt: enc_wallet.salt.try_into().unwrap(),
-    iv: enc_wallet.iv.try_into().unwrap(),
-});*/
+#[cfg(test)]
+mod tests {
+    use std::cell::RefCell;
 
-/*if let Some(ref session) = self.session {
-    let enc_key_bytes = get_enc_key(&session.password, &session.salt).unwrap();
-    let enc_key = Key::from_slice(&enc_key_bytes);
-    let cipher = ChaCha20Poly1305::new(enc_key);
-    let nonce = Nonce::from_slice(&session.iv);
-    let p_str = serde_json::to_string(&EncryptedWalletPayload {
-        raw: session.raw.clone(),
-        secret: session.secret.clone(),
-    })?;
-    let ciphertext = cipher
-        .encrypt(nonce, p_str.as_bytes())
-        .expect("encryption failure!");
-    let enc_wallet = EncryptedWallet {
-        salt: session.salt.to_vec(),
-        iv: session.iv.to_vec(),
-        ciphertext: ciphertext,
-    };
-    let file = OpenOptions::new().write(true).open(&self.path)?;
-    serde_json::to_writer_pretty(&file, &enc_wallet)?;
-}*/
+    use super::*;
+    use idp2p_common::anyhow::Error;
+
+    #[test]
+    fn register_test() -> Result<()> {
+        let mut wallet = Wallet {
+            persister: MockPersister {
+                wallet: RefCell::new(vec![]),
+            },
+            session: None,
+        };
+        wallet.register("Adem", "123456", &vec![])?;
+        assert!(wallet.session.is_some());
+        Ok(())
+    }
+
+    #[test]
+    fn login_test() -> Result<()> {
+        let mut wallet = Wallet {
+            persister: MockPersister {
+                wallet: RefCell::new(vec![]),
+            },
+            session: None,
+        };
+        wallet.register("Adem", "123456", &vec![])?;
+        wallet.persist()?;
+        wallet.session = None;
+        wallet.login("123456")?;
+        assert!(wallet.session.is_some());
+        Ok(())
+    }
+
+    struct MockPersister {
+        wallet: RefCell<Vec<String>>,
+    }
+
+    impl Persister for MockPersister {
+        fn exists(&self) -> bool {
+            todo!()
+        }
+        fn get(&self) -> Result<String> {
+            let s = self.wallet.borrow_mut();
+            Ok(s[0].clone())
+        }
+        fn persist(&self, enc_wallet: &str) {
+            let mut w = self.wallet.borrow_mut();
+            w.push(enc_wallet.to_owned());
+        }
+    }
+}

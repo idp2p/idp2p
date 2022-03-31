@@ -45,6 +45,25 @@
         {
             "type": "lldb",
             "request": "launch",
+            "name": "Debug benchmark 'verify_did'",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--no-run",
+                    "--bench=verify_did",
+                    "--package=idp2p_core"
+                ],
+                "filter": {
+                    "name": "verify_did",
+                    "kind": "bench"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
             "name": "Debug unit tests in library 'idp2p_didcomm'",
             "cargo": {
                 "args": [
@@ -55,25 +74,6 @@
                 ],
                 "filter": {
                     "name": "idp2p_didcomm",
-                    "kind": "lib"
-                }
-            },
-            "args": [],
-            "cwd": "${workspaceFolder}"
-        },
-        {
-            "type": "lldb",
-            "request": "launch",
-            "name": "Debug unit tests in library 'idp2p_node'",
-            "cargo": {
-                "args": [
-                    "test",
-                    "--no-run",
-                    "--lib",
-                    "--package=idp2p_node"
-                ],
-                "filter": {
-                    "name": "idp2p_node",
                     "kind": "lib"
                 }
             },
@@ -102,16 +102,17 @@
         {
             "type": "lldb",
             "request": "launch",
-            "name": "Debug executable 'idp2p_demo'",
+            "name": "Debug unit tests in library 'idp2p_client'",
             "cargo": {
                 "args": [
-                    "build",
-                    "--bin=idp2p_demo",
-                    "--package=idp2p_demo"
+                    "test",
+                    "--no-run",
+                    "--lib",
+                    "--package=idp2p_client"
                 ],
                 "filter": {
-                    "name": "idp2p_demo",
-                    "kind": "bin"
+                    "name": "idp2p_client",
+                    "kind": "lib"
                 }
             },
             "args": [],
@@ -120,17 +121,91 @@
         {
             "type": "lldb",
             "request": "launch",
-            "name": "Debug unit tests in executable 'idp2p_demo'",
+            "name": "Debug unit tests in library 'idp2p_node'",
             "cargo": {
                 "args": [
                     "test",
                     "--no-run",
-                    "--bin=idp2p_demo",
-                    "--package=idp2p_demo"
+                    "--lib",
+                    "--package=idp2p_node"
                 ],
                 "filter": {
-                    "name": "idp2p_demo",
-                    "kind": "bin"
+                    "name": "idp2p_node",
+                    "kind": "lib"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug example 'node'",
+            "cargo": {
+                "args": [
+                    "build",
+                    "--example=node",
+                    "--package=idp2p"
+                ],
+                "filter": {
+                    "name": "node",
+                    "kind": "example"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug unit tests in example 'node'",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--no-run",
+                    "--example=node",
+                    "--package=idp2p"
+                ],
+                "filter": {
+                    "name": "node",
+                    "kind": "example"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug example 'client'",
+            "cargo": {
+                "args": [
+                    "build",
+                    "--example=client",
+                    "--package=idp2p"
+                ],
+                "filter": {
+                    "name": "client",
+                    "kind": "example"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug unit tests in example 'client'",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--no-run",
+                    "--example=client",
+                    "--package=idp2p"
+                ],
+                "filter": {
+                    "name": "client",
+                    "kind": "example"
                 }
             },
             "args": [],

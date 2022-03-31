@@ -1,11 +1,11 @@
-use idp2p_core::did::Identity;
-use idp2p_didcomm::jwm::JwmHandler;
 use crate::raw::RawWallet;
 use crate::secret::SecretWallet;
 use idp2p_common::ed_secret::EdSecret;
 use idp2p_common::{anyhow::Result, serde_json};
+use idp2p_core::did::Identity;
 use idp2p_didcomm::jwe::Jwe;
 use idp2p_didcomm::jwm::JwmBody;
+use idp2p_didcomm::jwm::JwmHandler;
 use idp2p_didcomm::jws::Jws;
 
 pub struct WalletSession {
@@ -45,30 +45,28 @@ mod tests {
     use super::*;
     use idp2p_common::ed_secret::EdSecret;
     use idp2p_core::did::Identity;
-    use idp2p_core::store::IdEntry;
-    use idp2p_core::store::IdState;
-    use std::collections::HashMap;
-    use std::sync::Mutex;
+    use idp2p_didcomm::jpm::Jpm;
 
-    /*#[test]
-    fn send_message_test() -> Result<()> {
-        let (mut session, id_store) = init();
-        session.create_jwm(id_store, "", JwmBody::Message("Heeyy".to_owned()))?;
+    #[test]
+    fn create_resolve_test() -> Result<()> {
+        let mut session_from = init();
+        let mut session_to = init();
+
+        let jwe = session_from.create_jwm(
+            session_to.raw.identity.clone(),
+            JwmBody::Message("Heeyy".to_owned()),
+        )?;
+        let jws = session_to.resolve_jwe(&jwe)?;
+        let jpm = Jpm::from_str(&jws.payload);
+        eprintln!("{:?}", jpm);
         Ok(())
     }
 
-    fn init() -> (WalletSession) {
+    fn init() -> WalletSession {
         let secret = EdSecret::new();
         let did = Identity::from_secret(secret.clone());
-        let id = did.id.clone();
-        let entry = IdEntry::new(did.clone());
-        let mut entries = HashMap::new();
-        entries.insert(id, entry);
-        let id_store = IdStore {
-            state: Mutex::new(IdState::new(entries)),
-        };
-        let id_store = Arc::new(id_store);
-        let raw_wallet = RawWallet::new("adem", did);
+
+        let raw_wallet = RawWallet::new("adem", did, &vec![]);
         let secret_wallet = SecretWallet {
             next_index: 0,
             next_secret_index: 0,
@@ -86,6 +84,6 @@ mod tests {
             salt: [0u8; 16],
             iv: [0u8; 12],
         };
-        (session, id_store)
-    }*/
+        session
+    }
 }

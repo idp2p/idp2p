@@ -1,7 +1,7 @@
-use idp2p_common::anyhow::Result;
-use idp2p_common::ed_secret::EdSecret;
 use crate::bip32::ExtendedSecretKey;
 use derivation_path::ChildIndex;
+use idp2p_common::anyhow::Result;
+use idp2p_common::ed_secret::EdSecret;
 use pbkdf2::{
     password_hash::{Error, PasswordHasher, SaltString},
     Pbkdf2,
@@ -24,15 +24,15 @@ pub(crate) fn derive_secret(seed: [u8; 16], derivation_index: &mut u32) -> Resul
     Ok(secret)
 }
 
-pub trait Persister{
+pub trait Persister {
     fn exists(&self) -> bool;
-    fn get(&self) -> Result<String>;  
-    fn persist(&self);
+    fn get(&self) -> Result<String>;
+    fn persist(&self, enc_wallet: &str);
 }
 
 pub mod bip32;
-pub mod wallet;
-pub mod store;
 pub mod raw;
 pub mod secret;
 pub mod session;
+pub mod store;
+pub mod wallet;
