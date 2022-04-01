@@ -1,9 +1,11 @@
 use idp2p_common::anyhow::Result;
+use idp2p_common::serde_json;
 use idp2p_wallet::Persister;
-use std::fs::File;
+use std::fs::{File, OpenOptions};
 use std::io::Read;
 use std::path::PathBuf;
 use std::str::FromStr;
+use std::error::Error;
 
 pub struct FilePersister {
     path: PathBuf,
@@ -15,7 +17,7 @@ impl FromStr for FilePersister {
             path: PathBuf::from_str(s)?,
         })
     }
-    type Err = Box<dyn std::error::Error>;
+    type Err = Box<dyn Error>;
 }
 
 impl Persister for FilePersister {
@@ -28,10 +30,14 @@ impl Persister for FilePersister {
         file.read_to_string(&mut buff)?;
         Ok(buff)
     }
-    fn persist(&self, s: &str) {
-        todo!()
+    fn persist(&self, enc_wallet: &str) -> Result<()> {
+        let file = OpenOptions::new().write(true).open(&self.path)?;
+        serde_json::to_writer_pretty(&file, enc_wallet)?;
+        Ok(())
     }
 }
+
+
 
 /*let mut file = File::open(self.path.as_path())?;
 let mut buff = String::new();

@@ -1,5 +1,4 @@
-use crate::did::Identity;
-use idp2p_common::thiserror::Error;
+use idp2p_common::{encode_vec, thiserror::Error};
 use serde::{Deserialize, Serialize};
 
 #[derive(Error, Debug)]
@@ -26,7 +25,23 @@ pub enum IdentityError {
 pub enum IdentityEvent {
     Created { id: String },
     Updated { id: String },
-    Skipped { id: String }
+    Skipped { id: String },
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+pub struct IdProfile {
+    pub name: String,
+    #[serde(with = "encode_vec")]
+    pub photo: Vec<u8>,
+}
+
+impl IdProfile {
+    pub fn new(name: &str, photo: &[u8]) -> Self {
+        Self {
+            name: name.to_owned(),
+            photo: photo.to_owned(),
+        }
+    }
 }
 
 macro_rules! check {
@@ -40,6 +55,6 @@ macro_rules! check {
 pub mod did;
 pub mod did_doc;
 pub mod eventlog;
-pub mod microledger;
 pub mod message;
+pub mod microledger;
 pub mod store;

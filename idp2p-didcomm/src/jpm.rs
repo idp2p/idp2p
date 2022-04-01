@@ -58,7 +58,7 @@ mod tests {
         let expected = "did:p2p:bagaaierakioikcmj4ooqw54zqsedryl7lnuubne64ga443cpkegei4xftata";
         assert_eq!(jpm.from, expected);
         assert_eq!(jpm.to[0], expected);
-        assert_eq!(jpm.body.as_str(), Some(r#"{"text":"body"}"#));
+        assert_eq!(jpm.body.as_str(), Some(r#"{"message":"body"}"#));
         assert_eq!(jpm.m_type, M_TYPE);
         assert_eq!(jpm.typ, TYP);
     }

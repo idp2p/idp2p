@@ -42,9 +42,11 @@ impl WalletSession {
 
 #[cfg(test)]
 mod tests {
+    use crate::raw::IdConfig;
+
     use super::*;
     use idp2p_common::ed_secret::EdSecret;
-    use idp2p_core::did::Identity;
+    use idp2p_core::{did::Identity, IdProfile};
     use idp2p_didcomm::jpm::Jpm;
 
     #[test]
@@ -65,8 +67,9 @@ mod tests {
     fn init() -> WalletSession {
         let secret = EdSecret::new();
         let did = Identity::from_secret(secret.clone());
-
-        let raw_wallet = RawWallet::new("adem", did, &vec![]);
+        let p = IdProfile::new("adem", &vec![]);
+        let config = IdConfig::new(&vec![], 43727);
+        let raw_wallet = RawWallet::new(p, config, did);
         let secret_wallet = SecretWallet {
             next_index: 0,
             next_secret_index: 0,

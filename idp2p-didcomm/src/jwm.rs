@@ -3,21 +3,20 @@ use crate::jwe::Jwe;
 use crate::jws::Jws;
 use idp2p_common::ed_secret::EdSecret;
 use idp2p_common::{anyhow::Result, chrono::Utc};
+use idp2p_core::IdProfile;
 use idp2p_core::did::Identity;
 use serde::{Deserialize, Serialize};
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
-pub struct ConnectRequest {
-    pub name: String,
-    pub photo: Vec<u8>,
-}
+
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub enum JwmBody{
     #[serde(rename = "message")]
     Message(String),
     #[serde(rename = "connect")]
-    Connect(ConnectRequest)
+    Connect(IdProfile),
+    #[serde(rename = "accept")]
+    Accept(IdProfile)
 }
 
 pub trait JwmHandler{
