@@ -4,14 +4,6 @@ use idp2p_didcomm::vcs::VerifiableCredential;
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
-pub struct IdConfig {
-    #[serde(with = "encode_vec")]
-    pub secret: Vec<u8>,
-    pub listen_port: u16,
-    pub node_addr: Option<String>,
-}
-
-#[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
 pub struct Connection {
     /// Id of connection
     pub id: String,
@@ -36,7 +28,6 @@ pub struct ReceivedMessage {
 
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
 pub struct RawWallet {
-    pub config: IdConfig,
     pub profile: IdProfile,
     pub identity: Identity,
     #[serde(skip_serializing_if = "Vec::is_empty", default)]
@@ -63,16 +54,6 @@ impl ReceivedMessage {
     }
 }
 
-impl IdConfig {
-    pub fn new(secret: &[u8], port: u16) -> Self {
-        Self {
-            secret: secret.to_owned(),
-            listen_port: port,
-            node_addr: None,
-        }
-    }
-}
-
 impl Connection {
     pub fn new(id: &str, profile: IdProfile) -> Self {
         Connection {
@@ -90,9 +71,8 @@ impl Connection {
 }
 
 impl RawWallet {
-    pub fn new(profile: IdProfile, config: IdConfig, did: Identity) -> Self {
+    pub fn new(profile: IdProfile,  did: Identity) -> Self {
         RawWallet {
-            config: config,
             profile: profile,
             identity: did,
             requests: vec![],
@@ -159,8 +139,7 @@ mod tests {
     fn new_wallet_test() {
         let did = Identity::from_secret(EdSecret::new());
         let profile = IdProfile::new("adem", &vec![]);
-        let config = IdConfig::new(&vec![], 43727);
-        let w = RawWallet::new(profile, config, did.clone());
+        let w = RawWallet::new(profile, did.clone());
         assert_eq!(w.identity, did);
     }
 
@@ -170,8 +149,7 @@ mod tests {
         let did2 = Identity::from_secret(EdSecret::new());
         let profile = IdProfile::new("adem", &vec![]);
         let profile2 = IdProfile::new("caglin", &vec![]);
-        let config = IdConfig::new(&vec![], 43727);
-        let mut w = RawWallet::new(profile, config, did.clone());
+        let mut w = RawWallet::new(profile, did.clone());
         w.add_conn(Connection::new(&did2.id, profile2));
         assert_eq!(w.connections[0].id, did2.id);
     }
@@ -182,8 +160,7 @@ mod tests {
         let did2 = Identity::from_secret(EdSecret::new());
         let profile = IdProfile::new("adem", &vec![]);
         let profile2 = IdProfile::new("caglin", &vec![]);
-        let config = IdConfig::new(&vec![], 43727);
-        let mut w = RawWallet::new(profile, config, did.clone());
+        let mut w = RawWallet::new(profile, did.clone());
         w.add_conn(Connection::new(&did2.id, profile2));
         w.add_sent_message(&did2.id, "Heyy");
         assert_eq!(w.connections[0].sent_messages[0].text, "Heyy");
@@ -195,8 +172,7 @@ mod tests {
         let did2 = Identity::from_secret(EdSecret::new());
         let profile = IdProfile::new("adem", &vec![]);
         let profile2 = IdProfile::new("caglin", &vec![]);
-        let config = IdConfig::new(&vec![], 43727);
-        let mut w = RawWallet::new(profile, config, did.clone());
+        let mut w = RawWallet::new(profile, did.clone());
         w.add_conn(Connection::new(&did2.id, profile2));
         w.add_received_message(&did2.id, "Heyy");
         assert_eq!(w.connections[0].received_messages[0].text, "Heyy");

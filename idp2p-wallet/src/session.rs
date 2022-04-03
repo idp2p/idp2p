@@ -1,5 +1,6 @@
 use crate::raw::RawWallet;
 use crate::secret::SecretWallet;
+use crate::wallet::SessionState;
 use idp2p_common::ed_secret::EdSecret;
 use idp2p_common::{anyhow::Result, serde_json};
 use idp2p_core::did::Identity;
@@ -38,12 +39,18 @@ impl WalletSession {
         let jws: Jws = serde_json::from_str(&json)?;
         Ok(jws)
     }
+
+    pub fn to_state(&self) -> SessionState {
+        SessionState {
+            created_at: self.created_at,
+            expire_at: self.expire_at,
+            raw_wallet: self.raw.clone(),
+        }
+    }
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::raw::IdConfig;
-
     use super::*;
     use idp2p_common::ed_secret::EdSecret;
     use idp2p_core::{did::Identity, IdProfile};
@@ -68,8 +75,7 @@ mod tests {
         let secret = EdSecret::new();
         let did = Identity::from_secret(secret.clone());
         let p = IdProfile::new("adem", &vec![]);
-        let config = IdConfig::new(&vec![], 43727);
-        let raw_wallet = RawWallet::new(p, config, did);
+        let raw_wallet = RawWallet::new(p, did);
         let secret_wallet = SecretWallet {
             next_index: 0,
             next_secret_index: 0,

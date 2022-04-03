@@ -1,4 +1,4 @@
-use idp2p_common::{encode_vec, thiserror::Error};
+use idp2p_common::{encode_vec, thiserror::Error, anyhow::Result};
 use serde::{Deserialize, Serialize};
 
 #[derive(Error, Debug)]
@@ -26,6 +26,12 @@ pub enum IdentityEvent {
     Created { id: String },
     Updated { id: String },
     Skipped { id: String },
+    Publish { id: String },
+}
+
+pub trait IdPersister {
+    fn get(&self) -> Result<String>;
+    fn persist(&self, s: &str) -> Result<()>;
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
@@ -58,3 +64,4 @@ pub mod eventlog;
 pub mod message;
 pub mod microledger;
 pub mod store;
+pub mod behaviour;

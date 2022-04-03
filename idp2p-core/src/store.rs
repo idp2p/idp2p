@@ -3,34 +3,36 @@ use crate::message::IdentityMessage;
 use crate::IdentityEvent;
 use idp2p_common::anyhow::Result;
 use idp2p_common::chrono::Utc;
-use std::collections::BTreeMap;
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Mutex;
-use std::time::Instant;
+use tokio::sync::mpsc::Sender;
+use tokio::time::{sleep, Duration};
 
 pub struct IdStore {
     pub state: Mutex<IdState>,
+    pub event_sender: Sender<IdentityEvent>,
 }
 
 #[derive(PartialEq, Debug, Clone)]
 pub struct IdState {
     pub entries: HashMap<String, IdEntry>,
-    pub publish_queue: BTreeMap<(Instant, String), IdentityMessage>,
 }
 
-#[derive(PartialEq, Debug, Clone)]
+#[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
 pub struct IdEntry {
-    pub is_hosted: bool,
     pub digest: String,
     pub did: Identity,
     pub last_updated: i64,
     pub last_published: i64,
+    pub is_hosted: bool,
 }
 
 impl IdStore {
-    pub fn new(entries: HashMap<String, IdEntry>) -> Self {
+    pub fn new(ids: HashMap<String, IdEntry>, es: Sender<IdentityEvent>) -> Self {
         IdStore {
-            state: Mutex::new(IdState::new(entries)),
+            state: Mutex::new(IdState::new(ids)),
+            event_sender: es,
         }
     }
 
@@ -47,22 +49,38 @@ impl IdStore {
         state.entries.insert(id, entry);
     }
 
-    pub fn handle_get(&self, id: &str) -> Option<IdentityMessage> {
-        let mut state = self.state.lock().unwrap();
+    pub fn get_message(&self, id: &str) -> Option<IdentityMessage> {
+        let state = self.state.lock().unwrap();
         let entry = state.entries.get(id).map(|entry| entry.clone());
         if let Some(entry) = entry {
-            let mes = IdentityMessage::new_post(entry.did.clone());
-            if entry.is_hosted {
-                return Some(mes);
-            } else {
-                let when = Instant::now();
-                state.publish_queue.insert((when, id.to_owned()), mes);
-            }
+            return Some(IdentityMessage::new_post(entry.did));
         }
         None
     }
 
-    pub fn handle_post(&self, digest: &str, identity: &Identity) -> Result<IdentityEvent> {
+    pub async fn handle_get(&self, id: &str) {
+        let state = self.state.lock().unwrap();
+        let entry = state.entries.get(id).map(|entry| entry.clone());
+        if let Some(entry) = entry {
+            if entry.is_hosted {
+                self.event_sender
+                    .send(IdentityEvent::Publish { id: id.to_owned() })
+                    .await
+                    .unwrap();
+            } else {
+                let tx = self.event_sender.clone();
+                let id_str = id.to_owned();
+                tokio::spawn(async move {
+                    sleep(Duration::from_secs(2)).await;
+                    tx.send(IdentityEvent::Publish { id: id_str })
+                        .await
+                        .unwrap();
+                });
+            }
+        }
+    }
+
+    pub async fn handle_post(&self, digest: &str, identity: &Identity) -> Result<()> {
         let mut state = self.state.lock().unwrap();
         let current = state.entries.get(&identity.id).map(|entry| entry.clone());
         match current {
@@ -70,9 +88,10 @@ impl IdStore {
                 identity.verify()?;
                 let entry = IdEntry::from(identity.clone());
                 state.entries.insert(identity.id.clone(), entry);
-                return Ok(IdentityEvent::Created {
+                let event = IdentityEvent::Created {
                     id: identity.id.clone(),
-                });
+                };
+                self.event_sender.send(event).await.unwrap();
             }
             Some(entry) => {
                 if digest != entry.digest {
@@ -82,25 +101,25 @@ impl IdStore {
                         ..entry
                     };
                     state.entries.insert(identity.id.clone(), new_entry);
-                    return Ok(IdentityEvent::Updated {
+                    let event = IdentityEvent::Updated {
                         id: identity.id.clone(),
-                    });
+                    };
+                    self.event_sender.send(event).await.unwrap();
                 } else {
-                    return Ok(IdentityEvent::Skipped {
+                    let event = IdentityEvent::Skipped {
                         id: identity.id.clone(),
-                    });
+                    };
+                    self.event_sender.send(event).await.unwrap();
                 }
             }
         }
+        Ok(())
     }
 }
 
 impl IdState {
-    pub fn new(entries: HashMap<String, IdEntry>) -> Self {
-        IdState {
-            entries: entries,
-            publish_queue: BTreeMap::new(),
-        }
+    pub fn new(ids: HashMap<String, IdEntry>) -> Self {
+        IdState { entries: ids }
     }
 }
 
@@ -131,20 +150,25 @@ mod tests {
     use super::*;
     use idp2p_common::ed_secret::EdSecret;
 
-    #[test]
-    fn handle_get_test() {
-        let store = create_store();
-        let r = store.handle_get("did:p2p:bagaaierab2xsn6stgdcwfv3wvot7lboh2aewqqjfy56gzh7sibt7vxxtup4q");
-        assert!(r.is_some());
+    #[tokio::test]
+    async fn handle_get_test() {
+        let (tx, mut rx) = tokio::sync::mpsc::channel(100);
+        let store = create_store(tx.clone());
+        store
+            .handle_get("did:p2p:bagaaierab2xsn6stgdcwfv3wvot7lboh2aewqqjfy56gzh7sibt7vxxtup4q")
+            .await;
+        let event = rx.recv().await;
+        println!("{:?}", event);
+        assert!(event.is_some());
     }
 
-    fn create_store() -> IdStore {
+    fn create_store(tx: Sender<IdentityEvent>) -> IdStore {
         let secret_str = "beilmx4d76udjmug5ykpy657qa3pfsqbcu7fbbtuk3mgrdrxssseq";
         let secret = EdSecret::from_str(secret_str).unwrap();
         let ed_key_digest = secret.to_publickey_digest().unwrap();
         let did = Identity::new(&ed_key_digest, &ed_key_digest);
-        let store = IdStore::new(HashMap::new());
-        store.push_did(did);   
+        let store = IdStore::new(HashMap::new(), tx);
+        store.push_did(did);
         store
     }
 }

@@ -6,6 +6,26 @@ use std::io::Read;
 use std::path::PathBuf;
 use std::str::FromStr;
 use std::error::Error;
+use serde::{Serialize, Deserialize};
+use idp2p_common::encode_vec;
+
+#[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
+pub struct IdConfig {
+    #[serde(with = "encode_vec")]
+    pub secret: Vec<u8>,
+    pub listen_port: u16,
+    pub node_addr: Option<String>,
+}
+
+impl IdConfig {
+    pub fn new(secret: &[u8], port: u16) -> Self {
+        Self {
+            secret: secret.to_owned(),
+            listen_port: port,
+            node_addr: None,
+        }
+    }
+}
 
 pub struct FilePersister {
     path: PathBuf,

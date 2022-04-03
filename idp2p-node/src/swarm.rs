@@ -52,7 +52,10 @@ pub async fn build_swarm(options: NodeOptions) -> Result<Swarm<IdentityNodeBehav
     let secret_key = SecretKey::from_bytes(options.secret.to_bytes())?;
     let local_key = Keypair::Ed25519(secret_key.into());
     let transport = build_transport(local_key.clone()).await;
-    let id_store = Arc::new(IdStore::new(options.identities));
+    let id_store = Arc::new(IdStore::new(
+        options.identities,
+        options.id_event_sender.clone(),
+    ));
     tokio::spawn(purge_id_events(id_store.clone(), options.id_event_sender));
     let client_store = Arc::new(ClientStore::new(options.clients, options.subscriptions));
     let mut swarm = {

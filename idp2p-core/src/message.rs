@@ -1,19 +1,23 @@
-use crate::did::Identity;
+use crate::{did::Identity, store::IdStore};
 use idp2p_common::anyhow::Result;
 use idp2p_common::chrono::Utc;
 use idp2p_common::serde_json;
 use libp2p::gossipsub::{Gossipsub, IdentTopic};
 use serde::{Deserialize, Serialize};
+use std::sync::Arc;
 
-pub trait Publisher {
-    fn publish_msg(&mut self, msg: IdentityMessage) -> Result<()>;
+pub trait IdMessageHandler {
+    fn handle_event(&mut self, id: &str, store: Arc<IdStore>) -> Result<()>;
 }
 
-impl Publisher for Gossipsub {
-    fn publish_msg(&mut self, msg: IdentityMessage) -> Result<()> {
-        let topic = IdentTopic::new(&msg.id);
-        let data = idp2p_common::serde_json::to_vec(&msg)?;
-        self.publish(topic, data)?;
+impl IdMessageHandler for Gossipsub {
+    fn handle_event(&mut self, id: &str, store: Arc<IdStore>) -> Result<()> {
+        let topic = IdentTopic::new(id);
+        let msg = store.get_message(id);
+        if let Some(msg) = msg {
+            let data = idp2p_common::serde_json::to_vec(&msg)?;
+            self.publish(topic, data)?;
+        }
         Ok(())
     }
 }

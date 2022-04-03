@@ -1,6 +1,7 @@
-use crate::raw::{Connection, RawWallet, IdConfig};
+use crate::raw::{Connection, RawWallet};
 use crate::secret::SecretWallet;
 use crate::session::WalletSession;
+use crate::wallet::WalletState;
 use crate::wallet::{EncryptedWallet, EncryptedWalletPayload, Wallet};
 use crate::{derive_secret, get_enc_key, Persister};
 use chacha20poly1305::aead::{Aead, NewAead};
@@ -11,23 +12,8 @@ use idp2p_core::message::IdentityMessage;
 use idp2p_core::IdProfile;
 use idp2p_didcomm::jwm::JwmBody;
 use idp2p_didcomm::jws::Jws;
-use serde::{Deserialize, Serialize};
 use std::sync::Mutex;
 
-#[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
-pub struct WalletState {
-    pub exists: bool,
-    pub session_crat: Option<i64>,
-    pub session_exp: Option<i64>,
-    pub session_wallet: Option<RawWallet>,
-}
-
-#[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
-pub struct CreateWalletInput{
-    pub profile: IdProfile,
-    pub config: IdConfig,
-    pub password: String
-}
 pub struct WalletStore<T: Persister> {
     pub wallet: Mutex<Wallet<T>>,
 }
@@ -50,23 +36,19 @@ where
         let wallet = self.wallet.lock().unwrap();
         let mut state = WalletState {
             exists: false,
-            session_crat: None,
-            session_exp: None,
-            session_wallet: None,
+            session: None,
         };
         if wallet.persister.exists() {
             state.exists = true;
             if let Some(ref session) = wallet.session {
-                state.session_crat = Some(session.created_at);
-                state.session_exp = Some(session.expire_at);
-                state.session_wallet = Some(session.raw.clone());
+                state.session = Some(session.to_state());
             }
         }
 
         Ok(state)
     }
 
-    pub fn register(&self, input: CreateWalletInput) -> Result<(Identity, [u8; 16])> {
+    pub fn register(&self, profile: IdProfile, pwd: &str) -> Result<(Identity, [u8; 16])> {
         let mut wallet = self.wallet.lock().unwrap();
         let seed = idp2p_common::create_random::<16>();
         let iv = idp2p_common::create_random::<12>();
@@ -74,7 +56,7 @@ where
         let mut next_index = 1000000000;
         let secret = derive_secret(seed, &mut next_index)?;
         let did = Identity::from_secret(secret.clone());
-        let raw_wallet = RawWallet::new(input.profile, input.config, did.clone());
+        let raw_wallet = RawWallet::new(profile,  did.clone());
         let secret_wallet = SecretWallet {
             next_index: next_index,
             next_secret_index: next_index,
@@ -89,7 +71,7 @@ where
             secret: secret_wallet,
             created_at: 0,
             expire_at: 0,
-            password: input.password,
+            password: pwd.to_owned(),
             salt: salt,
             iv: iv,
         });
@@ -207,17 +189,11 @@ mod tests {
     fn register_test() -> Result<()> {
         let store = WalletStore::new(MockPersister::new());
         let profile = IdProfile::new("Adem", &vec![]);
-        let config = IdConfig::new(&vec![], 43727);
-        let input = CreateWalletInput{
-            config: config,
-            profile: profile,
-            password: "123456".to_owned()
-        };
-        store.register(input)?;
+        store.register(profile, "123456")?;
         let state = store.get_state()?;
         assert!(state.exists);
-        assert!(state.session_wallet.is_some());
-        assert_eq!(state.session_wallet.unwrap().profile.name, "Adem");
+        assert!(state.session.is_some());
+        assert_eq!(state.session.unwrap().raw_wallet.profile.name, "Adem");
         Ok(())
     }
 
@@ -225,18 +201,12 @@ mod tests {
     fn login_test() -> Result<()> {
         let store = WalletStore::new(MockPersister::new());
         let profile = IdProfile::new("Adem", &vec![]);
-        let config = IdConfig::new(&vec![], 43727);
-        let input = CreateWalletInput{
-            config: config,
-            profile: profile,
-            password: "123456".to_owned()
-        };
-        store.register(input)?;
+        store.register(profile, "123456")?;
         store.logout();
         store.login("123456")?;
         let state = store.get_state()?;
         assert!(state.exists);
-        assert!(state.session_wallet.is_some());
+        assert!(state.session.is_some());
         Ok(())
     }
 

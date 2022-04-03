@@ -29,6 +29,19 @@ pub struct Wallet<T: Persister> {
     pub session: Option<WalletSession>,
 }
 
+#[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
+pub struct WalletState {
+    pub exists: bool,
+    pub session: Option<SessionState>,
+}
+
+#[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
+pub struct SessionState {
+    pub created_at: i64,
+    pub expire_at: i64,
+    pub raw_wallet: RawWallet,
+}
+
 impl<T> Wallet<T>
 where
     T: Persister,
