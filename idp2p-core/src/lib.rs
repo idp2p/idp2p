@@ -64,4 +64,3 @@ pub mod eventlog;
 pub mod message;
 pub mod microledger;
 pub mod store;
-pub mod behaviour;

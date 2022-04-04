@@ -3,7 +3,7 @@ use crate::secret::SecretWallet;
 use crate::session::WalletSession;
 use crate::wallet::WalletState;
 use crate::wallet::{EncryptedWallet, EncryptedWalletPayload, Wallet};
-use crate::{derive_secret, get_enc_key, Persister};
+use crate::{derive_secret, get_enc_key, WalletPersister};
 use chacha20poly1305::aead::{Aead, NewAead};
 use chacha20poly1305::{ChaCha20Poly1305, Key, Nonce};
 use idp2p_common::{anyhow::Result, serde_json};
@@ -14,13 +14,13 @@ use idp2p_didcomm::jwm::JwmBody;
 use idp2p_didcomm::jws::Jws;
 use std::sync::Mutex;
 
-pub struct WalletStore<T: Persister> {
+pub struct WalletStore<T: WalletPersister> {
     pub wallet: Mutex<Wallet<T>>,
 }
 
 impl<T> WalletStore<T>
 where
-    T: Persister,
+    T: WalletPersister,
 {
     pub fn new(persister: T) -> Self {
         let wallet = Wallet {
@@ -38,7 +38,7 @@ where
             exists: false,
             session: None,
         };
-        if wallet.persister.exists() {
+        if wallet.persister.wallet_exists() {
             state.exists = true;
             if let Some(ref session) = wallet.session {
                 state.session = Some(session.to_state());
@@ -81,7 +81,7 @@ where
 
     pub fn login(&self, password: &str) -> Result<()> {
         let mut wallet = self.wallet.lock().unwrap();
-        let wallet_str = wallet.persister.get()?;
+        let wallet_str = wallet.persister.get_wallet()?;
         let enc_wallet = serde_json::from_str::<EncryptedWallet>(&wallet_str)?;
         let enc_key_bytes = get_enc_key(password, &enc_wallet.salt).unwrap();
         let enc_key = Key::from_slice(&enc_key_bytes);
@@ -222,15 +222,15 @@ mod tests {
         }
     }
 
-    impl Persister for MockPersister {
-        fn exists(&self) -> bool {
+    impl WalletPersister for MockPersister {
+        fn wallet_exists(&self) -> bool {
             !self.wallet.borrow().is_empty()
         }
-        fn get(&self) -> Result<String> {
+        fn get_wallet(&self) -> Result<String> {
             let s = self.wallet.borrow_mut();
             Ok(s[0].clone())
         }
-        fn persist(&self, enc_wallet: &str) -> Result<()> {
+        fn persist_wallet(&self, enc_wallet: &str) -> Result<()> {
             let mut w = self.wallet.borrow_mut();
             w.push(enc_wallet.to_owned());
             Ok(())

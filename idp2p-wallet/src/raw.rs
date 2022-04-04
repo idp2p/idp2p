@@ -1,4 +1,3 @@
-use idp2p_common::encode_vec;
 use idp2p_core::{did::Identity, IdProfile};
 use idp2p_didcomm::vcs::VerifiableCredential;
 use serde::{Deserialize, Serialize};

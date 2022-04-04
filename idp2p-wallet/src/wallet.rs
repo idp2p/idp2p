@@ -2,7 +2,7 @@ use crate::get_enc_key;
 use crate::raw::RawWallet;
 use crate::secret::SecretWallet;
 use crate::session::WalletSession;
-use crate::Persister;
+use crate::WalletPersister;
 use chacha20poly1305::aead::{Aead, NewAead};
 use chacha20poly1305::{ChaCha20Poly1305, Key, Nonce};
 use idp2p_common::{anyhow::Result, encode_vec, serde_json};
@@ -24,7 +24,7 @@ pub struct EncryptedWalletPayload {
     pub secret: SecretWallet,
 }
 
-pub struct Wallet<T: Persister> {
+pub struct Wallet<T: WalletPersister> {
     pub persister: T,
     pub session: Option<WalletSession>,
 }
@@ -44,7 +44,7 @@ pub struct SessionState {
 
 impl<T> Wallet<T>
 where
-    T: Persister,
+    T: WalletPersister,
 {
     pub fn persist(&self) -> Result<()> {
         if let Some(ref session) = self.session {
@@ -65,7 +65,7 @@ where
                 ciphertext: ciphertext,
             };
             let wallet_str = serde_json::to_string_pretty(&enc_wallet)?;
-            self.persister.persist(&wallet_str)?;
+            self.persister.persist_wallet(&wallet_str)?;
         }
         Ok(())
     }
@@ -81,15 +81,15 @@ mod tests {
         wallet: RefCell<Vec<String>>,
     }
 
-    impl Persister for MockPersister {
-        fn exists(&self) -> bool {
+    impl WalletPersister for MockPersister {
+        fn wallet_exists(&self) -> bool {
             todo!()
         }
-        fn get(&self) -> Result<String> {
+        fn get_wallet(&self) -> Result<String> {
             let s = self.wallet.borrow_mut();
             Ok(s[0].clone())
         }
-        fn persist(&self, enc_wallet: &str) -> Result<()> {
+        fn persist_wallet(&self, enc_wallet: &str) -> Result<()> {
             let mut w = self.wallet.borrow_mut();
             w.push(enc_wallet.to_owned());
             Ok(())

@@ -24,10 +24,10 @@ pub(crate) fn derive_secret(seed: [u8; 16], derivation_index: &mut u32) -> Resul
     Ok(secret)
 }
 
-pub trait Persister {
-    fn exists(&self) -> bool;
-    fn get(&self) -> Result<String>;
-    fn persist(&self, enc_wallet: &str)->Result<()>;
+pub trait WalletPersister {
+    fn wallet_exists(&self) -> bool;
+    fn get_wallet(&self) -> Result<String>;
+    fn persist_wallet(&self, enc_wallet: &str)->Result<()>;
 }
 
 pub mod bip32;
