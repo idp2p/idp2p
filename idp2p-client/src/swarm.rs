@@ -1,15 +1,18 @@
-use crate::IdConfig;
 use crate::behaviour::IdentityClientBehaviour;
 use crate::builder::build_gossipsub;
 use crate::builder::build_transport;
+use crate::IdConfig;
 use idp2p_common::anyhow::Result;
-use idp2p_core::IdentityEvent;
 use idp2p_core::store::IdStore;
+use idp2p_core::IdentityEvent;
 use libp2p::identity::ed25519::SecretKey;
 use libp2p::identity::Keypair;
 use libp2p::mdns::Mdns;
 use libp2p::swarm::SwarmBuilder;
+use libp2p::Multiaddr;
+use libp2p::PeerId;
 use libp2p::Swarm;
+use std::str::FromStr;
 use std::sync::Arc;
 use tokio::sync::mpsc::Sender;
 
@@ -18,11 +21,11 @@ pub struct IdSwarmOptions {
     event_sender: Sender<IdentityEvent>,
 }
 
-impl IdSwarmOptions{
-    pub fn new(config: IdConfig, tx: Sender<IdentityEvent>) -> IdSwarmOptions{
-        IdSwarmOptions{
+impl IdSwarmOptions {
+    pub fn new(config: IdConfig, tx: Sender<IdentityEvent>) -> IdSwarmOptions {
+        IdSwarmOptions {
             config: config,
-            event_sender: tx 
+            event_sender: tx,
         }
     }
 }
@@ -46,6 +49,19 @@ pub async fn build_swarm(options: IdSwarmOptions) -> Result<Swarm<IdentityClient
             .executor(executor)
             .build()
     };
-    swarm.listen_on(format!("/ip4/0.0.0.0/tcp/{}", options.config.listen_port).parse()?)?;
+    let listen = format!(
+        "/ip4/{}/tcp/{}",
+        options.config.listen_ip, options.config.listen_port
+    );
+    swarm.listen_on(listen.parse()?)?;
+    if let Some(remote) = options.config.remote_addr {
+        let split: Vec<&str> = remote.split("/").collect();
+        let to_dial = format!("/ip4/{}/tcp/{}", split[2], split[4]);
+        let addr: Multiaddr = to_dial.parse().unwrap();
+        let peer_id = PeerId::from_str(split[6])?;
+        swarm.dial(addr)?;
+        swarm.behaviour_mut().gossipsub.add_explicit_peer(&peer_id);
+    }
+
     Ok(swarm)
 }

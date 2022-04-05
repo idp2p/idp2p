@@ -1,17 +1,25 @@
-use crate::{ file::FilePersister};
+use crate::file_db::FilePersister;
 use idp2p_common::anyhow::Result;
-use idp2p_core::IdProfile;
-use idp2p_wallet::store::WalletStore;
-use std::{sync::Arc};
+use idp2p_core::{store::IdStore, IdProfile, IdentityEvent};
+use idp2p_wallet::{store::WalletStore, wallet::WalletState};
+use serde::{Deserialize, Serialize};
+use std::sync::Arc;
+use tokio::sync::mpsc::Sender;
 
+#[derive(Serialize, Deserialize, PartialEq)]
+#[serde(tag = "type")]
 pub enum IdCommand {
     Get,
     Register {
         profile: IdProfile,
         password: String,
     },
-    Login(String),
-    Connect(String),
+    Login {
+        password: String,
+    },
+    Connect {
+        id: String,
+    },
     Accept(String),
     SendMessage {
         id: String,
@@ -19,25 +27,30 @@ pub enum IdCommand {
     },
 }
 
+type Ws = Arc<WalletStore<FilePersister>>;
+type Tx = Sender<IdentityEvent>;
+
 impl IdCommand {
-    pub fn handle(&self, wallet_store: Arc<WalletStore<FilePersister>>) -> Result<()> {
+    pub async fn handle(&self, ws: Ws, id_store: Arc<IdStore>, tx: Tx) -> Result<WalletState> {
         match &self {
             Self::Register { profile, password } => {
-                // save to file
-                wallet_store.register(profile.clone(), password)?;
-                /*let split: Vec<&str> = listen.split("/").collect();
-                let to_dial = format!("/ip4/{}/tcp/{}", split[2], split[4]);
-                let addr: Multiaddr = to_dial.parse().unwrap();
-                let peer_id = PeerId::from_str(split[6])?;
-                swarm.dial(addr)?;
-                swarm.behaviour_mut().gossipsub.add_explicit_peer(&peer_id);*/
+                ws.register(profile.clone(), password)?;
+                let did = ws.get_state()?.session.unwrap().raw_wallet.identity.clone();
+                id_store.create_did(did).await;
             }
-            Self::Get =>{
-                let r = wallet_store.get_state()?;
-                println!("{:?}", r);
+            Self::Login { password } => {
+                ws.login(password)?;
+            }
+            Self::Connect { id } => {
+                tx.send(IdentityEvent::Connected { id: id.to_owned() })
+                    .await?;
+                //let to = id_store.get_did(id);
+
+                //id_store.
+                //let message = ws.connect(to)?;
             }
             _ => {}
         }
-        Ok(())
+        Ok(ws.get_state()?)
     }
 }

@@ -1,11 +1,7 @@
-use crate::{did::Identity, store::IdStore};
-use idp2p_common::anyhow::Result;
+use crate::{did::Identity};
 use idp2p_common::chrono::Utc;
 use idp2p_common::serde_json;
 use serde::{Deserialize, Serialize};
-use std::sync::Arc;
-
-
 
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
 pub struct IdentityMessage {

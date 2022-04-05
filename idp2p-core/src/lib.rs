@@ -24,9 +24,9 @@ pub enum IdentityError {
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
 pub enum IdentityEvent {
     Created { id: String },
-    Updated { id: String },
-    Skipped { id: String },
-    Publish { id: String },
+    Connected { id: String },
+    PostHandled { id: String },
+    GetHandled { id: String }
 }
 
 pub trait IdPersister {

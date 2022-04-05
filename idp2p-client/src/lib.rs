@@ -8,18 +8,19 @@ use idp2p_common::{encode_vec, anyhow::Result};
 pub struct IdConfig {
     #[serde(with = "encode_vec")]
     pub secret: Vec<u8>,
+    pub listen_ip: String,
     pub listen_port: u16,
     pub identities: HashMap<String, IdEntry>,
     pub remote_addr: Option<String>,
 }
 
 pub trait IdConfigResolver {
-    fn get_config(&self, port: u16, remote: Option<String>) ->  Result<IdConfig>;
+    fn get_config(&self, ip: &str, port: u16, remote: Option<String>) ->  Result<IdConfig>;
 }
 
 
 pub mod behaviour;
 pub mod builder;
 pub mod commands;
-pub mod file;
+pub mod file_db;
 pub mod swarm;

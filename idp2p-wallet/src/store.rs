@@ -13,6 +13,7 @@ use idp2p_core::IdProfile;
 use idp2p_didcomm::jwm::JwmBody;
 use idp2p_didcomm::jws::Jws;
 use std::sync::Mutex;
+use idp2p_common::log;
 
 pub struct WalletStore<T: WalletPersister> {
     pub wallet: Mutex<Wallet<T>>,
@@ -56,6 +57,7 @@ where
         let mut next_index = 1000000000;
         let secret = derive_secret(seed, &mut next_index)?;
         let did = Identity::from_secret(secret.clone());
+        log::info!("Created id: {}", did.id);
         let raw_wallet = RawWallet::new(profile,  did.clone());
         let secret_wallet = SecretWallet {
             next_index: next_index,
@@ -76,6 +78,7 @@ where
             iv: iv,
         });
         wallet.persist()?;
+       
         Ok((did, seed))
     }
 
