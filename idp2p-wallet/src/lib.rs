@@ -6,6 +6,7 @@ use pbkdf2::{
     password_hash::{Error, PasswordHasher, SaltString},
     Pbkdf2,
 };
+use wallet::PersistedWallet;
 
 pub(crate) fn get_enc_key(password: &str, salt: &[u8]) -> Result<Vec<u8>, Error> {
     let salt_b64 = idp2p_common::multibase::encode(idp2p_common::multibase::Base::Base64, salt);
@@ -26,13 +27,12 @@ pub(crate) fn derive_secret(seed: [u8; 16], derivation_index: &mut u32) -> Resul
 
 pub trait WalletPersister {
     fn wallet_exists(&self) -> bool;
-    fn get_wallet(&self) -> Result<String>;
-    fn persist_wallet(&self, enc_wallet: &str)->Result<()>;
+    fn get_wallet(&self) -> Result<PersistedWallet>;
+    fn persist_wallet(&self, wallet: PersistedWallet) -> Result<()>;
 }
 
 pub mod bip32;
 pub mod raw;
-pub mod secret;
 pub mod session;
 pub mod store;
 pub mod wallet;

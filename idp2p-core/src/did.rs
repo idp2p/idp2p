@@ -3,6 +3,7 @@ use crate::eventlog::EventLogChange;
 use crate::did_doc::CreateDocInput;
 use crate::{did_doc::IdDocument, microledger::MicroLedger, IdentityError};
 use idp2p_common::ed_secret::EdSecret;
+use idp2p_common::log;
 use idp2p_common::{anyhow::Result, encode, hash, serde_json, serde_with::skip_serializing_none};
 use serde::{Deserialize, Serialize};
 
@@ -49,6 +50,7 @@ impl Identity {
         );
         let proof = secret.sign(&payload);
         did.microledger.save_event(payload, &proof);
+        log::info!("Created id: {}", did.id);
         did
     }
 

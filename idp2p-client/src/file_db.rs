@@ -2,6 +2,7 @@ use idp2p_common::anyhow::Result;
 use idp2p_common::ed_secret::EdSecret;
 use idp2p_common::serde_json;
 use idp2p_wallet::WalletPersister;
+use idp2p_wallet::wallet::PersistedWallet;
 use std::collections::HashMap;
 use std::error::Error;
 use std::fs::{File, OpenOptions};
@@ -27,17 +28,17 @@ impl WalletPersister for FilePersister {
         let path = format!("{}/wallet.json", self.path);
         std::path::Path::new(&path).exists()
     }
-    fn get_wallet(&self) -> Result<String> {
+    fn get_wallet(&self) -> Result<PersistedWallet> {
         let path = format!("{}/wallet.json", self.path);
         let mut file = File::open(&path)?;
         let mut buff = String::new();
         file.read_to_string(&mut buff)?;
-        Ok(buff)
+        Ok(serde_json::from_str(&buff)?)
     }
-    fn persist_wallet(&self, enc_wallet: &str) -> Result<()> {
+    fn persist_wallet(&self, enc_wallet: PersistedWallet) -> Result<()> {
         let path = format!("{}/wallet.json", self.path);
         let file = OpenOptions::new().create_new(true).write(true).open(&path)?;
-        serde_json::to_writer_pretty(&file, enc_wallet)?;
+        serde_json::to_writer_pretty(&file, &enc_wallet)?;
         Ok(())
     }
 }

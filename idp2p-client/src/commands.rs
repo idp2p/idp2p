@@ -1,7 +1,7 @@
 use crate::file_db::FilePersister;
 use idp2p_common::anyhow::Result;
 use idp2p_core::{store::IdStore, IdProfile, IdentityEvent};
-use idp2p_wallet::{store::WalletStore, wallet::WalletState};
+use idp2p_wallet::store::{WalletState, WalletStore};
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use tokio::sync::mpsc::Sender;
@@ -31,19 +31,24 @@ type Ws = Arc<WalletStore<FilePersister>>;
 type Tx = Sender<IdentityEvent>;
 
 impl IdCommand {
-    pub async fn handle(&self, ws: Ws, id_store: Arc<IdStore>, tx: Tx) -> Result<WalletState> {
+    pub async fn handle(
+        &self,
+        ws: Ws,
+        id_store: Arc<IdStore>,
+        tx: Tx,
+    ) -> Result<Option<WalletState>> {
         match &self {
             Self::Register { profile, password } => {
                 ws.register(profile.clone(), password)?;
-                let did = ws.get_state()?.session.unwrap().raw_wallet.identity.clone();
+                let did = ws.get_state().unwrap().raw.identity.clone();
                 id_store.create_did(did).await;
             }
             Self::Login { password } => {
                 ws.login(password)?;
             }
             Self::Connect { id } => {
-                tx.send(IdentityEvent::Connected { id: id.to_owned() })
-                    .await?;
+                let event = IdentityEvent::Connected { id: id.to_owned() };
+                tx.send(event).await?;
                 //let to = id_store.get_did(id);
 
                 //id_store.
@@ -51,6 +56,6 @@ impl IdCommand {
             }
             _ => {}
         }
-        Ok(ws.get_state()?)
+        Ok(ws.get_state())
     }
 }
