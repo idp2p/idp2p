@@ -51,16 +51,16 @@ where
         Ok(())
     }
 
-    pub fn create_jwm(&mut self, to: Identity, jwm: JwmBody) -> Result<String> {
+    /*pub fn create_jwm(&mut self, to: Identity, jwm: JwmBody) -> Result<String> {
         let session = self.session.clone().unwrap();
         let jwm = self.raw.clone().unwrap().identity.new_jwm(to, jwm);
         let enc_secret = EdSecret::from_bytes(&session.secret.keyagreement_secret.to_vec());
         let jwe = jwm.seal(enc_secret)?;
         let json = idp2p_common::serde_json::to_string(&jwe)?;
         Ok(json)
-    }
+    }*/
 
-    pub fn resolve_jwe(&mut self, jwe_str: &str) -> Result<Jws> {
+    /*pub fn resolve_jwe(&mut self, jwe_str: &str) -> Result<Jws> {
         let raw = self.raw.clone().unwrap();
         let session = self.session.clone().unwrap();
         let doc = raw.identity.document.clone().unwrap();
@@ -72,7 +72,7 @@ where
         let json = jwe.decrypt(dec_secret)?;
         let jws: Jws = serde_json::from_str(&json)?;
         Ok(jws)
-    }
+    }*/
 }
 
 #[cfg(test)]

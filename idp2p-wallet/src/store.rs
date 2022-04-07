@@ -66,10 +66,11 @@ where
             let seed = idp2p_common::create_random::<16>();
             let mut next_index = 1000000000;
             let secret = derive_secret(seed, &mut next_index)?;
-            wallet.raw = Some(RawWallet::new(profile, secret.clone(), next_index)?);
+            let did = Identity::from_secret(secret.clone());
+            wallet.raw = Some(RawWallet::new(profile, did.id.as_str(), next_index)?);
             wallet.session = Some(WalletSession::create(secret, pwd));
             wallet.persist()?;
-            return Ok((wallet.raw.clone().unwrap().identity, seed));
+            return Ok((did, seed));
         }
         idp2p_common::anyhow::bail!("Identity already exists")
     }
@@ -100,13 +101,13 @@ where
         let mut wallet = self.wallet.lock().unwrap();
         if let Some(session) = wallet.session.clone() {
             if let Some(ref mut raw) = wallet.raw {
-                raw.add_request(&to.id);
+                /*raw.add_request(&to.id);
                 let body = JwmBody::Accept(raw.profile.clone());
                 let jwm = raw.identity.new_jwm(to.clone(), body);
                 let jwm_str = session.create_jwm(jwm)?;
                 let id_mes = IdentityMessage::new_jwm(&to.id, &jwm_str);
                 wallet.persist()?;
-                return Ok(id_mes);
+                return Ok(id_mes);*/
             }
         }
         idp2p_common::anyhow::bail!("Session not found");
@@ -116,14 +117,14 @@ where
         let mut wallet = self.wallet.lock().unwrap();
         if let Some(session) = wallet.session.clone() {
             if let Some(ref mut raw) = wallet.raw {
-                let id = to.id.clone();
+                /*let id = to.id.clone();
                 raw.accept_conn(&id);
                 let body = JwmBody::Connect(raw.profile.clone());
                 let jwm = raw.identity.new_jwm(to.clone(), body);
                 let jwm_str = session.create_jwm(jwm)?;
                 let id_mes = IdentityMessage::new_jwm(&id, &jwm_str);
                 wallet.persist()?;
-                return Ok(id_mes);
+                return Ok(id_mes);*/
             }
         }
         idp2p_common::anyhow::bail!("Session not found");
@@ -133,13 +134,13 @@ where
         let mut wallet = self.wallet.lock().unwrap();
         if let Some(session) = wallet.session.clone() {
             if let Some(ref mut raw) = wallet.raw {
-                let id = to.id.clone();
+                /*let id = to.id.clone();
                 let body = JwmBody::Message(msg.to_owned());
                 let jwm = raw.identity.new_jwm(to.clone(), body);
                 let jwm_str = session.create_jwm(jwm)?;
                 let id_mes = IdentityMessage::new_jwm(&id, &jwm_str);
                 wallet.persist()?;
-                return Ok(id_mes);
+                return Ok(id_mes);*/
             }
         }
         idp2p_common::anyhow::bail!("Session not found");
@@ -149,8 +150,8 @@ where
         let mut wallet = self.wallet.lock().unwrap();
         if let Some(session) = wallet.session.clone() {
             if let Some(ref mut raw) = wallet.raw {
-                let doc = raw.identity.document.clone().unwrap();
-                return Ok(session.resolve_jwe(jwe, doc)?);
+                /*let doc = raw.identity.document.clone().unwrap();
+                return Ok(session.resolve_jwe(jwe, doc)?);*/
             }
         }
         idp2p_common::anyhow::bail!("Session not found");

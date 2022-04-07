@@ -39,8 +39,7 @@ impl IdCommand {
     ) -> Result<Option<WalletState>> {
         match &self {
             Self::Register { profile, password } => {
-                ws.register(profile.clone(), password)?;
-                let did = ws.get_state().unwrap().raw.identity.clone();
+                let (did, _) = ws.register(profile.clone(), password)?;
                 id_store.create_did(did).await;
             }
             Self::Login { password } => {

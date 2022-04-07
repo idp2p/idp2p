@@ -86,12 +86,11 @@ impl Connection {
 }
 
 impl RawWallet {
-    pub fn new(pro: IdProfile, secret: EdSecret, index: u32) -> Result<Self> {
+    pub fn new(pro: IdProfile, id: &str, index: u32) -> Result<Self> {
         let iv = idp2p_common::create_random::<12>();
         let salt = idp2p_common::create_random::<16>();
-        let did = Identity::from_secret(secret.clone());
         let raw_wallet = RawWallet {
-            id: did.id.clone(),
+            id: id.to_owned(),
             name: pro.name,
             photo: pro.photo,
             iv: iv.to_vec(),
