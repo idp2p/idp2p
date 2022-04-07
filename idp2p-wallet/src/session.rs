@@ -1,6 +1,6 @@
+use idp2p_common::chrono::Utc;
 use idp2p_common::ed_secret::EdSecret;
 use idp2p_common::{anyhow::Result, serde_json};
-use idp2p_core::did::Identity;
 use idp2p_core::did_doc::IdDocument;
 use idp2p_didcomm::jwe::Jwe;
 use idp2p_didcomm::jws::Jws;
@@ -43,10 +43,11 @@ impl WalletSession {
     }
 
     pub fn new(secret: SecretWallet, pwd: &str) -> Self{
+        let created_at = Utc::now().timestamp();
         WalletSession {
             secret: secret,
-            created_at: 0,
-            expire_at: 0,
+            created_at: created_at,
+            expire_at: created_at + 24*60*60,
             password: pwd.to_owned(),
         }
     }

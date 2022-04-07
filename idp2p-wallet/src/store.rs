@@ -1,4 +1,4 @@
-use crate::raw::{Connection, RawWallet};
+use crate::raw::{Connection, RawWallet, SharedWallet};
 use crate::session::{self, SecretWallet, SessionState, WalletSession};
 use crate::wallet::Wallet;
 use crate::{derive_secret, get_enc_key, WalletPersister};
@@ -16,6 +16,7 @@ use std::sync::Mutex;
 
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
 pub struct WalletState {
+    #[serde(flatten)]
     pub raw: RawWallet,
     pub session: Option<SessionState>,
 }
@@ -67,7 +68,15 @@ where
             let mut next_index = 1000000000;
             let secret = derive_secret(seed, &mut next_index)?;
             let did = Identity::from_secret(secret.clone());
-            wallet.raw = Some(RawWallet::new(profile, did.id.as_str(), next_index)?);
+            let shared = SharedWallet{
+                next_index: next_index,
+                next_secret_index: 1000000000,
+                recovery_secret_index: 1000000000,
+                assertion_secret_index: 1000000000,
+                authentication_secret_index: 1000000000,
+                agreement_secret_index: 1000000000,
+            };
+            wallet.raw = Some(RawWallet::new(profile, did.id.as_str(), shared)?);
             wallet.session = Some(WalletSession::create(secret, pwd));
             wallet.persist()?;
             return Ok((did, seed));

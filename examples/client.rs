@@ -26,13 +26,14 @@ struct Opt {
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    dotenv::dotenv().ok();
     env_logger::init();
     let opt = Opt::from_args();
     let (tx, mut rx) = channel::<IdentityEvent>(10);
     let mut stdin = tokio::io::BufReader::new(tokio::io::stdin()).lines();
     let path = format!("./target/{}", opt.port);
     let persister = FilePersister::from_str(&path)?;
-    let config = persister.get_config("127.0.0.1", opt.port, opt.remote)?;
+    let config = persister.get_config("0.0.0.0", opt.port, opt.remote)?;
     let swarm_opt = IdSwarmOptions::new(config, tx.clone());
     let mut swarm = build_swarm(swarm_opt).await?;
     let wallet_store = Arc::new(WalletStore::new(persister));
