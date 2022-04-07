@@ -58,7 +58,7 @@ impl Jws {
         let protected_b64 = base64url::encode_str(&protected_json.to_string())?;
         let payload_b64 = self.payload.clone();
         let compact = format!("{protected_b64}.{payload_b64}");
-        let doc = from.document.expect("Document not found");
+        let doc = from.to_document();
         let ver_method = doc
             .get_verification_method(&self.signatures[0].header.kid)
             .expect("Public key not found");
@@ -75,11 +75,12 @@ mod tests {
     use super::*;
     use crate::jwm::JwmBody;
     use crate::jwm::JwmHandler;
+    use idp2p_common::ED25519;
+    use idp2p_common::X25519;
     use idp2p_core::did::Identity;
-    use idp2p_core::did_doc::CreateDocInput;
-    use idp2p_core::did_doc::IdDocument;
-    use idp2p_core::eventlog::DocumentDigest;
+    use idp2p_core::did_doc::VerificationMethod;
     use idp2p_core::eventlog::EventLogChange;
+    use idp2p_core::eventlog::EventLogChangeSet;
     #[test]
     fn new_test() {
         let secret_str = "bd6yg2qeifnixj4x3z2fclp5wd3i6ysjlfkxewqqt2thie6lfnkma";
@@ -98,16 +99,21 @@ mod tests {
     fn save_doc(did: &mut Identity, secret: EdSecret) {
         let ed_key = secret.to_publickey();
         let x_key = secret.to_key_agreement();
-        let input = CreateDocInput {
-            id: did.id.clone(),
-            assertion_key: ed_key.to_vec(),
-            authentication_key: ed_key.to_vec(),
-            keyagreement_key: x_key.to_vec(),
+        let set_authentication = EventLogChangeSet::SetAuthenticationKey(VerificationMethod {
+            id: format!("{}#{}", did.id.clone(), encode(&ed_key)),
+            controller: did.id.clone(),
+            typ: ED25519.to_string(),
+            bytes: ed_key.to_vec(),
+        });
+        let set_agreement = EventLogChangeSet::SetAgreementKey(VerificationMethod {
+            id: format!("{}#{}", did.id.clone(), encode(&x_key)),
+            controller: did.id.clone(),
+            typ: X25519.to_string(),
+            bytes: x_key.to_vec(),
+        });
+        let change = EventLogChange::Set {
+            sets: vec![set_authentication, set_agreement],
         };
-        let doc = IdDocument::new(input);
-        let doc_digest = doc.get_digest();
-        did.document = Some(doc);
-        let change = EventLogChange::SetDocument(DocumentDigest { value: doc_digest });
         let signer = secret.to_publickey();
         let next = secret.to_publickey_digest().unwrap();
         let payload = did.microledger.create_event(&signer, &next, change);

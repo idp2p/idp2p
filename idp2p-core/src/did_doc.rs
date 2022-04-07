@@ -1,14 +1,7 @@
 use idp2p_common::{
-    encode, encode_vec, hash, serde_json, serde_with::skip_serializing_none, ED25519, X25519,
+     encode_vec, hash, serde_json, serde_with::skip_serializing_none
 };
 use serde::{Deserialize, Serialize};
-
-pub struct CreateDocInput {
-    pub id: String,
-    pub assertion_key: Vec<u8>,
-    pub authentication_key: Vec<u8>,
-    pub keyagreement_key: Vec<u8>,
-}
 
 #[skip_serializing_none]
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
@@ -38,48 +31,6 @@ pub struct IdDocument {
 }
 
 impl IdDocument {
-    pub fn new(input: CreateDocInput) -> Self {
-        let id_str = input.id;
-        let assertion_key_str = encode(&input.assertion_key);
-        let authentication_key_str = encode(&input.authentication_key);
-        let keyagreement_key_str = encode(&input.keyagreement_key);
-        let assertion_id = format!("{id_str}#{assertion_key_str}");
-        let authentication_id = format!("{id_str}#{authentication_key_str}");
-        let keyagreement_id = format!("{id_str}#{keyagreement_key_str}");
-        let assertion_method = VerificationMethod {
-            id: assertion_id.clone(),
-            controller: id_str.clone(),
-            typ: ED25519.to_string(),
-            bytes: input.assertion_key.to_owned(),
-        };
-        let authentication = VerificationMethod {
-            id: authentication_id.clone(),
-            controller: id_str.clone(),
-            typ: ED25519.to_string(),
-            bytes: input.authentication_key.to_owned(),
-        };
-        let key_agreement = VerificationMethod {
-            id: keyagreement_id.clone(),
-            controller: id_str.clone(),
-            typ: X25519.to_string(),
-            bytes: input.keyagreement_key.to_owned(),
-        };
-        let document = IdDocument {
-            context: vec![
-                "https://www.w3.org/ns/did/v1".to_string(),
-                "https://w3id.org/security/suites/ed25519-2020/v1".to_string(),
-                "https://w3id.org/security/suites/x25519-2020/v1".to_string(),
-            ],
-            id: id_str.clone(),
-            controller: id_str.clone(),
-            verification_method: vec![assertion_method, authentication, key_agreement],
-            authentication: vec![authentication_id],
-            assertion_method: vec![assertion_id],
-            key_agreement: vec![keyagreement_id],
-        };
-        document
-    }
-
     pub fn get_digest(&self) -> Vec<u8> {
         hash(serde_json::to_string(&self).unwrap().as_bytes())
     }
@@ -100,7 +51,7 @@ impl IdDocument {
 mod tests {
     use super::*;
     use idp2p_common::ed_secret::EdSecret;
-    #[test]
+    /*#[test]
     fn new_did_doc_test() {
         let secret = EdSecret::new();
         let ed_key = secret.to_publickey();
@@ -132,5 +83,5 @@ mod tests {
         let kid = format!("did:p2p:123456#{}", encode(&x_key));
         let vm = doc.get_verification_method(&kid);
         assert!(vm.is_some());
-    }
+    }*/
 }

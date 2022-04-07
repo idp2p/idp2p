@@ -1,10 +1,9 @@
-use crate::eventlog::DocumentDigest;
-use crate::eventlog::EventLogChange;
-use crate::did_doc::CreateDocInput;
+use crate::did_doc::VerificationMethod;
+use crate::eventlog::{EventLogChange, EventLogChangeSet};
 use crate::{did_doc::IdDocument, microledger::MicroLedger, IdentityError};
 use idp2p_common::ed_secret::EdSecret;
-use idp2p_common::log;
 use idp2p_common::{anyhow::Result, encode, hash, serde_json, serde_with::skip_serializing_none};
+use idp2p_common::{log, ED25519, X25519};
 use serde::{Deserialize, Serialize};
 
 #[skip_serializing_none]
@@ -12,7 +11,6 @@ use serde::{Deserialize, Serialize};
 pub struct Identity {
     pub id: String,
     pub microledger: MicroLedger,
-    pub document: Option<IdDocument>,
 }
 
 impl Identity {
@@ -22,7 +20,6 @@ impl Identity {
         let did = Identity {
             id: format!("did:p2p:{id}"),
             microledger: ledger,
-            document: None,
         };
         did
     }
@@ -32,22 +29,29 @@ impl Identity {
             &secret.to_publickey_digest().unwrap(),
             &secret.to_publickey_digest().unwrap(),
         );
-        let create_doc_input = CreateDocInput {
-            id: did.id.clone(),
-            assertion_key: secret.to_publickey().to_vec(),
-            authentication_key: secret.to_publickey().to_vec(),
-            keyagreement_key: secret.to_key_agreement().to_vec(),
-        };
-        let identity_doc = IdDocument::new(create_doc_input);
-        let change = EventLogChange::SetDocument(DocumentDigest {
-            value: identity_doc.get_digest(),
+        let set_assertion = EventLogChangeSet::SetAssertionKey(VerificationMethod {
+            id: format!("{}#{}", did.id.clone(), encode(&secret.to_publickey())),
+            controller: did.id.clone(),
+            typ: ED25519.to_string(),
+            bytes: secret.to_publickey().to_vec(),
         });
-        did.document = Some(identity_doc.clone());
-        let payload = did.microledger.create_event(
-            &secret.to_publickey(),
-            &secret.to_publickey_digest().unwrap(),
-            change,
-        );
+        let set_authentication = EventLogChangeSet::SetAuthenticationKey(VerificationMethod {
+            id: format!("{}#{}", did.id.clone(), encode(&secret.to_publickey())),
+            controller: did.id.clone(),
+            typ: ED25519.to_string(),
+            bytes: secret.to_publickey().to_vec(),
+        });
+        let set_agreement = EventLogChangeSet::SetAgreementKey(VerificationMethod {
+            id: format!("{}#{}", did.id.clone(), encode(&secret.to_key_agreement())),
+            controller: did.id.clone(),
+            typ: X25519.to_string(),
+            bytes: secret.to_key_agreement().to_vec(),
+        });
+        let change = EventLogChange::Set {
+            sets: vec![set_assertion.clone(), set_authentication, set_agreement],
+        };
+        let signer = secret.to_publickey();
+        let payload = did.microledger.create_event(&signer, &signer, change);
         let proof = secret.sign(&payload);
         did.microledger.save_event(payload, &proof);
         log::info!("Created id: {}", did.id);
@@ -56,15 +60,7 @@ impl Identity {
 
     pub fn verify(&self) -> Result<bool, IdentityError> {
         let id = self.microledger.inception.get_id();
-        let verified = self.microledger.verify(&id)?;
-        if let Some(document) = self.document.clone() {
-            let doc_json = idp2p_common::serde_json::to_string(&document).unwrap();
-            let did_doc_digest = idp2p_common::hash(doc_json.as_bytes());
-            check!(
-                did_doc_digest == verified.document_digest,
-                IdentityError::InvalidDocumentDigest
-            );
-        }
+        self.microledger.verify(&id)?;
         Ok(true)
     }
 
@@ -75,9 +71,6 @@ impl Identity {
                 candidate.microledger.events.push(event.clone());
             }
         }
-        let doc_valid = !(self.document.is_some() && new_did.document.is_none());
-        check!(doc_valid, IdentityError::InvalidDocumentDigest);
-        candidate.document = new_did.document.clone();
         let did_valid = candidate.get_digest() == new_did.get_digest();
         check!(did_valid, IdentityError::InvalidNext);
         candidate.verify()
@@ -87,89 +80,65 @@ impl Identity {
         let digest = hash(serde_json::to_string(&self).unwrap().as_bytes());
         encode(&digest)
     }
+
+    pub fn to_document(&self) -> IdDocument {
+        let state = self.microledger.verify(self.microledger.inception.get_id().as_str()).unwrap();
+        let mut document = IdDocument {
+            context: vec![
+                "https://www.w3.org/ns/did/v1".to_string(),
+                "https://w3id.org/security/suites/ed25519-2020/v1".to_string(),
+                "https://w3id.org/security/suites/x25519-2020/v1".to_string(),
+            ],
+            id: self.id.clone(),
+            controller: self.id.clone(),
+            verification_method: vec![],
+            authentication: vec![],
+            assertion_method: vec![],
+            key_agreement: vec![],
+        };
+        if let Some(authentication) = state.authentication_key {
+            document.authentication.push(authentication.id.clone());
+            document.verification_method.push(authentication);
+        }
+        if let Some(agreement) = state.agreement_key {
+            document.key_agreement.push(agreement.id.clone());
+            document.verification_method.push(agreement);
+        }
+        for assertion in state.assertion_keys {
+            document
+                .assertion_method
+                .push(assertion.ver_method.id.clone());
+            document.verification_method.push(assertion.ver_method);
+        }
+        document
+    }
 }
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use crate::{
-        did_doc::CreateDocInput,
-        eventlog::{DocumentDigest, EventLogChange},
-    };
-    use idp2p_common::hash;
+    use crate::eventlog::ProofStatement;
 
+    use super::*;
     #[test]
     fn is_next_ok_test() {
-        let (did, _) = create_did();
-        let current = did.clone();
-        let r = current.is_next(did.clone());
-        assert!(r.is_ok(), "{:?}", r);
-    }
-
-    #[test]
-    fn is_next_ok_with_doc_test() {
-        let (mut did, secret) = create_did();
-        let current = did.clone();
-        save_doc(&mut did, secret);
-        let r = current.is_next(did.clone());
-        assert!(r.is_ok(), "{:?}", r);
-    }
-
-    #[test]
-    fn is_next_invalid_doc_test_for_empty_doc() {
-        let (mut did, secret) = create_did();
-        save_doc(&mut did, secret);
-        let current = did.clone();
-        did.document = None;
-        let result = current.is_next(did);
-        let is_err = matches!(result, Err(IdentityError::InvalidDocumentDigest));
-        assert!(is_err, "{:?}", result);
-    }
-
-    #[test]
-    fn is_next_invalid_doc_test() {
-        let (mut did, secret) = create_did();
-        save_doc(&mut did, secret.clone());
-        let current = did.clone();
-        let digest = DocumentDigest { value: vec![] };
-        let fake_change = EventLogChange::SetDocument(digest);
-        let fake_payload = did.microledger.create_event(
-            &secret.to_publickey(),
-            &secret.to_publickey_digest().unwrap(),
-            fake_change,
-        );
-        let fake_proof = secret.sign(&fake_payload);
-        did.microledger.save_event(fake_payload, &fake_proof);
-        let result = current.is_next(did);
-        let is_err = matches!(result, Err(IdentityError::InvalidDocumentDigest));
-        assert!(is_err, "{:?}", result);
-    }
-
-    fn create_did() -> (Identity, EdSecret) {
         let secret_str = "beilmx4d76udjmug5ykpy657qa3pfsqbcu7fbbtuk3mgrdrxssseq";
         let secret = EdSecret::from_str(secret_str).unwrap();
         let ed_key_digest = secret.to_publickey_digest().unwrap();
-        (Identity::new(&ed_key_digest, &ed_key_digest), secret)
-    }
+        let mut did = Identity::new(&ed_key_digest, &ed_key_digest);
+        let previous = did.clone();
 
-    fn save_doc(did: &mut Identity, secret: EdSecret) {
-        let ed_key = secret.to_publickey();
-        let x_key = secret.to_key_agreement();
-        let input = CreateDocInput {
-            id: did.id.clone(),
-            assertion_key: ed_key.to_vec(),
-            authentication_key: ed_key.to_vec(),
-            keyagreement_key: x_key.to_vec(),
+        let set_proof = EventLogChangeSet::SetProof(ProofStatement {
+            key: vec![1],
+            value: vec![1],
+        });
+        let change = EventLogChange::Set {
+            sets: vec![set_proof],
         };
-        let doc = IdDocument::new(input);
-        let doc_digest = doc.get_digest();
-        did.document = Some(doc);
-        let change = EventLogChange::SetDocument(DocumentDigest { value: doc_digest });
         let signer = secret.to_publickey();
-        let payload = did
-            .microledger
-            .create_event(&signer, &hash(&signer), change);
+        let payload = did.microledger.create_event(&signer, &signer, change);
         let proof = secret.sign(&payload);
         did.microledger.save_event(payload, &proof);
+        let r = previous.is_next(did.clone());
+        assert!(r.is_ok(), "{:?}", r);
     }
 }

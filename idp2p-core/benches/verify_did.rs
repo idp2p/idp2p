@@ -2,24 +2,18 @@ use criterion::{black_box, criterion_group, criterion_main, Criterion};
 use idp2p_common::ed_secret::EdSecret;
 use idp2p_common::hash;
 use idp2p_core::did::Identity;
-use idp2p_core::did_doc::CreateDocInput;
 use idp2p_core::did_doc::IdDocument;
-use idp2p_core::eventlog::DocumentDigest;
-use idp2p_core::eventlog::EventLogChange;
+use idp2p_core::eventlog::{EventLogChange, EventLogChangeSet};
+use idp2p_core::eventlog::ProofStatement;
 
 fn save_doc(did: &mut Identity, secret: EdSecret) {
     let ed_key = secret.to_publickey();
     let x_key = secret.to_key_agreement();
-    let input = CreateDocInput {
-        id: did.id.clone(),
-        assertion_key: ed_key.to_vec(),
-        authentication_key: ed_key.to_vec(),
-        keyagreement_key: x_key.to_vec(),
-    };
-    let doc = IdDocument::new(input);
-    let doc_digest = doc.get_digest();
-    did.document = Some(doc);
-    let change = EventLogChange::SetDocument(DocumentDigest { value: doc_digest });
+    let set_change = EventLogChangeSet::SetProof(ProofStatement {
+        key: vec![],
+        value: vec![],
+    });
+    let change = EventLogChange::Set{ sets: vec![set_change]};
     let signer = secret.to_publickey();
     let payload = did
         .microledger

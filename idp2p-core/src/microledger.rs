@@ -4,22 +4,33 @@
 //! next_key_digest: Next public key digest
 
 use crate::{
-    eventlog::{EventLog, EventLogChange, EventLogPayload},
+    did_doc::VerificationMethod,
+    eventlog::{EventLog, EventLogChange, EventLogPayload, EventLogChangeSet},
     IdentityError,
 };
 use idp2p_common::{
-    anyhow::Result, chrono::prelude::*, encode_vec, generate_cid, hash, IdKeyDigest, IDP2P_ED25519,
+    anyhow::Result, chrono::prelude::*, encode_vec, generate_cid, hash, IdKeyDigest, IDP2P_ED25519, encode,
 };
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
+pub struct AssertionMethod {
+    pub valid_at: i64,
+    pub expired_at: Option<i64>,
+    pub ver_method: VerificationMethod,
+}
+#[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
 pub struct MicroLedgerState {
     pub event_id: String,
+    #[serde(with = "encode_vec")]
     pub next_key_digest: IdKeyDigest,
+    #[serde(with = "encode_vec")]
     pub recovery_key_digest: IdKeyDigest,
-    pub document_digest: Vec<u8>,
-    pub proofs: HashMap<Vec<u8>, Vec<u8>>,
+    pub assertion_keys: Vec<AssertionMethod>,
+    pub authentication_key: Option<VerificationMethod>,
+    pub agreement_key: Option<VerificationMethod>,
+    pub proofs: HashMap<String, String>,
 }
 
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
@@ -84,7 +95,9 @@ impl MicroLedger {
             event_id: self.inception.get_id(),
             recovery_key_digest: self.inception.recovery_key_digest.clone(),
             next_key_digest: self.inception.next_key_digest.clone(),
-            document_digest: vec![],
+            assertion_keys: vec![],
+            authentication_key: None,
+            agreement_key: None,
             proofs: HashMap::new(),
         };
         check!(cid == self.inception.get_id(), IdentityError::InvalidId);
@@ -95,15 +108,36 @@ impl MicroLedger {
             check!(event_valid, IdentityError::InvalidEventSignature);
             let signer_digest = hash(&event.payload.signer_key);
             match &event.payload.change {
-                EventLogChange::SetDocument(digest) => {
-                    let signer_valid = state.next_key_digest == signer_digest;
-                    check!(signer_valid, IdentityError::InvalidSigner);
-                    state.document_digest = digest.value.clone()
-                }
-                EventLogChange::SetProof(stmt) => {
-                    let signer_valid = state.next_key_digest == signer_digest;
-                    check!(signer_valid, IdentityError::InvalidSigner);
-                    state.proofs.insert(stmt.key.clone(), stmt.value.clone());
+                EventLogChange::Set { sets } => {
+                    let rec_valid = state.recovery_key_digest == signer_digest;
+                    check!(rec_valid, IdentityError::InvalidSigner);
+                    for set in sets {
+                        match &set {
+                            EventLogChangeSet::SetAssertionKey(ver_method) => {
+                                let previous_key = state.assertion_keys.last_mut();
+                                if let  Some(previous_key) = previous_key{
+                                    previous_key.expired_at = Some(event.payload.timestamp);
+                                } 
+                                let assertion_method = AssertionMethod {
+                                    valid_at: event.payload.timestamp,
+                                    expired_at: None,
+                                    ver_method: ver_method.clone(),
+                                };
+                                state.assertion_keys.push(assertion_method);
+                            }
+                            EventLogChangeSet::SetAuthenticationKey(ver_method) => {
+                                state.authentication_key = Some(ver_method.clone());
+                            }
+                            EventLogChangeSet::SetAgreementKey(ver_method) => {
+                                state.agreement_key = Some(ver_method.clone());
+                            }
+                            EventLogChangeSet::SetProof(stmt) => {
+                                let key = encode(&stmt.key);
+                                let value = encode(&stmt.value);
+                                state.proofs.insert(key, value);
+                            }
+                        }
+                    }
                 }
                 EventLogChange::Recover(stmt) => {
                     let rec_valid = state.recovery_key_digest == signer_digest;
@@ -134,7 +168,7 @@ mod tests {
     use crate::eventlog::*;
     use idp2p_common::ed_secret::EdSecret;
     use idp2p_common::ED25519;
-
+    
     #[test]
     fn id_test() {
         let expected_id = "bagaaieraqun2pn4ycd3b4nq4ptyzfnxea4hohwlgd7vdu3cifiy2fowvvpuq";
@@ -157,10 +191,45 @@ mod tests {
     }
 
     #[test]
+    fn verify_valid_test() {
+        let (mut ledger, secret) = create_microledger();
+        let id = ledger.inception.get_id();
+        let set_proof = EventLogChangeSet::SetProof(ProofStatement {
+            key: vec![1],
+            value: vec![1],
+        });
+        let ver_method = VerificationMethod {
+            id: id.clone(),
+            controller: id.clone(),
+            typ: ED25519.to_string(),
+            bytes: secret.to_publickey().to_vec(),
+        };
+        let set_assertion = EventLogChangeSet::SetAssertionKey(ver_method.clone());
+        let set_authentication = EventLogChangeSet::SetAuthenticationKey(ver_method.clone());
+        let set_agreement = EventLogChangeSet::SetAgreementKey(ver_method.clone());
+        let change = EventLogChange::Set{ sets: vec![set_proof, set_assertion.clone(), set_authentication, set_agreement]};
+        let signer = secret.to_publickey();
+        let payload = ledger.create_event(&signer, &signer, change);
+        let proof = secret.sign(&payload);
+        ledger.save_event(payload, &proof);
+        let change = EventLogChange::Set{ sets: vec![set_assertion]};
+        let payload = ledger.create_event(&signer, &signer, change);
+        let proof = secret.sign(&payload);
+        ledger.save_event(payload, &proof);
+        let result = ledger.verify(&id);
+        assert!(result.is_ok());
+        let state = result.unwrap();
+        eprintln!("{:?}", idp2p_common::serde_json::to_string_pretty(&state).unwrap());
+    }
+    #[test]
     fn verify_invalid_previous_test() {
         let (mut ledger, secret) = create_microledger();
         let id = ledger.inception.get_id();
-        let change = EventLogChange::SetDocument(DocumentDigest { value: vec![] });
+        let set_change = EventLogChangeSet::SetProof(ProofStatement {
+            key: vec![],
+            value: vec![],
+        });
+        let change = EventLogChange::Set{ sets: vec![set_change]};
         let signer = secret.to_publickey();
         let payload = ledger.create_event(&signer, &signer, change);
         let proof = secret.sign(&payload);
@@ -175,7 +244,11 @@ mod tests {
     fn verify_invalid_signature_test() {
         let (mut ledger, secret) = create_microledger();
         let id = ledger.inception.get_id();
-        let change = EventLogChange::SetDocument(DocumentDigest { value: vec![] });
+        let set_change = EventLogChangeSet::SetProof(ProofStatement {
+            key: vec![],
+            value: vec![],
+        });
+        let change = EventLogChange::Set{ sets: vec![set_change]};
         let signer = secret.to_publickey();
         let payload = ledger.create_event(&signer, &signer, change);
         let proof = secret.sign(&payload);
@@ -187,31 +260,14 @@ mod tests {
     }
 
     #[test]
-    fn verify_set_doc_invalid_signer_test() {
-        let (mut ledger, secret) = create_microledger();
-        let id = ledger.inception.get_id();
-        let change = EventLogChange::SetDocument(DocumentDigest { value: vec![] });
-        let signer = secret.to_publickey();
-        let payload = ledger.create_event(&signer, &signer, change);
-        let proof = secret.sign(&payload);
-        ledger.save_event(payload, &proof);
-        let new_secret = EdSecret::new();
-        let new_ed_key = new_secret.to_publickey();
-        ledger.events[0].payload.signer_key = new_ed_key.to_vec();
-        ledger.events[0].proof = new_secret.sign(&ledger.events[0].payload).to_vec();
-        let result = ledger.verify(&id);
-        let is_err = matches!(result, Err(crate::IdentityError::InvalidSigner));
-        assert!(is_err, "{:?}", result);
-    }
-
-    #[test]
     fn verify_set_proof_invalid_signer_test() {
         let (mut ledger, secret) = create_microledger();
         let id = ledger.inception.get_id();
-        let change = EventLogChange::SetProof(ProofStatement {
+        let set_change = EventLogChangeSet::SetProof(ProofStatement {
             key: vec![],
             value: vec![],
         });
+        let change = EventLogChange::Set{ sets: vec![set_change]};
         let signer = secret.to_publickey();
         let payload = ledger.create_event(&signer, &signer, change);
         let proof = secret.sign(&payload);

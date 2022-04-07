@@ -31,6 +31,10 @@ pub struct ReceivedMessage {
 
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
 pub struct RawWallet {
+    pub id: String,
+    pub name: String,
+    #[serde(with = "encode_vec")]
+    pub photo: Vec<u8>,
     #[serde(with = "encode_vec")]
     pub salt: Vec<u8>,
     #[serde(with = "encode_vec")]
@@ -38,8 +42,9 @@ pub struct RawWallet {
     pub next_index: u32,
     pub next_secret_index: u32,
     pub recovery_secret_index: u32,
-    pub identity: Identity,
-    pub profile: IdProfile,
+    pub assertion_secret_index: u32,
+    pub authentication_secret_index: u32,
+    pub agreement_secret_index: u32,
     #[serde(skip_serializing_if = "Vec::is_empty", default)]
     pub requests: Vec<String>,
     #[serde(skip_serializing_if = "Vec::is_empty", default)]
@@ -86,13 +91,17 @@ impl RawWallet {
         let salt = idp2p_common::create_random::<16>();
         let did = Identity::from_secret(secret.clone());
         let raw_wallet = RawWallet {
+            id: did.id.clone(),
+            name: pro.name,
+            photo: pro.photo,
             iv: iv.to_vec(),
             salt: salt.to_vec(),
-            identity: did,
-            profile: pro,
             next_index: index,
             next_secret_index: index,
             recovery_secret_index: index,
+            assertion_secret_index: index,
+            authentication_secret_index: index,
+            agreement_secret_index: index,
             requests: vec![],
             connections: vec![],
             credentials: vec![],
@@ -159,7 +168,7 @@ mod tests {
         let did = Identity::from_secret(EdSecret::new());
         let profile = IdProfile::new("adem", &vec![]);
         let w = create_raw_wallet(profile, did.clone());
-        assert_eq!(w.identity, did);
+        assert_eq!(w.id, did.id);
     }
 
     #[test]
@@ -199,13 +208,17 @@ mod tests {
 
     fn create_raw_wallet(profile: IdProfile, did: Identity) -> RawWallet{
         RawWallet {
+            id: did.id,
+            name: profile.name,
+            photo: profile.photo,
             iv: vec![],
             salt: vec![],
-            identity: did,
-            profile: profile,
             next_index: 0,
             next_secret_index: 0,
             recovery_secret_index: 0,
+            assertion_secret_index: 0,
+            authentication_secret_index:0,
+            agreement_secret_index: 0,
             requests: vec![],
             connections: vec![],
             credentials: vec![],
