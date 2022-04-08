@@ -44,7 +44,7 @@ impl WalletPersister for FilePersister {
 }
 
 impl IdConfigResolver for FilePersister {
-    fn get_config(&self, ip: &str, port: u16, remote: Option<String>) -> Result<IdConfig> {
+    fn get_or_save_config(&self, ip: &str, port: u16, remote: Option<String>) -> Result<IdConfig> {
         let path = format!("{}/config.json", self.path);
         if std::path::Path::new(&path).exists() {
             let file = File::open(&path)?;

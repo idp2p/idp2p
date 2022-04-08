@@ -6,7 +6,6 @@ use idp2p_common::ed25519_dalek::{PublicKey, Signature, Verifier};
 use idp2p_common::ed_secret::EdSecret;
 use idp2p_common::encode;
 use idp2p_common::serde_json::json;
-use idp2p_core::did::Identity;
 use serde::{Deserialize, Serialize};
 use std::convert::TryInto;
 
@@ -53,16 +52,12 @@ impl Jws {
         })
     }
 
-    pub fn verify(&self, from: Identity) -> Result<bool> {
+    pub fn verify(&self, from_public: &[u8]) -> Result<bool> {
         let protected_json = json!({"typ": TYP.to_owned(), "alg": ALG.to_owned()});
         let protected_b64 = base64url::encode_str(&protected_json.to_string())?;
         let payload_b64 = self.payload.clone();
         let compact = format!("{protected_b64}.{payload_b64}");
-        let doc = from.to_document();
-        let ver_method = doc
-            .get_verification_method(&self.signatures[0].header.kid)
-            .expect("Public key not found");
-        let public_key: PublicKey = PublicKey::from_bytes(&ver_method.bytes)?;
+        let public_key: PublicKey = PublicKey::from_bytes(from_public)?;
         let signature_bytes = self.signatures[0].get_signature_bytes()?;
         let signature = Signature::from(signature_bytes);
         public_key.verify(compact.as_bytes(), &signature)?;
@@ -73,51 +68,15 @@ impl Jws {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::jwm::Jwm;
     use crate::jwm::JwmBody;
-    use crate::jwm::JwmHandler;
-    use idp2p_common::ED25519;
-    use idp2p_common::X25519;
-    use idp2p_core::did::Identity;
-    use idp2p_core::did_doc::VerificationMethod;
-    use idp2p_core::eventlog::EventLogChange;
-    use idp2p_core::eventlog::EventLogChangeSet;
+
     #[test]
     fn new_test() {
-        let secret_str = "bd6yg2qeifnixj4x3z2fclp5wd3i6ysjlfkxewqqt2thie6lfnkma";
-        let secret = EdSecret::from_str(secret_str).unwrap();
-        let digest = secret.to_publickey_digest().unwrap();
-        let mut from = Identity::new(&digest, &digest);
-        let mut to = Identity::new(&digest, &digest);
-        save_doc(&mut from, secret.clone());
-        save_doc(&mut to, secret.clone());
-        let jwm = from.new_jwm(to, JwmBody::Message("body".to_owned()));
-        let jws = Jws::new(Jpm::from(jwm), secret).unwrap();
-        let r = jws.verify(from);
+        let secret = EdSecret::new();
+        let jwm = Jwm::new("from", "to", JwmBody::Message("body".to_owned()));
+        let jws = Jws::new(Jpm::from(jwm), secret.clone()).unwrap();
+        let r = jws.verify(&secret.to_publickey());
         assert!(r.is_ok());
-    }
-
-    fn save_doc(did: &mut Identity, secret: EdSecret) {
-        let ed_key = secret.to_publickey();
-        let x_key = secret.to_key_agreement();
-        let set_authentication = EventLogChangeSet::SetAuthenticationKey(VerificationMethod {
-            id: format!("{}#{}", did.id.clone(), encode(&ed_key)),
-            controller: did.id.clone(),
-            typ: ED25519.to_string(),
-            bytes: ed_key.to_vec(),
-        });
-        let set_agreement = EventLogChangeSet::SetAgreementKey(VerificationMethod {
-            id: format!("{}#{}", did.id.clone(), encode(&x_key)),
-            controller: did.id.clone(),
-            typ: X25519.to_string(),
-            bytes: x_key.to_vec(),
-        });
-        let change = EventLogChange::Set {
-            sets: vec![set_authentication, set_agreement],
-        };
-        let signer = secret.to_publickey();
-        let next = secret.to_publickey_digest().unwrap();
-        let payload = did.microledger.create_event(&signer, &next, change);
-        let proof = secret.sign(&payload);
-        did.microledger.save_event(payload, &proof);
     }
 }

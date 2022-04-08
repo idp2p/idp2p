@@ -1,4 +1,4 @@
-use idp2p_common::{encode_vec, thiserror::Error, anyhow::Result};
+use idp2p_common::{anyhow::Result, encode_vec, thiserror::Error};
 use serde::{Deserialize, Serialize};
 
 #[derive(Error, Debug)]
@@ -26,28 +26,14 @@ pub enum IdentityEvent {
     Created { id: String },
     Connected { id: String },
     PostHandled { id: String },
-    GetHandled { id: String }
+    GetHandled { id: String },
+    JwmCreated { jwm: String },
+    JwmReceived { jwm: String },
 }
 
 pub trait IdPersister {
     fn get(&self) -> Result<String>;
     fn persist(&self, s: &str) -> Result<()>;
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
-pub struct IdProfile {
-    pub name: String,
-    #[serde(with = "encode_vec")]
-    pub photo: Vec<u8>,
-}
-
-impl IdProfile {
-    pub fn new(name: &str, photo: &[u8]) -> Self {
-        Self {
-            name: name.to_owned(),
-            photo: photo.to_owned(),
-        }
-    }
 }
 
 macro_rules! check {

@@ -8,9 +8,8 @@ use idp2p_common::ed_secret::EdSecret;
 use idp2p_common::log;
 use idp2p_common::{anyhow::Result, encode_vec, serde_json};
 use idp2p_core::did::Identity;
-use idp2p_core::IdProfile;
 use idp2p_didcomm::jwe::Jwe;
-use idp2p_didcomm::jwm::{JwmBody, JwmHandler};
+use idp2p_didcomm::jwm::JwmBody;
 use idp2p_didcomm::jws::Jws;
 use serde::{Deserialize, Serialize};
 
@@ -31,7 +30,6 @@ impl<T> Wallet<T>
 where
     T: WalletPersister,
 {
-    
     pub fn persist(&self) -> Result<()> {
         let session = self.session.clone().unwrap();
         let raw = self.raw.clone().unwrap();

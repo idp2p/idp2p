@@ -1,7 +1,8 @@
-use crate::jwm::Jwm;
+use std::str::FromStr;
+use crate::jwm::{Jwm, JwmBody};
 use idp2p_common::anyhow::{Result, *};
 use idp2p_common::base64url;
-use idp2p_common::{chrono::Utc, serde_json};
+use idp2p_common::chrono::Utc;
 use serde::{Deserialize, Serialize};
 
 const M_TYPE: &str = "https://idp2p.github.io";
@@ -16,23 +17,27 @@ pub struct Jpm {
     pub from: String,
     pub to: Vec<String>,
     pub created_time: i64,
-    pub body: serde_json::Value,
+    pub body: JwmBody,
 }
 
-impl Jpm {
-    pub fn from(jwm: Jwm) -> Self {
+impl From<Jwm> for Jpm {
+    fn from(jwm: Jwm) -> Self {
         Jpm {
             id: jwm.id.clone(),
             m_type: M_TYPE.to_owned(),
             typ: TYP.to_owned(),
-            from: jwm.from.id.to_owned(),
-            to: vec![jwm.to.id.to_owned()],
+            from: jwm.from.to_owned(),
+            to: vec![jwm.to.to_owned()],
             created_time: Utc::now().timestamp(),
-            body: serde_json::json!(serde_json::to_string(&jwm.body).unwrap()),
+            body: jwm.body,
         }
     }
+}
 
-    pub fn from_str(s: &str) -> Result<Self> {
+impl FromStr for Jpm{
+    type Err = idp2p_common::anyhow::Error;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
         let jpm: Jpm = base64url::decode(s)?;
         if jpm.m_type != M_TYPE {
             bail!("Message type should be {}", M_TYPE)
@@ -43,22 +48,19 @@ impl Jpm {
         Ok(jpm)
     }
 }
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::jwm::JwmBody;
-    use crate::jwm::JwmHandler;
-    use idp2p_core::did::Identity;
     #[test]
     fn from_test() {
-        let from = Identity::new(&vec![], &vec![]);
-        let to = Identity::new(&vec![], &vec![]);
-        let jwm = from.new_jwm(to, JwmBody::Message("body".to_owned()));
+        let body = JwmBody::Message("body".to_owned());
+        let jwm = Jwm::new("from", "to", body.clone());
         let jpm = Jpm::from(jwm);
-        let expected = "did:p2p:bagaaierakioikcmj4ooqw54zqsedryl7lnuubne64ga443cpkegei4xftata";
-        assert_eq!(jpm.from, expected);
-        assert_eq!(jpm.to[0], expected);
-        assert_eq!(jpm.body.as_str(), Some(r#"{"message":"body"}"#));
+        assert_eq!(jpm.from, "from");
+        assert_eq!(jpm.to[0], "to");
+        assert_eq!(jpm.body, body);
         assert_eq!(jpm.m_type, M_TYPE);
         assert_eq!(jpm.typ, TYP);
     }
@@ -72,7 +74,7 @@ mod tests {
             from: "from".to_owned(),
             to: vec!["to".to_owned()],
             created_time: Utc::now().timestamp(),
-            body: serde_json::json!({ "body" : "body" }),
+            body: JwmBody::Message("body".to_owned()),
         };
         let jpm_b64 = base64url::encode(&j).unwrap();
         let r = Jpm::from_str(&jpm_b64);
@@ -88,7 +90,7 @@ mod tests {
             from: "from".to_owned(),
             to: vec!["to".to_owned()],
             created_time: Utc::now().timestamp(),
-            body: serde_json::json!(r#"{ "body" : "body" }"#),
+            body: JwmBody::Message("body".to_owned()),
         };
         let jpm_b64 = base64url::encode(&j).unwrap();
         let r = Jpm::from_str(&jpm_b64);

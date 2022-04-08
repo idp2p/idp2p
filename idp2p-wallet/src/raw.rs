@@ -1,30 +1,14 @@
 use idp2p_common::anyhow::Result;
 use idp2p_common::encode_vec;
-use idp2p_core::IdProfile;
 use idp2p_didcomm::vcs::VerifiableCredential;
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
 pub struct Connection {
-    /// Id of connection
     pub id: String,
-    /// Username of id
-    pub profile: IdProfile,
-    /// Sent messages
-    pub sent_messages: Vec<SentMessage>,
-    /// Received messages
-    pub received_messages: Vec<ReceivedMessage>,
+    pub name: String,
+    pub photo: Vec<u8>,
     pub accepted: bool,
-}
-
-#[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
-pub struct SentMessage {
-    pub text: String,
-}
-
-#[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
-pub struct ReceivedMessage {
-    pub text: String,
 }
 
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
@@ -56,29 +40,14 @@ pub struct RawWallet {
     pub credentials: Vec<VerifiableCredential>,
 }
 
-impl SentMessage {
-    pub fn new(text: &str) -> Self {
-        Self {
-            text: text.to_owned(),
-        }
-    }
-}
 
-impl ReceivedMessage {
-    pub fn new(text: &str) -> Self {
-        Self {
-            text: text.to_owned(),
-        }
-    }
-}
 
 impl Connection {
-    pub fn new(id: &str, profile: IdProfile) -> Self {
+    pub fn new(id: &str, name: &str, photo: &[u8]) -> Self {
         Connection {
             id: id.to_owned(),
-            profile: profile,
-            sent_messages: vec![],
-            received_messages: vec![],
+            name: name.to_owned(),
+            photo: photo.to_owned(),
             accepted: false,
         }
     }
@@ -89,13 +58,13 @@ impl Connection {
 }
 
 impl RawWallet {
-    pub fn new(pro: IdProfile, id: &str, shared: SharedWallet) -> Result<Self> {
+    pub fn new(name: &str, photo: &[u8], id: &str, shared: SharedWallet) -> Result<Self> {
         let iv = idp2p_common::create_random::<12>();
         let salt = idp2p_common::create_random::<16>();
         let raw_wallet = RawWallet {
             id: id.to_owned(),
-            name: pro.name,
-            photo: pro.photo,
+            name: name.to_owned(),
+            photo: photo.to_owned(),
             shared: shared,
             iv: iv.to_vec(),
             salt: salt.to_vec(),
@@ -129,24 +98,6 @@ impl RawWallet {
         conn.accept();
     }
 
-    pub fn add_sent_message(&mut self, id: &str, msg: &str) {
-        let conn = self
-            .connections
-            .iter_mut()
-            .find(|conn| conn.id == id)
-            .unwrap();
-        conn.sent_messages.push(SentMessage::new(msg));
-    }
-
-    pub fn add_received_message(&mut self, id: &str, msg: &str) {
-        let conn = self
-            .connections
-            .iter_mut()
-            .find(|conn| conn.id == id)
-            .unwrap();
-        conn.received_messages.push(ReceivedMessage::new(msg));
-    }
-
     pub fn get_conn(&self, id: &str) -> Option<Connection> {
         self.connections
             .clone()
@@ -164,8 +115,7 @@ mod tests {
     #[test]
     fn new_wallet_test() {
         let did = Identity::from_secret(EdSecret::new());
-        let profile = IdProfile::new("adem", &vec![]);
-        let w = create_raw_wallet(profile, did.id.as_str());
+        let w = create_raw_wallet(did.id.as_str(), "adem");
         assert_eq!(w.id, did.id);
     }
 
@@ -173,42 +123,17 @@ mod tests {
     fn add_conn_test() {
         let did = Identity::from_secret(EdSecret::new());
         let did2 = Identity::from_secret(EdSecret::new());
-        let profile = IdProfile::new("adem", &vec![]);
-        let profile2 = IdProfile::new("caglin", &vec![]);
-        let mut w = create_raw_wallet(profile, did.id.as_str());
-        w.add_conn(Connection::new(&did2.id, profile2));
+        let mut w = create_raw_wallet(did.id.as_str(), "adem");
+        w.add_conn(Connection::new(&did2.id, "caglin", &vec![]));
         assert_eq!(w.connections[0].id, did2.id);
     }
 
-    #[test]
-    fn add_sent_message() {
-        let did = Identity::from_secret(EdSecret::new());
-        let did2 = Identity::from_secret(EdSecret::new());
-        let profile = IdProfile::new("adem", &vec![]);
-        let profile2 = IdProfile::new("caglin", &vec![]);
-        let mut w = create_raw_wallet(profile, did.id.as_str());
-        w.add_conn(Connection::new(&did2.id, profile2));
-        w.add_sent_message(&did2.id, "Heyy");
-        assert_eq!(w.connections[0].sent_messages[0].text, "Heyy");
-    }
-
-    #[test]
-    fn add_received_message() {
-        let did = Identity::from_secret(EdSecret::new());
-        let did2 = Identity::from_secret(EdSecret::new());
-        let profile = IdProfile::new("adem", &vec![]);
-        let profile2 = IdProfile::new("caglin", &vec![]);
-        let mut w = create_raw_wallet(profile, did.id.as_str());
-        w.add_conn(Connection::new(&did2.id, profile2));
-        w.add_received_message(&did2.id, "Heyy");
-        assert_eq!(w.connections[0].received_messages[0].text, "Heyy");
-    }
-
-    fn create_raw_wallet(profile: IdProfile, id: &str) -> RawWallet {
+    
+    fn create_raw_wallet(id: &str, name: &str) -> RawWallet {
         RawWallet {
             id: id.to_owned(),
-            name: profile.name,
-            photo: profile.photo,
+            name: name.to_owned(),
+            photo: vec![],
             iv: vec![],
             salt: vec![],
             requests: vec![],

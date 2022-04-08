@@ -6,12 +6,12 @@ use chacha20poly1305::ChaCha20Poly1305;
 use chacha20poly1305::Key;
 use chacha20poly1305::Nonce;
 use idp2p_common::anyhow::Result;
-use idp2p_common::base64url;
 use idp2p_common::decode;
 use idp2p_common::decode_sized;
 use idp2p_common::ed_secret::EdSecret;
+use idp2p_common::log;
 use idp2p_common::serde_json;
-use idp2p_core::did::Identity;
+use idp2p_common::{base64url, encode};
 use serde::{Deserialize, Serialize};
 
 const TYP: &str = "application/didcomm-encrypted+json";
@@ -39,26 +39,22 @@ pub struct JweProtected {
     pub epk: Jwk,
 }
 
-impl JweProtected {
-    fn new(epk_bytes: [u8; 32]) -> Result<JweProtected> {
+impl TryFrom<[u8; 32]> for JweProtected{
+    type Error = idp2p_common::anyhow::Error;
+
+    fn try_from(epk_bytes: [u8; 32]) -> Result<Self, Self::Error> {
         Ok(JweProtected {
             typ: TYP.to_owned(),
             enc: ENC.to_owned(),
             alg: ALG.to_owned(),
-            epk: Jwk::from_bytes(epk_bytes)?,
+            epk: Jwk::try_from(epk_bytes)?,
         })
     }
 }
 
 impl Jwe {
-    pub fn encrypt(jws: Jws, to: Identity) -> Result<Jwe> {
+    pub fn encrypt(jws: Jws, to: &str, to_public: [u8; 32]) -> Result<Jwe> {
         let enc_secret = EdSecret::new();
-        let to_doc = to.to_document();
-        let to_kid = to_doc.get_first_keyagreement();
-        let to_ver = to_doc
-            .get_verification_method(&to_kid)
-            .expect("Key not found");
-        let to_public: [u8; 32] = to_ver.bytes.try_into().expect("Key should be 32 bytes");
         let shared_secret = enc_secret.to_shared_secret(to_public);
         let iv = idp2p_common::create_random::<12>();
         let key = Key::from_slice(shared_secret.as_bytes());
@@ -66,7 +62,8 @@ impl Jwe {
         let nonce = Nonce::from_slice(&iv);
         let jws_str = serde_json::to_string(&jws)?;
         let ciphertext = cipher.encrypt(nonce, jws_str.as_ref()).unwrap();
-        let protected = JweProtected::new(enc_secret.to_key_agreement())?;
+        let protected: JweProtected = enc_secret.to_key_agreement().try_into()?;
+        let to_kid = format!("{}#{}", to, encode(&to_public));
         let jwe = Jwe {
             protected: base64url::encode(&protected)?,
             iv: base64url::encode_bytes(&iv)?,
@@ -89,9 +86,17 @@ impl Jwe {
         let iv_b64 = decode(&format!("u{}", self.iv));
         let nonce = Nonce::from_slice(&iv_b64);
         let cipher_b64 = decode(&format!("u{}", self.ciphertext));
-        let jws_bytes = cipher.decrypt(nonce, cipher_b64.as_ref()).unwrap();
-        let jws = std::str::from_utf8(&jws_bytes)?;
-        Ok(jws.to_owned())
+        let dec_result = cipher.decrypt(nonce, cipher_b64.as_ref());
+        match dec_result {
+            Ok(jws_bytes) => {
+                let jws = std::str::from_utf8(&jws_bytes)?;
+                return Ok(jws.to_owned());
+            }
+            Err(err) => {
+                log::error!("{}", err);
+                idp2p_common::anyhow::bail!("Decryption failed");
+            }
+        }
     }
 }
 
@@ -99,17 +104,11 @@ impl Jwe {
 mod tests {
     use super::*;
     use crate::jpm::Jpm;
-    use crate::jwm::JwmBody;
-    use crate::jwm::JwmHandler;
-    use idp2p_common::ED25519;
-    use idp2p_common::X25519;
-    use idp2p_core::did_doc::VerificationMethod;
-    use idp2p_core::eventlog::EventLogChange;
-    use idp2p_core::eventlog::EventLogChangeSet;
+    use crate::jwm::{Jwm, JwmBody};
     #[test]
     fn jwe_protected_test() {
-        let protected = JweProtected::new([0; 32]).unwrap();
-        let jwk = Jwk::from_bytes([0; 32]).unwrap();
+        let protected: JweProtected =[0; 32].try_into().unwrap();
+        let jwk = Jwk::try_from([0; 32]).unwrap();
         assert_eq!(protected.alg, "ECDH-ES+A256KW");
         assert_eq!(protected.enc, "XC20P");
         assert_eq!(protected.typ, "application/didcomm-encrypted+json");
@@ -117,47 +116,13 @@ mod tests {
     }
     #[test]
     fn jwe_encrypt_test() -> Result<()> {
-        let (mut from_id, from_secret) = create_did();
-        save_doc(&mut from_id, from_secret.clone());
-
-        let (mut to_id, to_secret) = create_did();
-        save_doc(&mut to_id, to_secret.clone());
-        let jwm = from_id.new_jwm(to_id.clone(), JwmBody::Message("body".to_owned()));
+        let from_secret = EdSecret::new();
+        let to_secret = EdSecret::new();
+        let jwm = Jwm::new("from", "to", JwmBody::Message("body".to_owned()));
         let jws = Jws::new(Jpm::from(jwm), from_secret.clone())?;
-        let jwe = Jwe::encrypt(jws, to_id.clone())?;
-        let result = jwe.decrypt(to_secret.clone())?;
-        println!("result: {:?}", result);
+        let jwe = Jwe::encrypt(jws, "to", to_secret.to_key_agreement())?;
+        let result = jwe.decrypt(to_secret.clone());
+        assert!(result.is_ok());
         Ok(())
-    }
-
-    fn create_did() -> (Identity, EdSecret) {
-        let secret = EdSecret::new();
-        let ed_key_digest = secret.to_publickey_digest().unwrap();
-        (Identity::new(&ed_key_digest, &ed_key_digest), secret)
-    }
-
-    fn save_doc(did: &mut Identity, secret: EdSecret) {
-        let ed_key = secret.to_publickey();
-        let x_key = secret.to_key_agreement();
-        let set_authentication = EventLogChangeSet::SetAuthenticationKey(VerificationMethod {
-            id: format!("{}#1", did.id.clone()),
-            controller: did.id.clone(),
-            typ: ED25519.to_string(),
-            bytes: ed_key.to_vec(),
-        });
-        let set_agreement = EventLogChangeSet::SetAgreementKey(VerificationMethod {
-            id: format!("{}#2", did.id.clone()),
-            controller: did.id.clone(),
-            typ: X25519.to_string(),
-            bytes: x_key.to_vec(),
-        });
-        let change = EventLogChange::Set {
-            sets: vec![set_authentication, set_agreement],
-        };
-        let signer = secret.to_publickey();
-        let next = secret.to_publickey_digest().unwrap();
-        let payload = did.microledger.create_event(&signer, &next, change);
-        let proof = secret.sign(&payload);
-        did.microledger.save_event(payload, &proof);
     }
 }

@@ -29,6 +29,7 @@ pub trait WalletPersister {
     fn wallet_exists(&self) -> bool;
     fn get_wallet(&self) -> Result<PersistedWallet>;
     fn persist_wallet(&self, wallet: PersistedWallet) -> Result<()>;
+    //fn persist_messages(&self, wallet: PersistedWallet) -> Result<()>;
 }
 
 pub mod bip32;

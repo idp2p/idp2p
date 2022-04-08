@@ -1,9 +1,10 @@
 use idp2p_client::behaviour::*;
 use idp2p_client::commands::IdCommand;
+use idp2p_client::commands::IdCommandHandler;
 use idp2p_client::file_db::FilePersister;
 use idp2p_client::swarm::*;
 use idp2p_client::IdConfigResolver;
-use idp2p_core::{IdProfile, IdentityEvent};
+use idp2p_core::IdentityEvent;
 use idp2p_wallet::store::WalletStore;
 use libp2p::futures::StreamExt;
 use libp2p::swarm::SwarmEvent;
@@ -33,18 +34,23 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut stdin = tokio::io::BufReader::new(tokio::io::stdin()).lines();
     let path = format!("./target/{}", opt.port);
     let persister = FilePersister::from_str(&path)?;
-    let config = persister.get_config("0.0.0.0", opt.port, opt.remote)?;
+    let config = persister.get_or_save_config("0.0.0.0", opt.port, opt.remote)?;
     let swarm_opt = IdSwarmOptions::new(config, tx.clone());
     let mut swarm = build_swarm(swarm_opt).await?;
     let wallet_store = Arc::new(WalletStore::new(persister));
+    let command_handler = IdCommandHandler {
+        wallet_store: wallet_store.clone(),
+        id_store: swarm.behaviour_mut().id_store.clone(),
+        event_sender: tx.clone(),
+    };
     loop {
         tokio::select! {
             line = stdin.next_line() => {
                 let line = line?.expect("stdin closed");
                 if let Some(cmd) = get_command(&line){
-                    let id_store = swarm.behaviour().id_store.clone();
-                    let result = cmd.handle(wallet_store.clone(), id_store, tx.clone()).await?;
-                    if cmd == IdCommand::Get{
+                    let is_get = cmd == IdCommand::Get;
+                    let result = command_handler.handle(cmd).await?;
+                    if is_get{
                         idp2p_common::log::info!("{}", idp2p_common::serde_json::to_string(&result)?);
                     }
                 }
@@ -55,8 +61,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                         idp2p_common::log::info!("Listening on {:?}", address);
                     }
                     SwarmEvent::Behaviour(IdentityClientEvent::Gossipsub(event)) =>{
-                        let store = swarm.behaviour().id_store.clone();
-                        swarm.behaviour_mut().gossipsub.handle_event(event, store).await;
+                        command_handler.handle_gossip_event(event).await?;
                     }
                     SwarmEvent::Behaviour(IdentityClientEvent::Mdns(event)) =>{
                         swarm.behaviour_mut().handle_mdns_event(event);
@@ -79,7 +84,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                         IdentityEvent::Created { id } => {
                             swarm.behaviour_mut().gossipsub.subscribe_to(&id)?;
                         }
-
+                        IdentityEvent::JwmReceived { jwm } => {
+                            //
+                        }
                         _ => { /* persist */  }
                     }
                 }
@@ -93,9 +100,9 @@ fn get_command(input: &str) -> Option<IdCommand> {
     let input: Vec<&str> = split.collect();
     match input[0] {
         "register" => {
-            let profile = IdProfile::new(input[1], &vec![]);
             let cmd = IdCommand::Register {
-                profile: profile,
+                name: input[1].to_owned(),
+                photo: vec![],
                 password: input[2].to_owned(),
             };
             return Some(cmd);

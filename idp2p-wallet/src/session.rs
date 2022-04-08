@@ -4,7 +4,7 @@ use idp2p_common::{anyhow::Result, serde_json};
 use idp2p_core::did_doc::IdDocument;
 use idp2p_didcomm::jwe::Jwe;
 use idp2p_didcomm::jws::Jws;
-use idp2p_didcomm::jwm::Jwm;
+use idp2p_didcomm::jwm::{Jwm, JwmBody};
 use serde::{Deserialize, Serialize};
 use idp2p_common::encode_vec;
 
@@ -20,6 +20,7 @@ pub struct SecretWallet {
 
 #[derive( PartialEq, Debug, Clone)]
 pub struct WalletSession {
+
     pub secret: SecretWallet,
     pub created_at: i64,
     pub expire_at: i64,
@@ -33,15 +34,6 @@ pub struct SessionState {
 }
 
 impl WalletSession {
-    pub fn create(secret: EdSecret, pwd: &str) -> Self{
-        let wallet_secret = SecretWallet{
-            assertion_secret: secret.to_bytes().to_vec(),
-            authentication_secret: secret.to_bytes().to_vec(),
-            keyagreement_secret: secret.to_bytes().to_vec(),
-        };
-        Self::new(wallet_secret, pwd)
-    }
-
     pub fn new(secret: SecretWallet, pwd: &str) -> Self{
         let created_at = Utc::now().timestamp();
         WalletSession {
@@ -51,7 +43,18 @@ impl WalletSession {
             password: pwd.to_owned(),
         }
     }
-    pub fn create_jwm(&self, jwm: Jwm) -> Result<String> {
+
+    pub fn new_with_secret(secret: EdSecret, pwd: &str) -> Self{
+        let wallet_secret = SecretWallet{
+            assertion_secret: secret.to_bytes().to_vec(),
+            authentication_secret: secret.to_bytes().to_vec(),
+            keyagreement_secret: secret.to_bytes().to_vec(),
+        };
+        Self::new(wallet_secret, pwd)
+    }
+    
+    pub fn create_jwm(&self, from: &str, to: &str, body: JwmBody) -> Result<String> {
+        let jwm = Jwm::new(from, to, body);
         let enc_secret = EdSecret::from_bytes(&self.secret.keyagreement_secret.to_vec());
         let jwe = jwm.seal(enc_secret)?;
         let json = idp2p_common::serde_json::to_string(&jwe)?;
@@ -81,7 +84,7 @@ impl WalletSession {
 mod tests {
     use super::*;
     use idp2p_common::ed_secret::EdSecret;
-    use idp2p_core::{did::Identity, IdProfile};
+    use idp2p_core::{did::Identity};
     use idp2p_didcomm::jpm::Jpm;
 /* 
     #[test]

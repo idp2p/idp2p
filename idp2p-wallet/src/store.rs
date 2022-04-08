@@ -8,8 +8,8 @@ use idp2p_common::anyhow::Result;
 use idp2p_common::{log, serde_json};
 use idp2p_core::did::Identity;
 use idp2p_core::message::IdentityMessage;
-use idp2p_core::IdProfile;
-use idp2p_didcomm::jwm::{JwmBody, JwmHandler};
+use idp2p_didcomm::jpm::Jpm;
+use idp2p_didcomm::jwm::{JwmBody, IdProfile};
 use idp2p_didcomm::jws::Jws;
 use serde::{Deserialize, Serialize};
 use std::sync::Mutex;
@@ -61,7 +61,7 @@ where
         None
     }
 
-    pub fn register(&self, profile: IdProfile, pwd: &str) -> Result<(Identity, [u8; 16])> {
+    pub fn register(&self, name: &str, photo: &[u8], pwd: &str) -> Result<(Identity, [u8; 16])> {
         let mut wallet = self.wallet.lock().unwrap();
         if wallet.raw.is_none() {
             let seed = idp2p_common::create_random::<16>();
@@ -76,8 +76,8 @@ where
                 authentication_secret_index: 1000000000,
                 agreement_secret_index: 1000000000,
             };
-            wallet.raw = Some(RawWallet::new(profile, did.id.as_str(), shared)?);
-            wallet.session = Some(WalletSession::create(secret, pwd));
+            wallet.raw = Some(RawWallet::new(name, photo, did.id.as_str(), shared)?);
+            wallet.session = Some(WalletSession::new_with_secret(secret, pwd));
             wallet.persist()?;
             return Ok((did, seed));
         }
@@ -106,17 +106,26 @@ where
         wallet.session = None;
     }
 
+    pub fn get_agreement_secret(&self) -> Vec<u8>{
+        let wallet = self.wallet.lock().unwrap();
+        if let Some(session) = wallet.session.clone() {
+            return session.secret.keyagreement_secret;
+        }
+        vec![]
+    }
+    
     pub fn connect(&self, to: Identity) -> Result<IdentityMessage> {
         let mut wallet = self.wallet.lock().unwrap();
         if let Some(session) = wallet.session.clone() {
             if let Some(ref mut raw) = wallet.raw {
-                /*raw.add_request(&to.id);
-                let body = JwmBody::Accept(raw.profile.clone());
-                let jwm = raw.identity.new_jwm(to.clone(), body);
+                raw.add_request(&to.id);
+                let body = JwmBody::Accept(IdProfile::new(&raw.name, &raw.photo));
+                
+                /*let jwm = raw.identity.new_jwm(to.clone(), body);
                 let jwm_str = session.create_jwm(jwm)?;
-                let id_mes = IdentityMessage::new_jwm(&to.id, &jwm_str);
+                let id_mes = IdentityMessage::new_jwm(&to.id, &jwm_str);*/
                 wallet.persist()?;
-                return Ok(id_mes);*/
+                //return Ok(id_mes);
             }
         }
         idp2p_common::anyhow::bail!("Session not found");
@@ -155,21 +164,10 @@ where
         idp2p_common::anyhow::bail!("Session not found");
     }
 
-    pub fn resolve_jwe(&self, jwe: &str) -> Result<Jws> {
-        let mut wallet = self.wallet.lock().unwrap();
-        if let Some(session) = wallet.session.clone() {
-            if let Some(ref mut raw) = wallet.raw {
-                /*let doc = raw.identity.document.clone().unwrap();
-                return Ok(session.resolve_jwe(jwe, doc)?);*/
-            }
-        }
-        idp2p_common::anyhow::bail!("Session not found");
-    }
-
-    pub fn handle_jwm(&self, id: &str, body: JwmBody) -> Result<()> {
+    pub fn handle_jwm(&self, jpm: Jpm) -> Result<()> {
         let mut wallet = self.wallet.lock().unwrap();
         if let Some(ref mut raw) = wallet.raw {
-            match body {
+            /*match body {
                 JwmBody::Connect(profile) => {
                     raw.add_conn(Connection::new(id, profile));
                 }
@@ -181,7 +179,8 @@ where
                 JwmBody::Message(msg) => {
                     raw.add_received_message(id, &msg);
                 }
-            }
+                _=>{}
+            }*/
             wallet.persist()?;
             return Ok(());
         }
