@@ -8,9 +8,9 @@ use idp2p_common::ed_secret::EdSecret;
 use idp2p_common::log;
 use idp2p_common::{anyhow::Result, encode_vec, serde_json};
 use idp2p_core::did::Identity;
-use idp2p_didcomm::jwe::Jwe;
-use idp2p_didcomm::jwm::JwmBody;
-use idp2p_didcomm::jws::Jws;
+use idp2p_core::didcomm::jwe::Jwe;
+use idp2p_core::didcomm::jwm::JwmBody;
+use idp2p_core::didcomm::jws::Jws;
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]

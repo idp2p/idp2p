@@ -7,10 +7,8 @@ use chacha20poly1305::{ChaCha20Poly1305, Key, Nonce};
 use idp2p_common::anyhow::Result;
 use idp2p_common::{log, serde_json};
 use idp2p_core::did::Identity;
-use idp2p_core::message::IdentityMessage;
-use idp2p_didcomm::jpm::Jpm;
-use idp2p_didcomm::jwm::{JwmBody, IdProfile};
-use idp2p_didcomm::jws::Jws;
+use idp2p_core::didcomm::jpm::Jpm;
+use idp2p_core::didcomm::jwm::{JwmBody, IdProfile};
 use serde::{Deserialize, Serialize};
 use std::sync::Mutex;
 
@@ -114,7 +112,7 @@ where
         vec![]
     }
     
-    pub fn connect(&self, to: Identity) -> Result<IdentityMessage> {
+    /*pub fn connect(&self, to: Identity) -> Result<IdentityMessage> {
         let mut wallet = self.wallet.lock().unwrap();
         if let Some(session) = wallet.session.clone() {
             if let Some(ref mut raw) = wallet.raw {
@@ -162,7 +160,7 @@ where
             }
         }
         idp2p_common::anyhow::bail!("Session not found");
-    }
+    }*/
 
     pub fn handle_jwm(&self, jpm: Jpm) -> Result<()> {
         let mut wallet = self.wallet.lock().unwrap();

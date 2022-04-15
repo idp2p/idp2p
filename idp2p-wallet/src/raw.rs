@@ -1,6 +1,6 @@
 use idp2p_common::anyhow::Result;
 use idp2p_common::encode_vec;
-use idp2p_didcomm::vcs::VerifiableCredential;
+use idp2p_core::vcs::VerifiableCredential;
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
@@ -39,8 +39,6 @@ pub struct RawWallet {
     #[serde(skip_serializing_if = "Vec::is_empty", default)]
     pub credentials: Vec<VerifiableCredential>,
 }
-
-
 
 impl Connection {
     pub fn new(id: &str, name: &str, photo: &[u8]) -> Self {

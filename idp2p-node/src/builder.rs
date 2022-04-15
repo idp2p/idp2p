@@ -1,3 +1,4 @@
+use idp2p_common::{anyhow::Result, ed_secret::EdSecret};
 use libp2p::{
     core,
     core::muxing::StreamMuxerBox,
@@ -7,14 +8,35 @@ use libp2p::{
         Gossipsub, GossipsubConfigBuilder, GossipsubMessage, MessageAuthenticity, MessageId,
         ValidationMode,
     },
-    identity::Keypair,
-    mplex, noise, tcp, websocket, yamux, PeerId, Transport,
+    identity::{ed25519::SecretKey, Keypair},
+    mdns::Mdns,
+    mplex, noise,
+    swarm::SwarmBuilder,
+    tcp, websocket, yamux, Multiaddr, PeerId, Swarm, Transport,
 };
-use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
 use std::time::Duration;
+use std::{collections::hash_map::DefaultHasher, str::FromStr, sync::Arc};
+use tokio::sync::mpsc::Sender;
 
-pub(crate) fn build_gossipsub() -> Gossipsub {
+use crate::{behaviour::IdentityNodeBehaviour, id_store::IdNodeStore, IdentityStoreEvent};
+pub struct NodeOptions {
+    port: u16,
+    to_dial: Option<String>,
+    id_event_sender: Sender<IdentityStoreEvent>,
+}
+
+impl NodeOptions{
+    pub fn new(tx: Sender<IdentityStoreEvent>, to_dial: Option<String>) -> Self{
+        Self{
+            id_event_sender: tx,
+            to_dial: to_dial,
+            port: 43727
+        }
+    }
+}
+
+fn build_gossipsub() -> Gossipsub {
     let message_id_fn = |message: &GossipsubMessage| {
         let mut s = DefaultHasher::new();
         message.data.hash(&mut s);
@@ -31,7 +53,7 @@ pub(crate) fn build_gossipsub() -> Gossipsub {
     gossipsub
 }
 
-pub(crate) async fn build_transport(local_key: Keypair) -> Boxed<(PeerId, StreamMuxerBox)> {
+async fn build_transport(local_key: Keypair) -> Boxed<(PeerId, StreamMuxerBox)> {
     let local_peer_id = PeerId::from(local_key.public());
     println!("Local peer id: {:?}", local_peer_id);
     let transport = {
@@ -55,3 +77,32 @@ pub(crate) async fn build_transport(local_key: Keypair) -> Boxed<(PeerId, Stream
     boxed
 }
 
+pub async fn build_swarm(options: NodeOptions) -> Result<Swarm<IdentityNodeBehaviour>> {
+    let secret_key = SecretKey::from_bytes(EdSecret::new().to_bytes())?;
+    let local_key = Keypair::Ed25519(secret_key.into());
+    let transport = build_transport(local_key.clone()).await;
+    let id_store = Arc::new(IdNodeStore::new(options.id_event_sender.clone()));
+    let mut swarm = {
+        let behaviour = IdentityNodeBehaviour {
+            gossipsub: build_gossipsub(),
+            mdns: Mdns::new(Default::default()).await?,
+            store: id_store,
+        };
+        let executor = Box::new(|fut| {
+            tokio::spawn(fut);
+        });
+        SwarmBuilder::new(transport, behaviour, local_key.public().to_peer_id())
+            .executor(executor)
+            .build()
+    };
+    swarm.listen_on(format!("/ip4/0.0.0.0/tcp/{}", options.port).parse()?)?;
+    if let Some(connect) = options.to_dial {
+        let split: Vec<&str> = connect.split("/").collect();
+        let to_dial = format!("/ip4/{}/tcp/{}", split[2], split[4]);
+        let addr: Multiaddr = to_dial.parse().unwrap();
+        let peer_id = PeerId::from_str(split[6])?;
+        swarm.dial(addr)?;
+        swarm.behaviour_mut().gossipsub.add_explicit_peer(&peer_id);
+    }
+    Ok(swarm)
+}

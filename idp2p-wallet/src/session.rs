@@ -2,9 +2,9 @@ use idp2p_common::chrono::Utc;
 use idp2p_common::ed_secret::EdSecret;
 use idp2p_common::{anyhow::Result, serde_json};
 use idp2p_core::did_doc::IdDocument;
-use idp2p_didcomm::jwe::Jwe;
-use idp2p_didcomm::jws::Jws;
-use idp2p_didcomm::jwm::{Jwm, JwmBody};
+use idp2p_core::didcomm::jwe::Jwe;
+use idp2p_core::didcomm::jws::Jws;
+use idp2p_core::didcomm::jwm::{Jwm, JwmBody};
 use serde::{Deserialize, Serialize};
 use idp2p_common::encode_vec;
 
@@ -20,7 +20,6 @@ pub struct SecretWallet {
 
 #[derive( PartialEq, Debug, Clone)]
 pub struct WalletSession {
-
     pub secret: SecretWallet,
     pub created_at: i64,
     pub expire_at: i64,
@@ -85,7 +84,6 @@ mod tests {
     use super::*;
     use idp2p_common::ed_secret::EdSecret;
     use idp2p_core::{did::Identity};
-    use idp2p_didcomm::jpm::Jpm;
 /* 
     #[test]
     fn create_resolve_test() -> Result<()> {

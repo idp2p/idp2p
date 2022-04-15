@@ -20,6 +20,7 @@ pub struct AssertionMethod {
     pub expired_at: Option<i64>,
     pub ver_method: VerificationMethod,
 }
+
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
 pub struct MicroLedgerState {
     pub event_id: String,

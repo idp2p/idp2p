@@ -27,6 +27,7 @@ pub use serde_with;
 pub use sha2;
 pub use thiserror;
 pub use log;
+pub use rand;
 
 pub mod encode_vec {
     use multibase::Base;

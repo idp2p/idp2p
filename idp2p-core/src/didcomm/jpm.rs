@@ -1,5 +1,5 @@
 use std::str::FromStr;
-use crate::jwm::{Jwm, JwmBody};
+use crate::didcomm::jwm::{Jwm, JwmBody};
 use idp2p_common::anyhow::{Result, *};
 use idp2p_common::base64url;
 use idp2p_common::chrono::Utc;
@@ -52,7 +52,7 @@ impl FromStr for Jpm{
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::jwm::JwmBody;
+    use crate::didcomm::jwm::JwmBody;
     #[test]
     fn from_test() {
         let body = JwmBody::Message("body".to_owned());

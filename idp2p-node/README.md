@@ -1,0 +1,5 @@
+- Gossipsub proxy for wallets behind NAT
+- Relay server for hole punching
+- Privacy protector
+- Provide scalability
+- Offline capability

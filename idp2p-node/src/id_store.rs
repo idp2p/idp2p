@@ -1,22 +1,25 @@
-use crate::did::Identity;
-use crate::message::IdentityMessage;
-use crate::IdentityEvent;
 use idp2p_common::anyhow::Result;
 use idp2p_common::chrono::Utc;
+use idp2p_common::log;
+use idp2p_core::did::Identity;
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::sync::Mutex;
 use tokio::sync::mpsc::Sender;
 use tokio::time::{sleep, Duration};
-use idp2p_common::log;
-pub struct IdStore {
-    pub state: Mutex<IdState>,
-    pub event_sender: Sender<IdentityEvent>,
+
+use idp2p_core::protocol::id_message::IdentityMessage;
+use crate::IdentityStoreEvent;
+
+pub struct IdNodeStore {
+    pub state: Mutex<IdNodeState>,
+    pub event_sender: Sender<IdentityStoreEvent>,
 }
 
 #[derive(PartialEq, Debug, Clone)]
-pub struct IdState {
-    pub entries: HashMap<String, IdEntry>,
+pub struct IdNodeState {
+    pub identities: HashMap<String, IdEntry>,
+    pub clients: HashMap<String, Client>,
 }
 
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
@@ -28,44 +31,55 @@ pub struct IdEntry {
     pub is_hosted: bool,
 }
 
-impl IdStore {
-    pub fn new(ids: HashMap<String, IdEntry>, es: Sender<IdentityEvent>) -> Self {
-        IdStore {
-            state: Mutex::new(IdState::new(ids)),
+#[derive(PartialEq, Debug, Clone)]
+pub struct Client {
+    pub id: String,
+    pub authentication_index: u32,
+    pub ciphertext: Vec<u8>,
+    pub sent_messages: Vec<String>,
+    pub received_messages: Vec<String>,
+    pub subscriptions: HashSet<String>,
+}
+
+impl IdNodeStore {
+    pub fn new(es: Sender<IdentityStoreEvent>) -> Self {
+        Self {
+            state: Mutex::new(IdNodeState::new()),
             event_sender: es,
         }
-    }
-    pub async fn create_did(&self, did: Identity) {
-        let mut state = self.state.lock().unwrap();
-        let id = did.id.clone();
-        let entry = IdEntry::new(did);
-        state.entries.insert(id.clone(), entry);
-        let event = IdentityEvent::Created { id };
-        self.event_sender.send(event).await.unwrap();
     }
 
     pub fn get_did(&self, id: &str) -> Identity {
         let state = self.state.lock().unwrap();
-        let entry = state.entries.get(id).map(|entry| entry.clone());
+        let entry = state.identities.get(id).map(|entry| entry.clone());
         entry.unwrap().did
     }
 
     pub fn get_message(&self, id: &str) -> Option<IdentityMessage> {
         let state = self.state.lock().unwrap();
-        let entry = state.entries.get(id).map(|entry| entry.clone());
+        let entry = state.identities.get(id).map(|entry| entry.clone());
         if let Some(entry) = entry {
             return Some(IdentityMessage::new_post(entry.did));
         }
         None
     }
 
+    pub async fn create_did(&self, did: Identity) {
+        let mut state = self.state.lock().unwrap();
+        let id = did.id.clone();
+        let entry = IdEntry::new(did);
+        state.identities.insert(id.clone(), entry);
+        let event = IdentityStoreEvent::Created { id };
+        self.event_sender.send(event).await.unwrap();
+    }
+
     pub async fn handle_get(&self, id: &str) {
         let state = self.state.lock().unwrap();
-        let entry = state.entries.get(id).map(|entry| entry.clone());
+        let entry = state.identities.get(id).map(|entry| entry.clone());
         if let Some(entry) = entry {
             if entry.is_hosted {
                 self.event_sender
-                    .send(IdentityEvent::GetHandled { id: id.to_owned() })
+                    .send(IdentityStoreEvent::GetHandled { id: id.to_owned() })
                     .await
                     .unwrap();
                 log::info!("Published id: {}", id);
@@ -74,7 +88,7 @@ impl IdStore {
                 let id_str = id.to_owned();
                 tokio::spawn(async move {
                     sleep(Duration::from_secs(2)).await;
-                    tx.send(IdentityEvent::GetHandled { id: id_str })
+                    tx.send(IdentityStoreEvent::GetHandled { id: id_str })
                         .await
                         .unwrap();
                 });
@@ -84,13 +98,16 @@ impl IdStore {
 
     pub async fn handle_post(&self, digest: &str, identity: &Identity) -> Result<()> {
         let mut state = self.state.lock().unwrap();
-        let current = state.entries.get(&identity.id).map(|entry| entry.clone());
+        let current = state
+            .identities
+            .get(&identity.id)
+            .map(|entry| entry.clone());
         match current {
             None => {
                 identity.verify()?;
                 let entry = IdEntry::from(identity.clone());
-                state.entries.insert(identity.id.clone(), entry);
-                let event = IdentityEvent::PostHandled {
+                state.identities.insert(identity.id.clone(), entry);
+                let event = IdentityStoreEvent::PostHandled {
                     id: identity.id.clone(),
                 };
                 self.event_sender.send(event).await.unwrap();
@@ -103,8 +120,8 @@ impl IdStore {
                         did: identity.clone(),
                         ..entry
                     };
-                    state.entries.insert(identity.id.clone(), new_entry);
-                    let event = IdentityEvent::PostHandled {
+                    state.identities.insert(identity.id.clone(), new_entry);
+                    let event = IdentityStoreEvent::PostHandled {
                         id: identity.id.clone(),
                     };
                     self.event_sender.send(event).await.unwrap();
@@ -116,11 +133,19 @@ impl IdStore {
         }
         Ok(())
     }
+
+    pub async fn handle_jwm(&self) -> Result<()> {
+        //
+        Ok(())
+    }
 }
 
-impl IdState {
-    pub fn new(ids: HashMap<String, IdEntry>) -> Self {
-        IdState { entries: ids }
+impl IdNodeState {
+    pub fn new() -> Self {
+        IdNodeState {
+            identities: HashMap::new(),
+            clients: HashMap::new(),
+        }
     }
 }
 
@@ -136,7 +161,7 @@ impl IdEntry {
     }
 }
 
-impl From<Identity> for IdEntry{
+impl From<Identity> for IdEntry {
     fn from(did: Identity) -> Self {
         IdEntry {
             digest: did.get_digest(),
@@ -165,12 +190,12 @@ mod tests {
         assert!(event.is_some());
     }
 
-    async fn create_store(tx: Sender<IdentityEvent>) -> IdStore {
+    async fn create_store(tx: Sender<IdentityStoreEvent>) -> IdNodeStore {
         let secret_str = "beilmx4d76udjmug5ykpy657qa3pfsqbcu7fbbtuk3mgrdrxssseq";
         let secret = EdSecret::from_str(secret_str).unwrap();
         let ed_key_digest = secret.to_publickey_digest().unwrap();
         let did = Identity::new(&ed_key_digest, &ed_key_digest);
-        let store = IdStore::new(HashMap::new(), tx);
+        let store = IdNodeStore::new(tx);
         store.create_did(did).await;
         store
     }

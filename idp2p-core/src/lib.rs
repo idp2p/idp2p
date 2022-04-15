@@ -1,5 +1,4 @@
-use idp2p_common::{anyhow::Result, encode_vec, thiserror::Error};
-use serde::{Deserialize, Serialize};
+use idp2p_common::{thiserror::Error};
 
 #[derive(Error, Debug)]
 pub enum IdentityError {
@@ -21,21 +20,6 @@ pub enum IdentityError {
     Unknown,
 }
 
-#[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
-pub enum IdentityEvent {
-    Created { id: String },
-    Connected { id: String },
-    PostHandled { id: String },
-    GetHandled { id: String },
-    JwmCreated { jwm: String },
-    JwmReceived { jwm: String },
-}
-
-pub trait IdPersister {
-    fn get(&self) -> Result<String>;
-    fn persist(&self, s: &str) -> Result<()>;
-}
-
 macro_rules! check {
     ($e: expr, $err: expr) => {{
         if !$e {
@@ -47,6 +31,7 @@ macro_rules! check {
 pub mod did;
 pub mod did_doc;
 pub mod eventlog;
-pub mod message;
 pub mod microledger;
-pub mod store;
+pub mod vcs;
+pub mod protocol;
+pub mod didcomm;

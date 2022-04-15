@@ -1,6 +1,6 @@
-use crate::jpm::Jpm;
-use crate::jwe::Jwe;
-use crate::jws::Jws;
+use crate::didcomm::jpm::Jpm;
+use crate::didcomm::jwe::Jwe;
+use crate::didcomm::jws::Jws;
 use idp2p_common::ed_secret::EdSecret;
 use idp2p_common::{anyhow::Result, chrono::Utc, encode_vec};
 use serde::{Deserialize, Serialize};

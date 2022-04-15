@@ -1,6 +1,6 @@
-use crate::{did::Identity};
 use idp2p_common::chrono::Utc;
 use idp2p_common::serde_json;
+use crate::did::Identity;
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]

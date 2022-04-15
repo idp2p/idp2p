@@ -82,8 +82,8 @@ where
                 self.wallet_store.login(password)?;
             }
             IdCommand::Connect { id } => {
-                let event = IdentityEvent::Connected { id: id.to_owned() };
-                self.event_sender.send(event).await?;
+                //let event = IdentityEvent::Connected { id: id.to_owned() };
+                //self.event_sender.send(event).await?;
                 //let to = id_store.get_did(id);
 
                 //id_store.

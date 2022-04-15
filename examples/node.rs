@@ -1,9 +1,8 @@
 use idp2p_common::anyhow::Result;
-use idp2p_common::ed_secret::EdSecret;
-use idp2p_core::IdentityEvent;
+use idp2p_node::IdentityStoreEvent;
 use idp2p_node::{
     behaviour::IdentityNodeEvent,
-    swarm::{build_swarm, NodeOptions},
+    builder::{build_swarm, NodeOptions},
 };
 use libp2p::futures::StreamExt;
 use libp2p::swarm::SwarmEvent;
@@ -20,9 +19,8 @@ struct Opt {
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let opt = Opt::from_args();
-    let secret = EdSecret::new();
-    let (tx, mut rx) = channel::<IdentityEvent>(100);
-    let node_options = NodeOptions::new(secret, tx.clone(), opt.connect);
+    let (tx, mut rx) = channel::<IdentityStoreEvent>(100);
+    let node_options = NodeOptions::new(tx.clone(), opt.connect);
     let mut swarm = build_swarm(node_options).await?;
     loop {
         tokio::select! {
@@ -37,7 +35,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     _ => {  }
                 }
             }
-            _ = rx.recv() => {
+            _id_event = rx.recv() => {
 
             }
         }

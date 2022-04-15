@@ -1,6 +1,6 @@
-use crate::jwk::Jwk;
-use crate::jws::Jws;
-use crate::JwmHeader;
+use crate::didcomm::jwk::Jwk;
+use crate::didcomm::jws::Jws;
+use crate::didcomm::JwmHeader;
 use chacha20poly1305::aead::{Aead, NewAead};
 use chacha20poly1305::ChaCha20Poly1305;
 use chacha20poly1305::Key;
@@ -103,8 +103,8 @@ impl Jwe {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::jpm::Jpm;
-    use crate::jwm::{Jwm, JwmBody};
+    use crate::didcomm::jpm::Jpm;
+    use crate::didcomm::jwm::{Jwm, JwmBody};
     #[test]
     fn jwe_protected_test() {
         let protected: JweProtected =[0; 32].try_into().unwrap();

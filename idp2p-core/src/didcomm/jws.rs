@@ -1,5 +1,5 @@
-use crate::jpm::Jpm;
-use crate::JwmHeader;
+use crate::didcomm::jpm::Jpm;
+use crate::didcomm::JwmHeader;
 use idp2p_common::anyhow::Result;
 use idp2p_common::base64url;
 use idp2p_common::ed25519_dalek::{PublicKey, Signature, Verifier};
@@ -68,8 +68,8 @@ impl Jws {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::jwm::Jwm;
-    use crate::jwm::JwmBody;
+    use crate::didcomm::jwm::Jwm;
+    use crate::didcomm::jwm::JwmBody;
 
     #[test]
     fn new_test() {
