@@ -5,7 +5,7 @@ use idp2p_common::{
 use serde::{Deserialize, Serialize};
 use std::convert::TryInto;
 
-use crate::did_doc::VerificationMethod;
+use super::identity_doc::VerificationMethod;
 
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
 pub struct ProofStatement {

@@ -1,6 +1,7 @@
-use crate::did_doc::VerificationMethod;
-use crate::eventlog::{EventLogChange, EventLogChangeSet};
-use crate::{did_doc::IdDocument, microledger::MicroLedger, IdentityError};
+use super::identity_doc::VerificationMethod;
+use super::eventlog::{EventLogChange, EventLogChangeSet};
+use super::{identity_doc::IdDocument, microledger::MicroLedger};
+use crate::IdentityError;
 use idp2p_common::ed_secret::EdSecret;
 use idp2p_common::{anyhow::Result, encode, hash, serde_json, serde_with::skip_serializing_none};
 use idp2p_common::{log, ED25519, X25519};
@@ -116,7 +117,7 @@ impl Identity {
 
 #[cfg(test)]
 mod tests {
-    use crate::eventlog::ProofStatement;
+    use crate::did::eventlog::ProofStatement;
 
     use super::*;
     #[test]

@@ -1,7 +1,7 @@
 use idp2p_common::anyhow::Result;
 use idp2p_common::chrono::Utc;
 use idp2p_common::log;
-use idp2p_core::did::Identity;
+use idp2p_core::did::identity::Identity;
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
 use std::sync::Mutex;

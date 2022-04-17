@@ -1,14 +1,11 @@
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
 use idp2p_common::ed_secret::EdSecret;
 use idp2p_common::hash;
-use idp2p_core::did::Identity;
-use idp2p_core::did_doc::IdDocument;
-use idp2p_core::eventlog::{EventLogChange, EventLogChangeSet};
-use idp2p_core::eventlog::ProofStatement;
+use idp2p_core::did::identity::Identity;
+use idp2p_core::did::eventlog::{EventLogChange, EventLogChangeSet};
+use idp2p_core::did::eventlog::ProofStatement;
 
 fn save_doc(did: &mut Identity, secret: EdSecret) {
-    let ed_key = secret.to_publickey();
-    let x_key = secret.to_key_agreement();
     let set_change = EventLogChangeSet::SetProof(ProofStatement {
         key: vec![],
         value: vec![],

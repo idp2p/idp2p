@@ -3,11 +3,11 @@
 //! master_key_digest: Master public key digest
 //! next_key_digest: Next public key digest
 
-use crate::{
-    did_doc::VerificationMethod,
+use super::{
+    identity_doc::VerificationMethod,
     eventlog::{EventLog, EventLogChange, EventLogPayload, EventLogChangeSet},
-    IdentityError,
 };
+use crate::IdentityError;
 use idp2p_common::{
     anyhow::Result, chrono::prelude::*, encode_vec, generate_cid, hash, IdKeyDigest, IDP2P_ED25519, encode,
 };
@@ -166,7 +166,7 @@ impl MicroLedger {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::eventlog::*;
+    use crate::did::eventlog::*;
     use idp2p_common::ed_secret::EdSecret;
     use idp2p_common::ED25519;
     

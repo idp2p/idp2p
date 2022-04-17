@@ -6,7 +6,7 @@ use chacha20poly1305::aead::{Aead, NewAead};
 use chacha20poly1305::{ChaCha20Poly1305, Key, Nonce};
 use idp2p_common::anyhow::Result;
 use idp2p_common::{log, serde_json};
-use idp2p_core::did::Identity;
+use idp2p_core::did::identity::Identity;
 use idp2p_core::didcomm::jpm::Jpm;
 use idp2p_core::didcomm::jwm::{JwmBody, IdProfile};
 use serde::{Deserialize, Serialize};

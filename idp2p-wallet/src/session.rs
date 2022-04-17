@@ -1,7 +1,7 @@
 use idp2p_common::chrono::Utc;
 use idp2p_common::ed_secret::EdSecret;
 use idp2p_common::{anyhow::Result, serde_json};
-use idp2p_core::did_doc::IdDocument;
+use idp2p_core::did::identity_doc::IdDocument;
 use idp2p_core::didcomm::jwe::Jwe;
 use idp2p_core::didcomm::jws::Jws;
 use idp2p_core::didcomm::jwm::{Jwm, JwmBody};
@@ -83,7 +83,7 @@ impl WalletSession {
 mod tests {
     use super::*;
     use idp2p_common::ed_secret::EdSecret;
-    use idp2p_core::{did::Identity};
+    use idp2p_core::did::identity::Identity;
 /* 
     #[test]
     fn create_resolve_test() -> Result<()> {

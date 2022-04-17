@@ -1,5 +1,3 @@
-// Simple Ping-Pong Protocol
-
 use async_trait::async_trait;
 use libp2p::{
     core::{

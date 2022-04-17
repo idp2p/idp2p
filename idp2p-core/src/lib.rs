@@ -28,10 +28,6 @@ macro_rules! check {
     }};
 }
 
-pub mod did;
-pub mod did_doc;
-pub mod eventlog;
-pub mod microledger;
-pub mod vcs;
 pub mod protocol;
 pub mod didcomm;
+pub mod did;

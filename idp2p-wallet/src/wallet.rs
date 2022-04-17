@@ -7,7 +7,7 @@ use chacha20poly1305::{ChaCha20Poly1305, Key, Nonce};
 use idp2p_common::ed_secret::EdSecret;
 use idp2p_common::log;
 use idp2p_common::{anyhow::Result, encode_vec, serde_json};
-use idp2p_core::did::Identity;
+use idp2p_core::did::identity::Identity;
 use idp2p_core::didcomm::jwe::Jwe;
 use idp2p_core::didcomm::jwm::JwmBody;
 use idp2p_core::didcomm::jws::Jws;

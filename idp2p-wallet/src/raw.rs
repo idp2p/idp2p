@@ -1,6 +1,6 @@
 use idp2p_common::anyhow::Result;
 use idp2p_common::encode_vec;
-use idp2p_core::vcs::VerifiableCredential;
+use idp2p_core::did::vcs::VerifiableCredential;
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
@@ -108,7 +108,7 @@ impl RawWallet {
 mod tests {
     use super::*;
     use idp2p_common::ed_secret::EdSecret;
-    use idp2p_core::did::Identity;
+    use idp2p_core::did::identity::Identity;
 
     #[test]
     fn new_wallet_test() {
