@@ -28,6 +28,7 @@ macro_rules! check {
     }};
 }
 
-pub mod protocol;
-pub mod didcomm;
 pub mod did;
+pub mod didcomm;
+pub mod protocol;
+

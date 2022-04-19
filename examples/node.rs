@@ -1,13 +1,8 @@
 use idp2p_common::anyhow::Result;
-use idp2p_node::IdentityStoreEvent;
-use idp2p_node::{
-    behaviour::IdentityNodeEvent,
-    builder::{build_swarm, NodeOptions},
-};
+use idp2p_node::swarm::{NodeOptions, build_swarm, IdentityNodeEvent};
 use libp2p::futures::StreamExt;
 use libp2p::swarm::SwarmEvent;
 use structopt::StructOpt;
-use tokio::sync::mpsc::channel;
 
 #[derive(Debug, StructOpt)]
 #[structopt(name = "idp2p", about = "Usage of idp2p.")]
@@ -19,8 +14,7 @@ struct Opt {
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let opt = Opt::from_args();
-    let (tx, mut rx) = channel::<IdentityStoreEvent>(100);
-    let node_options = NodeOptions::new(tx.clone(), opt.connect);
+    let node_options = NodeOptions::new( opt.connect);
     let mut swarm = build_swarm(node_options).await?;
     loop {
         tokio::select! {
@@ -30,13 +24,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                         println!("Listening on {:?}", address);
                     }
                     SwarmEvent::Behaviour(IdentityNodeEvent::Gossipsub(event)) =>{
-                        swarm.behaviour_mut().handle_gossip_event(event).await;
+                        swarm.behaviour_mut().handle_gossip_event(event).await?;
                     }
                     _ => {  }
                 }
-            }
-            _id_event = rx.recv() => {
-
             }
         }
     }

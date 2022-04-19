@@ -1,7 +1,8 @@
 use std::{iter, str::FromStr};
 
 use idp2p_common::anyhow::Result;
-use idp2p_core::protocol::node::{IdNodeCodec, IdNodeProtocol, IdNodeRequest, IdNodeResponse};
+use idp2p_core::protocol::{IdNodeRequestPayload, IdResponsePayload};
+use idp2p_node::req_res::{IdNodeCodec, IdNodeProtocol, IdNodeRequest, IdNodeResponse};
 use libp2p::{
     futures::StreamExt,
     mdns::{Mdns, MdnsEvent},
@@ -59,7 +60,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         tokio::select! {
             line = stdin.next_line() => {
                 let line = line?.expect("stdin closed");
-                swarm.behaviour_mut().req_res.send_request(&PeerId::from_str(&line)?, IdNodeRequest("Heyyy".to_owned()));
+                swarm.behaviour_mut().req_res.send_request(&PeerId::from_str(&line)?, IdNodeRequest(IdNodeRequestPayload::Register));
             }
             swarm_event = swarm.select_next_some() => {
                 match swarm_event {
@@ -76,7 +77,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                                     swarm
                                       .behaviour_mut()
                                       .req_res
-                                      .send_response(channel, IdNodeResponse("Hoyy".to_owned()))
+                                      .send_response(channel, IdNodeResponse(IdResponsePayload::Ok))
                                       .expect("Connection to peer sto be still open.");
                                 }
                                 _=>{}

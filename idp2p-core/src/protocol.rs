@@ -4,15 +4,34 @@ use crate::did::identity::Identity;
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
-pub struct IdentityMessage {
+pub enum IdNodeRequestPayload {
+    Register,
+    Subscribe(String),
+    Publish(IdGossipMessage),
+    Get(String)
+}
+
+#[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
+pub enum IdWalletRequestPayload {
+    
+}
+
+#[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
+pub enum IdResponsePayload {
+    Ok,
+    Error(String)
+}
+
+#[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
+pub struct IdGossipMessage {
     pub id: String,
     pub timestamp: i64,
-    pub payload: IdentityMessagePayload,
+    pub payload: IdGossipMessagePayload,
 }
 
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
 #[serde(tag = "type")]
-pub enum IdentityMessagePayload {
+pub enum IdGossipMessagePayload {
     #[serde(rename = "get")]
     Get,
     #[serde(rename = "post")]
@@ -21,10 +40,10 @@ pub enum IdentityMessagePayload {
     Jwm { jwm: String },
 }
 
-impl IdentityMessage {
+impl IdGossipMessage {
     pub fn new_post(did: Identity) -> Self {
         let id = did.id.clone();
-        let payload = IdentityMessagePayload::Post {
+        let payload = IdGossipMessagePayload::Post {
             digest: did.get_digest(),
             identity: did,
         };
@@ -32,18 +51,18 @@ impl IdentityMessage {
     }
 
     pub fn new_get(id: &str) -> Self {
-        Self::new(id, IdentityMessagePayload::Get)
+        Self::new(id, IdGossipMessagePayload::Get)
     }
 
     pub fn new_jwm(id: &str, jwm: &str) -> Self {
-        let payload = IdentityMessagePayload::Jwm {
+        let payload = IdGossipMessagePayload::Jwm {
             jwm: jwm.to_owned(),
         };
         Self::new(id, payload)
     }
 
-    fn new(id: &str, payload: IdentityMessagePayload) -> Self {
-        let message = IdentityMessage {
+    fn new(id: &str, payload: IdGossipMessagePayload) -> Self {
+        let message = Self {
             id: id.to_owned(),
             timestamp: Utc::now().timestamp(),
             payload: payload,
@@ -62,7 +81,7 @@ mod tests {
     use super::*;
     #[test]
     fn new_test() {
-        let message = IdentityMessage::new_get("adem");
+        let message = IdGossipMessage::new_get("adem");
         assert_eq!(message.id, "adem");
     }
 }

@@ -1,5 +1,4 @@
 use idp2p_common::{thiserror::Error};
-use serde::{Deserialize, Serialize};
 
 #[derive(Error, Debug)]
 pub enum IdentityNodeError {
@@ -7,16 +6,8 @@ pub enum IdentityNodeError {
     Unknown,
 }
 
-#[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
-pub enum IdentityStoreEvent {
-    Created { id: String },
-    PostHandled { id: String },
-    GetHandled { id: String },
-    JwmCreated { jwm: String },
-    JwmReceived { jwm: String },
-}
-
-pub mod behaviour;
-pub mod builder;
-pub mod id_store;
+pub mod store;
+pub mod gossip;
+pub mod swarm;
+pub mod req_res;
 

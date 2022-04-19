@@ -5,7 +5,6 @@ edition = "2021"
 
 [dependencies]
 async-trait = "0.1.53"
-libp2p = "0.43.0"
 x25519-dalek = "1.2.0"
 chacha20poly1305 = "0.9.0"
 idp2p_common = { version = "0.1.0", path = "../idp2p-common" }
