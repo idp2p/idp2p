@@ -114,7 +114,7 @@ impl MicroLedger {
                     check!(rec_valid, IdentityError::InvalidSigner);
                     for set in sets {
                         match &set {
-                            EventLogChangeSet::SetAssertionKey(ver_method) => {
+                            EventLogChangeSet::SetAssertionKey{verification_method} => {
                                 let previous_key = state.assertion_keys.last_mut();
                                 if let  Some(previous_key) = previous_key{
                                     previous_key.expired_at = Some(event.payload.timestamp);
@@ -122,15 +122,15 @@ impl MicroLedger {
                                 let assertion_method = AssertionMethod {
                                     valid_at: event.payload.timestamp,
                                     expired_at: None,
-                                    ver_method: ver_method.clone(),
+                                    ver_method: verification_method.clone(),
                                 };
                                 state.assertion_keys.push(assertion_method);
                             }
-                            EventLogChangeSet::SetAuthenticationKey(ver_method) => {
-                                state.authentication_key = Some(ver_method.clone());
+                            EventLogChangeSet::SetAuthenticationKey{verification_method} => {
+                                state.authentication_key = Some(verification_method.clone());
                             }
-                            EventLogChangeSet::SetAgreementKey(ver_method) => {
-                                state.agreement_key = Some(ver_method.clone());
+                            EventLogChangeSet::SetAgreementKey{verification_method} => {
+                                state.agreement_key = Some(verification_method.clone());
                             }
                             EventLogChangeSet::SetProof(stmt) => {
                                 let key = encode(&stmt.key);
@@ -205,9 +205,9 @@ mod tests {
             typ: ED25519.to_string(),
             bytes: secret.to_publickey().to_vec(),
         };
-        let set_assertion = EventLogChangeSet::SetAssertionKey(ver_method.clone());
-        let set_authentication = EventLogChangeSet::SetAuthenticationKey(ver_method.clone());
-        let set_agreement = EventLogChangeSet::SetAgreementKey(ver_method.clone());
+        let set_assertion = EventLogChangeSet::SetAssertionKey{verification_method: ver_method.clone()};
+        let set_authentication = EventLogChangeSet::SetAuthenticationKey{verification_method:ver_method.clone()};
+        let set_agreement = EventLogChangeSet::SetAgreementKey{verification_method:ver_method.clone()};
         let change = EventLogChange::Set{ sets: vec![set_proof, set_assertion.clone(), set_authentication, set_agreement]};
         let signer = secret.to_publickey();
         let payload = ledger.create_event(&signer, &signer, change);

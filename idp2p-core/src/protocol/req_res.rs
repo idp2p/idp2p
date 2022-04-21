@@ -1,6 +1,6 @@
+use crate::did::identity::Identity;
 use async_trait::async_trait;
 use idp2p_common::serde_json;
-use idp2p_core::protocol::{IdNodeRequestPayload, IdResponsePayload};
 use libp2p::{
     core::{
         upgrade::{read_length_prefixed, write_length_prefixed},
@@ -9,31 +9,68 @@ use libp2p::{
     futures::{AsyncRead, AsyncWrite, AsyncWriteExt},
     request_response::RequestResponseCodec,
 };
+use serde::{Deserialize, Serialize};
 
+#[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
+pub enum IdRequestPayload {
+    // Register a peer(requires proof)
+    Register {
+        identity: Identity,
+        subscriptions: Vec<String>,
+        proof: String,
+    },
+    NodeMessage {
+        id: String,
+        message: IdRequestNodeMessage,
+    },
+    WalletMessage(String),
+}
+
+#[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
+pub enum IdRequestNodeMessage {
+    // Subscribe to identity
+    Subscribe(String),
+    // Publish message via gossipsub
+    Publish { id: String, jwm: String },
+    // Get identity information
+    Get(String),
+}
+
+#[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
+pub enum IdResponsePayload {
+    Ok(IdResponsePayloadOk),
+    Error(String),
+}
+
+#[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
+pub enum  IdResponsePayloadOk {
+    None,
+    GetResult(Identity)
+}
 
 #[derive(Debug, Clone)]
-pub struct IdNodeProtocol();
+pub struct IdProtocol();
 #[derive(Clone)]
-pub struct IdNodeCodec();
+pub struct IdCodec();
 #[derive(Debug, Clone, PartialEq)]
-pub struct IdNodeRequest(pub IdNodeRequestPayload);
+pub struct IdRequest(pub IdRequestPayload);
 #[derive(Debug, Clone, PartialEq)]
-pub struct IdNodeResponse(pub IdResponsePayload);
-impl ProtocolName for IdNodeProtocol {
+pub struct IdResponse(pub IdResponsePayload);
+impl ProtocolName for IdProtocol {
     fn protocol_name(&self) -> &[u8] {
-        "/idp2p/node/1".as_bytes()
+        "/idp2p/1".as_bytes()
     }
 }
 
 #[async_trait]
-impl RequestResponseCodec for IdNodeCodec {
-    type Protocol = IdNodeProtocol;
-    type Request = IdNodeRequest;
-    type Response = IdNodeResponse;
+impl RequestResponseCodec for IdCodec {
+    type Protocol = IdProtocol;
+    type Request = IdRequest;
+    type Response = IdResponse;
 
     async fn read_request<T>(
         &mut self,
-        _: &IdNodeProtocol,
+        _: &IdProtocol,
         io: &mut T,
     ) -> std::io::Result<Self::Request>
     where
@@ -45,12 +82,12 @@ impl RequestResponseCodec for IdNodeCodec {
             return Err(std::io::ErrorKind::UnexpectedEof.into());
         }
 
-        Ok(IdNodeRequest(serde_json::from_slice(&vec)?))
+        Ok(IdRequest(serde_json::from_slice(&vec)?))
     }
 
     async fn read_response<T>(
         &mut self,
-        _: &IdNodeProtocol,
+        _: &IdProtocol,
         io: &mut T,
     ) -> std::io::Result<Self::Response>
     where
@@ -61,14 +98,14 @@ impl RequestResponseCodec for IdNodeCodec {
         if vec.is_empty() {
             return Err(std::io::ErrorKind::UnexpectedEof.into());
         }
-        Ok(IdNodeResponse(serde_json::from_slice(&vec)?))
+        Ok(IdResponse(serde_json::from_slice(&vec)?))
     }
 
     async fn write_request<T>(
         &mut self,
-        _: &IdNodeProtocol,
+        _: &IdProtocol,
         io: &mut T,
-        IdNodeRequest(data): IdNodeRequest,
+        IdRequest(data): IdRequest,
     ) -> std::io::Result<()>
     where
         T: AsyncWrite + Unpin + Send,
@@ -81,9 +118,9 @@ impl RequestResponseCodec for IdNodeCodec {
 
     async fn write_response<T>(
         &mut self,
-        _: &IdNodeProtocol,
+        _: &IdProtocol,
         io: &mut T,
-        IdNodeResponse(data): IdNodeResponse,
+        IdResponse(data): IdResponse,
     ) -> std::io::Result<()>
     where
         T: AsyncWrite + Unpin + Send,

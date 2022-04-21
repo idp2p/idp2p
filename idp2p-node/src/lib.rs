@@ -7,7 +7,5 @@ pub enum IdentityNodeError {
 }
 
 pub mod store;
-pub mod gossip;
 pub mod swarm;
-pub mod req_res;
 

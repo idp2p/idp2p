@@ -28,9 +28,15 @@ pub struct RecoverStatement {
 #[serde(tag = "type")]
 pub enum EventLogChangeSet {
     SetProof(ProofStatement),
-    SetAssertionKey(VerificationMethod),
-    SetAuthenticationKey(VerificationMethod),
-    SetAgreementKey(VerificationMethod),
+    SetAssertionKey {
+        verification_method: VerificationMethod,
+    },
+    SetAuthenticationKey {
+        verification_method: VerificationMethod,
+    },
+    SetAgreementKey {
+        verification_method: VerificationMethod,
+    },
 }
 
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
@@ -100,7 +106,9 @@ mod tests {
             previous: "1".to_string(),
             signer_key: signer_key.to_vec(),
             next_key_digest: vec![],
-            change: EventLogChange::Set{ sets: vec![set_change]},
+            change: EventLogChange::Set {
+                sets: vec![set_change],
+            },
             timestamp: Utc::now().timestamp(),
         };
         let proof = secret.sign(&payload);
@@ -123,7 +131,9 @@ mod tests {
             previous: "1".to_string(),
             signer_key: signer_key.to_vec(),
             next_key_digest: hash(&signer_key),
-            change: EventLogChange::Set{ sets: vec![set_change]},
+            change: EventLogChange::Set {
+                sets: vec![set_change],
+            },
             timestamp: timestamp,
         };
         let proof = secret.sign(&payload);

@@ -1,8 +1,9 @@
 use std::{iter, str::FromStr};
 
 use idp2p_common::anyhow::Result;
-use idp2p_core::protocol::{IdNodeRequestPayload, IdResponsePayload};
-use idp2p_node::req_res::{IdNodeCodec, IdNodeProtocol, IdNodeRequest, IdNodeResponse};
+use idp2p_core::protocol::req_res::{
+    IdCodec, IdProtocol, IdRequest, IdResponse, IdResponsePayload, IdResponsePayloadOk,
+};
 use libp2p::{
     futures::StreamExt,
     mdns::{Mdns, MdnsEvent},
@@ -10,7 +11,7 @@ use libp2p::{
         ProtocolSupport, RequestResponse, RequestResponseEvent, RequestResponseMessage,
     },
     swarm::SwarmEvent,
-    NetworkBehaviour, PeerId,
+    NetworkBehaviour,
 };
 use tokio::io::AsyncBufReadExt;
 
@@ -18,13 +19,13 @@ use tokio::io::AsyncBufReadExt;
 #[behaviour(out_event = "IdentityNodeEvent")]
 pub struct IdentityNodeBehaviour {
     mdns: Mdns,
-    req_res: RequestResponse<IdNodeCodec>,
+    req_res: RequestResponse<IdCodec>,
 }
 
 #[derive(Debug)]
 pub enum IdentityNodeEvent {
     Mdns(MdnsEvent),
-    RequestResponse(RequestResponseEvent<IdNodeRequest, IdNodeResponse>),
+    RequestResponse(RequestResponseEvent<IdRequest, IdResponse>),
 }
 
 impl From<MdnsEvent> for IdentityNodeEvent {
@@ -33,8 +34,8 @@ impl From<MdnsEvent> for IdentityNodeEvent {
     }
 }
 
-impl From<RequestResponseEvent<IdNodeRequest, IdNodeResponse>> for IdentityNodeEvent {
-    fn from(event: RequestResponseEvent<IdNodeRequest, IdNodeResponse>) -> Self {
+impl From<RequestResponseEvent<IdRequest, IdResponse>> for IdentityNodeEvent {
+    fn from(event: RequestResponseEvent<IdRequest, IdResponse>) -> Self {
         IdentityNodeEvent::RequestResponse(event)
     }
 }
@@ -49,8 +50,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let behaviour = IdentityNodeBehaviour {
         mdns: Mdns::new(Default::default()).await?,
         req_res: RequestResponse::new(
-            IdNodeCodec(),
-            iter::once((IdNodeProtocol(), ProtocolSupport::Full)),
+            IdCodec(),
+            iter::once((IdProtocol(), ProtocolSupport::Full)),
             Default::default(),
         ),
     };
@@ -60,7 +61,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         tokio::select! {
             line = stdin.next_line() => {
                 let line = line?.expect("stdin closed");
-                swarm.behaviour_mut().req_res.send_request(&PeerId::from_str(&line)?, IdNodeRequest(IdNodeRequestPayload::Register));
+                /*swarm.behaviour_mut().req_res.send_request(
+                   &PeerId::from_str(&line)?,
+                   IdNodeRequest(IdNodeRequestPayload::Register{id: String::from(""), subscriptions: vec![]})
+                );*/
             }
             swarm_event = swarm.select_next_some() => {
                 match swarm_event {
@@ -77,7 +81,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                                     swarm
                                       .behaviour_mut()
                                       .req_res
-                                      .send_response(channel, IdNodeResponse(IdResponsePayload::Ok))
+                                      .send_response(channel, IdResponse(IdResponsePayload::Ok(IdResponsePayloadOk::None)))
                                       .expect("Connection to peer sto be still open.");
                                 }
                                 _=>{}

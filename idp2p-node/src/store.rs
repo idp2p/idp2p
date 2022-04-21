@@ -13,7 +13,7 @@ pub enum HandlePostResult {
 
 pub enum HandleGetResult {
     Publish(String),
-    WaitAndPublish(u8),
+    WaitAndPublish(String),
 }
 
 pub struct NodeStore {
@@ -37,7 +37,7 @@ pub struct IdEntry {
 
 #[derive(PartialEq, Debug, Clone)]
 pub struct Client {
-    pub id: String,
+    pub peers: Vec<String>,
     pub received_messages: Vec<String>,
     pub subscriptions: HashSet<String>,
 }
@@ -50,7 +50,7 @@ impl NodeStore {
     }
 
     /// Get identity for post event
-    pub fn get_for_post(&self, id: &str) -> Option<Identity> {
+    pub fn get_did_for_post(&self, id: &str) -> Option<Identity> {
         let state = self.state.lock().unwrap();
         let entry = state.identities.get(id);
         if let Some(entry) = entry {
@@ -72,6 +72,12 @@ impl NodeStore {
         None
     }
 
+    /// Get client by id
+    pub fn get_client(&self, id: &str) -> Option<Client> {
+        let state = self.state.lock().unwrap();
+        state.clients.get(id).map(|client| client.clone())
+    }
+
     pub async fn create(&self, did: Identity) {
         let mut state = self.state.lock().unwrap();
         let id = did.id.clone();
@@ -90,7 +96,7 @@ impl NodeStore {
                 return Ok(HandleGetResult::Publish(id.to_owned()));
             } else {
                 entry.require_publish = true;
-                return Ok(HandleGetResult::WaitAndPublish(2));
+                return Ok(HandleGetResult::WaitAndPublish(id.to_owned()));
             }
         }
         idp2p_common::anyhow::bail!("Identity is not stored")
@@ -157,7 +163,7 @@ mod tests {
         let store = create_store().await;
         let id = "did:p2p:bagaaierab2xsn6stgdcwfv3wvot7lboh2aewqqjfy56gzh7sibt7vxxtup4q";
         let result = store.handle_get(id).await?;
-        matches!(result, HandleGetResult::WaitAndPublish(2));
+        matches!(result, HandleGetResult::WaitAndPublish(_));
         Ok(())
     }
 

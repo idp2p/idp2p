@@ -1,5 +1,5 @@
-use super::identity_doc::VerificationMethod;
 use super::eventlog::{EventLogChange, EventLogChangeSet};
+use super::identity_doc::VerificationMethod;
 use super::{identity_doc::IdDocument, microledger::MicroLedger};
 use crate::IdentityError;
 use idp2p_common::ed_secret::EdSecret;
@@ -30,24 +30,30 @@ impl Identity {
             &secret.to_publickey_digest().unwrap(),
             &secret.to_publickey_digest().unwrap(),
         );
-        let set_assertion = EventLogChangeSet::SetAssertionKey(VerificationMethod {
-            id: format!("{}#{}", did.id.clone(), encode(&secret.to_publickey())),
-            controller: did.id.clone(),
-            typ: ED25519.to_string(),
-            bytes: secret.to_publickey().to_vec(),
-        });
-        let set_authentication = EventLogChangeSet::SetAuthenticationKey(VerificationMethod {
-            id: format!("{}#{}", did.id.clone(), encode(&secret.to_publickey())),
-            controller: did.id.clone(),
-            typ: ED25519.to_string(),
-            bytes: secret.to_publickey().to_vec(),
-        });
-        let set_agreement = EventLogChangeSet::SetAgreementKey(VerificationMethod {
-            id: format!("{}#{}", did.id.clone(), encode(&secret.to_key_agreement())),
-            controller: did.id.clone(),
-            typ: X25519.to_string(),
-            bytes: secret.to_key_agreement().to_vec(),
-        });
+        let set_assertion = EventLogChangeSet::SetAssertionKey {
+            verification_method: VerificationMethod {
+                id: format!("{}#{}", did.id.clone(), encode(&secret.to_publickey())),
+                controller: did.id.clone(),
+                typ: ED25519.to_string(),
+                bytes: secret.to_publickey().to_vec(),
+            },
+        };
+        let set_authentication = EventLogChangeSet::SetAuthenticationKey {
+            verification_method: VerificationMethod {
+                id: format!("{}#{}", did.id.clone(), encode(&secret.to_publickey())),
+                controller: did.id.clone(),
+                typ: ED25519.to_string(),
+                bytes: secret.to_publickey().to_vec(),
+            },
+        };
+        let set_agreement = EventLogChangeSet::SetAgreementKey {
+            verification_method: VerificationMethod {
+                id: format!("{}#{}", did.id.clone(), encode(&secret.to_key_agreement())),
+                controller: did.id.clone(),
+                typ: X25519.to_string(),
+                bytes: secret.to_key_agreement().to_vec(),
+            },
+        };
         let change = EventLogChange::Set {
             sets: vec![set_assertion.clone(), set_authentication, set_agreement],
         };
@@ -83,7 +89,10 @@ impl Identity {
     }
 
     pub fn to_document(&self) -> IdDocument {
-        let state = self.microledger.verify(self.microledger.inception.get_id().as_str()).unwrap();
+        let state = self
+            .microledger
+            .verify(self.microledger.inception.get_id().as_str())
+            .unwrap();
         let mut document = IdDocument {
             context: vec![
                 "https://www.w3.org/ns/did/v1".to_string(),
