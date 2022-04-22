@@ -51,9 +51,9 @@ impl Jwm {
         }
     }
 
-    pub fn seal(&self, sig_secret: EdSecret) -> Result<Jwe> {
+    pub fn seal(&self, sig_secret: EdSecret, to_public: [u8; 32]) -> Result<Jwe> {
         let jws = Jws::new(Jpm::from(self.clone()), sig_secret)?;
-        let jwe = Jwe::encrypt(jws, &self.to, [0u8; 32])?;
+        let jwe = Jwe::encrypt(jws, &self.to, to_public)?;
         Ok(jwe)
     }
 }

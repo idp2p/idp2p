@@ -152,6 +152,7 @@ impl IdentityNodeBehaviour {
                                 self.store.create(identity.clone()).await;
                             }
                             let mut client = self.store.get_client(&identity.id).unwrap();
+                            client.peers.push(peer.to_base58());
                             for subsciption in subscriptions {
                                 if !client.subscriptions.contains(&subsciption) {
                                     self.gossipsub.subscribe_to(&subsciption)?;
