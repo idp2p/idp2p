@@ -1,4 +1,4 @@
-use super::eventlog::{EventLogChange, EventLogChangeSet};
+use super::eventlog::{EventLogChange};
 use super::identity_doc::VerificationMethod;
 use super::{identity_doc::IdDocument, microledger::MicroLedger};
 use crate::IdentityError;
@@ -30,7 +30,7 @@ impl Identity {
             &secret.to_publickey_digest().unwrap(),
             &secret.to_publickey_digest().unwrap(),
         );
-        let set_assertion = EventLogChangeSet::SetAssertionKey {
+        let set_assertion = EventLogChange::SetAssertionKey {
             verification_method: VerificationMethod {
                 id: format!("{}#{}", did.id.clone(), encode(&secret.to_publickey())),
                 controller: did.id.clone(),
@@ -38,7 +38,7 @@ impl Identity {
                 bytes: secret.to_publickey().to_vec(),
             },
         };
-        let set_authentication = EventLogChangeSet::SetAuthenticationKey {
+        let set_authentication = EventLogChange::SetAuthenticationKey {
             verification_method: VerificationMethod {
                 id: format!("{}#{}", did.id.clone(), encode(&secret.to_publickey())),
                 controller: did.id.clone(),
@@ -46,7 +46,7 @@ impl Identity {
                 bytes: secret.to_publickey().to_vec(),
             },
         };
-        let set_agreement = EventLogChangeSet::SetAgreementKey {
+        let set_agreement = EventLogChange::SetAgreementKey {
             verification_method: VerificationMethod {
                 id: format!("{}#{}", did.id.clone(), encode(&secret.to_key_agreement())),
                 controller: did.id.clone(),
@@ -54,9 +54,7 @@ impl Identity {
                 bytes: secret.to_key_agreement().to_vec(),
             },
         };
-        let change = EventLogChange::Set {
-            sets: vec![set_assertion.clone(), set_authentication, set_agreement],
-        };
+        let change = vec![set_assertion.clone(), set_authentication, set_agreement];
         let signer = secret.to_publickey();
         let payload = did.microledger.create_event(&signer, &signer, change);
         let proof = secret.sign(&payload);
@@ -137,13 +135,11 @@ mod tests {
         let mut did = Identity::new(&ed_key_digest, &ed_key_digest);
         let previous = did.clone();
 
-        let set_proof = EventLogChangeSet::SetProof(ProofStatement {
+        let set_proof = EventLogChange::SetProof(ProofStatement {
             key: vec![1],
             value: vec![1],
         });
-        let change = EventLogChange::Set {
-            sets: vec![set_proof],
-        };
+        let change = vec![set_proof];
         let signer = secret.to_publickey();
         let payload = did.microledger.create_event(&signer, &signer, change);
         let proof = secret.sign(&payload);

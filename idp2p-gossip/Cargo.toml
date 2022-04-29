@@ -1,0 +1,17 @@
+[package]
+name = "idp2p_gossip"
+version = "0.1.0"
+edition = "2021"
+copyright = "2022, Adem Caglin"
+authors = ["adem caglin <adem.caglin@gmail.com>"] 
+
+[dependencies]
+async-trait = "0.1.53"
+prost = "0.10"
+libp2p = "0.44.0"
+serde = { version = "1.0.130", features = ["derive"] }
+idp2p_common = { version = "0.1.0", path = "../idp2p-common" }
+idp2p_core = { version = "0.1.0", path = "../idp2p-core" }
+
+[build-dependencies]
+prost-build = "0.10"

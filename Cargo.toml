@@ -15,6 +15,7 @@ idp2p_common = { version = "0.1.0", path = "idp2p-common" }
 idp2p_core = { version = "0.1.0", path = "idp2p-core" }
 idp2p_client = { version = "0.1.0", path = "idp2p-client" }
 idp2p_node = { version = "0.1.0", path = "idp2p-node" }
+idp2p_gossip = { version = "0.1.0", path = "idp2p-gossip" }
 
 [workspace]
 members = [

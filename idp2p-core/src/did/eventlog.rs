@@ -1,6 +1,6 @@
 use idp2p_common::{
     ed25519_dalek::{PublicKey, Signature, Verifier},
-    encode_vec, generate_cid, serde_json, IdKey, IdKeyDigest,
+    encode_vec, generate_cid, serde_json, IdKey, IdKeyDigest, Idp2pCodec,
 };
 use serde::{Deserialize, Serialize};
 use std::convert::TryInto;
@@ -16,17 +16,8 @@ pub struct ProofStatement {
 }
 
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
-pub struct RecoverStatement {
-    #[serde(rename = "keyType")]
-    pub key_type: String,
-    #[serde(with = "encode_vec")]
-    #[serde(rename = "masterKeyDigest")]
-    pub recovery_key_digest: IdKeyDigest,
-}
-
-#[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
 #[serde(tag = "type")]
-pub enum EventLogChangeSet {
+pub enum EventLogChange {
     SetProof(ProofStatement),
     SetAssertionKey {
         verification_method: VerificationMethod,
@@ -40,13 +31,6 @@ pub enum EventLogChangeSet {
 }
 
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
-#[serde(tag = "type")]
-pub enum EventLogChange {
-    Set { sets: Vec<EventLogChangeSet> },
-    Recover(RecoverStatement),
-}
-
-#[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
 pub struct EventLogPayload {
     pub previous: String,
     #[serde(with = "encode_vec")]
@@ -55,7 +39,7 @@ pub struct EventLogPayload {
     #[serde(with = "encode_vec")]
     #[serde(rename = "nextKeyDigest")]
     pub next_key_digest: IdKeyDigest,
-    pub change: EventLogChange,
+    pub change: Vec<EventLogChange>,
     pub timestamp: i64,
 }
 
@@ -68,7 +52,7 @@ pub struct EventLog {
 
 impl EventLog {
     pub fn get_id(&self) -> String {
-        generate_cid(self)
+        generate_cid(self, Idp2pCodec::Json).unwrap()
     }
 
     pub fn verify(&self, public_data: &[u8]) -> bool {
@@ -98,7 +82,7 @@ mod tests {
     fn event_verify_test() {
         let secret = EdSecret::new();
         let signer_key = secret.to_publickey();
-        let set_change = EventLogChangeSet::SetProof(ProofStatement {
+        let set_change = EventLogChange::SetProof(ProofStatement {
             key: vec![],
             value: vec![],
         });
@@ -106,9 +90,7 @@ mod tests {
             previous: "1".to_string(),
             signer_key: signer_key.to_vec(),
             next_key_digest: vec![],
-            change: EventLogChange::Set {
-                sets: vec![set_change],
-            },
+            change: vec![set_change],
             timestamp: Utc::now().timestamp(),
         };
         let proof = secret.sign(&payload);
@@ -123,7 +105,7 @@ mod tests {
         let secret = EdSecret::from_str(secret_str).unwrap();
         let signer_key = secret.to_publickey();
         let timestamp = 0;
-        let set_change = EventLogChangeSet::SetProof(ProofStatement {
+        let set_change = EventLogChange::SetProof(ProofStatement {
             key: vec![],
             value: vec![],
         });
@@ -131,9 +113,7 @@ mod tests {
             previous: "1".to_string(),
             signer_key: signer_key.to_vec(),
             next_key_digest: hash(&signer_key),
-            change: EventLogChange::Set {
-                sets: vec![set_change],
-            },
+            change: vec![set_change],
             timestamp: timestamp,
         };
         let proof = secret.sign(&payload);
@@ -144,10 +124,10 @@ mod tests {
                 "previous": "1",
                 "signerKey": "brgzkmbdnyevdth3sczvxjumd6bdl6ngn6eqbsbpazuvq42bfzk2a",
                 "nextKeyDigest": "bcodiqdow4rvnu4o2wwtpv6dvjjsd63najdeazekh4w3s2dyb2tvq",
-                "change": { "type": "Set", "sets" :[{"type":"SetProof","key":"b","value":"b"}] },
+                "change": [{"type":"SetProof","key":"b","value":"b"}],
                 "timestamp": 0
             },
-            "proof": "bqmnwfg52eb3qip4ebk76zz7yxt7q326odimfjcfna44nrdjluqqbhqe6wy6hlce5qjsbv7lrcyetpdc3usujqstkjbej2chbeaplmby"
+            "proof": "b37gdbtxzdum33s4kwkq56d7ug4na6wykla56wim5qh47j44l6frx4j6vxtwm7slrtqoknxdasxrq2ffh5og3tubt6bfestvsg5howby"
         }"#;
         let expected: EventLog = serde_json::from_str(expected_json).unwrap();
         assert_eq!(

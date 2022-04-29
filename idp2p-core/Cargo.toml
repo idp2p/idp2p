@@ -13,6 +13,7 @@ derivation-path = { version = "0.1.3", default-features = false }
 hmac = { version = "0.12.0", default-features = false }
 idp2p_common = { version = "0.1.0", path = "../idp2p-common" }
 serde = { version = "1.0.130", features = ["derive"] }
+rmp-serde = "1.1.0"
 tokio = { version = "1.13.0", features = ["full"] }
 
 [dev-dependencies]

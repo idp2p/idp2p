@@ -16,7 +16,6 @@ use sha2::{Digest, Sha256};
 pub const IDP2P_ED25519: &str = "Idp2pEd25519Key";
 pub const ED25519: &str = "Ed25519VerificationKey2020";
 pub const X25519: &str = "X25519KeyAgreementKey2020";
-const JSON_CODEC: u64 = 0x0200;
 pub type IdKeySecret = Vec<u8>;
 pub type IdKey = Vec<u8>;
 pub type IdKeyDigest = Vec<u8>;
@@ -36,6 +35,11 @@ pub use serde_with;
 pub use sha2;
 pub use thiserror;
 
+pub enum Idp2pCodec {
+    Json = 0x0200,
+    MsgPack = 0x0201,
+}
+
 pub mod encode_vec {
     use multibase::Base;
     use serde::{Deserialize, Deserializer, Serialize, Serializer};
@@ -54,7 +58,7 @@ pub mod encode_vec {
         S: Serializer,
         T: AsRef<[u8]>,
     {
-        format!("{}", multibase::encode(Base::Base32Lower, value.as_ref())).serialize(serializer)
+        format!("{}", multibase::encode(Base::Base64Url, value.as_ref())).serialize(serializer)
     }
 }
 
@@ -76,11 +80,14 @@ pub fn hash(bytes: &[u8]) -> Vec<u8> {
     Sha256::digest(bytes).to_vec()
 }
 
-pub fn generate_cid<T: Sized + Serialize>(t: &T) -> String {
-    let content = serde_json::to_string(t).unwrap();
-    let hash = Code::Sha2_256.digest(content.as_bytes());
-    let cid = Cid::new_v1(JSON_CODEC, hash);
-    cid.to_string()
+pub fn generate_cid<T: Sized + Serialize>(t: &T, codec: Idp2pCodec) -> anyhow::Result<String> {
+    let bytes = match codec {
+        Idp2pCodec::Json => serde_json::to_vec(t)?,
+        Idp2pCodec::MsgPack => rmp_serde::to_vec(t)?,
+    };
+    let hash = Code::Sha2_256.digest(&bytes);
+    let cid = Cid::new_v1(codec as u64, hash);
+    Ok(cid.to_string())
 }
 
 pub fn create_random<const N: usize>() -> [u8; N] {
@@ -139,7 +146,7 @@ mod tests {
             "name": "John Doe"
         });
         let expected = "bagaaieraotmu6ay364t223hj4akn7amds6rpwquuavx54demvy5e4vkn5uuq";
-        let cid = generate_cid(&data);
+        let cid = generate_cid(&data, Idp2pCodec::Json).unwrap();
         assert_eq!(cid, expected);
     }
 }

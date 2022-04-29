@@ -12,8 +12,6 @@ pub enum IdentityError {
     InvalidEventSignature,
     #[error("Invalid signer")]
     InvalidSigner,
-    #[error("Invalid recovery")]
-    InvalidDocumentDigest,
     #[error("Invalid next")]
     InvalidNext,
     #[error("Unknown")]
@@ -29,6 +27,7 @@ macro_rules! check {
 }
 
 pub mod did;
+pub mod did_new;
 pub mod didcomm;
 pub mod protocol;
 
