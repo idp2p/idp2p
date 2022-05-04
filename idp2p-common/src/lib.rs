@@ -22,6 +22,7 @@ pub type IdKeyDigest = Vec<u8>;
 pub mod base64url;
 pub mod bip32;
 pub mod ed_secret;
+pub mod key;
 
 pub use anyhow;
 pub use chrono;
@@ -87,6 +88,8 @@ pub fn generate_cid<T: Sized + Serialize>(t: &T, codec: Idp2pCodec) -> anyhow::R
     };
     let hash = Code::Sha2_256.digest(&bytes);
     let cid = Cid::new_v1(codec as u64, hash);
+    //let out = Cid::try_from(&vec![]).unwrap();
+    
     Ok(cid.to_string())
 }
 

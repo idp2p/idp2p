@@ -1,0 +1,46 @@
+syntax = "proto3";
+import "common.proto";
+import "identity.proto";
+package idp2p.pb;
+
+enum IdGossipMessageTypes{
+    GET_ID = 0;
+    POST_ID = 1;
+    POST_MESSAGE = 2;
+}
+
+message IdGossipMessage{
+    bytes id = 1; // Random
+    IdGossipMessageTypes type = 2;
+    oneof id_message_payload {
+        Microledger post_id = 3;
+        IdEncryptedMessage post_message = 4;
+    }
+}
+
+message IdRawMessage{
+    bytes id = 1;
+    bytes from = 2;
+    bytes to = 3;
+    int64 created_at = 4;
+    oneof message_types {
+       bytes text = 5;
+       Idp2pProfile connect = 6;
+       Idp2pProfile accept = 7;
+    }
+}
+
+message IdSignedMessage{
+    bytes signer_kid = 1; // Signer key id
+    bytes raw = 2; // Raw message
+    bytes proof = 3; // Implicit algorithm
+}
+
+message IdEncryptedMessage{
+    Idp2pEncryptionAlg enc_alg = 1;
+    Idp2pKeyWrappingAlg wrapping_alg = 2;
+    bytes initial_vector = 3;  
+    Idp2pAgreementKey sender_public = 4; // This is one time key to encrypt message(ananymous)
+    bytes decrypt_kid = 5; // Receipent key id to decrypt message
+    bytes cipherbody = 6; // Encrypted message body
+}
