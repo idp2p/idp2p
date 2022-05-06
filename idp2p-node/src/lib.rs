@@ -6,6 +6,6 @@ pub enum IdentityNodeError {
     Unknown,
 }
 
-pub mod store;
-pub mod swarm;
+//pub mod store;
+//pub mod swarm;
 

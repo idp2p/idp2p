@@ -1,11 +1,11 @@
 use idp2p_common::{
     ed25519_dalek::{PublicKey, Signature, Verifier},
-    encode_vec, generate_cid, serde_json, IdKey, IdKeyDigest, Idp2pCodec,
+    encode_vec, generate_json_cid, serde_json, IdKey, IdKeyDigest, Idp2pCodec,
 };
 use serde::{Deserialize, Serialize};
 use std::convert::TryInto;
 
-use super::identity_doc::VerificationMethod;
+use crate::identity::VerificationMethod;
 
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
 pub struct ProofStatement {
@@ -52,7 +52,7 @@ pub struct EventLog {
 
 impl EventLog {
     pub fn get_id(&self) -> String {
-        generate_cid(self, Idp2pCodec::Json).unwrap()
+        generate_json_cid(self).unwrap()
     }
 
     pub fn verify(&self, public_data: &[u8]) -> bool {
@@ -77,7 +77,7 @@ impl EventLog {
 mod tests {
     use super::*;
     use idp2p_common::chrono::prelude::*;
-    use idp2p_common::{ed_secret::EdSecret, hash, serde_json};
+    use idp2p_common::{secret::EdSecret, hash, serde_json};
     #[test]
     fn event_verify_test() {
         let secret = EdSecret::new();

@@ -4,7 +4,7 @@ use sha2::Sha512;
 use std::convert::TryInto;
 use anyhow::{Result};
 
-use crate::ed_secret::EdSecret;
+use crate::secret::EdSecret;
 
 const IDP2P_BIP32_NAME: &str = "idp2p seed";
 

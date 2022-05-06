@@ -1,6 +1,6 @@
 use std::collections::{HashMap, VecDeque};
 use std::io::Cursor;
-use idp2p_core::did::microledger::MicroLedgerInception;
+/*use idp2p_core::did::microledger::MicroLedgerInception;
 use libp2p::{
     core::{connection::ConnectionId, ConnectedPoint, Endpoint},
     request_response::RequestResponse,
@@ -26,7 +26,7 @@ pub struct IdentityGossipBehaviour {
     registrations: HashMap<String, String>, //
 }
 
-/*impl NetworkBehaviour for IdentityGossipBehaviour {
+impl NetworkBehaviour for IdentityGossipBehaviour {
     //type ConnectionHandler;
 
     type OutEvent = IdGossipEvent;
@@ -90,102 +90,3 @@ pub enum Idp2pMessageType {
     #[prost(string, tag = "3")]
     Connect(::prost::alloc::string::String),
 }*/
-
-#[derive(Clone, PartialEq)]
-pub struct Idp2pPublicKey {
-    pub r#type: i32,
-    pub public: Vec<u8>,
-}
-
-#[derive(Clone, PartialEq)]
-pub struct Idp2pPublicKeyDigest {
-    pub r#type: i32,
-    pub digest: Vec<u8>,
-}
-
-#[derive(Clone, PartialEq)]
-pub struct Idp2pAgreementPublicKey {
-    pub r#type: i32,
-    pub public: Vec<u8>,
-}
-
-#[derive(Clone, PartialEq)]
-pub struct MicroledgerInception {
-    pub next_key: Idp2pPublicKeyDigest,
-    pub recovery_key: Idp2pPublicKeyDigest,
-    pub changes: Vec<MicroledgerChange>,
-}
-
-#[derive(Clone, PartialEq)]
-pub struct Microledger {
-    pub inception: MicroLedgerInception,
-    pub events: Vec<EventLog>,
-}
-
-#[derive(Clone, PartialEq)]
-pub struct EventLog {
-    pub payload: EventLogPayload,
-    pub proof: Vec<u8>,
-}
-
-#[derive(Clone, PartialEq)]
-pub struct EventLogPayload {
-    pub previous: Vec<u8>,
-    pub signer_key: Vec<u8>,
-    pub next_key: Idp2pPublicKeyDigest,
-    pub timestamp: i64,
-    pub changes: Vec<MicroledgerChange>,
-}
-
-impl EventLogPayload {
-    fn to_bytes(&self) {
-        let m_p = message_proto::EventLogPayload {
-            next_key_type: self.next_key.r#type,
-            next_key_digest: self.next_key.digest.clone(),
-            timestamp: self.timestamp,
-            previous: self.previous.clone(),
-            signer_key: self.signer_key.clone(),
-            changes: vec![]//self.changes.clone().into_iter().map(|x| x.into()).collect(),
-        };
-        m_p.encode_to_vec();
-        let buf: Vec<u8> = vec![];
-        let m = message_proto::MicroledgerChange::decode(&mut Cursor::new(&buf)).unwrap();
-    }
-}
-
-#[derive(Clone, PartialEq)]
-pub enum MicroledgerChange {
-    SetProof { key: Vec<u8>, value: Vec<u8> },
-    SetAssertionKey(Idp2pPublicKey),
-    SetAuthenticationKey(Idp2pPublicKey),
-    SetAgreementKey(Idp2pAgreementPublicKey),
-}
-
-impl Into<message_proto::MicroledgerChange> for  MicroledgerChange {
-    fn into(self) -> message_proto::MicroledgerChange {
-        todo!()
-    }
-    /*fn into(change: MicroledgerChange) -> Self {
-        if let Some(change) = change{
-            let ch
-            = match change{
-               message_proto::MicroledgerChange::SetProof{} => MicroledgerChange::SetProof{};
-            }
-            MicroledgerChange::SetProof({key: vec![], value: vec![]})
-        }
-        MicroledgerChange::SetProof {
-            key: vec![],
-            value: vec![],
-        }
-    }*/
-}
-
-#[derive(Clone, PartialEq)]
-pub struct SetProof {
-    pub key: Vec<u8>,
-    pub value: Vec<u8>,
-}
-
-pub enum Idp2pKeyType {
-    Idp2pEd25519Key = 0,
-}

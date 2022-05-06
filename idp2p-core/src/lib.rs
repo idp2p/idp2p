@@ -26,11 +26,4 @@ macro_rules! check {
     }};
 }
 
-mod idp2p_proto {
-    include!(concat!(env!("OUT_DIR"), "/idp2p.pb.rs"));
-}
-
 pub mod identity;
-pub mod did;
-pub mod didcomm;
-pub mod protocol;

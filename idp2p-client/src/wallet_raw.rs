@@ -107,7 +107,7 @@ impl RawWallet {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use idp2p_common::ed_secret::EdSecret;
+    use idp2p_common::secret::EdSecret;
     use idp2p_core::did::identity::Identity;
 
     #[test]

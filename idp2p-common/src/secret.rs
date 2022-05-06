@@ -6,6 +6,11 @@ use std::convert::TryInto;
 use x25519_dalek::StaticSecret;
 
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
+pub enum Idp2pSecret {
+    Idp2pEd25519 { secret: EdSecret },
+}
+
+#[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
 pub struct EdSecret([u8; 32]);
 
 impl EdSecret {

@@ -2,24 +2,14 @@ syntax = "proto3";
 import "common.proto";
 package idp2p.pb;
 
-message Idp2pProof {
-    bytes key = 1;
-    bytes value = 2;
-}
-
-message Idp2pKeyDigest{
-    Idp2pKeyAlg alg = 1;
-    bytes digest = 2;
-}
-
 message EventLogPayload{
     bytes previous = 1; // Hash of previous event payload
     bytes signer_key = 2; // Raw signer public key 
-    Idp2pKeyDigest next_key_digest = 3; 
+    bytes next_key_digest = 3; 
     int64 timestamp = 4;
     oneof event_log_change {
-        Idp2pKeyDigest recover = 5;
-        IdentityEvents events = 6; 
+        bytes recover = 5;
+        bytes events = 6; 
     }
 }
 
@@ -29,26 +19,26 @@ message IdentityEvents {
 
 message IdentityEvent {
     oneof identity_event_type { 
-        Idp2pKey set_assertion_key = 1; 
-        Idp2pKey set_authentication_key = 2; 
-        Idp2pAgreementKey set_agreement_key = 3; 
-        Idp2pProof set_proof = 4; 
+        bytes set_assertion_key = 1; 
+        bytes set_authentication_key = 2; 
+        bytes set_agreement_key = 3; 
+        bytes set_proof = 4; 
     }
 }
 
 message IdentityInception {
-    Idp2pKeyDigest next_key_digest = 1;
-    Idp2pKeyDigest recovery_key_igest= 2; 
+    bytes next_key_digest = 1;
+    bytes recovery_key_digest= 2; 
     repeated IdentityEvent events = 3; 
 }
 
 message EventLog {
-    bytes payload = 1;
+    bytes payload = 1;  // For deterministic proof
     bytes proof = 2;
 }
 
 message Microledger {
-    bytes inception = 1;
+    bytes inception = 1; // For deterministic id
     repeated EventLog event_logs = 2;
 }
 

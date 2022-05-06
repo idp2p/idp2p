@@ -1,13 +1,10 @@
 use super::eventlog::{EventLogChange};
-use super::identity_doc::VerificationMethod;
-use super::{identity_doc::IdDocument, microledger::MicroLedger};
 use crate::IdentityError;
-use idp2p_common::ed_secret::EdSecret;
+use idp2p_common::secret::EdSecret;
 use idp2p_common::{anyhow::Result, encode, hash, serde_json, serde_with::skip_serializing_none};
 use idp2p_common::{log, ED25519, X25519};
 use serde::{Deserialize, Serialize};
 
-#[skip_serializing_none]
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
 pub struct Identity {
     pub id: String,
@@ -124,7 +121,7 @@ impl Identity {
 
 #[cfg(test)]
 mod tests {
-    use crate::did::eventlog::ProofStatement;
+    use crate::json::did::eventlog::ProofStatement;
 
     use super::*;
     #[test]

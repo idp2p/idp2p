@@ -1,5 +1,6 @@
 use chacha20poly1305::aead::{Aead, NewAead};
 use chacha20poly1305::{ChaCha20Poly1305, Key, Nonce};
+use cid::multihash::Multihash;
 use cid::{
     multihash::{Code, MultihashDigest},
     Cid,
@@ -21,14 +22,17 @@ pub type IdKey = Vec<u8>;
 pub type IdKeyDigest = Vec<u8>;
 pub mod base64url;
 pub mod bip32;
-pub mod ed_secret;
+pub mod secret;
 pub mod key;
-
+pub mod key_digest;
+pub mod id_proof;
+pub mod agreement_key;
 pub use anyhow;
 pub use chrono;
 pub use ed25519_dalek;
 pub use log;
 pub use multibase;
+pub use cid::multihash;
 pub use rand;
 pub use regex;
 pub use serde_json;
@@ -38,7 +42,19 @@ pub use thiserror;
 
 pub enum Idp2pCodec {
     Json = 0x0200,
-    MsgPack = 0x0201,
+    Protobuf = 0x50,
+}
+
+pub enum Idp2pHash{
+    Sha256,
+}
+
+impl Idp2pHash {
+    pub fn digest(&self, content: &[u8]) -> Multihash {
+        match &self {
+            Self::Sha256 => Code::Sha2_256.digest(&content),
+        }
+    }
 }
 
 pub mod encode_vec {
@@ -81,16 +97,16 @@ pub fn hash(bytes: &[u8]) -> Vec<u8> {
     Sha256::digest(bytes).to_vec()
 }
 
-pub fn generate_cid<T: Sized + Serialize>(t: &T, codec: Idp2pCodec) -> anyhow::Result<String> {
-    let bytes = match codec {
-        Idp2pCodec::Json => serde_json::to_vec(t)?,
-        Idp2pCodec::MsgPack => rmp_serde::to_vec(t)?,
-    };
-    let hash = Code::Sha2_256.digest(&bytes);
+pub fn generate_cid(content: &[u8], codec: Idp2pCodec, hash_alg: Idp2pHash) -> Vec<u8> {
+    let hash = hash_alg.digest(&content);
     let cid = Cid::new_v1(codec as u64, hash);
-    //let out = Cid::try_from(&vec![]).unwrap();
-    
-    Ok(cid.to_string())
+    cid.to_bytes()
+}
+
+pub fn generate_json_cid<T: Sized + Serialize>(content: &T) -> Result<String> {
+    let content_bytes = serde_json::to_vec(content).unwrap();
+    let cid = generate_cid(&content_bytes, Idp2pCodec::Json, Idp2pHash::Sha256);
+    Ok(encode(&cid))
 }
 
 pub fn create_random<const N: usize>() -> [u8; N] {
@@ -149,7 +165,7 @@ mod tests {
             "name": "John Doe"
         });
         let expected = "bagaaieraotmu6ay364t223hj4akn7amds6rpwquuavx54demvy5e4vkn5uuq";
-        let cid = generate_cid(&data, Idp2pCodec::Json).unwrap();
+        let cid = generate_json_cid(&data).unwrap();
         assert_eq!(cid, expected);
     }
 }

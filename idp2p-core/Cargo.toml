@@ -16,12 +16,12 @@ idp2p_common = { version = "0.1.0", path = "../idp2p-common" }
 serde = { version = "1.0.130", features = ["derive"] }
 tokio = { version = "1.13.0", features = ["full"] }
 
-[dev-dependencies]
-criterion = "0.3"
+#[dev-dependencies]
+#criterion = "0.3"
 
-[[bench]]
-name = "verify_did"
-harness = false
+#[[bench]]
+#name = "verify_did"
+#harness = false
 
 [build-dependencies]
 prost-build = "0.10"

@@ -1,6 +1,6 @@
 use std::{iter, str::FromStr, sync::Arc};
 
-use idp2p_common::{anyhow::Result, ed_secret::EdSecret, log};
+use idp2p_common::{anyhow::Result, secret::EdSecret, log};
 use idp2p_core::protocol::{
     gossip::{build_gossipsub, IdGossip, IdGossipMessage, IdGossipMessagePayload},
     req_res::{

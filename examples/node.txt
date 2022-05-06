@@ -1,5 +1,5 @@
 use idp2p_common::anyhow::Result;
-use idp2p_common::ed_secret::EdSecret;
+use idp2p_common::secret::EdSecret;
 use idp2p_core::did::identity::Identity;
 use idp2p_core::protocol::gossip::IdGossip;
 use idp2p_node::swarm::{build_swarm, IdentityNodeEvent, NodeOptions};

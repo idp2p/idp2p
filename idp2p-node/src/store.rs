@@ -156,7 +156,7 @@ impl From<Identity> for IdEntry {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use idp2p_common::ed_secret::EdSecret;
+    use idp2p_common::secret::EdSecret;
 
     #[tokio::test]
     async fn handle_get_test() -> Result<()> {

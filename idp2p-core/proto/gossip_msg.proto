@@ -1,0 +1,22 @@
+message Idp2pProfile {
+    string name = 1;
+    bytes photo = 2;
+}
+enum IdGossipMessageTypes { 
+    GET_ID = 0;
+    POST_ID = 1;
+    POST_MESSAGE = 2;
+}
+
+message IdGossipMessage{
+    bytes id = 1; // Random
+    IdGossipMessageTypes type = 2;
+    oneof id_message_payload {
+        Microledger post_id = 3;
+        IdEncryptedMessage post_message = 4;
+    }    /*oneof message_types {
+       bytes text = 5;
+       Idp2pProfile connect = 6;
+       Idp2pProfile accept = 7;
+    }*/
+}

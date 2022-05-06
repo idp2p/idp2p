@@ -1,5 +1,5 @@
 use idp2p_common::chrono::Utc;
-use idp2p_common::ed_secret::EdSecret;
+use idp2p_common::secret::EdSecret;
 use idp2p_common::encode_vec;
 use idp2p_common::{anyhow::Result, serde_json};
 use idp2p_core::did::identity::Identity;
@@ -87,7 +87,7 @@ impl WalletSession {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use idp2p_common::ed_secret::EdSecret;
+    use idp2p_common::secret::EdSecret;
     use idp2p_core::{did::identity::Identity, didcomm::jpm::Jpm};
     use std::str::FromStr;
 

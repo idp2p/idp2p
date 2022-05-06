@@ -1,6 +1,6 @@
 use crate::wallet_raw::RawWallet;
 use crate::wallet_session::{SecretWallet, WalletSession};
-use idp2p_common::ed_secret::EdSecret;
+use idp2p_common::secret::EdSecret;
 use idp2p_common::{log, get_enc_key, encrypt};
 use idp2p_common::{anyhow::Result, encode_vec, serde_json};
 use idp2p_core::did::identity::Identity;

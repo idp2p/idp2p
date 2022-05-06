@@ -1,9 +1,9 @@
-use crate::didcomm::jpm::Jpm;
-use crate::didcomm::JwmHeader;
+use super::jpm::Jpm;
+use super::JwmHeader;
 use idp2p_common::anyhow::Result;
 use idp2p_common::base64url;
 use idp2p_common::ed25519_dalek::{PublicKey, Signature, Verifier};
-use idp2p_common::ed_secret::EdSecret;
+use idp2p_common::secret::EdSecret;
 use idp2p_common::encode;
 use idp2p_common::serde_json::json;
 use serde::{Deserialize, Serialize};
@@ -68,8 +68,8 @@ impl Jws {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::didcomm::jwm::Jwm;
-    use crate::didcomm::jwm::JwmBody;
+    use crate::json::didcomm::jwm::Jwm;
+    use crate::json::didcomm::jwm::JwmBody;
 
     #[test]
     fn new_test() {

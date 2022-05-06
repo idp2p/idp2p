@@ -1,6 +1,4 @@
-use criterion::{black_box, criterion_group, criterion_main, Criterion};
-use idp2p_common::ed_secret::EdSecret;
-use idp2p_common::hash;
+/*use criterion::{black_box, criterion_group, criterion_main, Criterion};
 use idp2p_core::did::identity::Identity;
 use idp2p_core::did::eventlog::{EventLogChange};
 use idp2p_core::did::eventlog::ProofStatement;
@@ -33,4 +31,4 @@ fn criterion_benchmark(c: &mut Criterion) {
 }
 
 criterion_group!(benches, criterion_benchmark);
-criterion_main!(benches);
+criterion_main!(benches);*/
