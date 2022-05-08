@@ -1,5 +1,4 @@
 syntax = "proto3";
-import "common.proto";
 import "identity.proto";
 package idp2p.pb;
 
@@ -19,7 +18,8 @@ message IdSignedMessage{
 }
 
 message IdEncryptedMessage{
-    int32 alg = 1; // ECDH_ES_A256KW + A256CBC_HS512
+    int32 kw_alg = 1;
+    int32 enc_alg = 2; // ECDH_ES_A256KW + A256CBC_HS512
     bytes initial_vector = 3;  
     bytes sender_public = 4; // This is one time key to encrypt message(ananymous)
     bytes decrypt_kid = 5; // Receipent key id to decrypt message

@@ -1,0 +1,17 @@
+syntax = "proto3";
+package idp2p.pb;
+
+message Idp2pProof{
+    bytes key = 1;
+    bytes value = 2;
+}
+ 
+message Idp2pKey{
+     bytes key_type = 1;
+     bytes value = 2;
+}
+ 
+message Idp2pKeyDigest{
+     int32 key_type = 1;
+     bytes digest = 2; // Multihash
+}

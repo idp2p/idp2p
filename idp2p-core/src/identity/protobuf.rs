@@ -1,5 +1,7 @@
 use std::collections::HashMap;
 
+use crate::IdentityError;
+
 use super::{
     core::{CreateIdentityInput, IdentityBehaviour, IdentityEvent, IdentityState},
     did_doc::IdentityDocument,
@@ -22,6 +24,8 @@ impl IdentityBehaviour for Identity {
     }
 
     fn verify(&self) -> Result<IdentityState> {
+        let microledger = self.microledger.as_ref().ok_or(IdentityError::InvalidProtobuf)?;
+        //let i2 = inception.inception.clone();
         /*let inception_bytes = self.microledger.as_ref().expect("").inception.clone();
         let expected_id = generate_cid(&inception_bytes, Idp2pCodec::Protobuf, Idp2pHash::Sha256);
         assert_eq!(expected_id, self.id);

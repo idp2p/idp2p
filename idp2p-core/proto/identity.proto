@@ -3,32 +3,31 @@ import "common.proto";
 package idp2p.pb;
 
 message EventLogPayload{
-    bytes previous = 1; // Hash of previous event payload
+    bytes previous = 1; // Multihash of previous event payload
     bytes signer_key = 2; // Raw signer public key 
-    bytes next_key_digest = 3; 
+    Idp2pKeyDigest next_key_digest = 3; 
     int64 timestamp = 4;
     oneof event_log_change {
-        bytes recover = 5;
-        bytes events = 6; 
+        Idp2pKeyDigest recover = 5;
+        IdentityEvents events = 6; 
     }
-}
-
-message IdentityEvents {
-   repeated IdentityEvent events = 1;
+    message IdentityEvents {
+        repeated IdentityEvent events = 1;
+    }
 }
 
 message IdentityEvent {
     oneof identity_event_type { 
-        bytes set_assertion_key = 1; 
-        bytes set_authentication_key = 2; 
-        bytes set_agreement_key = 3; 
-        bytes set_proof = 4; 
+        Idp2pKey set_assertion_key = 1; 
+        Idp2pKey set_authentication_key = 2; 
+        Idp2pKey set_agreement_key = 3;
+        Idp2pProof set_proof = 4;
     }
 }
 
 message IdentityInception {
-    bytes next_key_digest = 1;
-    bytes recovery_key_digest= 2; 
+    Idp2pKeyDigest next_key_digest = 1; 
+    Idp2pKeyDigest recovery_key_digest= 2; 
     repeated IdentityEvent events = 3; 
 }
 

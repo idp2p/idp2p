@@ -1,13 +1,26 @@
-use std::str::FromStr;
+use anyhow::{Result, bail};
+use serde::{Serialize, Deserialize};
 
-use serde::{Deserialize, Serialize};
-
-#[derive(PartialEq, Debug, Clone)]
+#[derive(PartialEq, Debug, Clone, Serialize, Deserialize)]
 pub enum Idp2pKeyDigest {
-    Idp2pEd25519Sha256 { digest: [u8; 32] },
+    Idp2pEd25519 {
+        digest: Vec<u8>
+    }
 }
 
-impl FromStr for Idp2pKeyDigest {
+impl Idp2pKeyDigest{
+    pub fn try_from(code: i32, digest: &[u8]) -> Result<Self>{
+         match  code {
+             0xed => {
+                 Ok(Idp2pKeyDigest::Idp2pEd25519 { digest: digest.to_vec() })
+             }
+             _ => bail!("")
+         }
+    }
+}
+
+
+/*impl FromStr for Idp2pKeyDigest {
     type Err = anyhow::Error;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let (_, key_data) = multibase::decode(&s).unwrap();
@@ -19,28 +32,22 @@ impl TryFrom<Vec<u8>> for Idp2pKeyDigest {
     type Error = anyhow::Error;
 
     fn try_from(value: Vec<u8>) -> Result<Self, Self::Error> {
-        let key_type = value[0];
-        match key_type {
-            0 => {
-                let bytes: [u8; 32] = value[1..].try_into()?;
-                Ok(Self::Idp2pEd25519Sha256 {
-                    digest: bytes.try_into()?,
-                })
-            }
-            _ => anyhow::bail!("Not supported"),
+        if value.len() < 34 {
+            bail!("Length should be 66 bytes or more")
         }
+        Ok(Self {
+            key_type: value[0],
+            digest: value[1..].to_vec().try_into()?,
+        })
     }
 }
 
 impl From<Idp2pKeyDigest> for Vec<u8> {
     fn from(value: Idp2pKeyDigest) -> Self {
-        match value {
-            Idp2pKeyDigest::Idp2pEd25519Sha256 { digest } => {
-                let mut bytes = [0u8; 33];
-                bytes[1..].copy_from_slice(&digest);
-                bytes.to_vec()
-            }
-        }
+        let mut encoded: Vec<u8> = vec![value.key_type];
+        let digest: Vec<u8> = value.digest.into();
+        encoded.extend_from_slice(&digest);
+        encoded
     }
 }
 
@@ -70,18 +77,19 @@ mod tests {
     use super::*;
     #[test]
     fn try_from_test() {
-        let mut bytes = [0u8; 33];
-        bytes[1..].copy_from_slice(&[1u8; 32]);
+        let mut bytes = [0u8; 34];
+        bytes[2..].copy_from_slice(&[1u8; 32]);
         let digest: Idp2pKeyDigest = bytes.to_vec().try_into().unwrap();
-        assert!(
-            matches!(digest, Idp2pKeyDigest::Idp2pEd25519Sha256 { digest } if digest == [1u8; 32])
-        );
+        assert_eq!(digest.key_type, 0);
     }
 
     #[test]
     fn encode_test() {
-        let proof = Idp2pKeyDigest::Idp2pEd25519Sha256 { digest: [0u8;32] };
+        let proof = Idp2pKeyDigest {
+            key_type: 0,
+            digest: Idp2pDigest::Sha256 { digest: [0u8; 32] },
+        };
         let vec: Vec<u8> = proof.into();
-        assert_eq!(vec.len(), 33);
+        assert_eq!(vec.len(), 34);
     }
-}
+}*/

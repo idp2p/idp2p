@@ -168,4 +168,10 @@ mod tests {
         let cid = generate_json_cid(&data).unwrap();
         assert_eq!(cid, expected);
     }
+
+    #[test]
+    fn multihash_test(){
+        let digest = Code::Sha2_256.digest(b"hello world!");
+        eprintln!("{:?}",  digest.digest());
+    }
 }

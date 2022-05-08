@@ -14,6 +14,8 @@ pub enum IdentityError {
     InvalidSigner,
     #[error("Invalid next")]
     InvalidNext,
+    #[error("Invalid protobuf")]
+    InvalidProtobuf,
     #[error("Unknown")]
     Unknown,
 }
