@@ -1,15 +1,34 @@
 syntax = "proto3";
-import "common.proto";
 package idp2p.pb;
+
+message Idp2pProof{
+    bytes key = 1;
+    bytes value = 2;
+}
+
+message Idp2pConfig {
+    int32 hash_type = 1;
+    int32 next_key_type = 2;
+    int32 recovery_key_type = 3;
+    int32 assertion_key_type = 4;
+    int32 authentication_key_type = 5;
+    int32 agreement_key_type = 6;
+}
 
 message EventLogPayload{
     bytes previous = 1; // Multihash of previous event payload
     bytes signer_key = 2; // Raw signer public key 
-    Idp2pKeyDigest next_key_digest = 3; 
+    bytes next_key_digest = 3; 
     int64 timestamp = 4;
+    int32 set_hash_type = 5;
+    int32 set_next_key_type = 6;
+    int32 set_recovery_key_type = 7;
+    int32 set_assertion_key_type = 8;
+    int32 set_authentication_key_type = 9;
+    int32 set_agreement_key_type = 10;
     oneof event_log_change {
-        Idp2pKeyDigest recover = 5;
-        IdentityEvents events = 6; 
+        bytes recover = 11;
+        IdentityEvents events = 12; 
     }
     message IdentityEvents {
         repeated IdentityEvent events = 1;
@@ -18,16 +37,17 @@ message EventLogPayload{
 
 message IdentityEvent {
     oneof identity_event_type { 
-        Idp2pKey set_assertion_key = 1; 
-        Idp2pKey set_authentication_key = 2; 
-        Idp2pKey set_agreement_key = 3;
+        bytes set_assertion_key = 1; 
+        bytes set_authentication_key = 2; 
+        bytes set_agreement_key = 3;
         Idp2pProof set_proof = 4;
     }
 }
 
 message IdentityInception {
-    Idp2pKeyDigest next_key_digest = 1; 
-    Idp2pKeyDigest recovery_key_digest= 2; 
+    Idp2pConfig config = 5;
+    bytes next_key_digest = 1; 
+    bytes recovery_key_digest= 2; 
     repeated IdentityEvent events = 3; 
 }
 

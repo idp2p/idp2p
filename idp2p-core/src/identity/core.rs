@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use idp2p_common::{
     agreement_key::Idp2pAgreementKey, anyhow::Result, id_proof::Idp2pProof, key::Idp2pKey,
-    key_digest::Idp2pKeyDigest, secret::Idp2pSecret, Idp2pHash,
+    key_digest::Idp2pKeyDigest, secret::Idp2pSecret, hash::Idp2pHash,
 };
 use serde::{Deserialize, Serialize};
 
@@ -39,7 +39,7 @@ pub struct IdentityState {
     pub recovery_key_digest: Idp2pKeyDigest,
     pub assertion_keys: Vec<Idp2pKey>,
     pub authentication_key: Option<Idp2pKey>,
-    pub agreement_key: Option<Idp2pKey>,
+    pub agreement_key: Option<Idp2pAgreementKey>,
     pub proofs: HashMap<Vec<u8>, Vec<u8>>,
 }
 

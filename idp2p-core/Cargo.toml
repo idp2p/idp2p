@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-prost = "0.10"
+prost = "0.10.3"
 libp2p = "0.43.0"
 async-trait = "0.1.53"
 x25519-dalek = "1.2.0"
@@ -24,4 +24,4 @@ tokio = { version = "1.13.0", features = ["full"] }
 #harness = false
 
 [build-dependencies]
-prost-build = "0.10"
+prost-build = "0.10.3"

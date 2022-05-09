@@ -20,42 +20,26 @@ pub const X25519: &str = "X25519KeyAgreementKey2020";
 pub type IdKeySecret = Vec<u8>;
 pub type IdKey = Vec<u8>;
 pub type IdKeyDigest = Vec<u8>;
+pub mod agreement_key;
 pub mod base64url;
 pub mod bip32;
-pub mod secret;
+pub mod hash;
+pub mod id_proof;
 pub mod key;
 pub mod key_digest;
-pub mod id_proof;
-pub mod agreement_key;
+pub mod secret;
 pub use anyhow;
 pub use chrono;
+pub use cid::multihash;
 pub use ed25519_dalek;
 pub use log;
 pub use multibase;
-pub use cid::multihash;
 pub use rand;
 pub use regex;
 pub use serde_json;
 pub use serde_with;
 pub use sha2;
 pub use thiserror;
-
-pub enum Idp2pCodec {
-    Json = 0x0200,
-    Protobuf = 0x50,
-}
-
-pub enum Idp2pHash{
-    Sha256,
-}
-
-impl Idp2pHash {
-    pub fn digest(&self, content: &[u8]) -> Multihash {
-        match &self {
-            Self::Sha256 => Code::Sha2_256.digest(&content),
-        }
-    }
-}
 
 pub mod encode_vec {
     use multibase::Base;
@@ -91,22 +75,6 @@ pub fn decode_sized<const N: usize>(s: &str) -> anyhow::Result<[u8; N]> {
     let r = multibase::decode(s)?.1;
     let data: [u8; N] = r.try_into().expect("Data size is not equal to given size");
     Ok(data)
-}
-
-pub fn hash(bytes: &[u8]) -> Vec<u8> {
-    Sha256::digest(bytes).to_vec()
-}
-
-pub fn generate_cid(content: &[u8], codec: Idp2pCodec, hash_alg: Idp2pHash) -> Vec<u8> {
-    let hash = hash_alg.digest(&content);
-    let cid = Cid::new_v1(codec as u64, hash);
-    cid.to_bytes()
-}
-
-pub fn generate_json_cid<T: Sized + Serialize>(content: &T) -> Result<String> {
-    let content_bytes = serde_json::to_vec(content).unwrap();
-    let cid = generate_cid(&content_bytes, Idp2pCodec::Json, Idp2pHash::Sha256);
-    Ok(encode(&cid))
 }
 
 pub fn create_random<const N: usize>() -> [u8; N] {
@@ -149,7 +117,7 @@ pub fn is_idp2p(id: &str) -> bool {
 mod tests {
     use super::*;
     use serde_json::json;
-    #[test]
+    /*#[test]
     fn hash_test() {
         let data = json!({
             "name": "John Doe"
@@ -167,11 +135,11 @@ mod tests {
         let expected = "bagaaieraotmu6ay364t223hj4akn7amds6rpwquuavx54demvy5e4vkn5uuq";
         let cid = generate_json_cid(&data).unwrap();
         assert_eq!(cid, expected);
-    }
+    }*/
 
     #[test]
-    fn multihash_test(){
+    fn multihash_test() {
         let digest = Code::Sha2_256.digest(b"hello world!");
-        eprintln!("{:?}",  digest.digest());
+        eprintln!("{:?}", digest.digest());
     }
 }

@@ -7,7 +7,7 @@ message Idp2pProof{
 }
  
 message Idp2pKey{
-     bytes key_type = 1;
+     int32 key_type = 1;
      bytes value = 2;
 }
  

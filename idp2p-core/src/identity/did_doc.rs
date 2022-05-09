@@ -1,4 +1,4 @@
-use idp2p_common::{encode_vec, hash, serde_with::skip_serializing_none};
+use idp2p_common::{encode_vec, serde_with::skip_serializing_none};
 use serde::{Deserialize, Serialize};
 
 #[skip_serializing_none]
@@ -29,9 +29,6 @@ pub struct IdentityDocument {
 }
 
 impl IdentityDocument {
-    pub fn get_digest(&self) -> Vec<u8> {
-        hash(&idp2p_common::serde_json::to_vec(&self).unwrap())
-    }
 
     pub fn get_verification_method(&self, kid: &str) -> Option<VerificationMethod> {
         self.verification_method
