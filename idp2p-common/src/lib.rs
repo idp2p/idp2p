@@ -30,7 +30,7 @@ pub mod key_digest;
 pub mod secret;
 pub use anyhow;
 pub use chrono;
-pub use cid::multihash;
+pub use cid;
 pub use ed25519_dalek;
 pub use log;
 pub use multibase;

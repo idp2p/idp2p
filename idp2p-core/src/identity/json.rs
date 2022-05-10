@@ -20,14 +20,14 @@ pub struct Microledger {
 pub struct IdentityInception {
     pub recovery_key_digest: Idp2pKeyDigest,
     pub next_key_digest: Idp2pKeyDigest,
-    pub events: Vec<IdentityEvent>,
+    //pub events: Vec<IdentityEvent>,
 }
 
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
 #[serde(tag = "type")]
 pub enum EventLogChange {
     Recover { digest: Idp2pKeyDigest },
-    Events { events: Vec<IdentityEvent> },
+    //Events { events: Vec<IdentityEvent> },
 }
 
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]

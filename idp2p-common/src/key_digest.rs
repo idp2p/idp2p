@@ -1,25 +1,39 @@
-use anyhow::{Result, bail};
-use multihash::Multihash;
-use serde::{Serialize, Deserialize};
+use anyhow::{bail, Result};
+use cid::multihash::MultihashDigest;
+use serde::{Deserialize, Serialize};
+
+use crate::{key::Idp2pKey, hash::Idp2pHash};
 
 #[derive(PartialEq, Debug, Clone, Serialize, Deserialize)]
 pub enum Idp2pKeyDigest {
-    Idp2pEd25519 {
-        digest: Vec<u8>
-    }
+    Idp2pEd25519 { digest: Vec<u8> },
 }
 
-impl Idp2pKeyDigest{
-    pub fn try_from(code: i32, digest: &[u8]) -> Result<Self>{
-         match  code {
-             0xed => {
-                 Ok(Idp2pKeyDigest::Idp2pEd25519 { digest: digest.to_vec() })
-             }
-             _ => bail!("")
-         }
+impl Idp2pKeyDigest {
+    pub fn try_from(code: u64, digest: &[u8]) -> Result<Self> {
+        match code {
+            0xed => Ok(Idp2pKeyDigest::Idp2pEd25519 {
+                digest: digest.to_vec(),
+            }),
+            _ => bail!(""),
+        }
+    }
+
+    pub fn to_key(&self, public: &[u8]) -> Result<Idp2pKey> {
+        match self {
+            Idp2pKeyDigest::Idp2pEd25519 { digest } => {
+                let hash_alg: Idp2pHash = cid::multihash::Multihash::from_bytes(digest)?.code().try_into()?;
+                let expected = hash_alg.generate_id(public);
+                if digest.to_owned() != expected{
+                    bail!("Digest is not for this public")
+                }
+                Ok(Idp2pKey::Idp2pEd25519 {
+                    public: ed25519_dalek::PublicKey::from_bytes(&public)?,
+                })
+            }
+        }
     }
 }
-
 
 /*impl FromStr for Idp2pKeyDigest {
     type Err = anyhow::Error;

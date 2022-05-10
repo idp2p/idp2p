@@ -8,7 +8,12 @@ message Idp2pProof{
  
 message Idp2pKey{
      int32 key_type = 1;
-     bytes value = 2;
+     bytes public = 2;
+}
+
+message Idp2pAgreementKey{
+     int32 key_type = 1;
+     bytes public = 2;
 }
  
 message Idp2pKeyDigest{

@@ -1,11 +1,23 @@
-use serde::{Deserialize, Serialize};
-use std::str::FromStr;
+use anyhow::Result;
+use ed25519_dalek::{PublicKey, Signature, Verifier};
 
 #[derive(PartialEq, Debug, Clone)]
 pub enum Idp2pKey {
-    Idp2pEd25519 { public: ed25519_dalek::PublicKey },
+    Idp2pEd25519 { public: PublicKey },
 }
 
+impl Idp2pKey{
+    pub fn verify(&self, payload: &[u8], sig: &[u8]) -> Result<bool>{
+        match self{
+            Idp2pKey::Idp2pEd25519 { public } => {
+                let sig_bytes: [u8; 64] = sig.try_into()?;
+                let signature = Signature::from(sig_bytes);
+                Ok(public.verify(payload, &signature).is_ok())
+            }
+        }
+    }
+}
+/*
 impl FromStr for Idp2pKey {
     type Err = anyhow::Error;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
@@ -86,3 +98,4 @@ mod tests {
         assert_eq!(vec.len(), 33);
     }
 }
+ */
