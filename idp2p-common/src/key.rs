@@ -1,14 +1,46 @@
-use anyhow::Result;
+use anyhow::{bail, Result};
 use ed25519_dalek::{PublicKey, Signature, Verifier};
 
-#[derive(PartialEq, Debug, Clone)]
+use crate::base64url;
+
+#[derive(PartialEq, Clone)]
 pub enum Idp2pKey {
     Idp2pEd25519 { public: PublicKey },
 }
 
-impl Idp2pKey{
-    pub fn verify(&self, payload: &[u8], sig: &[u8]) -> Result<bool>{
-        match self{
+impl std::fmt::Debug for Idp2pKey {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Idp2pEd25519 { public } => write!(
+                f,
+                "Ed25519({:?})",
+                base64url::encode_bytes(&public.to_bytes()).unwrap()
+            ),
+        }
+    }
+}
+
+impl From<Idp2pKey> for Vec<u8> {
+    fn from(value: Idp2pKey) -> Self {
+        match value {
+            Idp2pKey::Idp2pEd25519 { public } => {
+                public.as_bytes().to_vec()
+            }
+        }
+    }
+}
+
+impl Idp2pKey {
+    pub fn try_from(code: u64, public: &[u8]) -> Result<Self> {
+        match code {
+            0xed => Ok(Self::Idp2pEd25519 {
+                public: PublicKey::from_bytes(public)?,
+            }),
+            _ => bail!(""),
+        }
+    }
+    pub fn verify(&self, payload: &[u8], sig: &[u8]) -> Result<bool> {
+        match self {
             Idp2pKey::Idp2pEd25519 { public } => {
                 let sig_bytes: [u8; 64] = sig.try_into()?;
                 let signature = Signature::from(sig_bytes);

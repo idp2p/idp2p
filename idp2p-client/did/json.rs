@@ -1,4 +1,4 @@
-use idp2p_common::{encode_vec, key_digest::Idp2pKeyDigest};
+/*use idp2p_common::{encode_vec, key_digest::Idp2pKeyDigest};
 use serde::{Deserialize, Serialize};
 
 use super::core::IdentityEvent;
@@ -45,4 +45,4 @@ pub struct EventLog {
     pub payload: EventLogPayload,
     #[serde(with = "encode_vec")]
     pub proof: Vec<u8>, // if recover assume recovery key
-}
+}*/

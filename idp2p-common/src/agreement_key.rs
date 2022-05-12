@@ -1,11 +1,24 @@
-use std::str::FromStr;
-use serde::{Serialize, Deserialize};
+use anyhow::bail;
 
 #[derive(PartialEq, Debug, Clone)]
 pub enum Idp2pAgreementKey {
     Idp2pX25519 { public: x25519_dalek::PublicKey },
 }
 
+impl Idp2pAgreementKey {
+    pub fn try_from(code: u64, public: &[u8]) -> anyhow::Result<Self> {
+        match code {
+            0xed => {
+                let bytes: [u8; 32] = public.try_into()?;
+                Ok(Self::Idp2pX25519 {
+                    public: bytes.try_into()?,
+                })
+            }
+            _ => bail!(""),
+        }
+    }
+}
+/*
 impl FromStr for Idp2pAgreementKey {
     type Err = anyhow::Error;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
@@ -84,3 +97,4 @@ mod tests {
         assert_eq!(vec.len(), 33);
     }
 }
+*/

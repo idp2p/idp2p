@@ -19,13 +19,8 @@ pub enum IdentityError {
     #[error("Unknown")]
     Unknown,
 }
-
-macro_rules! check {
-    ($e: expr, $err: expr) => {{
-        if !$e {
-            return Err($err);
-        }
-    }};
+mod idp2p_proto {
+    include!(concat!(env!("OUT_DIR"), "/idp2p.pb.rs"));
 }
-
 pub mod identity;
+pub mod didcomm;

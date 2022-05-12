@@ -1,22 +1,18 @@
-message Idp2pProfile {
-    string name = 1;
-    bytes photo = 2;
-}
-enum IdGossipMessageTypes { 
-    GET_ID = 0;
-    POST_ID = 1;
-    POST_MESSAGE = 2;
+syntax = "proto3";
+package idp2p.pb;
+import "message.proto";
+import "identity.proto";
+
+message IdGossipMessagePayload {
+    oneof id_message_payload {
+        bool get_id = 1;
+        Microledger post_id = 2;
+        IdEncryptedMessage post_message = 3;
+    }   
 }
 
-message IdGossipMessage{
-    bytes id = 1; // Random
-    IdGossipMessageTypes type = 2;
-    oneof id_message_payload {
-        Microledger post_id = 3;
-        IdEncryptedMessage post_message = 4;
-    }    /*oneof message_types {
-       bytes text = 5;
-       Idp2pProfile connect = 6;
-       Idp2pProfile accept = 7;
-    }*/
+message IdGossipMessage {
+     bytes id = 1; // Random message id
+     bytes topic = 2; // Multihash of identity id
+     bytes message = 3; // Encrypted with identity id
 }

@@ -7,7 +7,7 @@ message EventLogPayload{
     bytes signer_key = 2; // Raw signer public key(recover or next key) 
     Idp2pKeyDigest next_key_digest = 3; 
     int64 timestamp = 4;
-    oneof event_log_change {
+    oneof change {
         Idp2pKeyDigest recover = 5;
         IdentityEvents events = 6; 
     }
@@ -17,7 +17,7 @@ message EventLogPayload{
 }
 
 message IdentityEvent {
-    oneof identity_event_type { 
+    oneof event_type { 
         Idp2pKey create_assertion_key = 1; 
         Idp2pKey create_authentication_key = 2; 
         Idp2pAgreementKey create_agreement_key = 3;
@@ -29,6 +29,7 @@ message IdentityEvent {
 }
 
 message IdentityInception {
+    int64 timestamp = 4;
     Idp2pKeyDigest next_key_digest = 1; 
     Idp2pKeyDigest recovery_key_digest= 2; 
     repeated IdentityEvent events = 3; 
