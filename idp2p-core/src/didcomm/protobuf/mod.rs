@@ -1,4 +1,4 @@
-use crate::identity::{core::IdentityBehaviour, protobuf::*};
+use crate::identity::{IdentityBehaviour, protobuf::*};
 use crate::idp2p_proto::{IdRawMessage, IdSignedMessage, IdEncryptedMessage , Identity};
 use idp2p_common::key::Idp2pKey;
 use idp2p_common::{anyhow::Result, create_random, secret::Idp2pSecret};

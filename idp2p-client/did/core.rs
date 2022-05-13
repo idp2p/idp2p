@@ -17,6 +17,10 @@ pub struct VerificationMethod {
     pub bytes: Vec<u8>,
 }
 
+pub trait IdentityStateEventHandler{
+    fn handle<T>(&mut self, timestamp: i64, event: T) -> Result<()>;
+}
+
 pub trait IdentityBehaviour {
     fn create(input: CreateIdentityInput) -> Result<Self>
     where
@@ -29,9 +33,9 @@ pub trait IdentityBehaviour {
 #[derive(PartialEq, Debug, Clone)]
 pub struct  IdentityEvents {
     pub proofs: HashMap<Vec<u8>, Vec<u8>>,
-    pub authentication_key:  Idp2pKey,
+    pub authentication_key: Idp2pKey,
     pub agreement_key:  Idp2pAgreementKey,
-    pub assertion_keys: Vec<Idp2pKey>,
+    pub assertion_key: Idp2pKey,
 }
 
 #[derive(PartialEq, Debug, Clone)]
@@ -64,6 +68,7 @@ pub struct ProofState {
 
 #[derive(PartialEq, Debug, Clone)]
 pub struct  IdentityState {
+    pub id: Vec<u8>,
     pub event_id: Vec<u8>,
     pub next_key_digest: Idp2pKeyDigest,
     pub recovery_key_digest: Idp2pKeyDigest,
@@ -74,6 +79,18 @@ pub struct  IdentityState {
 }
 
 pub struct CreateIdentityInput {
+    pub next_key_digest: Idp2pKeyDigest,
+    pub recovery_key_digest: Idp2pKeyDigest,
+    pub events: IdentityEvents
+}
+
+pub struct AddIdEventInput {
+    pub next_key_digest: Idp2pKeyDigest,
+    pub recovery_key_digest: Idp2pKeyDigest,
+    pub events: IdentityEvents
+}
+
+pub struct RecoverInput {
     pub next_key_digest: Idp2pKeyDigest,
     pub recovery_key_digest: Idp2pKeyDigest,
     pub events: IdentityEvents
@@ -96,7 +113,6 @@ pub struct IdentityDocument {
 }
 
 impl IdentityDocument {
-
     pub fn get_verification_method(&self, kid: &str) -> Option<VerificationMethod> {
         self.verification_method
             .clone()

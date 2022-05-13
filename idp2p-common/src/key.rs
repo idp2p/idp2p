@@ -1,5 +1,7 @@
 use anyhow::{bail, Result};
 use ed25519_dalek::{PublicKey, Signature, Verifier};
+use regex::internal::Input;
+use serde::{de::Error, Deserialize, Serialize};
 
 use crate::base64url;
 
@@ -16,16 +18,6 @@ impl std::fmt::Debug for Idp2pKey {
                 "Ed25519({:?})",
                 base64url::encode_bytes(&public.to_bytes()).unwrap()
             ),
-        }
-    }
-}
-
-impl From<Idp2pKey> for Vec<u8> {
-    fn from(value: Idp2pKey) -> Self {
-        match value {
-            Idp2pKey::Idp2pEd25519 { public } => {
-                public.as_bytes().to_vec()
-            }
         }
     }
 }
@@ -48,9 +40,47 @@ impl Idp2pKey {
             }
         }
     }
+    pub fn raw_bytes(&self) -> Vec<u8>{
+        match self {
+            Idp2pKey::Idp2pEd25519 { public } => {
+                public.as_bytes().to_vec()
+            }
+        }
+    }
 }
-/*
-impl FromStr for Idp2pKey {
+
+impl Serialize for Idp2pKey {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        match self {
+            Self::Idp2pEd25519 { public } => {
+                let mut encoded: Vec<u8> = vec![0xed];
+                encoded.clone_from_slice(&public.to_bytes());
+                let s = multibase::encode(multibase::Base::Base64Url, encoded);
+                serializer.serialize_str(&s)
+            }
+        }
+    }
+}
+
+impl<'de> Deserialize<'de> for Idp2pKey {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let s: &str = Deserialize::deserialize(deserializer)?;
+        let encoded = multibase::decode(s)
+            .map_err(|err| Error::custom(err.to_string()))?
+            .1;
+        let public = ed25519_dalek::PublicKey::from_bytes(&encoded)
+            .map_err(|err| Error::custom(err.to_string()))?;
+        Ok(Self::Idp2pEd25519 { public: public })
+    }
+}
+
+/*impl FromStr for Idp2pKey {
     type Err = anyhow::Error;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let (_, key_data) = multibase::decode(&s).unwrap();
@@ -87,26 +117,7 @@ impl From<Idp2pKey> for Vec<u8> {
     }
 }
 
-impl Serialize for Idp2pKey {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
-        let encoded: Vec<u8> = self.to_owned().into();
-        let s = multibase::encode(multibase::Base::Base64Url, encoded);
-        serializer.serialize_str(&s)
-    }
-}
 
-impl<'de> Deserialize<'de> for Idp2pKey {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        let s: &str = Deserialize::deserialize(deserializer)?;
-        Ok(Self::from_str(s).unwrap())
-    }
-}
 
 #[cfg(test)]
 mod tests {

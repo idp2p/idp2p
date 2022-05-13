@@ -209,6 +209,7 @@ impl IdentityBehaviour for Identity {
         // Init current state to handle events
         let cid: Cid = self.id.to_vec().try_into()?;
         let mut state = IdentityState {
+            id: self.id.clone(),
             event_id: cid.hash().to_bytes(),
             next_key_digest: next_key_digest.try_into()?,
             recovery_key_digest: recovery_key_digest.try_into()?,

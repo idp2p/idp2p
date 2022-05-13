@@ -1,7 +1,8 @@
 use anyhow::{bail, Result};
-use cid::multihash::{Multihash, Code, MultihashDigest};
+use cid::multihash::{Code, Multihash, MultihashDigest};
+use serde::{de::Error, Deserialize, Serialize};
 
-use crate::{key::Idp2pKey, Idp2pHasher, base64url};
+use crate::{base64url, key::Idp2pKey, Idp2pHasher};
 
 #[derive(PartialEq, Clone)]
 pub enum Idp2pKeyDigest {
@@ -11,11 +12,9 @@ pub enum Idp2pKeyDigest {
 impl std::fmt::Debug for Idp2pKeyDigest {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::Idp2pEd25519 { mh } => write!(
-                f,
-                "Ed25519({:?})",
-                base64url::encode_bytes(&mh.to_bytes())
-            ),
+            Self::Idp2pEd25519 { mh } => {
+                write!(f, "Ed25519({:?})", base64url::encode_bytes(&mh.to_bytes()))
+            }
         }
     }
 }
@@ -51,5 +50,36 @@ impl Idp2pKeyDigest {
                 })
             }
         }
+    }
+}
+
+impl Serialize for Idp2pKeyDigest {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        match self {
+            Idp2pKeyDigest::Idp2pEd25519 { mh } => {
+                let mut encoded: Vec<u8> = vec![0xed];
+                encoded.clone_from_slice(&mh.to_bytes());
+                let s = multibase::encode(multibase::Base::Base64Url, encoded);
+                serializer.serialize_str(&s)
+            }
+        }
+    }
+}
+
+impl<'de> Deserialize<'de> for Idp2pKeyDigest {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let s: &str = Deserialize::deserialize(deserializer)?;
+        let encoded = multibase::decode(s)
+            .map_err(|err| Error::custom(err.to_string()))?
+            .1;
+        let mh =
+            Multihash::from_bytes(&encoded[1..]).map_err(|err| Error::custom(err.to_string()))?;
+        Ok(Idp2pKeyDigest::Idp2pEd25519 { mh: mh })
     }
 }

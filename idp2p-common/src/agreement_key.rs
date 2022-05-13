@@ -1,4 +1,5 @@
 use anyhow::bail;
+use serde::{de::Error, Deserialize, Serialize};
 
 #[derive(PartialEq, Debug, Clone)]
 pub enum Idp2pAgreementKey {
@@ -16,6 +17,41 @@ impl Idp2pAgreementKey {
             }
             _ => bail!(""),
         }
+    }
+}
+
+impl Serialize for Idp2pAgreementKey {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        match self {
+            Self::Idp2pX25519 { public } => {
+                let mut encoded: Vec<u8> = vec![0xed];
+                encoded.clone_from_slice(&public.to_bytes());
+                let s = multibase::encode(multibase::Base::Base64Url, encoded);
+                serializer.serialize_str(&s)
+            }
+        }
+    }
+}
+
+impl<'de> Deserialize<'de> for Idp2pAgreementKey {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let s: &str = Deserialize::deserialize(deserializer)?;
+        let encoded = multibase::decode(s)
+            .map_err(|err| Error::custom(err.to_string()))?
+            .1;
+        let arr: [u8; 32] = encoded
+            .try_into()
+            .map_err(|err| Error::custom("Bytes is not a public key"))?;
+        let public: x25519_dalek::PublicKey = arr
+            .try_into()
+            .map_err(|err| Error::custom("Bytes is not a public key"))?;
+        Ok(Self::Idp2pX25519 { public: public })
     }
 }
 /*
