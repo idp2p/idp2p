@@ -2,53 +2,44 @@ syntax = "proto3";
 import "common.proto";
 package idp2p.pb;
 
+/* Identity model */
+message Identity {
+    bytes id = 1; // Content identifier of microledger inception(See https://github.com/multiformats/cid)
+    Microledger microledger = 2; // All information about identity
+}
+
+/* Identity microledger model */
+message Microledger {
+    bytes inception = 1; // Encoded bytes of inception(It is encoded because of deterministic cid)
+    repeated EventLog event_logs = 2; // List of event logs
+}
+
+/* Identity inception model*/
+message IdentityInception {
+    int32 version = 1; // Version of inception
+    int64 timestamp = 2; // UTC time 
+    Idp2pKeyDigest next_key_digest = 3; // Digest of public key to sign next event
+    Idp2pKeyDigest recovery_key_digest= 4; // Digest of public key to recover microledger
+    repeated IdentityEvent events = 5; // Initial identity events
+}
+
+message EventLog {
+    bytes event_id = 1; // Multihash of encoded payload bytes
+    bytes payload = 2;  // Encoded bytes of event payload(It is encoded because of deterministic event_id and signature)
+    bytes proof = 3;  // Signature of payload bytes 
+}
+
 message EventLogPayload{
-    bytes previous = 1; // Multihash of previous event payload
-    bytes signer_key = 2; // Raw signer public key(recover or next key) 
-    Idp2pKeyDigest next_key_digest = 3; 
-    int64 timestamp = 4;
+    int32 version = 1; // Version of event
+    bytes previous = 2; // Multihash of previous event payload bytes
+    bytes signer_key = 3; // Raw signer public key(recovery key for recover, next public key for events) 
+    Idp2pKeyDigest next_key_digest = 4; 
+    int64 timestamp = 5;
     oneof change {
-        Idp2pKeyDigest recover = 5;
-        IdentityEvents events = 6; 
+        Idp2pKeyDigest recover = 6;
+        IdentityEvents events = 7; 
     }
     message IdentityEvents {
         repeated IdentityEvent events = 1;
     }
 }
-
-message IdentityEvent {
-    oneof event_type { 
-        Idp2pKey create_assertion_key = 1; 
-        Idp2pKey create_authentication_key = 2; 
-        Idp2pAgreementKey create_agreement_key = 3;
-        bytes revoke_assertion_key = 4;
-        bytes revoke_authentication_key = 5;
-        bytes revoke_agreement_key = 6;
-        Idp2pProof set_proof = 7;
-    }
-}
-
-message IdentityInception {
-    int64 timestamp = 4;
-    Idp2pKeyDigest next_key_digest = 1; 
-    Idp2pKeyDigest recovery_key_digest= 2; 
-    repeated IdentityEvent events = 3; 
-}
-
-message EventLog {
-    bytes event_id = 1; // multihash of payload
-    bytes payload = 2;  // For deterministic proof
-    bytes proof = 3;
-}
-
-message Microledger {
-    bytes inception = 1; // For deterministic id
-    repeated EventLog event_logs = 2;
-}
-
-message Identity {
-    bytes id = 1;
-    Microledger microledger = 2;
-}
-
-

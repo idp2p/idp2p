@@ -1,3 +1,6 @@
+use anyhow::bail;
+use cid::multihash::{Multihash, Code, MultihashDigest};
+
 pub trait  Idp2pHasher {
     fn is_hash_of(&self, content: &[u8])-> anyhow::Result<bool>;
 }
@@ -13,3 +16,4 @@ impl Idp2pHasher for Multihash {
         }
     }
 }
+

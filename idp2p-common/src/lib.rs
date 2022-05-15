@@ -1,10 +1,5 @@
-use anyhow::bail;
 use chacha20poly1305::aead::{Aead, NewAead};
 use chacha20poly1305::{ChaCha20Poly1305, Key, Nonce};
-use cid::multihash::Multihash;
-use cid::{
-    multihash::{Code, MultihashDigest}
-};
 use multibase::*;
 use pbkdf2::{
     password_hash::{Error, PasswordHasher, SaltString},
@@ -12,21 +7,18 @@ use pbkdf2::{
 };
 use rand::prelude::*;
 
-pub const IDP2P_ED25519: &str = "Idp2pEd25519Key";
 pub const ED25519: &str = "Ed25519VerificationKey2020";
 pub const X25519: &str = "X25519KeyAgreementKey2020";
-pub type IdKeySecret = Vec<u8>;
-pub type IdKey = Vec<u8>;
-pub type IdKeyDigest = Vec<u8>;
 pub mod agreement_key;
 pub mod base64url;
 pub mod bip32;
 pub mod key;
 pub mod key_digest;
 pub mod secret;
+pub mod idp2p_cid;
+pub mod hasher;
 pub use anyhow;
 pub use chrono;
-pub use cid;
 pub use ed25519_dalek;
 pub use log;
 pub use multibase;
@@ -36,27 +28,13 @@ pub use serde_json;
 pub use serde_with;
 pub use sha2;
 pub use thiserror;
+pub use cid;
 
 pub enum Idp2pCodec {
     Protobuf = 0x50,
     Json = 0x0200,
 }
 
-pub trait  Idp2pHasher {
-    fn is_hash_of(&self, content: &[u8])-> anyhow::Result<bool>;
-}
-
-impl Idp2pHasher for Multihash {
-    fn is_hash_of(&self, content: &[u8])-> anyhow::Result<bool> {
-        match self.code() {
-            0x12 => {
-                let expected = Code::Sha2_256.digest(content).to_bytes();
-                Ok(expected == self.to_bytes())
-            }
-            _ => bail!("cid::multibase::")
-        }
-    }
-}
 
 pub mod encode_vec {
     use multibase::Base;
@@ -152,11 +130,11 @@ mod tests {
         let expected = "bagaaieraotmu6ay364t223hj4akn7amds6rpwquuavx54demvy5e4vkn5uuq";
         let cid = generate_json_cid(&data).unwrap();
         assert_eq!(cid, expected);
-    }*/
+    }
 
     #[test]
     fn multihash_test() {
         let digest = Code::Sha2_256.digest(b"hello world!");
         eprintln!("{:?}", digest.digest());
-    }
+    }*/
 }

@@ -20,3 +20,15 @@ message Idp2pKeyDigest{
      int32 key_type = 1;
      bytes digest = 2; // Multihash
 }
+
+message IdentityEvent {
+     oneof event_type { 
+         Idp2pKey create_assertion_key = 1; 
+         Idp2pKey create_authentication_key = 2; 
+         Idp2pAgreementKey create_agreement_key = 3;
+         bytes revoke_assertion_key = 4;
+         bytes revoke_authentication_key = 5;
+         bytes revoke_agreement_key = 6;
+         Idp2pProof set_proof = 7;
+     }
+ }

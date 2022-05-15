@@ -6,11 +6,12 @@ use crate::{
 use idp2p_common::{
     agreement_key::Idp2pAgreementKey,
     anyhow::{bail, Result},
-    cid::multihash::Multihash,
+    idp2p_cid::Idp2pCid,
     key::Idp2pKey,
     key_digest::Idp2pKeyDigest,
-    Idp2pHasher,
+    hasher::Idp2pHasher,
 };
+use idp2p_common::cid::multihash::Multihash;
 use prost::Message;
 
 pub trait EventLogResolver {

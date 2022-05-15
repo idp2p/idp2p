@@ -24,11 +24,12 @@ use crate::{
     IdentityError,
 };
 
-use super::{mapper::EventLogResolver, validator::ensure_cid};
+use super::{mapper::EventLogResolver};
 
 impl IdentityBehaviour for Identity {
     fn create(input: CreateIdentityInput) -> Result<Self> {
         let mut inception = IdentityInception {
+            version: 1,
             timestamp: Utc::now().timestamp(),
             next_key_digest: Some(input.next_key_digest.into()),
             recovery_key_digest: Some(input.recovery_key_digest.into()),
@@ -57,6 +58,7 @@ impl IdentityBehaviour for Identity {
             .ok_or(IdentityError::InvalidProtobuf)?;
         let signer_key: IdKey = input.signer.clone().into();
         let payload = EventLogPayload {
+            version: 1,
             previous: state.event_id,
             signer_key: signer_key.raw_bytes(),
             next_key_digest: Some(input.next_key_digest.into()),
@@ -85,7 +87,7 @@ impl IdentityBehaviour for Identity {
             .microledger
             .as_ref()
             .ok_or(IdentityError::InvalidProtobuf)?;
-        ensure_cid(&self.id, &microledger.inception)?;
+        // ensure_cid(&self.id, &microledger.inception)?;
         // Get inception of microledger
         let inception = IdentityInception::decode(&*microledger.inception)?;
 

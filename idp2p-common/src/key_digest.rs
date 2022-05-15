@@ -2,7 +2,7 @@ use anyhow::{bail, Result};
 use cid::multihash::{Code, Multihash, MultihashDigest};
 use serde::{de::Error, Deserialize, Serialize};
 
-use crate::{base64url, key::Idp2pKey, Idp2pHasher};
+use crate::{base64url, key::Idp2pKey, hasher::Idp2pHasher};
 
 #[derive(PartialEq, Clone)]
 pub enum Idp2pKeyDigest {
