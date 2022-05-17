@@ -6,17 +6,12 @@ use pbkdf2::{
     Pbkdf2,
 };
 use rand::prelude::*;
-
-pub const ED25519: &str = "Ed25519VerificationKey2020";
-pub const X25519: &str = "X25519KeyAgreementKey2020";
-pub mod agreement_key;
 pub mod base64url;
 pub mod bip32;
 pub mod key;
-pub mod key_digest;
+pub mod digest;
 pub mod secret;
-pub mod idp2p_cid;
-pub mod hasher;
+pub mod multi_id;
 pub use anyhow;
 pub use chrono;
 pub use ed25519_dalek;
@@ -29,12 +24,16 @@ pub use serde_with;
 pub use sha2;
 pub use thiserror;
 pub use cid;
+pub const ED25519_DID: &str = "Ed25519VerificationKey2020";
+pub const X25519_DID: &str = "X25519KeyAgreementKey2020";
+pub const ED25519_CODE: u64 = 0xed; 
+pub const X25519_CODE: u64 = 0xec;
+pub const SHA256_CODE: u64 = 0x12; 
 
 pub enum Idp2pCodec {
     Protobuf = 0x50,
     Json = 0x0200,
 }
-
 
 pub mod encode_vec {
     use multibase::Base;

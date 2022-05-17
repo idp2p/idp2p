@@ -102,8 +102,8 @@ mod tests {
         let node2 = node
             .derive_child(ChildIndex::hardened(1000000001).unwrap())
             .unwrap();
-        println!("{}", crate::encode(&node.secret_key));
-        println!("{}", crate::encode(&node2.secret_key));
+        //eprintln!("{}", crate::encode(&node.secret_key));
+        //eprintln!("{}", crate::encode(&node2.secret_key));
         assert_eq!(node.chain_code.as_ref(), expected);
     }
 }

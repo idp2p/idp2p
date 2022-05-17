@@ -18,28 +18,40 @@ message Microledger {
 message IdentityInception {
     int32 version = 1; // Version of inception
     int64 timestamp = 2; // UTC time 
-    Idp2pKeyDigest next_key_digest = 3; // Digest of public key to sign next event
-    Idp2pKeyDigest recovery_key_digest= 4; // Digest of public key to recover microledger
-    repeated IdentityEvent events = 5; // Initial identity events
+    Idp2pKeyDigest next_key_digest = 3; // Key digest of next public key
+    Idp2pKeyDigest recovery_key_digest= 4; // Key digest of next recovery public key
+    repeated IdentityEvent events = 5; // Initial events
 }
 
 message EventLog {
-    bytes event_id = 1; // Multihash of encoded payload bytes
+    Idp2pDigest event_id = 1; // Digest of encoded payload bytes
     bytes payload = 2;  // Encoded bytes of event payload(It is encoded because of deterministic event_id and signature)
     bytes proof = 3;  // Signature of payload bytes 
 }
 
 message EventLogPayload{
     int32 version = 1; // Version of event
-    bytes previous = 2; // Multihash of previous event payload bytes
-    bytes signer_key = 3; // Raw signer public key(recovery key for recover, next public key for events) 
-    Idp2pKeyDigest next_key_digest = 4; 
+    Idp2pDigest previous = 2; // Digest of previous event payload bytes
+    bytes signer_key = 3; // Raw signer public key 
+    Idp2pKeyDigest next_key_digest = 4; // Key digest of next public key
     int64 timestamp = 5;
     oneof change {
-        Idp2pKeyDigest recover = 6;
-        IdentityEvents events = 7; 
+        Idp2pKeyDigest recover = 6; // Key digest of recovery public key
+        IdentityEvents events = 7; // Event list
     }
     message IdentityEvents {
         repeated IdentityEvent events = 1;
+    }
+}
+
+message IdentityEvent {
+    oneof event_type { 
+        Idp2pKey create_assertion_key = 1; // Assertion public key
+        Idp2pKey create_authentication_key = 2; // Authentication public key
+        Idp2pAgreementKey create_agreement_key = 3; // Agreement key
+        Idp2pKeyDigest revoke_assertion_key = 4; // Digest of assertion key
+        Idp2pKeyDigest revoke_authentication_key = 5; // Digest of authentication key
+        Idp2pKeyDigest revoke_agreement_key = 6; // Digest of agreement key
+        Idp2pProof set_proof = 7;
     }
 }

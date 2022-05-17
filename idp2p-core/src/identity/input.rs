@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use idp2p_common::{agreement_key::Idp2pAgreementKey, key::Idp2pKey, key_digest::Idp2pKeyDigest, secret::Idp2pSecret};
+use idp2p_common::{key::{Idp2pKey,Idp2pAgreementKey}, digest::Idp2pKeyDigest, secret::Idp2pSecret};
 
 #[derive(PartialEq, Debug, Clone)]
 pub struct IdEvents {

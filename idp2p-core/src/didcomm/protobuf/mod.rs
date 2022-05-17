@@ -16,7 +16,7 @@ pub fn create_msg(secret: Idp2pSecret, from: Identity, to: Identity, body: &[u8]
     let raw_bytes = raw.encode_to_vec(); 
     let proof = secret.sign(&raw_bytes);
     let signed = IdSignedMessage{
-        signer_kid : Some(Into::<Idp2pKey>::into(secret).into()),
+        signer_kid : None,
         raw: raw_bytes,
         proof: proof
     };

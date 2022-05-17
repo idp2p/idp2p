@@ -11,7 +11,7 @@ message IdRawMessage{
 }
 
 message IdSignedMessage{
-    Idp2pKey signer_kid = 1; // Signer key id
+    Idp2pDigest signer_kid = 1; // Signer key id
     bytes raw = 2; // bytes(IdRawMessage)
     bytes proof = 3; // signature of raw bytes
 }
@@ -20,7 +20,7 @@ message IdEncryptedMessage{
     int32 kw_alg = 1; // ECDH_ES_A256KW 
     int32 enc_alg = 2; // A256CBC_HS512
     bytes initial_vector = 3; // 12 bytes  
-    Idp2pAgreementKey sender_public = 4; // This is one time agreement key to encrypt message(ananymous)
-    Idp2pAgreementKey decrypt_kid = 5; // Receipent key id to decrypt message
+    Idp2pAgreementKey sender_public = 4; // One time agreement key to encrypt message(ananymous)
+    Idp2pDigest decrypt_kid = 5; // Receipent key id to decrypt message
     bytes cipherbody = 6; // Encrypted message body
 }

@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use idp2p_common::{
-    agreement_key::Idp2pAgreementKey, anyhow::Result, key::Idp2pKey, key_digest::Idp2pKeyDigest,
+    anyhow::Result, key::{Idp2pKey,Idp2pAgreementKey}, digest::{Idp2pKeyDigest, Idp2pDigest},
 };
 
 use super::doc::IdentityDocument;
@@ -30,7 +30,7 @@ pub struct ProofState {
 #[derive(PartialEq, Debug, Clone)]
 pub struct IdentityState {
     pub id: Vec<u8>,
-    pub event_id: Vec<u8>,
+    pub event_id: Idp2pDigest,
     pub next_key_digest: Idp2pKeyDigest,
     pub recovery_key_digest: Idp2pKeyDigest,
     pub assertion_keys: Vec<KeyState>,

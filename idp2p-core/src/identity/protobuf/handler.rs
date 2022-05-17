@@ -1,11 +1,5 @@
 use idp2p_common::{
-    anyhow::Result,
-    chrono::Utc,
-    cid::{
-        multihash::{Code, MultihashDigest},
-        Cid,
-    },
-    key::Idp2pKey as IdKey,
+    anyhow::Result, chrono::Utc, cid::Cid, digest::Idp2pDigest, key::Idp2pKey, multi_id::Idp2pCid,
     Idp2pCodec,
 };
 use prost::Message;
@@ -24,7 +18,7 @@ use crate::{
     IdentityError,
 };
 
-use super::{mapper::EventLogResolver};
+use super::mapper::EventLogResolver;
 
 impl IdentityBehaviour for Identity {
     fn create(input: CreateIdentityInput) -> Result<Self> {
@@ -37,14 +31,13 @@ impl IdentityBehaviour for Identity {
         };
         inception.events = input.events.into();
         let inception_bytes = inception.encode_to_vec();
-        let mh = Code::Sha2_256.digest(&inception_bytes);
-        let id = Cid::new_v1(Idp2pCodec::Protobuf as u64, mh);
+        let cid = Cid::new_cid(&inception_bytes, Idp2pCodec::Protobuf);
         let microledger = Microledger {
             inception: inception_bytes,
             event_logs: vec![],
         };
         let did = Identity {
-            id: id.to_bytes(),
+            id: cid.into(),
             microledger: Some(microledger),
         };
         Ok(did)
@@ -56,11 +49,11 @@ impl IdentityBehaviour for Identity {
             .microledger
             .as_mut()
             .ok_or(IdentityError::InvalidProtobuf)?;
-        let signer_key: IdKey = input.signer.clone().into();
+        let signer_key: Idp2pKey = input.signer.clone().into();
         let payload = EventLogPayload {
             version: 1,
-            previous: state.event_id,
-            signer_key: signer_key.raw_bytes(),
+            previous: Some(state.event_id.into()),
+            signer_key: signer_key.to_bytes(),
             next_key_digest: Some(input.next_key_digest.into()),
             timestamp: Utc::now().timestamp(),
             change: Some(Change::Events(IdentityEvents {
@@ -70,7 +63,7 @@ impl IdentityBehaviour for Identity {
         let payload_bytes = payload.encode_to_vec();
         let proof = input.signer.sign(&payload_bytes);
         let event_log = EventLog {
-            event_id: Code::Sha2_256.digest(&payload_bytes).to_bytes(),
+            event_id: Some(Idp2pDigest::new(&payload_bytes).into()),
             payload: payload_bytes,
             proof: proof,
         };
@@ -87,7 +80,8 @@ impl IdentityBehaviour for Identity {
             .microledger
             .as_ref()
             .ok_or(IdentityError::InvalidProtobuf)?;
-        // ensure_cid(&self.id, &microledger.inception)?;
+        let cid: Cid = self.id.to_vec().try_into()?;
+        cid.ensure(&microledger.inception, Idp2pCodec::Protobuf)?;
         // Get inception of microledger
         let inception = IdentityInception::decode(&*microledger.inception)?;
 
@@ -98,10 +92,9 @@ impl IdentityBehaviour for Identity {
             .recovery_key_digest
             .ok_or(IdentityError::InvalidProtobuf)?;
         // Init current state to handle events
-        let cid: Cid = self.id.to_vec().try_into()?;
         let mut state = IdentityState {
             id: self.id.clone(),
-            event_id: cid.hash().to_bytes(),
+            event_id: Idp2pDigest::new(&microledger.inception),
             next_key_digest: next_key_digest.try_into()?,
             recovery_key_digest: recovery_key_digest.try_into()?,
             assertion_keys: vec![],
@@ -115,16 +108,17 @@ impl IdentityBehaviour for Identity {
             state.handle_event(inception.timestamp, event)?;
         }
         for log in &microledger.event_logs {
-            let payload = log.try_resolve(&state.event_id)?;
+            let payload = log.try_resolve_payload(&state.event_id)?;
             let change = payload.change.ok_or(IdentityError::InvalidProtobuf)?;
             match change {
                 Change::Recover(change) => {
-                    let signer = state.recovery_key_digest.to_key(&payload.signer_key)?;
+                    let signer =
+                        Idp2pKey::new(state.recovery_key_digest.code(), &payload.signer_key)?;
                     signer.verify(&log.payload, &log.proof)?;
                     state.recovery_key_digest = change.try_into()?;
                 }
                 Change::Events(change) => {
-                    let signer = state.next_key_digest.to_key(&payload.signer_key)?;
+                    let signer = Idp2pKey::new(state.next_key_digest.code(), &payload.signer_key)?;
                     signer.verify(&log.payload, &log.proof)?;
                     for event in change.events {
                         let event = event.event_type.ok_or(IdentityError::InvalidProtobuf)?;
@@ -136,7 +130,11 @@ impl IdentityBehaviour for Identity {
                 .next_key_digest
                 .ok_or(IdentityError::InvalidProtobuf)?
                 .try_into()?;
-            state.event_id = log.event_id.clone();
+            state.event_id = log
+                .event_id
+                .clone()
+                .ok_or(IdentityError::InvalidProtobuf)?
+                .try_into()?;
         }
         Ok(state)
     }

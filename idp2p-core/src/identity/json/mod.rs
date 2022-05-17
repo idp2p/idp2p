@@ -1,5 +1,5 @@
 use idp2p_common::{
-    agreement_key::Idp2pAgreementKey, encode_vec, key::Idp2pKey, key_digest::Idp2pKeyDigest,
+    encode_vec, key::{Idp2pKey,Idp2pAgreementKey}, digest::Idp2pKeyDigest,
 };
 use serde::{Deserialize, Serialize};
 pub mod handler;

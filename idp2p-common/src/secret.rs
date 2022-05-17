@@ -1,12 +1,11 @@
 use anyhow::*;
-use cid::multihash::{Code, MultihashDigest};
 use ed25519_dalek::{Keypair, PublicKey, SecretKey, Signer};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::convert::TryInto;
 use x25519_dalek::StaticSecret;
 
-use crate::{key::Idp2pKey, key_digest::Idp2pKeyDigest, agreement_key::Idp2pAgreementKey};
+use crate::key::{Idp2pAgreementKey, Idp2pKey};
 
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
 pub enum Idp2pSecret {
@@ -17,7 +16,7 @@ impl Into<Idp2pKey> for Idp2pSecret {
     fn into(self) -> Idp2pKey {
         match self {
             Idp2pSecret::Idp2p25519 { secret } => Idp2pKey::Idp2pEd25519 {
-                public: secret.to_keypair().public,
+                public: secret.to_keypair().public.to_bytes().to_vec(),
             },
         }
     }
@@ -27,13 +26,13 @@ impl Into<Idp2pAgreementKey> for Idp2pSecret {
     fn into(self) -> Idp2pAgreementKey {
         match self {
             Idp2pSecret::Idp2p25519 { secret } => Idp2pAgreementKey::Idp2pX25519 {
-                public: secret.to_key_agreement(),
+                public: secret.to_key_agreement().to_bytes().to_vec(),
             },
         }
     }
 }
 
-impl Idp2pSecret{
+impl Idp2pSecret {
     pub fn sign(&self, payload: &[u8]) -> Vec<u8> {
         match self {
             Idp2pSecret::Idp2p25519 { secret } => {

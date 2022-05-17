@@ -2,33 +2,26 @@ syntax = "proto3";
 package idp2p.pb;
 
 message Idp2pProof{
-    bytes key = 1;
-    bytes value = 2;
+    bytes key = 1; // Proof key
+    bytes value = 2; // Proof value
+}
+
+message Idp2pDigest{
+    int32 code = 1; // Hash code(e.g. 0x12 for SHA256)
+    bytes digest = 2; // Digest bytes
 }
  
 message Idp2pKey{
-     int32 key_type = 1;
-     bytes public = 2;
+     int32 code = 1; // Key code(e.g. 0xed for ED25519)
+     bytes public = 2; // Public key bytes
 }
 
 message Idp2pAgreementKey{
-     int32 key_type = 1;
-     bytes public = 2;
+     int32 code = 1; // Key code(e.g. 0xec for X25519)
+     bytes public = 2; // Public key bytes
 }
  
 message Idp2pKeyDigest{
-     int32 key_type = 1;
-     bytes digest = 2; // Multihash
+     int32 code = 1; // Key code(e.g. 0xed for ED25519)
+     Idp2pDigest digest = 2;
 }
-
-message IdentityEvent {
-     oneof event_type { 
-         Idp2pKey create_assertion_key = 1; 
-         Idp2pKey create_authentication_key = 2; 
-         Idp2pAgreementKey create_agreement_key = 3;
-         bytes revoke_assertion_key = 4;
-         bytes revoke_authentication_key = 5;
-         bytes revoke_agreement_key = 6;
-         Idp2pProof set_proof = 7;
-     }
- }
