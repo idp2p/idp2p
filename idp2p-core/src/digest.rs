@@ -1,4 +1,4 @@
-use crate::{encode_vec, ED25519_CODE, SHA256_CODE};
+use crate::{base64url::encode_vec, ED25519_CODE, SHA256_CODE};
 use anyhow::Result;
 use cid::multihash::{Code, MultihashDigest};
 use serde::{Deserialize, Serialize};

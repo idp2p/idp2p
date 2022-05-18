@@ -49,9 +49,9 @@ message IdentityEvent {
         Idp2pKey create_assertion_key = 1; // Assertion public key
         Idp2pKey create_authentication_key = 2; // Authentication public key
         Idp2pAgreementKey create_agreement_key = 3; // Agreement key
-        Idp2pKeyDigest revoke_assertion_key = 4; // Digest of assertion key
-        Idp2pKeyDigest revoke_authentication_key = 5; // Digest of authentication key
-        Idp2pKeyDigest revoke_agreement_key = 6; // Digest of agreement key
+        Idp2pDigest revoke_assertion_key = 4; // Key id of assertion key
+        Idp2pDigest revoke_authentication_key = 5; // Key id of authentication key
+        Idp2pDigest revoke_agreement_key = 6; // Key id of agreement key
         Idp2pProof set_proof = 7;
     }
 }

@@ -75,13 +75,15 @@ impl IdentityBehaviour for Identity {
         todo!()
     }
 
-    fn verify(&self) -> Result<IdentityState> {
+    fn verify(&self) -> Result<IdentityState, IdentityError> {
         let microledger = self
             .microledger
             .as_ref()
             .ok_or(IdentityError::InvalidProtobuf)?;
         let cid: Cid = self.id.to_vec().try_into()?;
-        cid.ensure(&microledger.inception, Idp2pCodec::Protobuf)?;
+        if cid.to_bytes() != self.id {
+            return Err(IdentityError::InvalidId);
+        }
         // Get inception of microledger
         let inception = IdentityInception::decode(&*microledger.inception)?;
 

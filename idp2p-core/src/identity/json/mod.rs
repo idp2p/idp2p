@@ -1,8 +1,9 @@
 use idp2p_common::{
-    encode_vec, key::{Idp2pKey,Idp2pAgreementKey}, digest::Idp2pKeyDigest,
+    encode_vec, key::{Idp2pKey,Idp2pAgreementKey}, digest::{Idp2pKeyDigest, Idp2pDigest},
 };
 use serde::{Deserialize, Serialize};
 pub mod handler;
+pub mod mapper;
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
 pub struct Identity {
     pub id: String,
@@ -18,6 +19,7 @@ pub struct Microledger {
 
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
 pub struct IdentityInception {
+    pub version: i32,
     pub timestamp: i64,
     pub next_key_digest: Idp2pKeyDigest,
     pub recovery_key_digest: Idp2pKeyDigest,
@@ -33,7 +35,9 @@ pub enum EventLogChange {
 
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
 pub struct Idp2pProof {
+    #[serde(with = "encode_vec")]
     pub key: Vec<u8>,
+    #[serde(with = "encode_vec")]
     pub value: Vec<u8>,
 }
 
@@ -43,16 +47,16 @@ pub enum EventType {
     CreateAssertionKey { key: Idp2pKey },
     CreateAuthenticationKey { key: Idp2pKey },
     CreateAgreementKey { key: Idp2pAgreementKey },
-    RevokeAssertionKey { kid: Vec<u8> },
-    RevokeAuthenticationKey { kid: Vec<u8> },
-    RevokeAgreementKey { kid: Vec<u8> },
+    RevokeAssertionKey { kid: Idp2pDigest },
+    RevokeAuthenticationKey { kid: Idp2pDigest },
+    RevokeAgreementKey { kid: Idp2pDigest },
     SetProof { proof: Idp2pProof },
 }
 
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
 pub struct EventLogPayload {
-    #[serde(with = "encode_vec")]
-    pub previous: Vec<u8>,
+    pub version: i32,
+    pub previous: Idp2pDigest,
     #[serde(with = "encode_vec")]
     pub signer_key: Vec<u8>,
     pub next_key_digest: Idp2pKeyDigest,
@@ -62,8 +66,7 @@ pub struct EventLogPayload {
 
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
 pub struct EventLog {
-    #[serde(with = "encode_vec")]
-    pub event_id: Vec<u8>,
+    pub event_id: Idp2pDigest,
     pub payload: EventLogPayload,
     #[serde(with = "encode_vec")]
     pub proof: Vec<u8>, // if recover assume recovery key

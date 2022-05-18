@@ -5,7 +5,7 @@ use sha2::{Digest, Sha256};
 use std::convert::TryInto;
 use x25519_dalek::StaticSecret;
 
-use crate::key::{Idp2pAgreementKey, Idp2pKey};
+use crate::{key::{Idp2pAgreementKey, Idp2pKey}, base64url::decode_sized};
 
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
 pub enum Idp2pSecret {
@@ -60,7 +60,7 @@ impl EdSecret {
     }
 
     pub fn from_str(s: &str) -> Result<Self> {
-        Ok(EdSecret(crate::decode_sized(s)?))
+        Ok(EdSecret(decode_sized(s)?))
     }
 
     pub fn to_bytes(&self) -> [u8; 32] {
@@ -120,7 +120,7 @@ impl EdSecret {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::encode;
+    use crate::base64url::encode;
     use ed25519_dalek::{PublicKey, Signer, Verifier};
     #[test]
     fn proof_test() {

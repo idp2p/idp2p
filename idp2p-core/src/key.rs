@@ -1,4 +1,4 @@
-use crate::{encode_vec, ED25519_CODE};
+use crate::{base64url::encode_vec, ED25519_CODE};
 use anyhow::Result;
 use ed25519_dalek::{PublicKey, Signature, Verifier};
 use serde::{Deserialize, Serialize};
@@ -36,7 +36,7 @@ impl Idp2pKey {
             Idp2pKey::Idp2pEd25519 { public } => public.to_vec(),
         }
     }
-    
+
     pub fn verify(&self, payload: &[u8], sig: &[u8]) -> Result<()> {
         match &self {
             Idp2pKey::Idp2pEd25519 { public } => {

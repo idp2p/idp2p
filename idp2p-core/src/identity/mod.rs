@@ -1,3 +1,5 @@
+use crate::IdentityError;
+
 use self::{
     input::{ChangeInput, CreateIdentityInput, RecoverInput},
     state::IdentityState,
@@ -16,5 +18,5 @@ pub trait IdentityBehaviour {
         Self: Sized;
     fn change(&mut self, input: ChangeInput) -> Result<()>;
     fn recover(&mut self, input: RecoverInput) -> Result<()>;
-    fn verify(&self) -> Result<IdentityState>;
+    fn verify(&self) -> Result<IdentityState, IdentityError>;
 }

@@ -4,8 +4,6 @@ use sha2::Sha512;
 use std::convert::TryInto;
 use anyhow::{Result};
 
-use crate::secret::EdSecret;
-
 const IDP2P_BIP32_NAME: &str = "idp2p seed";
 
 #[derive(PartialEq, Debug, Clone)]
@@ -68,23 +66,21 @@ impl ExtendedSecretKey {
     }
 }
 
-pub fn derive_secret(seed: [u8; 16], derivation_index: &mut u32) -> Result<EdSecret> {
+pub fn derive_secret(seed: [u8; 16], derivation_index: &mut u32) -> Result<[u8;32]> {
     let extended_secret = ExtendedSecretKey::from_seed(seed)?;
     let index = ChildIndex::hardened(derivation_index.clone()).unwrap();
     let key = extended_secret.derive_child(index)?;
-    let secret = EdSecret::from(key.secret_key);
     *derivation_index += 1;
-    Ok(secret)
+    Ok(key.secret_key)
 }
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::base64url::decode;
     use derivation_path::DerivationPath;
-    use crate::decode;
-    use std::convert::TryInto;
 
     fn root(seed: &str) -> ExtendedSecretKey {
-        ExtendedSecretKey::from_seed(decode(seed).try_into().unwrap()).unwrap()
+        ExtendedSecretKey::from_seed(decode(seed).unwrap()).unwrap()
     }
 
     #[test]

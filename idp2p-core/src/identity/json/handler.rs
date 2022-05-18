@@ -7,7 +7,7 @@ use idp2p_common::{
         multihash::{Code, MultihashDigest},
         Cid,
     },
-    Idp2pCodec,
+    Idp2pCodec, multi_id::Idp2pCid,
 };
 
 use crate::{
@@ -21,24 +21,23 @@ use crate::{
 
 use super::{EventLog, EventLogChange, EventLogPayload, Identity, IdentityInception, Microledger};
 
-/*impl IdentityBehaviour for Identity {
+impl IdentityBehaviour for Identity {
     fn create(input: CreateIdentityInput) -> Result<Self> {
-        let mut inception = IdentityInception {
+        let inception = IdentityInception {
+            version: 1,
             timestamp: Utc::now().timestamp(),
             next_key_digest: input.next_key_digest,
             recovery_key_digest: input.recovery_key_digest,
-            events: vec![],
+            events: input.events.into(),
         };
-        inception.events = input.events.into();
-        let inception_bytes = inception.encode_to_vec();
-        let mh = Code::Sha2_256.digest(&inception_bytes);
-        let id = Cid::new_v1(Idp2pCodec::Json as u64, mh);
+        let inception_bytes = idp2p_common::serde_json::to_vec(&inception)?;
+        let cid = Cid::new_cid(&inception_bytes, Idp2pCodec::Json);
         let microledger = Microledger {
-            inception: inception_bytes,
+            inception: inception,
             event_logs: vec![],
         };
         let did = Identity {
-            id: id.to_string(),
+            id: cid.to_string(),
             microledger: microledger,
         };
         Ok(did)
@@ -76,11 +75,9 @@ use super::{EventLog, EventLogChange, EventLogPayload, Identity, IdentityIncepti
     }
 
     fn verify(&self) -> Result<IdentityState> {
-        let microledger = self
-            .microledger
-            .as_ref()
-            .ok_or(IdentityError::InvalidProtobuf)?;
-        ensure_cid(&self.id, &microledger.inception)?;
+        let inception_bytes = idp2p_common::serde_json::to_vec(&self.microledger.inception)?;
+        let cid = Cid::new_cid(&inception_bytes, Idp2pCodec::Json);
+        cid.ensure()
         // Get inception of microledger
         let inception = IdentityInception::decode(&*microledger.inception)?;
 
@@ -133,4 +130,4 @@ use super::{EventLog, EventLogChange, EventLogPayload, Identity, IdentityIncepti
         }
         Ok(state)
     }
-}*/
+}
