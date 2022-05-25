@@ -1,0 +1,25 @@
+syntax = "proto3";
+package idp2p.pb;
+
+message IdRawMessage{
+    bytes id = 1; // Message id
+    bytes from = 2; // From id
+    bytes to = 3; // To id
+    bytes body = 4;
+    int64 created_at = 5; // UTC Timestamp
+}
+
+message IdSignedMessage{
+    bytes signer_kid = 1; // Signer key id
+    bytes raw = 2; // bytes(IdRawMessage)
+    bytes proof = 3; // signature of raw bytes
+}
+
+message IdEncryptedMessage{
+    int32 kw_alg = 1; // ECDH_ES_A256KW 
+    int32 enc_alg = 2; // A256CBC_HS512
+    bytes initial_vector = 3; // 12 bytes  
+    bytes ephermal_public = 4; // One time agreement key to encrypt message(See ECIES)
+    bytes decrypt_kid = 5; // Receipent key id to decrypt message
+    bytes cipherbody = 6; // Encrypted message body
+}

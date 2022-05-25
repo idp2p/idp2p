@@ -1,4 +1,0 @@
-- Store identities
-- Store wallets
-- Handle requests(id events, account requests)
-- There is no secret available

@@ -1,11 +1,21 @@
+[package]
+edition = "2021"
+name = "idp2p"
+version = "0.1.0"
+
+[dependencies]
+structopt = "0.3.25"
+env_logger = "0.9.0"
+dotenv = "0.15.0"
+colored = "2.0.0"
+serde = { version = "1.0.130", features = ["derive"] }
+tokio = { version = "1.13.0", features = ["full"] }
+core = { version = "0.1.0", path = "core" }
+gossip = { version = "0.1.0", path = "gossip" }
+
 [workspace]
 edition = "2021"
-
 members = [
-    "idp2p-common",
-    "idp2p-core",
-    "idp2p-didcomm",
-    "idp2p-node",
-    "idp2p-wallet",
-    "idp2p-demo"
+    "core",
+    "gossip"
 ]

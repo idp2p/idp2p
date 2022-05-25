@@ -1,8 +1,0 @@
-[package]
-name = "idp2p_core"
-version = "0.1.0"
-edition = "2021"
-
-[dependencies]
-idp2p_common = { version = "0.1.0", path = "../idp2p-common" }
-serde = { version = "1.0.130", features = ["derive"] }

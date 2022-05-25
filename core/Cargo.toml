@@ -1,0 +1,41 @@
+[package]
+edition = "2021"
+name = "core"
+version = "0.1.0"
+
+[dependencies]
+prost = "0.10.3"
+libp2p = "0.44.0"
+async-trait = "0.1.53"
+log = "0.4.16"
+anyhow = "1.0"
+regex = "1.5.5"
+thiserror = "1.0"
+multibase = "0.9.1"
+chrono = "0.4.19"
+cid = "0.7.0"
+rand = "0.8.0"
+ed25519-dalek = "1.0.1"
+x25519-dalek = "1.2.0"
+chacha20poly1305 = "0.9.0"
+pbkdf2 = "0.10.0"
+derivation-path = { version = "0.1.3", default-features = false }
+hmac = { version = "0.12.0", default-features = false }
+sha2 = "0.10.1"
+serde = { version = "1.0.130", features = ["derive"] }
+tokio = { version = "1.13.0", features = ["full"] }
+serde_json = { version = "1.0.68", features = ["raw_value"] }
+unsigned-varint = { version = "0.7.1", default-features = false }
+[dependencies.serde_with]
+version = "1.11.0"
+features = [ "macros" ]
+
+#[dev-dependencies]
+#criterion = "0.3"
+
+#[[bench]]
+#name = "verify_did"
+#harness = false
+
+[build-dependencies]
+prost-build = "0.10.3"

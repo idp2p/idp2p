@@ -1,0 +1,44 @@
+syntax = "proto3";
+import "identity.proto";
+import "message.proto";
+package idp2p.pb;
+
+message IdGossipRequest{
+    oneof gossip_message_type {     
+        IdGossipRegisterRequest register = 1;
+        IdGossipMessageRequest publish = 2; // Node to Gossip 
+        string subscribe = 3;
+        string unsubscribe = 4;
+    }
+}
+
+message IdNodeRequest{
+    oneof node_message_type {
+        IdEncryptedMessage message = 1; // P2P direct encrypted message
+        IdGossipMessageRequest notify = 2;        
+    }
+}
+
+message IdGossipRegisterRequest {
+    repeated string subscriptions = 1;
+}
+
+message IdGossipMessageRequest {
+    string topic = 1; // Multihash of identity id
+    IdGossipMessage payload = 2; // GET-POST-CONNECT
+}
+
+message IdGossipMessage {
+    bytes id = 1; // Random message id
+    oneof id_message_payload {
+        bool get = 2;
+        Microledger post = 3;
+        IdEncryptedMessage connect = 4;
+    }   
+}
+
+enum Status {
+    OK                      = 0;
+    MALFORMED_MESSAGE       = 400;
+    UNEXPECTED_MESSAGE      = 401;
+}

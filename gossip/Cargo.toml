@@ -1,0 +1,10 @@
+[package]
+edition = "2021"
+name = "gossip"
+version = "0.1.0"
+
+[dependencies]
+thiserror = "1.0"
+libp2p = "0.44.0"
+tokio = { version = "1.13.0", features = ["full"] }
+core = {version = "0.1.0", path = "../core"}

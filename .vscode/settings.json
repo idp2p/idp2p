@@ -1,7 +1,12 @@
 {
     "files.exclude": {
         "**/*lock": true,
-        //"**/target": true,
+        "**/target": true,
         "**/LICENSE": true
+    },
+    "protoc": {
+        "options": [
+            "--proto_path=${workspaceRoot}/core/proto",
+        ]
     }
 }
