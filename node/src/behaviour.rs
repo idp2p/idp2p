@@ -15,13 +15,13 @@ use libp2p::{
 use crate::error::GossipError;
 
 #[derive(NetworkBehaviour)]
-#[behaviour(out_event = "IdentityGossipEvent")]
-pub struct IdentityGossipBehaviour {
+#[behaviour(out_event = "IdentityEvent")]
+pub struct IdentityBehaviour {
     pub mdns: Mdns,
     pub request_response: RequestResponse<IdCodec>,
     pub gossipsub: Gossipsub,
     #[behaviour(ignore)]
-    pub topics: HashMap<String, Vec<PeerId>>,
+    identities: HashMap<Vec<u8>, IdEntry>
 }
 
 #[derive(Debug)]
@@ -67,7 +67,7 @@ impl IdentityGossipBehaviour {
         }
     }
 
-    pub fn handle_req_event(&mut self, event: ReqResEvent) -> Result<(), GossipError> {
+    pub fn handle_request(&mut self, event: ReqResEvent) -> Result<(), GossipError> {
         if let RequestResponseEvent::Message { message, .. } = event {
             match message {
                 RequestResponseMessage::Request {
@@ -111,28 +111,3 @@ impl IdentityGossipBehaviour {
         Ok(())
     }
 }
-
-/*
-
-let req: IdGossipRequest = IdGossipRequest::decode(&vec![])?;
-       let msg: GossipMessageType = req.gossip_message_type.ok_or(GossipError::Other)?;
-       match msg {
-           GossipMessageType::Register(register_req) => {
-               for subscription in register_req.subscriptions {
-                   let tpc = self.topics.entry(subscription).or_default();
-                   tpc.push(peer);
-               }
-           }
-           GossipMessageType::Publish(publish_req) => {
-               let topic = IdentTopic::new(&publish_req.topic);
-               self.gossipsub.publish(topic, vec![])?;
-           }
-           GossipMessageType::Subscribe(topic) => {
-               let tpc = self.topics.entry(topic).or_default();
-               tpc.push(peer);
-           }
-           GossipMessageType::Unsubscribe(topic) => {
-               let tpc = self.topics.get_mut(&topic).ok_or(GossipError::Other)?;
-               //tpc.delete(peer);
-           }
-       }*/

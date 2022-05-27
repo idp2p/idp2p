@@ -6,7 +6,6 @@ fn main() {
         &[
             "proto/identity.proto",
             "proto/message.proto",
-            "proto/request.proto",
         ],
         &["proto"],
     )

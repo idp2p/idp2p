@@ -1,4 +1,5 @@
 syntax = "proto3";
+import "identity.proto";
 package idp2p.pb;
 
 message IdRawMessage{
@@ -15,11 +16,33 @@ message IdSignedMessage{
     bytes proof = 3; // signature of raw bytes
 }
 
-message IdEncryptedMessage{
+// identity-to-identity message
+message IdMessage{
     int32 kw_alg = 1; // ECDH_ES_A256KW 
     int32 enc_alg = 2; // A256CBC_HS512
     bytes initial_vector = 3; // 12 bytes  
     bytes ephermal_public = 4; // One time agreement key to encrypt message(See ECIES)
     bytes decrypt_kid = 5; // Receipent key id to decrypt message
     bytes cipherbody = 6; // Encrypted message body
+}
+
+// Raw gossip message, it is used via gossip-to-gossip message
+message IdGossipMessage {
+    bytes id = 1; // Random message id
+    oneof id_message_payload {
+        bool get = 2; // Give me your identity
+        Microledger post = 3; // My identity is updated
+        IdMessage connect = 4; // Heyy, I want to connect with you
+    }   
+}
+
+message IdMessageResult{
+    IdMessageStatus status = 1;
+    bytes result = 2;
+}
+
+enum IdMessageStatus {
+    OK                      = 0;
+    MALFORMED_MESSAGE       = 400;
+    UNEXPECTED_MESSAGE      = 401;
 }

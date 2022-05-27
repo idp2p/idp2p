@@ -1,9 +1,10 @@
 use std::io::Read;
 
 use super::{
-    ED25519_CODE, error::MultiKeyError,
+    ED25519_CODE, error::MultiKeyError, key::Idp2pKey,
 };
 use cid::multihash::Multihash;
+use serde::{Serialize, Deserialize};
 use unsigned_varint::{encode as varint_encode, io::read_u64};
 
 #[derive(PartialEq, Clone)]
@@ -35,5 +36,31 @@ impl Idp2pKeyDigest {
                 [typ, &multi_digest.to_bytes()].concat()
             }
         }
+    }
+}
+
+impl TryInto<Idp2pKeyDigest> for Idp2pKey{
+    type Error = crate::keys::error::MultiKeyError;
+
+    fn try_into(self) -> Result<Idp2pKeyDigest, Self::Error> {
+        match self{
+            Idp2pKey::Ed25519 { public } => todo!(),
+        }
+    }
+}
+
+impl Serialize for Idp2pKeyDigest{
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer {
+        todo!()
+    }
+}
+
+impl<'de> Deserialize<'de> for Idp2pKeyDigest{
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de> {
+        todo!()
     }
 }

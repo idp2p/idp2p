@@ -5,3 +5,10 @@ use x25519_dalek::PublicKey;
 pub enum Idp2pAgreementKey {
     X25519 { public: PublicKey },
 }
+
+impl Idp2pAgreementKey{
+    fn to_bytes(&self) -> Vec<u8>{
+        
+    }
+}
+
