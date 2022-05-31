@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use cid::multihash::Multihash;
 
-use crate::{keys::{key::Idp2pKey, agreement_key::Idp2pAgreementKey, key_digest::Idp2pKeyDigest}, base::encode};
+use crate::{multi::{key::Idp2pKey, agreement_key::Idp2pAgreementKey, key_digest::Idp2pKeyDigest, base::Idp2pBase}};
 
 use super::{doc::IdentityDocument, error::IdentityError};
 
@@ -30,7 +30,7 @@ pub struct ProofState {
 #[derive(PartialEq, Debug, Clone)]
 pub struct IdentityState {
     pub id: Vec<u8>,
-    pub last_event_id: Multihash,
+    pub last_event_id: Vec<u8>,
     pub next_key_digest: Idp2pKeyDigest,
     pub recovery_key_digest: Idp2pKeyDigest,
     pub assertion_keys: Vec<KeyState>,
@@ -52,8 +52,8 @@ impl Into<IdentityDocument> for IdentityState {
                 "https://w3id.org/security/suites/ed25519-2020/v1".to_string(),
                 "https://w3id.org/security/suites/x25519-2020/v1".to_string(),
             ],
-            id: format!("did:p2p:{}", encode(&self.id)),
-            controller: format!("did:p2p:{}", encode(&self.id)),
+            id: format!("did:p2p:{}", Idp2pBase::default().encode(&self.id)),
+            controller: format!("did:p2p:{}", Idp2pBase::default().encode(&self.id)),
             verification_method: todo!(),
             assertion_method: todo!(),
             authentication: todo!(),

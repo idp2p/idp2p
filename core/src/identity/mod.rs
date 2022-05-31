@@ -1,7 +1,4 @@
-use crate::{
-    keys::{agreement_key::Idp2pAgreementKey, key::Idp2pKey, key_digest::Idp2pKeyDigest},
-    secret::Idp2pSecret,
-};
+use crate::multi::{agreement_key::Idp2pAgreementKey, key::Idp2pKey, key_digest::Idp2pKeyDigest, keypair::Idp2pKeypair};
 
 use self::{error::IdentityError, state::IdentityState};
 
@@ -24,14 +21,14 @@ pub struct CreateIdentityInput {
 pub struct ChangeInput {
     pub next_key_digest: Idp2pKeyDigest,
     pub recovery_key_digest: Idp2pKeyDigest,
-    pub signer: Idp2pSecret,
+    pub signer_keypair: Idp2pKeypair,
     pub events: IdEvents,
 }
 
 pub struct RecoverInput {
     pub next_key_digest: Idp2pKeyDigest,
     pub recovery_key_digest: Idp2pKeyDigest,
-    pub signer: Idp2pSecret,
+    pub signer_keypair: Idp2pKeypair,
 }
 
 #[derive(PartialEq, Debug, Clone)]
@@ -41,22 +38,13 @@ pub struct Identity {
 }
 
 pub trait IdentityBehaviour {
-    fn new(input: CreateIdentityInput) -> Result<Identity, IdentityError> {
-        todo!()
-    }
-    fn change(&mut self, input: ChangeInput) -> Result<(), IdentityError> {
-        todo!()
-    }
-    fn recover(&mut self, input: RecoverInput) -> Result<(), IdentityError> {
-        todo!()
-    }
-    fn verify(&self) -> Result<IdentityState, IdentityError> {
-        todo!()
-    }
+    fn new(input: CreateIdentityInput) -> Result<Identity, IdentityError>;
+    fn change(&mut self, input: ChangeInput) -> Result<(), IdentityError>;
+    fn recover(&mut self, input: RecoverInput) -> Result<(), IdentityError>;
+    fn verify(&self) -> Result<IdentityState, IdentityError>;
 }
 
-pub mod error;
-pub mod state;
 pub mod doc;
+pub mod error;
 pub mod protobuf;
-
+pub mod state;

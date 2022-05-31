@@ -48,12 +48,14 @@ message IdentityEvent {
         bytes create_assertion_key = 1; // Assertion MultiKey
         bytes create_authentication_key = 2; // Authentication MultiKey
         bytes create_agreement_key = 3; // Agreement MultiKey
-        bytes revoke_assertion_key = 4; // MultiDigest(id) of assertion key
-        bytes revoke_authentication_key = 5; // MultiDigest(id) of authentication key
-        bytes revoke_agreement_key = 6; // MultiDigest(id)of agreement key
+        bytes revoke_assertion_key = 4; // Multi assertion key
+        bytes revoke_authentication_key = 5; // Multi authentication key
+        bytes revoke_agreement_key = 6; // Multi agreement key
         Idp2pProof set_proof = 7;
     }
 }
+
+message Idp2pKey
 
 message Idp2pProof{
     bytes key = 1; // Proof key

@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 use serde_with::skip_serializing_none;
-use crate::serde_vec;
+use crate::serde_vec::serde_vec;
 
 #[skip_serializing_none]
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]

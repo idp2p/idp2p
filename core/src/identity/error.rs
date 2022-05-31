@@ -16,6 +16,14 @@ pub enum IdentityError {
     InvalidNext,
     #[error("Invalid protobuf")]
     InvalidProtobuf,
+    #[error(transparent)]
+    DecodeError(#[from] prost::DecodeError),
+    #[error(transparent)]
+    Idp2pMultiError(#[from] crate::multi::error::Idp2pMultiError),
+    #[error(transparent)]
+    MultihashError(#[from] cid::multihash::Error),
+    #[error(transparent)]
+    CidError(#[from] cid::Error),
     #[error("Unknown")]
     Unknown,
 }

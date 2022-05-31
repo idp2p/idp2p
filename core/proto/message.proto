@@ -36,6 +36,12 @@ message IdGossipMessage {
     }   
 }
 
+message IdGossipMessageWithTopic {
+    string topic = 1; // Random message id
+    IdGossipMessage gossip_message = 2; 
+}
+
+
 message IdMessageResult{
     IdMessageStatus status = 1;
     bytes result = 2;
