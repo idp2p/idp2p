@@ -6,7 +6,7 @@ use x25519_dalek::PublicKey;
 
 use crate::decode_base;
 
-use super::{base::Idp2pBase, error::Idp2pMultiError, X25519_CODE};
+use super::{base::Idp2pBase, error::Idp2pMultiError, X25519_CODE, hash::Idp2pHash};
 
 #[derive(PartialEq, Clone, Debug)]
 pub enum Idp2pAgreementKey {
@@ -52,6 +52,21 @@ impl Idp2pAgreementKey {
                 let size = varint_encode::u64(32, &mut size_buf);
                 [typ, size, &public.to_bytes()].concat()
             }
+        }
+    }
+
+    pub fn to_id(&self) -> Vec<u8> {
+        match self {
+            Self::X25519 { public } => {
+                let mh = Idp2pHash::default().digest(public.to_bytes());
+                mh.to_bytes()
+            }
+        }
+    }
+
+    pub fn did_code(&self) -> String {
+        match self {
+            Self::X25519 { public: _ } => "X25519VerificationKey2020".to_string(),
         }
     }
 }

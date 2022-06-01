@@ -24,6 +24,6 @@ pub enum IdentityError {
     MultihashError(#[from] cid::multihash::Error),
     #[error(transparent)]
     CidError(#[from] cid::Error),
-    #[error("Unknown")]
-    Unknown,
+    #[error("Other")]
+    Other,
 }

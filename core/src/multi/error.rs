@@ -18,5 +18,9 @@ pub enum Idp2pMultiError {
     HashAlgError,
     #[error("InvalidKeyCode")]
     InvalidKeyCode,
+    #[error("InvalidCid")]
+    InvalidCid,
+    #[error("InvalidDigest")]
+    InvalidDigest
 }
 

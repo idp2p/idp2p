@@ -59,16 +59,31 @@ impl Idp2pKey {
 
     pub fn to_key_digest(&self) -> Idp2pKeyDigest {
         match self {
-            Idp2pKey::Ed25519 { public } => {
+            Self::Ed25519 { public } => {
                 let mh = Idp2pHash::default().digest(public.to_bytes());
                 Idp2pKeyDigest::Ed25519 { multi_digest: mh }
             }
         }
     }
 
+    pub fn to_id(&self) -> Vec<u8> {
+        match self {
+            Self::Ed25519 { public } => {
+                let mh = Idp2pHash::default().digest(public.to_bytes());
+                mh.to_bytes()
+            }
+        }
+    }
+
+    pub fn did_code(&self) -> String {
+        match self {
+            Self::Ed25519 { public: _ } => "Ed25519VerificationKey2020".to_string(),
+        }
+    }
+
     pub fn verify(&self, payload: &[u8], sig: &[u8]) -> Result<(), Idp2pMultiError> {
         match &self {
-            Idp2pKey::Ed25519 { public } => {
+            Self::Ed25519 { public } => {
                 let sig_bytes: [u8; 64] = sig.try_into()?;
                 let signature = Signature::from(sig_bytes);
                 let result = public.verify(payload, &signature)?;

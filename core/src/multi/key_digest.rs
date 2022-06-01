@@ -1,6 +1,6 @@
 use crate::decode_base;
 
-use super::{base::Idp2pBase, error::Idp2pMultiError, ED25519_CODE, key::Idp2pKey};
+use super::{base::Idp2pBase, error::Idp2pMultiError, ED25519_CODE, key::Idp2pKey, hash::Idp2pHash};
 use cid::multihash::Multihash;
 use serde::{de::Error as SerdeError, Deserialize, Serialize};
 use std::io::Read;
@@ -40,6 +40,8 @@ impl Idp2pKeyDigest {
     pub fn to_key(&self, public_bytes: &[u8]) -> Result<Idp2pKey, Idp2pMultiError>  {
         match &self {
             Self::Ed25519 { multi_digest } => {
+                let hasher = Idp2pHash::try_from(multi_digest.code())?;
+                hasher.ensure(*multi_digest, public_bytes)?;
                 Idp2pKey::new(ED25519_CODE, public_bytes)
             }
         }

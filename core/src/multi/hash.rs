@@ -32,7 +32,7 @@ impl Idp2pHash {
     pub fn ensure(&self, digest: Multihash, payload: &[u8]) -> Result<(), Idp2pMultiError>{
         let mh = self.digest(payload);
         if mh != digest{
-           return Err(Idp2pMultiError::InvalidKeyCode)
+           return Err(Idp2pMultiError::InvalidDigest)
         }
         Ok(())
     }
