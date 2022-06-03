@@ -1,4 +1,4 @@
-use core::libp2p::{futures::StreamExt, swarm::SwarmEvent};
+/*use core::libp2p::{futures::StreamExt, swarm::SwarmEvent};
 use gossip::{
     behaviour::IdentityGossipEvent,
     swarm::{build_gossip_swarm, GossipOptions},
@@ -50,4 +50,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             }
         }
     }
-}
+}*/
+
+fn main(){}
