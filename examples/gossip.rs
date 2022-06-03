@@ -39,6 +39,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     SwarmEvent::NewListenAddr { address, .. } => {
                        println!("Listening on {:?}", address);
                     }
+                    SwarmEvent::Behaviour(IdentityGossipEvent::Gossipsub(event)) => {
+                        swarm.behaviour_mut().handle_req_event(event)?;
+                    }
                     SwarmEvent::Behaviour(IdentityGossipEvent::RequestResponse(event)) => {
                         swarm.behaviour_mut().handle_req_event(event)?;
                     }

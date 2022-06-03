@@ -7,16 +7,15 @@ use libp2p::{
     futures::{AsyncRead, AsyncWrite, AsyncWriteExt},
     request_response::RequestResponseCodec,
 };
-use crate::idp2p_proto::{IdMessage, IdMessageResult};
 
 #[derive(Debug, Clone)]
 pub struct IdProtocol();
 #[derive(Clone)]
 pub struct IdCodec();
 #[derive(Debug, Clone, PartialEq)]
-pub struct IdRequest(IdMessage);
+pub struct IdRequest(Vec<u8>);
 #[derive(Debug, Clone, PartialEq)]
-pub struct IdResponse(IdMessageResult);
+pub struct IdResponse(Vec<u8>);
 impl ProtocolName for IdProtocol {
     fn protocol_name(&self) -> &[u8] {
         "/idp2p/1".as_bytes()
@@ -41,8 +40,7 @@ impl RequestResponseCodec for IdCodec {
         if vec.is_empty() {
             return Err(std::io::ErrorKind::UnexpectedEof.into());
         }
-        let msg = IdMessage::decode(vec)?;
-        Ok(IdRequest(msg))
+        Ok(IdRequest(vec))
     }
 
     async fn read_response<T>(

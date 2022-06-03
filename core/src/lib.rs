@@ -1,4 +1,4 @@
-//pub mod message;
+pub mod message;
 pub mod identity;
 pub mod multi;
 pub mod random;

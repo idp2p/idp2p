@@ -4,8 +4,10 @@ use thiserror::Error;
 pub enum IdentityError {
     #[error("Invalid id")]
     InvalidId,
-    #[error("Invalid ledger")]
-    InvalidLedger,
+    #[error("Invalid Create Key")]
+    InvalidCreateKey,
+    #[error("Invalid Revoke Key")]
+    InvalidRevokeKey,
     #[error("Invalid previous")]
     InvalidPrevious,
     #[error("Invalid event signature")]

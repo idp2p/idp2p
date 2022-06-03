@@ -3,7 +3,7 @@ use cid::Cid;
 use prost::Message;
 
 use crate::{
-    identity::{error::IdentityError, CreateIdentityInput},
+    identity::{error::IdentityError, CreateIdentityInput, IdEvent},
     idp2p_proto::{IdentityInception, Microledger},
     multi::id::{Idp2pCid, Idp2pCodec},
 };
@@ -16,8 +16,15 @@ pub fn new(input: CreateIdentityInput) -> Result<crate::identity::Identity, Iden
         recovery_key_digest: input.recovery_key_digest.to_bytes(),
         events: vec![],
     };
-    if let Some(events) = input.events {
-        inception.events = events.into();
+    for id_event in input.events {
+        match id_event {
+            IdEvent::RevokeAssertionKey(_)
+            | IdEvent::RevokeAuthenticationKey(_)
+            | IdEvent::RevokeAgreementKey(_) => {
+                return Err(IdentityError::Other);
+            }
+            _ => inception.events.push(id_event.into()),
+        }
     }
 
     let inception_bytes = inception.encode_to_vec();

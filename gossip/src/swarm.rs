@@ -1,7 +1,3 @@
-use core::protocol::{
-    build_request_response,
-    codec::{IdCodec, IdProtocol},
-};
 use std::{
     collections::{hash_map::DefaultHasher, HashMap},
     hash::{Hash, Hasher},
@@ -32,7 +28,7 @@ pub struct GossipOptions {
 
 type SwarmResult = Result<Swarm<IdentityGossipBehaviour>, GossipError>;
 pub async fn build_gossip_swarm(options: GossipOptions) -> SwarmResult {
-    let mut secret: [u8; 32] = core::random::create_random();
+    let mut secret: [u8; 32] = idp2p_core::random::create_random();
     let secret_key = SecretKey::from_bytes(&mut secret)?;
     let local_key = Keypair::Ed25519(secret_key.into());
     let transport = build_transport(local_key.clone()).await;
@@ -42,7 +38,6 @@ pub async fn build_gossip_swarm(options: GossipOptions) -> SwarmResult {
         let behaviour = IdentityGossipBehaviour {
             gossipsub: build_gossipsub(),
             request_response: req_res,
-            topics: HashMap::new(),
             mdns: mdns,
         };
         let executor = Box::new(|fut| {

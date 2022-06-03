@@ -1,12 +1,13 @@
 use std::io::Read;
 
 use serde::{de::Error as SerdeError, Deserialize, Serialize};
+use sha2::{Digest, Sha256};
 use unsigned_varint::{encode as varint_encode, io::read_u64};
 use x25519_dalek::PublicKey;
 
 use crate::decode_base;
 
-use super::{base::Idp2pBase, error::Idp2pMultiError, X25519_CODE, hash::Idp2pHash};
+use super::{base::Idp2pBase, error::Idp2pMultiError, X25519_CODE};
 
 #[derive(PartialEq, Clone, Debug)]
 pub enum Idp2pAgreementKey {
@@ -57,10 +58,10 @@ impl Idp2pAgreementKey {
 
     pub fn to_id(&self) -> Vec<u8> {
         match self {
-            Self::X25519 { public } => {
-                let mh = Idp2pHash::default().digest(public.to_bytes());
-                mh.to_bytes()
-            }
+            Self::X25519 { public } => Sha256::new()
+                .chain_update(public.to_bytes())
+                .finalize()
+                .to_vec(),
         }
     }
 
@@ -91,7 +92,6 @@ impl<'de> Deserialize<'de> for Idp2pAgreementKey {
         Ok(Self::from_bytes(bytes).map_err(SerdeError::custom)?)
     }
 }
-
 
 #[cfg(test)]
 mod tests {

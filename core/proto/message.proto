@@ -32,13 +32,13 @@ message IdGossipMessage {
     oneof id_message_payload {
         bool get = 2; // Give me your identity
         Microledger post = 3; // My identity is updated
-        IdMessage connect = 4; // Heyy, I want to connect with you
+        IdMessage connect = 4; // Heyy, I want to connect with you, give me your active peer
     }   
 }
 
 message IdGossipMessageWithTopic {
-    string topic = 1; // Multihash
-    IdGossipMessage gossip_message = 2; 
+    string topic = 1; 
+    IdGossipMessage gossip_message = 3; 
 }
 
 

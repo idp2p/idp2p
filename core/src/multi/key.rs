@@ -2,6 +2,7 @@ use std::io::Read;
 
 use ed25519_dalek::{PublicKey, Signature, Verifier};
 use serde::{de::Error as SerdeError, Deserialize, Serialize};
+use sha2::{Digest, Sha256};
 use unsigned_varint::{encode as varint_encode, io::read_u64};
 
 use crate::decode_base;
@@ -68,10 +69,10 @@ impl Idp2pKey {
 
     pub fn to_id(&self) -> Vec<u8> {
         match self {
-            Self::Ed25519 { public } => {
-                let mh = Idp2pHash::default().digest(public.to_bytes());
-                mh.to_bytes()
-            }
+            Self::Ed25519 { public } => Sha256::new()
+                .chain_update(public.to_bytes())
+                .finalize()
+                .to_vec(),
         }
     }
 

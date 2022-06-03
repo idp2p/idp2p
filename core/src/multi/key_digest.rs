@@ -37,7 +37,7 @@ impl Idp2pKeyDigest {
         }
     }
 
-    pub fn to_key(&self, public_bytes: &[u8]) -> Result<Idp2pKey, Idp2pMultiError>  {
+    pub fn to_next_key(&self, public_bytes: &[u8]) -> Result<Idp2pKey, Idp2pMultiError>  {
         match &self {
             Self::Ed25519 { multi_digest } => {
                 let hasher = Idp2pHash::try_from(multi_digest.code())?;

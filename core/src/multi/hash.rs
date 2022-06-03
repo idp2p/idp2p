@@ -1,6 +1,7 @@
 use cid::multihash::{Multihash, MultihashDigest};
 
 use super::error::Idp2pMultiError;
+#[derive(Debug, Clone)]
 pub enum Idp2pHash {
     Sha256 = 0x12,
 }

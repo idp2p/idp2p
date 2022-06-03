@@ -12,7 +12,9 @@ use crate::{
     idp2p_proto::{
         event_log_payload::Change, identity_event::EventType, IdentityInception, Microledger,
     },
-    multi::{agreement_key::Idp2pAgreementKey, key::Idp2pKey, key_digest::Idp2pKeyDigest, id::Idp2pCid},
+    multi::{
+        agreement_key::Idp2pAgreementKey, id::Idp2pCid, key::Idp2pKey, key_digest::Idp2pKeyDigest,
+    },
 };
 
 use super::mapper::EventLogResolver;
@@ -44,12 +46,12 @@ pub fn verify(identity: &Identity) -> Result<IdentityState, IdentityError> {
         let change = payload.change.ok_or(IdentityError::InvalidProtobuf)?;
         match change {
             Change::Recover(change) => {
-                let signer = state.recovery_key_digest.to_key(&payload.signer_key)?;
+                let signer = state.recovery_key_digest.to_next_key(&payload.signer_key)?;
                 signer.verify(&log.payload, &log.proof)?;
                 state.recovery_key_digest = Idp2pKeyDigest::from_bytes(change)?;
             }
             Change::Events(change) => {
-                let signer = state.next_key_digest.to_key(&payload.signer_key)?;
+                let signer = state.next_key_digest.to_next_key(&payload.signer_key)?;
                 signer.verify(&log.payload, &log.proof)?;
                 for event in change.events {
                     let event = event.event_type.ok_or(IdentityError::InvalidProtobuf)?;
@@ -60,6 +62,21 @@ pub fn verify(identity: &Identity) -> Result<IdentityState, IdentityError> {
         state.next_key_digest = Idp2pKeyDigest::from_bytes(payload.next_key_digest)?;
         state.last_event_id = log.event_id.clone();
     }
+    Ok(state)
+}
+
+pub fn is_next(current: &Identity, candidate: &Identity) -> Result<IdentityState, IdentityError> {
+    if current.id != candidate.id {
+        return Err(IdentityError::InvalidId);
+    }
+    let current_microledger = Microledger::decode(&*current.microledger)?;
+    let candidate_microledger = Microledger::decode(&*candidate.microledger)?;
+    for (i, log) in current_microledger.event_logs.iter().enumerate() {
+        if log.event_id != candidate_microledger.event_logs[i].event_id {
+            return Err(IdentityError::InvalidId);
+        }
+    }
+    let state = verify(candidate)?;
     Ok(state)
 }
 

@@ -12,7 +12,6 @@ use libp2p::{
     NetworkBehaviour, PeerId,
 };
 
-use crate::error::GossipError;
 
 #[derive(NetworkBehaviour)]
 #[behaviour(out_event = "IdentityEvent")]
@@ -20,8 +19,6 @@ pub struct IdentityBehaviour {
     pub mdns: Mdns,
     pub request_response: RequestResponse<IdCodec>,
     pub gossipsub: Gossipsub,
-    #[behaviour(ignore)]
-    identities: HashMap<Vec<u8>, IdEntry>
 }
 
 #[derive(Debug)]
