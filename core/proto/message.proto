@@ -3,7 +3,6 @@ import "identity.proto";
 package idp2p.pb;
 
 message IdRawMessage{
-    bytes id = 1; // Message id
     bytes from = 2; // From id
     bytes to = 3; // To id
     bytes body = 4;
@@ -17,7 +16,7 @@ message IdSignedMessage{
 }
 
 // identity-to-identity message
-message IdMessage{
+message IdEncryptedMessage{
     int32 kw_alg = 1; // ECDH_ES_A256KW 
     int32 enc_alg = 2; // A256CBC_HS512
     bytes initial_vector = 3; // 12 bytes  
@@ -26,25 +25,15 @@ message IdMessage{
     bytes cipherbody = 6; // Encrypted message body
 }
 
-// Raw gossip message, it is used via gossip-to-gossip message
-message IdGossipMessage {
-    bytes id = 1; // Random message id
-    oneof id_message_payload {
-        bool get = 2; // Give me your identity
-        Microledger post = 3; // My identity is updated
-        IdMessage connect = 4; // Heyy, I want to connect with you, give me your active peer
-    }   
+message IdMessage{
+    bytes id = 1;
+    bytes message = 2;
 }
-
-message IdGossipMessageWithTopic {
-    string topic = 1; 
-    IdGossipMessage gossip_message = 3; 
-}
-
 
 message IdMessageResult{
-    IdMessageStatus status = 1;
-    bytes result = 2;
+    bytes message_id = 1;
+    IdMessageStatus status = 2;
+    bytes result = 3;
 }
 
 enum IdMessageStatus {

@@ -19,8 +19,11 @@ use crate::{
 
 use super::mapper::EventLogResolver;
 
-pub fn verify(identity: &Identity) -> Result<IdentityState, IdentityError> {
+pub fn verify(identity: &Identity, prev: Option<&Identity>) -> Result<IdentityState, IdentityError> {
     let microledger = Microledger::decode(&*identity.microledger)?;
+    if let Some(prev) = prev {
+        
+    }
     let cid: Cid = identity.id.to_vec().try_into()?;
     cid.ensure(&microledger.inception)?;
     // Decode inception bytes of microledger
@@ -65,19 +68,14 @@ pub fn verify(identity: &Identity) -> Result<IdentityState, IdentityError> {
     Ok(state)
 }
 
-pub fn is_next(current: &Identity, candidate: &Identity) -> Result<IdentityState, IdentityError> {
-    if current.id != candidate.id {
-        return Err(IdentityError::InvalidId);
-    }
-    let current_microledger = Microledger::decode(&*current.microledger)?;
-    let candidate_microledger = Microledger::decode(&*candidate.microledger)?;
-    for (i, log) in current_microledger.event_logs.iter().enumerate() {
-        if log.event_id != candidate_microledger.event_logs[i].event_id {
+fn is_valid_previous(can_ml: Microledger, prev: &Identity) -> Result<bool, IdentityError> {
+    let prev_ml = Microledger::decode(&*prev.microledger)?;
+    for (i, log) in prev_ml.event_logs.iter().enumerate() {
+        if log.event_id != can_ml.event_logs[i].event_id {
             return Err(IdentityError::InvalidId);
         }
     }
-    let state = verify(candidate)?;
-    Ok(state)
+    Ok(true)
 }
 
 impl IdentityState {

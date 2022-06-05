@@ -1,19 +1,18 @@
 use cid::Cid;
 
-use crate::multi::{
+use idp2p_common::multi::{
     agreement_key::Idp2pAgreementKey, id::Idp2pCodec, key::Idp2pKey, key_digest::Idp2pKeyDigest,
     keypair::Idp2pKeypair,
 };
 
 use self::{error::IdentityError, state::IdentityState};
 
-
 // Can be used new identity or change
 #[derive(PartialEq, Debug, Clone)]
 pub enum IdEvent {
-    CreateAssertionKey(Idp2pKey),
-    CreateAuthenticationKey(Idp2pKey),
-    CreateAgreementKey(Idp2pAgreementKey),
+    CreateAssertionKey { id: Vec<u8>, key: Idp2pKey },
+    CreateAuthenticationKey { id: Vec<u8>, key: Idp2pKey },
+    CreateAgreementKey { id: Vec<u8>, key: Idp2pAgreementKey },
     SetProof { key: Vec<u8>, value: Vec<u8> },
     RevokeAssertionKey(Vec<u8>),
     RevokeAuthenticationKey(Vec<u8>),
@@ -88,13 +87,12 @@ impl Identity {
 
 pub mod doc;
 pub mod error;
-pub mod protobuf;
 pub mod state;
 
 #[cfg(test)]
 mod tests {
-    use crate::{identity::doc::IdentityDocument, multi::hash::Idp2pHash};
     use super::*;
+    use crate::{identity::doc::IdentityDocument, multi::hash::Idp2pHash};
 
     #[test]
     fn id_test() -> Result<(), IdentityError> {

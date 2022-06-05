@@ -1,20 +1,21 @@
-use crate::{identity::Identity, multi::{hash::Idp2pHash, base::Idp2pBase, keypair::Idp2pKeypair}};
-
-pub struct Idp2pMessage{
-   id: Vec<u8>,
-   from: Vec<u8>,
-   to: Vec<u8>,
-   body: Vec<u8>,
-   created_at: i64
-}
-
-pub struct Idp2pConfig {
-   id: Vec<u8>,
-   hash: Idp2pHash,
-   base: Idp2pBase,
-   auth_keypair: Idp2pKeypair,
-   agree_keypair: Idp2pKeypair 
-}
- 
+use crate::{
+    identity::Identity,
+    multi::{base::Idp2pBase, hash::Idp2pHash, keypair::Idp2pKeypair},
+};
 pub mod codec;
-pub mod store;
+pub struct IdMessage {
+    id: Vec<u8>,
+    body: Vec<u8>
+}
+
+impl IdMessage {
+    pub fn new(to: &[u8], body: &[u8]) -> Self {
+
+    }
+    pub fn from_cipher() -> Self{
+
+    }
+    pub fn envelope(&self, signer: Idp2pKeypair, encrypter: Idp2pKeypair) -> Result<(), String> {
+        Ok(())
+    }
+}

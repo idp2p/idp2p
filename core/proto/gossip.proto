@@ -1,0 +1,16 @@
+// Raw gossip message, it is used via gossip-to-gossip message
+message IdGossipMessage {
+    bytes id = 1; // Random message id
+    oneof id_message_payload {
+        bytes get = 2; // Give me your identity
+        Identity post = 3; // My identity is updated
+        IdMessage connect = 4; // Heyy, I want to connect with you, give me your active peer
+    }   
+}
+
+message IdGossipMessageWithTopic {
+    string topic = 1; 
+    IdGossipMessage gossip_message = 3; 
+}
+
+

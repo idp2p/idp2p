@@ -1,0 +1,26 @@
+[package]
+edition = "2021"
+name = "idp2p-common"
+version = "0.1.0"
+
+[dependencies]
+log = "0.4.16"
+regex = "1.5.5"
+thiserror = "1.0"
+multibase = "0.9.1"
+chrono = "0.4.19"
+cid = "0.7.0"
+rand = "0.8.0"
+ed25519-dalek = "1.0.1"
+x25519-dalek = "1.2.0"
+chacha20poly1305 = "0.9.0"
+pbkdf2 = "0.10.0"
+derivation-path = { version = "0.1.3", default-features = false }
+hmac = { version = "0.12.0", default-features = false }
+sha2 = "0.10.1"
+serde = { version = "1.0.130", features = ["derive"] }
+unsigned-varint = { version = "0.7.1", default-features = false }
+[dependencies.serde_with]
+version = "1.11.0"
+features = [ "macros" ]
+

@@ -2,13 +2,17 @@
 
 > `Experimental`, inspired by `ipfs`, `did:peer` and `keri`
 
-A self-descibing identity protocol on top of libp2p. 
+A self-describing identity protocol on top of libp2p. 
 
 ## FAQ
 
 **Question:** Why idp2p?
 
 **Answer:** Idp2p is .
+
+**Question:** Is idp2p a DIDs method?
+
+**Answer:** How idp2p try to solve privacy?
 
 
 [See idp2p spec and demo](https://idp2p.github.io)
