@@ -1,240 +1,201 @@
 use std::{collections::HashMap, sync::Mutex};
 
+use idp2p_common::multi::keypair::Idp2pKeypair;
 use tokio::sync::mpsc::Sender;
 
 use crate::{
-    identity::{error::IdentityError, state::IdentityState, Identity},
-    multi::hash::Idp2pHash, message::IdMessage,
+    identity::{self, state::IdentityState, Identity},
+    message::IdMessage,
 };
 
-use super::Idp2pConfig;
+use thiserror::Error;
 
-pub enum IdentityEvent {
-    ReceivedGet(Vec<u8>),
-    ReceivedPost(Identity),
-    ReceivedMessage{topic: String, msg: IdMessage},
+#[derive(Error, Debug)]
+pub enum IdStoreError {
+    #[error(transparent)]
+    CommandSendError(#[from] tokio::sync::mpsc::error::SendError<IdStoreOutCommand>),
+    #[error(transparent)]
+    EventSendError(#[from] tokio::sync::mpsc::error::SendError<IdStoreOutEvent>),
+    #[error(transparent)]
+    IdentityError(#[from] identity::error::IdentityError),
+}
+pub enum IdStoreEvent {
+    ReceivedGet,
+    ReceivedPost {
+        last_event_id: Vec<u8>,
+        did: Identity,
+    },
+    ReceivedMessage(Vec<u8>),
 }
 
-pub enum IdentityCommand {
+pub enum IdStoreCommand {
     Get(Vec<u8>),
-    SendMessage,
+    SendMessage { id: Vec<u8>, message: Vec<u8> },
 }
 
-pub enum IdentityOutEvent {
-    IdentityCreated,
-    IdentityUpdated,
-    IdentitySkipped,
+#[derive(Debug)]
+pub enum IdStoreOutEvent {
+    IdentityCreated(Vec<u8>),
+    IdentityUpdated(Vec<u8>),
+    IdentitySkipped(Vec<u8>),
 }
 
-pub enum IdentityOutCommand {
-    Publish(Vec<u8>),
-    WaitAndPublish(Vec<u8>),
+#[derive(Debug)]
+pub enum IdStoreOutCommand {
+    PublishGet(String),
+    PublishPost { topic: String, did: Identity },
+    PublishMessage { topic: String, message: IdMessage },
+    WaitAndPublishPost(Vec<u8>),
 }
 
 #[derive(PartialEq, Debug, Clone)]
 pub struct IdEntry {
-    pub did: Identity,
-    // Digest of microledger. It is useful for quick checking up-to-date
-    pub digest: Vec<u8>,
+    // Identity ledger
+    pub(crate) did: Identity,
     // State of requiring publish
-    pub require_publish: bool,
-    pub id_state: IdentityState,
+    pub(crate) waiting_publish: bool,
+    // Current state
+    pub(crate) id_state: IdentityState,
 }
 
-pub struct State {
-    id: Vec<u8>,
-    auth_keypair: Idp2pKeypair,
-    agree_keypair: Idp2pKeypair,
-    identities: HashMap<Vec<u8>, IdEntry>
+pub struct IdDb {
+    pub(crate) id: Vec<u8>,
+    pub(crate) auth_keypair: Idp2pKeypair,
+    pub(crate) agree_keypair: Idp2pKeypair,
+    pub(crate) identities: HashMap<Vec<u8>, IdEntry>,
 }
 
 pub struct IdStoreInput {
     pub(crate) identity: Identity,
     pub(crate) auth_keypair: Idp2pKeypair,
     pub(crate) agree_keypair: Idp2pKeypair,
-    pub(crate) event_sender: Sender<IdentityOutEvent>,
-    pub(crate) command_sender: Sender<IdentityOutCommand>,
+    pub(crate) event_sender: Sender<IdStoreOutEvent>,
+    pub(crate) command_sender: Sender<IdStoreOutCommand>,
 }
 
 pub struct IdStore {
-    pub state: Mutex<State>,
-    event_sender: Sender<IdentityOutEvent>,
-    command_sender: Sender<IdentityOutCommand>,
+    pub(crate) db: Mutex<IdDb>,
+    pub(crate) event_sender: Sender<IdStoreOutEvent>,
+    pub(crate) command_sender: Sender<IdStoreOutCommand>,
 }
 
 impl TryFrom<Identity> for IdEntry {
-    type Error = IdentityError;
+    type Error = IdStoreError;
 
     fn try_from(value: Identity) -> Result<Self, Self::Error> {
-        let mh = Code::Sha256.digest(&did.microledger);
-        /*let entry = IdEntry {
-            digest: mh.to_bytes(),
-            require_publish: false,
-            did: did,
+        let state = value.verify(None)?;
+        let entry = IdEntry {
+            waiting_publish: false,
+            did: value,
+            id_state: state
         };
-        entry*/
-        todo!()
+        Ok(entry)
     }
 }
 
-impl IdState {
-    fn push_entry(&mut self, did: Identity) {
+impl IdDb {
+    fn push_entry(&mut self, did: Identity) -> Result<(), IdStoreError> {
         let id = did.id.clone();
-        let entry: IdEntry = did.into();
+        let entry: IdEntry = did.try_into()?;
         self.identities.insert(id, entry);
+        Ok(())
     }
 }
 
 impl IdStore {
-    pub fn new(input: IdStoreInput) -> Self {
-        let mut state = IdState {
-            config: config,
+    pub fn new(input: IdStoreInput) -> Result<Self, IdStoreError> {
+        let mut db = IdDb {
+            id: input.identity.id.clone(),
+            auth_keypair: input.auth_keypair,
+            agree_keypair: input.agree_keypair,
             identities: HashMap::new(),
         };
-        state.push_entry(did);
+        db.push_entry(input.identity)?;
         let store = Self {
-            state: Mutex::new(state),
+            db: Mutex::new(db),
             event_sender: input.event_sender,
-            command_sender: input.command_sender
+            command_sender: input.command_sender,
         };
-        store
+        Ok(store)
     }
 
-    pub async fn handle_command(&self, cmd: IdentityCommand) -> Result<(), String> {
+    pub async fn handle_command(&self, cmd: IdStoreCommand) -> Result<(), IdStoreError> {
         match cmd {
-            IdentityCommand::Get(id) => {
-                // init a get request
-                // tx.try_send()
+            IdStoreCommand::Get(id) => {
+                let topic = String::from_utf8_lossy(&id).to_string();
+                let event = IdStoreOutCommand::PublishGet(topic);
+                self.command_sender.send(event).await?;
             }
-            IdentityCommand::SendMessage => {
-                todo!()
+            IdStoreCommand::SendMessage { id, message } => {
+                let topic = String::from_utf8_lossy(&id).to_string();
+                //let msg = IdMessage::new(to, body)?;
+                let event = IdStoreOutCommand::PublishGet(topic);
+                self.command_sender.send(event).await?;
             }
         }
         Ok(())
     }
 
-    pub async fn handle_event(&self, event: IdentityEvent) -> Result<(), String> {
+    pub async fn handle_event(&self, topic: &str, event: IdStoreEvent) -> Result<(), IdStoreError> {
+        let mut db = self.db.lock().unwrap();
         match event {
-            IdentityEvent::ReceivedGet(id) => {
-                let mut state = self.state.lock()?;
-                let entry = state.identities.get_mut(&id);
+            IdStoreEvent::ReceivedGet => {
+                let entry = db.identities.get_mut(topic.as_bytes());
                 if let Some(entry) = entry {
-                    if &entry.did.id == id {
-                        log::info!("Published id: {:?}", id);
-                        return Ok(HandleGetResult::Publish(id.to_vec()));
+                    if &entry.did.id == topic.as_bytes() {
+                        log::info!("Published id: {:?}", topic);
+                        let cmd = IdStoreOutCommand::PublishPost {
+                            topic: topic.to_string(),
+                            did: entry.did.clone(),
+                        };
+                        self.command_sender.send(cmd).await?;
                     } else {
-                        entry.require_publish = true;
-                        let e = HandleGetResult::WaitAndPublish(id.to_vec());
-                        self.command_sender.try_send(e).await?;
+                        entry.waiting_publish = true;
+                        let cmd = IdStoreOutCommand::WaitAndPublishPost(topic.as_bytes().to_vec());
+                        self.command_sender.send(cmd).await?;
                     }
                 }
-                Ok(())
             }
-            IdentityEvent::ReceivedPost(did) => {
-                let mut state = self.state.lock().unwrap();
-                let current = state.identities.get_mut(&did.id);
+            IdStoreEvent::ReceivedPost { last_event_id, did } => {
+                let mut state = self.db.lock().unwrap();
+                let current = db.identities.get_mut(topic.as_bytes());
                 match current {
-                    // When incoming identity is new
+                    // When identity is new
                     None => {
-                        did.verify()?;
-                        let entry = did.clone().into();
+                        did.verify(None)?;
+                        let entry = did.clone().try_into()?;
                         state.identities.insert(did.id.clone(), entry);
                         log::info!("Got id: {:?}", did.id);
-                        return Ok(HandlePostResult::Created);
+                        let event = IdStoreOutEvent::IdentityCreated(topic.as_bytes().to_vec());
+                        self.event_sender.send(event).await?;
                     }
                     // There is a current identity
                     Some(entry) => {
-                        let digest = hash.digest(&did.microledger);
                         // If there is a waiting publish, remove it
-                        entry.require_publish = false;
+                        entry.waiting_publish = false;
                         // Identity has a new state
-                        if digest.to_bytes() != entry.digest {
+                        if last_event_id != entry.id_state.last_event_id {
                             //entry.did.is_next(did.clone())?;
                             entry.did = did.clone();
                             log::info!("Updated id: {:?}", did.id);
-                            return Ok(HandlePostResult::Updated);
+                            let event = IdStoreOutEvent::IdentityUpdated(topic.as_bytes().to_vec());
+                            self.event_sender.send(event).await?;
                         } else {
                             log::info!("Skipped id: {:?}", did.id);
-                            return Ok(HandlePostResult::Skipped);
+                            let event = IdStoreOutEvent::IdentitySkipped(topic.as_bytes().to_vec());
+                            self.event_sender.send(event).await?;
                         }
                     }
                 }
             }
-            IdentityEvent::ReceivedMessage => todo!(),
+            IdStoreEvent::ReceivedMessage(msg) => {
+                let entry = db.identities.get_mut(topic.as_bytes());
+                if let Some(entry) = entry {
+                    
+                }
+                todo!()
+            },
         }
         Ok(())
     }
 }
-
-/*
-/// Get identity for post event
-pub fn get_did_for_post(&self, id: &[u8]) -> Option<Identity> {
-    let state = self.state.lock().unwrap();
-    let entry = state.identities.get(id);
-    if let Some(entry) = entry {
-        // Check if entry is not published or received
-        if entry.require_publish {
-            return Some(entry.did.clone());
-        }
-    }
-    None
-}
-
-/// Get identity by id
-pub fn get_did(&self, id: &[u8]) -> Option<Identity> {
-    let state = self.state.lock().unwrap();
-    let entry = state.identities.get(id).map(|entry| entry.clone());
-    if let Some(entry) = entry {
-        return Some(entry.did);
-    }
-    None
-}
-
-/// Handle identity get event
-pub async fn handle_get(&self, id: &[u8]) -> Result<HandleGetResult, IdentityError> {
-    let mut state = self.state.lock().unwrap();
-    let entry = state.identities.get_mut(id);
-    if let Some(entry) = entry {
-        if &entry.did.id == id {
-            log::info!("Published id: {:?}", id);
-            return Ok(HandleGetResult::Publish(id.to_vec()));
-        } else {
-            entry.require_publish = true;
-            return Ok(HandleGetResult::WaitAndPublish(id.to_vec()));
-        }
-    }
-    Err(IdentityError::Other)
-}
-
-/// Handle identity post event
-pub async fn handle_post(&self, did: &Identity) -> Result<HandlePostResult, IdentityError> {
-    let mut state = self.state.lock().unwrap();
-    let hasher = state.config.hash.clone();
-    let current = state.identities.get_mut(&did.id);
-    match current {
-        // When incoming identity is new
-        None => {
-            did.verify()?;
-            let entry = did.clone().into();
-            state.identities.insert(did.id.clone(), entry);
-            log::info!("Got id: {:?}", did.id);
-            return Ok(HandlePostResult::Created);
-        }
-        // There is a current identity
-        Some(entry) => {
-            let digest = hash.digest(&did.microledger);
-            // If there is a waiting publish, remove it
-            entry.require_publish = false;
-            // Identity has a new state
-            if digest.to_bytes() != entry.digest {
-                //entry.did.is_next(did.clone())?;
-                entry.did = did.clone();
-                log::info!("Updated id: {:?}", did.id);
-                return Ok(HandlePostResult::Updated);
-            } else {
-                log::info!("Skipped id: {:?}", did.id);
-                return Ok(HandlePostResult::Skipped);
-            }
-        }
-    }
-}*/

@@ -4,15 +4,23 @@ name = "idp2p-core"
 version = "0.1.0"
 
 [dependencies]
+prost = "0.10.4"
 libp2p = "0.44.0"
 async-trait = "0.1.53"
 log = "0.4.16"
 thiserror = "1.0"
+serde_json = "1.0.81"
 tokio = { version = "1.13.0", features = ["full"] }
 unsigned-varint = { version = "0.7.1", default-features = false }
+serde = { version = "1.0.130", features = ["derive"] }
 idp2p-common = { version = "0.1.0", path="../common"}
-idp2p-core-proto = { version = "0.1.0", path="../core-proto"}
 
+[build-dependencies]
+prost-build = "0.10.4"
+
+[dependencies.serde_with]
+version = "1.11.0"
+features = [ "macros" ]
 #[dev-dependencies]
 #criterion = "0.3"
 

@@ -1,4 +1,7 @@
-use chrono::Utc;
+use idp2p_common::{
+    chrono::Utc,
+    multi::{hash::Idp2pHash, key::Idp2pKey},
+};
 use prost::Message;
 
 use crate::{
@@ -7,13 +10,12 @@ use crate::{
         event_log_payload::{Change, IdentityEvents},
         EventLog, EventLogPayload, IdentityEvent, Microledger,
     },
-    multi::{hash::Idp2pHash, key::Idp2pKey},
 };
 
 use super::verify::verify;
 
 pub fn change(did: &mut Identity, input: ChangeInput) -> Result<(), IdentityError> {
-    let state = verify(did)?;
+    let state = verify(did, None)?;
     let signer_key: Idp2pKey = input.signer_keypair.to_key();
     let mut payload = EventLogPayload {
         version: 1,
@@ -27,8 +29,8 @@ pub fn change(did: &mut Identity, input: ChangeInput) -> Result<(), IdentityErro
     match input.change {
         ChangeType::AddEvents(events) => {
             macro_rules! validate_new_key {
-                ($ks: ident, $key: expr) => {{
-                    if state.$ks.iter().any(|k| k.id == $key.to_id()) {
+                ($ks: ident, $kid: expr) => {{
+                    if state.$ks.iter().any(|k| k.id == $kid) {
                         return Err(IdentityError::InvalidCreateKey);
                     }
                 }};
@@ -43,11 +45,15 @@ pub fn change(did: &mut Identity, input: ChangeInput) -> Result<(), IdentityErro
             let mut id_events: Vec<IdentityEvent> = vec![];
             for event in events {
                 match &event {
-                    IdEvent::CreateAssertionKey(key) => validate_new_key!(assertion_keys, *key),
-                    IdEvent::CreateAuthenticationKey(key) => {
-                        validate_new_key!(authentication_keys, *key)
+                    IdEvent::CreateAssertionKey { id, key: _ } => {
+                        validate_new_key!(assertion_keys, *id)
                     }
-                    IdEvent::CreateAgreementKey(key) => validate_new_key!(agreement_keys, *key),
+                    IdEvent::CreateAuthenticationKey { id, key: _ } => {
+                        validate_new_key!(authentication_keys, *id)
+                    }
+                    IdEvent::CreateAgreementKey { id, key: _ } => {
+                        validate_new_key!(agreement_keys, *id)
+                    }
                     IdEvent::RevokeAssertionKey(kid) => validate_revoke_key!(assertion_keys, *kid),
                     IdEvent::RevokeAuthenticationKey(kid) => {
                         validate_revoke_key!(authentication_keys, *kid)

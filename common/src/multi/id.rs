@@ -20,6 +20,8 @@ impl TryFrom<u64> for Idp2pCodec{
 }
 
 pub trait Idp2pCid {
+    fn from_bytes(bytes: &[u8]) -> Result<Cid, Idp2pMultiError>;
+    fn from_content(bytes: &[u8]) -> Result<Cid, Idp2pMultiError>;
     fn new_cid(codec: Idp2pCodec, content: &[u8]) -> Cid;
     fn ensure(&self, content: &[u8]) -> Result<(), Idp2pMultiError>;
 }
@@ -29,6 +31,7 @@ impl Idp2pCid for Cid {
         let mh = Idp2pHash::default().digest(content);
         Cid::new_v1(codec as u64, mh)
     }
+
     fn ensure(&self, content: &[u8]) -> Result<(), Idp2pMultiError>{
         let hash = Idp2pHash::try_from(self.hash().code())?;
         let mh = hash.digest(content);
@@ -37,5 +40,13 @@ impl Idp2pCid for Cid {
             return Err(Idp2pMultiError::InvalidCid);
         }
         Ok(())
+    }
+
+    fn from_bytes(bytes: &[u8]) -> Result<Cid, Idp2pMultiError> {
+        todo!()
+    }
+
+    fn from_content(bytes: &[u8])-> Result<Cid, Idp2pMultiError> {
+        todo!()
     }
 }

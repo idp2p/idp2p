@@ -24,6 +24,9 @@ impl Default for Idp2pHash {
 }
 
 impl Idp2pHash {
+    pub fn from_bytes(bytes: &[u8])-> Result<Multihash, Idp2pMultiError>{
+        Ok(Multihash::from_bytes(bytes)?)
+    }
     pub fn digest<T: AsRef<[u8]>>(&self, content: T) -> Multihash {
         match self {
             Idp2pHash::Sha256 => cid::multihash::Code::Sha2_256.digest(content.as_ref()),

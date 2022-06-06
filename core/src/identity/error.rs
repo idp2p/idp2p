@@ -21,11 +21,7 @@ pub enum IdentityError {
     #[error(transparent)]
     DecodeError(#[from] prost::DecodeError),
     #[error(transparent)]
-    Idp2pMultiError(#[from] crate::multi::error::Idp2pMultiError),
-    #[error(transparent)]
-    MultihashError(#[from] cid::multihash::Error),
-    #[error(transparent)]
-    CidError(#[from] cid::Error),
+    Idp2pMultiError(#[from] idp2p_common::multi::error::Idp2pMultiError),
     #[error("Other")]
     Other,
 }

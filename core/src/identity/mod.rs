@@ -1,9 +1,7 @@
-use cid::Cid;
-
-use idp2p_common::multi::{
-    agreement_key::Idp2pAgreementKey, id::Idp2pCodec, key::Idp2pKey, key_digest::Idp2pKeyDigest,
+use idp2p_common::{multi::{
+    agreement_key::Idp2pAgreementKey, id::{Idp2pCodec, Idp2pCid}, key::Idp2pKey, key_digest::Idp2pKeyDigest,
     keypair::Idp2pKeypair,
-};
+}, cid::Cid};
 
 use self::{error::IdentityError, state::IdentityState};
 
@@ -52,7 +50,7 @@ impl Identity {
     /// Create a new identity
     pub fn new(input: CreateIdentityInput) -> Result<Self, IdentityError> {
         match input.codec {
-            Idp2pCodec::Protobuf => protobuf::factory::new(input),
+            Idp2pCodec::Protobuf => proto::factory::new(input),
             Idp2pCodec::Json => todo!(),
         }
     }
@@ -65,22 +63,15 @@ impl Identity {
     }
 
     /// Verify an identity and get state of identity
-    pub fn verify(&self) -> Result<IdentityState, IdentityError> {
+    pub fn verify(&self, prev: Option<&Identity>) -> Result<IdentityState, IdentityError> {
         match self.codec()? {
-            Idp2pCodec::Protobuf => protobuf::verify::verify(self),
-            Idp2pCodec::Json => todo!(),
-        }
-    }
-
-    pub fn is_next(&self, next_did: &Identity) -> Result<bool, IdentityError> {
-        match self.codec()? {
-            Idp2pCodec::Protobuf => Ok(true),
+            Idp2pCodec::Protobuf => proto::verify::verify(self, prev),
             Idp2pCodec::Json => todo!(),
         }
     }
 
     fn codec(&self) -> Result<Idp2pCodec, IdentityError> {
-        let cid: Cid = self.id.to_vec().try_into()?;
+        let cid = Cid::from_bytes(&self.id)?;
         Ok(Idp2pCodec::try_from(cid.codec())?)
     }
 }
@@ -88,16 +79,19 @@ impl Identity {
 pub mod doc;
 pub mod error;
 pub mod state;
+pub mod proto;
 
 #[cfg(test)]
 mod tests {
+    use idp2p_common::multi::hash::Idp2pHash;
+
     use super::*;
-    use crate::{identity::doc::IdentityDocument, multi::hash::Idp2pHash};
+    use crate::identity::doc::IdentityDocument;
 
     #[test]
     fn id_test() -> Result<(), IdentityError> {
         let did = create_did()?;
-        let state = did.verify()?;
+        let state = did.verify(None)?;
         let doc: IdentityDocument = state.into();
         eprintln!("{}", serde_json::to_string_pretty(&doc).unwrap());
         Ok(())
@@ -107,7 +101,7 @@ mod tests {
         let mut did = create_did()?;
         let mh = Idp2pHash::default().digest(&vec![]);
         did.id = Cid::new_v1(0x50, mh).to_bytes();
-        let result = did.verify();
+        let result = did.verify(None);
         let is_err = matches!(result, Err(IdentityError::Idp2pMultiError(_)));
         assert!(is_err, "{:?}", result);
         Ok(())
@@ -119,7 +113,7 @@ mod tests {
             codec: Idp2pCodec::Protobuf,
             next_key_digest: keypair.to_key().to_key_digest(),
             recovery_key_digest: keypair.to_key().to_key_digest(),
-            events: vec![IdEvent::CreateAuthenticationKey(keypair.to_key())],
+            events: vec![IdEvent::CreateAuthenticationKey { id: vec![1] , key: keypair.to_key() }],
         };
         Ok(Identity::new(input)?)
     }

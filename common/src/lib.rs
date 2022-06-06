@@ -2,6 +2,8 @@ pub mod multi;
 pub mod random;
 pub mod serde_vec;
 pub use thiserror;
+pub use cid;
+pub use chrono;
 
 #[macro_export]
 macro_rules! decode_base {

@@ -1,4 +1,4 @@
-use cid::multihash::Multihash;
+use idp2p_common::{cid::multihash::Multihash, multi::hash::Idp2pHash};
 use prost::Message;
 
 use crate::{
@@ -7,7 +7,6 @@ use crate::{
         identity_event::EventType, EventLog, EventLogPayload, IdentityEvent, Idp2pProof,
         Idp2pVerificationKey,
     },
-    multi::hash::Idp2pHash,
 };
 
 /// Resolve event payload from encoded protobuf
@@ -18,7 +17,7 @@ pub trait EventLogResolver {
 impl EventLogResolver for EventLog {
     fn try_resolve_payload(&self, last_event_id: &[u8]) -> Result<EventLogPayload, IdentityError> {
         // Get multihash of last_event_id
-        let mh = Multihash::from_bytes(&self.event_id)?;
+        let mh = Idp2pHash::from_bytes(&self.event_id)?;
         let hash = Idp2pHash::try_from(mh.code())?;
         // Ensure generated id equals event_id
         hash.ensure(mh, &self.payload)?;
@@ -36,22 +35,22 @@ impl EventLogResolver for EventLog {
 impl Into<IdentityEvent> for IdEvent {
     fn into(self) -> IdentityEvent {
         match self {
-            IdEvent::CreateAssertionKey(assertion_key) => IdentityEvent {
+            IdEvent::CreateAssertionKey { id, key} => IdentityEvent {
                 event_type: Some(EventType::CreateAssertionKey(Idp2pVerificationKey {
-                    id: assertion_key.to_id(),
-                    value: assertion_key.to_bytes(),
+                    id: id,
+                    value: key.to_bytes(),
                 })),
             },
-            IdEvent::CreateAuthenticationKey(authentication_key) => IdentityEvent {
+            IdEvent::CreateAuthenticationKey{ id, key} => IdentityEvent {
                 event_type: Some(EventType::CreateAuthenticationKey(Idp2pVerificationKey {
-                    id: authentication_key.to_id(),
-                    value: authentication_key.to_bytes(),
+                    id: id,
+                    value: key.to_bytes(),
                 })),
             },
-            IdEvent::CreateAgreementKey(agreement_key) => IdentityEvent {
+            IdEvent::CreateAgreementKey{ id, key} => IdentityEvent {
                 event_type: Some(EventType::CreateAgreementKey(Idp2pVerificationKey {
-                    id: agreement_key.to_id(),
-                    value: agreement_key.to_bytes(),
+                    id: id,
+                    value: key.to_bytes(),
                 })),
             },
             IdEvent::SetProof { key, value } => IdentityEvent {

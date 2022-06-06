@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use crate::multi::{
+use idp2p_common::multi::{
     agreement_key::Idp2pAgreementKey, base::Idp2pBase, key::Idp2pKey, key_digest::Idp2pKeyDigest,
 };
 

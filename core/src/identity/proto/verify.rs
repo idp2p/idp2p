@@ -1,6 +1,11 @@
 use std::collections::HashMap;
 
-use cid::Cid;
+use idp2p_common::{
+    cid::Cid,
+    multi::{
+        agreement_key::Idp2pAgreementKey, id::Idp2pCid, key::Idp2pKey, key_digest::Idp2pKeyDigest,
+    },
+};
 use prost::Message;
 
 use crate::{
@@ -12,19 +17,17 @@ use crate::{
     idp2p_proto::{
         event_log_payload::Change, identity_event::EventType, IdentityInception, Microledger,
     },
-    multi::{
-        agreement_key::Idp2pAgreementKey, id::Idp2pCid, key::Idp2pKey, key_digest::Idp2pKeyDigest,
-    },
 };
 
 use super::mapper::EventLogResolver;
 
-pub fn verify(identity: &Identity, prev: Option<&Identity>) -> Result<IdentityState, IdentityError> {
+pub fn verify(
+    identity: &Identity,
+    prev: Option<&Identity>,
+) -> Result<IdentityState, IdentityError> {
     let microledger = Microledger::decode(&*identity.microledger)?;
-    if let Some(prev) = prev {
-        
-    }
-    let cid: Cid = identity.id.to_vec().try_into()?;
+    if let Some(prev) = prev {}
+    let cid = Cid::from_bytes(&identity.id)?;
     cid.ensure(&microledger.inception)?;
     // Decode inception bytes of microledger
     let inception = IdentityInception::decode(&*microledger.inception)?;
