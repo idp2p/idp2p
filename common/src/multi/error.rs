@@ -23,6 +23,10 @@ pub enum Idp2pMultiError {
     #[error("InvalidCid")]
     InvalidCid,
     #[error("InvalidDigest")]
-    InvalidDigest
+    InvalidDigest,
+    #[error("EncryptionError")]
+    EncryptionError,
+    #[error("DecryptionError")]
+    DecryptionError,
 }
 

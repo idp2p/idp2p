@@ -41,6 +41,14 @@ pub struct IdentityState {
     pub proofs: HashMap<Vec<u8>, ProofState>,
 }
 
+impl IdentityState{
+    pub fn get_latest_auth_key(&self) -> Option<KeyState>{
+        None
+    }
+    pub fn get_latest_agree_key(&self) -> Option<AgreementKeyState>{
+        None
+    }
+}
 pub trait IdentityStateEventHandler<T> {
     fn handle_event(&mut self, timestamp: i64, event: T) -> Result<(), IdentityError>;
 }

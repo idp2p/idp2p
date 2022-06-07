@@ -21,7 +21,6 @@ impl TryFrom<u64> for Idp2pCodec{
 
 pub trait Idp2pCid {
     fn from_bytes(bytes: &[u8]) -> Result<Cid, Idp2pMultiError>;
-    fn from_content(bytes: &[u8]) -> Result<Cid, Idp2pMultiError>;
     fn new_cid(codec: Idp2pCodec, content: &[u8]) -> Cid;
     fn ensure(&self, content: &[u8]) -> Result<(), Idp2pMultiError>;
 }
@@ -43,10 +42,6 @@ impl Idp2pCid for Cid {
     }
 
     fn from_bytes(bytes: &[u8]) -> Result<Cid, Idp2pMultiError> {
-        todo!()
-    }
-
-    fn from_content(bytes: &[u8])-> Result<Cid, Idp2pMultiError> {
         todo!()
     }
 }

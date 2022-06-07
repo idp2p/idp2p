@@ -50,7 +50,7 @@ impl Identity {
     /// Create a new identity
     pub fn new(input: CreateIdentityInput) -> Result<Self, IdentityError> {
         match input.codec {
-            Idp2pCodec::Protobuf => proto::factory::new(input),
+            Idp2pCodec::Protobuf => protobuf::factory::new(input),
             Idp2pCodec::Json => todo!(),
         }
     }
@@ -65,7 +65,7 @@ impl Identity {
     /// Verify an identity and get state of identity
     pub fn verify(&self, prev: Option<&Identity>) -> Result<IdentityState, IdentityError> {
         match self.codec()? {
-            Idp2pCodec::Protobuf => proto::verify::verify(self, prev),
+            Idp2pCodec::Protobuf => protobuf::verify::verify(self, prev),
             Idp2pCodec::Json => todo!(),
         }
     }
@@ -79,7 +79,7 @@ impl Identity {
 pub mod doc;
 pub mod error;
 pub mod state;
-pub mod proto;
+pub mod protobuf;
 
 #[cfg(test)]
 mod tests {

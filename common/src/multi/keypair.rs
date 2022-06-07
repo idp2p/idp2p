@@ -44,13 +44,12 @@ impl Idp2pKeypair {
         }
     }
 
-    pub fn to_shared_secret(&self, public: [u8; 32]) -> x25519_dalek::SharedSecret {
+    pub fn to_shared_secret(&self, public: x25519_dalek::PublicKey) -> x25519_dalek::SharedSecret {
         match self {
             Idp2pKeypair::Ed25519 { keypair } =>{
                 let secret_bytes = keypair.secret.to_bytes();
                 let sender_secret = StaticSecret::from(secret_bytes);
-                let receiver_public = x25519_dalek::PublicKey::from(public);
-                sender_secret.diffie_hellman(&receiver_public)
+                sender_secret.diffie_hellman(&public)
             }
         }
     }

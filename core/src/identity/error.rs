@@ -1,3 +1,4 @@
+use idp2p_common::multi::error::Idp2pMultiError;
 use thiserror::Error;
 
 #[derive(Error, Debug)]
@@ -21,7 +22,7 @@ pub enum IdentityError {
     #[error(transparent)]
     DecodeError(#[from] prost::DecodeError),
     #[error(transparent)]
-    Idp2pMultiError(#[from] idp2p_common::multi::error::Idp2pMultiError),
+    Idp2pMultiError(#[from] Idp2pMultiError),
     #[error("Other")]
     Other,
 }

@@ -1,13 +1,12 @@
 use prost::Message;
 use idp2p_common::{multi::id::{Idp2pCid, Idp2pCodec},cid::Cid, chrono::Utc};
 use crate::{
-    identity::{error::IdentityError, CreateIdentityInput, IdEvent},
+    identity::{error::IdentityError, CreateIdentityInput, IdEvent, Identity},
     idp2p_proto::{IdentityInception, Microledger},
 };
 
-pub fn new(input: CreateIdentityInput) -> Result<crate::identity::Identity, IdentityError> {
+pub fn new(input: CreateIdentityInput) -> Result<Identity, IdentityError> {
     let mut inception = IdentityInception {
-        version: 1,
         timestamp: Utc::now().timestamp(),
         next_key_digest: input.next_key_digest.to_bytes(),
         recovery_key_digest: input.recovery_key_digest.to_bytes(),

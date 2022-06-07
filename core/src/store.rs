@@ -43,8 +43,8 @@ pub enum IdStoreOutEvent {
 #[derive(Debug)]
 pub enum IdStoreOutCommand {
     PublishGet(String),
-    PublishPost { topic: String, did: Identity },
-    PublishMessage { topic: String, message: IdMessage },
+    PublishPost { topic: String, microledger: Vec<u8> },
+    PublishMessage { topic: String, message: Vec<u8> },
     WaitAndPublishPost(Vec<u8>),
 }
 
@@ -129,7 +129,7 @@ impl IdStore {
             IdStoreCommand::SendMessage { id, message } => {
                 let topic = String::from_utf8_lossy(&id).to_string();
                 //let msg = IdMessage::new(to, body)?;
-                let event = IdStoreOutCommand::PublishGet(topic);
+                let event = IdStoreOutCommand::PublishMessage{topic: topic, message: vec![]};
                 self.command_sender.send(event).await?;
             }
         }
@@ -146,7 +146,7 @@ impl IdStore {
                         log::info!("Published id: {:?}", topic);
                         let cmd = IdStoreOutCommand::PublishPost {
                             topic: topic.to_string(),
-                            did: entry.did.clone(),
+                            microledger: entry.did.microledger.clone(),
                         };
                         self.command_sender.send(cmd).await?;
                     } else {
@@ -191,7 +191,7 @@ impl IdStore {
             IdStoreEvent::ReceivedMessage(msg) => {
                 let entry = db.identities.get_mut(topic.as_bytes());
                 if let Some(entry) = entry {
-                    
+
                 }
                 todo!()
             },

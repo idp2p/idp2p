@@ -3,10 +3,10 @@ import "identity.proto";
 package idp2p.pb;
 
 message IdRawMessage{
-    bytes from = 2; // From id
-    bytes to = 3; // To id
-    bytes body = 4;
-    int64 created_at = 5; // UTC Timestamp
+    bytes from = 1; // From id
+    bytes to = 2; // To id
+    bytes body = 3;
+    int64 created_at = 4; // UTC Timestamp
 }
 
 message IdSignedMessage{
@@ -17,12 +17,18 @@ message IdSignedMessage{
 
 // identity-to-identity message
 message IdEncryptedMessage{
-    int32 kw_alg = 1; // ECDH_ES_A256KW 
-    int32 enc_alg = 2; // A256CBC_HS512
-    bytes initial_vector = 3; // 12 bytes  
-    bytes ephermal_public = 4; // One time agreement key to encrypt message(See ECIES)
-    bytes decrypt_kid = 5; // Receipent key id to decrypt message
-    bytes cipherbody = 6; // Encrypted message body
+    int64 codec = 1;
+    string kw_alg = 2; // ie ECDH_ES_A256KW 
+    bytes ephermal_public = 3; // One time agreement key to encrypt message(See ECIES)
+    bytes decrypt_kid = 4; // Receipent key id to decrypt message
+    string enc_alg = 5; // ie A256CBC_HS512
+    bytes initial_vector = 6; // 12 or 24 bytes  
+    bytes cipherbody = 7; // Encrypted message body
+}
+
+message IdMessage{
+    bytes id = 1; // CID 
+    bytes content = 2;
 }
 
 message IdMessageResult{

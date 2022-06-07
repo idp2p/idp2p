@@ -4,6 +4,7 @@ pub mod error;
 pub mod key_digest;
 pub mod agreement_key;
 pub mod key;
+pub mod enc_key;
 pub mod hash;
 pub mod id;
 pub mod keypair;

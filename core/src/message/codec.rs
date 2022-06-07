@@ -7,6 +7,7 @@ use libp2p::{
     futures::{AsyncRead, AsyncWrite, AsyncWriteExt},
     request_response::RequestResponseCodec,
 };
+use prost::Message;
 
 use super::IdMessage;
 
@@ -74,7 +75,8 @@ impl RequestResponseCodec for IdCodec {
     where
         T: AsyncWrite + Unpin + Send,
     {
-        write_length_prefixed(io, data.to_bytes()).await?;
+        let msg: crate::idp2p_proto::IdMessage = data.into();
+        write_length_prefixed(io, msg.encode_to_vec()).await?;
         io.close().await?;
 
         Ok(())

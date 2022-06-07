@@ -18,7 +18,6 @@ pub fn change(did: &mut Identity, input: ChangeInput) -> Result<(), IdentityErro
     let state = verify(did, None)?;
     let signer_key: Idp2pKey = input.signer_keypair.to_key();
     let mut payload = EventLogPayload {
-        version: 1,
         previous: state.last_event_id,
         signer_key: signer_key.to_bytes(),
         next_key_digest: input.next_key_digest.to_bytes(),
