@@ -1,8 +1,8 @@
-use idp2p_common::{cid::multihash::Multihash, multi::hash::Idp2pHash};
+use idp2p_common::{ multi::hash::Idp2pHash};
 use prost::Message;
 
 use crate::{
-    identity::{error::IdentityError, IdEvent},
+    identity::{error::IdentityError, models::IdEvent},
     idp2p_proto::{
         identity_event::EventType, EventLog, EventLogPayload, IdentityEvent, Idp2pProof,
         Idp2pVerificationKey,

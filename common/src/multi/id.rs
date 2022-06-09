@@ -42,6 +42,6 @@ impl Idp2pCid for Cid {
     }
 
     fn from_bytes(bytes: &[u8]) -> Result<Cid, Idp2pMultiError> {
-        todo!()
+        Ok(bytes.try_into()?)
     }
 }

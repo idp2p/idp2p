@@ -11,6 +11,8 @@ pub enum Idp2pMultiError {
     #[error(transparent)]
     MultibaseError(#[from] cid::multibase::Error),
     #[error(transparent)]
+    CidError(#[from] cid::Error),
+    #[error(transparent)]
     VarintReadError(#[from] unsigned_varint::io::ReadError),
     #[error(transparent)]
     Infallible(#[from] std::convert::Infallible),

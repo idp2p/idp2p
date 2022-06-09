@@ -1,72 +1,56 @@
-use idp2p_common::{multi::{
-    agreement_key::Idp2pAgreementKey, id::{Idp2pCodec, Idp2pCid}, key::Idp2pKey, key_digest::Idp2pKeyDigest,
-    keypair::Idp2pKeypair,
-}, cid::Cid};
+use idp2p_common::{
+    cid::Cid,
+    multi::id::{Idp2pCid, Idp2pCodec},
+};
 
-use self::{error::IdentityError, state::IdentityState};
-
-// Can be used new identity or change
-#[derive(PartialEq, Debug, Clone)]
-pub enum IdEvent {
-    CreateAssertionKey { id: Vec<u8>, key: Idp2pKey },
-    CreateAuthenticationKey { id: Vec<u8>, key: Idp2pKey },
-    CreateAgreementKey { id: Vec<u8>, key: Idp2pAgreementKey },
-    SetProof { key: Vec<u8>, value: Vec<u8> },
-    RevokeAssertionKey(Vec<u8>),
-    RevokeAuthenticationKey(Vec<u8>),
-    RevokeAgreementKey(Vec<u8>),
-}
-
-pub struct CreateIdentityInput {
-    // Protobuf or Json
-    pub codec: Idp2pCodec,
-    // Next key digest(multikey digest)
-    pub next_key_digest: Idp2pKeyDigest,
-    // Recovery key digest(multikey digest)
-    pub recovery_key_digest: Idp2pKeyDigest,
-    pub events: Vec<IdEvent>,
-}
-
-pub struct ChangeInput {
-    pub next_key_digest: Idp2pKeyDigest,
-    pub signer_keypair: Idp2pKeypair,
-    pub change: ChangeType,
-}
-
-pub enum ChangeType {
-    AddEvents(Vec<IdEvent>),
-    Recover(Idp2pKeyDigest),
+use self::{
+    error::IdentityError,
+    models::{ChangeInput, CreateIdentityInput},
+    state::IdentityState,
+};
+pub mod doc;
+pub mod error;
+pub mod json;
+pub mod models;
+pub mod protobuf;
+pub mod state;
+pub trait IdBehaviour {
+    fn new(&self, input: CreateIdentityInput) -> Result<Identity, IdentityError>;
+    fn change(&self, did: &mut Identity, input: ChangeInput) -> Result<bool, IdentityError>;
+    fn verify(
+        &self,
+        did: &Identity,
+        prev: Option<&Identity>,
+    ) -> Result<IdentityState, IdentityError>;
 }
 
 #[derive(PartialEq, Debug, Clone)]
 pub struct Identity {
     // Bytes of inception cid(See https://github.com/multiformats/cid)
     pub id: Vec<u8>,
-    // Microledger bytes(can be protobuf or json encode)
+    // Microledger bytes(can be protobuf or json encoded)
     pub microledger: Vec<u8>,
 }
 
 impl Identity {
     /// Create a new identity
-    pub fn new(input: CreateIdentityInput) -> Result<Self, IdentityError> {
-        match input.codec {
-            Idp2pCodec::Protobuf => protobuf::factory::new(input),
-            Idp2pCodec::Json => todo!(),
-        }
+    pub fn new(codec: Idp2pCodec, input: CreateIdentityInput) -> Result<Self, IdentityError> {
+        Self::resolve_behaviour(codec).new(input)
     }
 
-    pub fn change(&self, input: ChangeInput) -> Result<bool, IdentityError> {
-        match self.codec()? {
-            Idp2pCodec::Protobuf => Ok(true),
-            Idp2pCodec::Json => todo!(),
-        }
+    pub fn change(&mut self, input: ChangeInput) -> Result<bool, IdentityError> {
+        Self::resolve_behaviour(self.codec()?).change(self, input)
     }
 
     /// Verify an identity and get state of identity
     pub fn verify(&self, prev: Option<&Identity>) -> Result<IdentityState, IdentityError> {
-        match self.codec()? {
-            Idp2pCodec::Protobuf => protobuf::verify::verify(self, prev),
-            Idp2pCodec::Json => todo!(),
+        Self::resolve_behaviour(self.codec()?).verify(self, prev)
+    }
+
+    fn resolve_behaviour(codec: Idp2pCodec) -> Box<dyn IdBehaviour> {
+        match codec {
+            Idp2pCodec::Protobuf => Box::new(protobuf::behaviour::ProtoIdentityBehavior),
+            Idp2pCodec::Json => Box::new(json::behaviour::JsonIdentityBehavior),
         }
     }
 
@@ -76,16 +60,11 @@ impl Identity {
     }
 }
 
-pub mod doc;
-pub mod error;
-pub mod state;
-pub mod protobuf;
-
 #[cfg(test)]
 mod tests {
-    use idp2p_common::multi::hash::Idp2pHash;
+    use idp2p_common::multi::{hash::Idp2pHash, keypair::Idp2pKeypair};
 
-    use super::*;
+    use super::{models::{IdEvent, ChangeType}, *};
     use crate::identity::doc::IdentityDocument;
 
     #[test]
@@ -100,7 +79,7 @@ mod tests {
     fn verify_invalid_id_test() -> Result<(), IdentityError> {
         let mut did = create_did()?;
         let mh = Idp2pHash::default().digest(&vec![]);
-        did.id = Cid::new_v1(0x50, mh).to_bytes();
+        did.id = Cid::new_v1(0x51, mh).to_bytes();
         let result = did.verify(None);
         let is_err = matches!(result, Err(IdentityError::Idp2pMultiError(_)));
         assert!(is_err, "{:?}", result);
@@ -110,12 +89,28 @@ mod tests {
     fn create_did() -> Result<Identity, IdentityError> {
         let keypair = Idp2pKeypair::new_ed25519([0u8; 32])?;
         let input = CreateIdentityInput {
-            codec: Idp2pCodec::Protobuf,
             next_key_digest: keypair.to_key().to_key_digest(),
             recovery_key_digest: keypair.to_key().to_key_digest(),
-            events: vec![IdEvent::CreateAuthenticationKey { id: vec![1] , key: keypair.to_key() }],
+            events: vec![IdEvent::CreateAuthenticationKey {
+                id: vec![1],
+                key: keypair.to_key(),
+            }],
         };
-        Ok(Identity::new(input)?)
+        let key = keypair.to_key();
+        let mut did = Identity::new(Idp2pCodec::Json, input)?;
+        for i in 2..10 {
+            let change_input = ChangeInput {
+                next_key_digest: key.to_key_digest(),
+                signer_keypair: keypair.clone(),
+                change: ChangeType::AddEvents{events: vec![IdEvent::CreateAuthenticationKey {
+                    id: vec![i],
+                    key: key.clone(),
+                }]},
+            };
+            did.change(change_input).unwrap();
+        }
+        eprintln!("length: {}", did.microledger.len());
+        Ok(did)
     }
     /*
         #[test]

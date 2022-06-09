@@ -100,7 +100,7 @@ impl Into<IdentityDocument> for IdentityState {
             let ver_method = VerificationMethod{
                 id: kid,
                 controller: id_str.clone(),
-                typ: agreement_key.key.did_code(),
+                typ: agreement_key.key.did_scheme(),
                 bytes: agreement_key.key.to_bytes(),
             };
             doc.verification_method.push(ver_method);

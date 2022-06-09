@@ -26,7 +26,7 @@ impl Idp2pEncryptionKey {
                     .encrypt(&nonce, msg)
                     .map_err(|_| Idp2pMultiError::EncryptionError)?;
                 Ok(EncryptedContent {
-                    enc_alg: "".to_string(),
+                    enc_alg: "A256CBC_HS512".to_string(),
                     initial_vector: iv.to_vec(),
                     cipher: cipher,
                 })

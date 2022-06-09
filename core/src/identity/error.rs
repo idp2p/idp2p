@@ -22,6 +22,8 @@ pub enum IdentityError {
     #[error(transparent)]
     DecodeError(#[from] prost::DecodeError),
     #[error(transparent)]
+    SerdeJsonError(#[from] serde_json::Error),
+    #[error(transparent)]
     Idp2pMultiError(#[from] Idp2pMultiError),
     #[error("Other")]
     Other,

@@ -58,6 +58,14 @@ impl Idp2pKey {
         }
     }
 
+    pub fn to_raw_bytes(&self) -> Vec<u8> {
+        match &self {
+            Self::Ed25519 { public } => {
+                 public.to_bytes().to_vec()
+            }
+        }
+    }
+
     pub fn to_key_digest(&self) -> Idp2pKeyDigest {
         match self {
             Self::Ed25519 { public } => {

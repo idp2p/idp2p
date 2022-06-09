@@ -21,10 +21,10 @@ prost-build = "0.10.4"
 [dependencies.serde_with]
 version = "1.11.0"
 features = [ "macros" ]
-#[dev-dependencies]
-#criterion = "0.3"
+[dev-dependencies]
+criterion = "0.3"
 
-#[[bench]]
-#name = "verify_did"
-#harness = false
+[[bench]]
+name = "verify_id"
+harness = false
 
