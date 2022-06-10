@@ -9,21 +9,18 @@ use idp2p_common::{
         key::Idp2pKey,
     },
 };
-use prost::Message;
-
 use crate::{
     identity::{
         error::IdentityError,
         models::{ChangeType, IdEvent},
         state::{IdentityState, IdentityStateEventHandler},
         ChangeInput, CreateIdentityInput, IdBehaviour, Identity,
-    },
-    idp2p_proto,
+    }
 };
 
-pub struct ProtoIdentityBehavior;
+pub struct CapnpIdentityBehavior;
 
-impl IdBehaviour for ProtoIdentityBehavior {
+impl IdBehaviour for CapnpIdentityBehavior {
     fn new(&self, input: CreateIdentityInput) -> Result<Identity, IdentityError> {
         let mut inception = idp2p_proto::IdentityInception {
             timestamp: Utc::now().timestamp(),

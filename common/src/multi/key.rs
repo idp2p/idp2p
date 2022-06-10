@@ -66,11 +66,13 @@ impl Idp2pKey {
         }
     }
 
-    pub fn to_key_digest(&self) -> Idp2pKeyDigest {
+    pub fn to_key_digest(&self) -> Vec<u8> {
         match self {
             Self::Ed25519 { public } => {
                 let mh = Idp2pHash::default().digest(public.to_bytes());
-                Idp2pKeyDigest::Ed25519 { multi_digest: mh }
+                let mut type_buf = varint_encode::u64_buffer();
+                let typ = varint_encode::u64(ED25519_CODE, &mut type_buf);
+                [typ, &mh.to_bytes()].concat()
             }
         }
     }

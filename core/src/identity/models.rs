@@ -12,17 +12,20 @@ pub enum IdEvent {
     CreateAssertionKey {
         #[serde(with = "serde_vec")]
         id: Vec<u8>,
-        key: Idp2pKey,
+        #[serde(with = "serde_vec")]
+        key: Vec<u8>,
     },
     CreateAuthenticationKey {
         #[serde(with = "serde_vec")]
         id: Vec<u8>,
-        key: Idp2pKey,
+        #[serde(with = "serde_vec")]
+        key: Vec<u8>,
     },
     CreateAgreementKey {
         #[serde(with = "serde_vec")]
         id: Vec<u8>,
-        key: Idp2pAgreementKey,
+        #[serde(with = "serde_vec")]
+        key: Vec<u8>,
     },
     SetProof {
         #[serde(with = "serde_vec")]
@@ -39,20 +42,6 @@ pub enum IdEvent {
 #[serde(tag = "type")]
 pub enum ChangeType {
     AddEvents{ events: Vec<IdEvent>},
-    Recover(Idp2pKeyDigest),
+    Recover(#[serde(with = "serde_vec")] Vec<u8>),
 }
 
-pub struct CreateIdentityInput {
-    // Next key digest(multikey digest)
-    pub next_key_digest: Idp2pKeyDigest,
-    // Recovery key digest(multikey digest)
-    pub recovery_key_digest: Idp2pKeyDigest,
-    pub events: Vec<IdEvent>,
-}
-
-#[derive(Debug)]
-pub struct ChangeInput {
-    pub next_key_digest: Idp2pKeyDigest,
-    pub signer_keypair: Idp2pKeypair,
-    pub change: ChangeType,
-}

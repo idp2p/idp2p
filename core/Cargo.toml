@@ -5,6 +5,7 @@ version = "0.1.0"
 
 [dependencies]
 prost = "0.10.4"
+capnp = "0.14.6"
 libp2p = "0.44.0"
 async-trait = "0.1.53"
 log = "0.4.16"
@@ -17,6 +18,7 @@ idp2p-common = { version = "0.1.0", path="../common"}
 
 [build-dependencies]
 prost-build = "0.10.4"
+capnpc = "0.14.6"
 
 [dependencies.serde_with]
 version = "1.11.0"

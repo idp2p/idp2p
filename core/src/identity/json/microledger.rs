@@ -13,8 +13,10 @@ pub struct Microledger {
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
 pub struct IdentityInception {
     pub timestamp: i64,
-    pub next_key_digest: Idp2pKeyDigest,
-    pub recovery_key_digest: Idp2pKeyDigest,
+    #[serde(with = "serde_vec")]
+    pub next_key_digest: Vec<u8>,
+    #[serde(with = "serde_vec")]
+    pub recovery_key_digest: Vec<u8>,
     pub events: Vec<IdEvent>,
 }
 
@@ -33,7 +35,8 @@ pub struct EventLogPayload {
     pub previous: Vec<u8>,
     #[serde(with = "serde_vec")]
     pub signer_key: Vec<u8>,
-    pub next_key_digest: Idp2pKeyDigest,
+    #[serde(with = "serde_vec")]
+    pub next_key_digest: Vec<u8>,
     pub timestamp: i64,
     pub change: ChangeType,
 }

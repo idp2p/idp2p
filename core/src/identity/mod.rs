@@ -1,13 +1,17 @@
 use idp2p_common::{
     cid::Cid,
-    multi::id::{Idp2pCid, Idp2pCodec},
+    multi::{
+        id::{Idp2pCid, Idp2pCodec},
+        keypair::Idp2pKeypair,
+    },
 };
 
 use self::{
     error::IdentityError,
-    models::{ChangeInput, CreateIdentityInput},
+    models::{ChangeType, IdEvent},
     state::IdentityState,
 };
+pub mod capnp;
 pub mod doc;
 pub mod error;
 pub mod json;
@@ -22,6 +26,21 @@ pub trait IdBehaviour {
         did: &Identity,
         prev: Option<&Identity>,
     ) -> Result<IdentityState, IdentityError>;
+}
+
+pub struct CreateIdentityInput {
+    // Next key digest(multikey digest)
+    pub next_key_digest: Vec<u8>,
+    // Recovery key digest(multikey digest)
+    pub recovery_key_digest: Vec<u8>,
+    pub events: Vec<IdEvent>,
+}
+
+#[derive(Debug)]
+pub struct ChangeInput {
+    pub next_key_digest: Vec<u8>,
+    pub signer_keypair: Idp2pKeypair,
+    pub change: ChangeType,
 }
 
 #[derive(PartialEq, Debug, Clone)]
@@ -64,15 +83,18 @@ impl Identity {
 mod tests {
     use idp2p_common::multi::{hash::Idp2pHash, keypair::Idp2pKeypair};
 
-    use super::{models::{IdEvent, ChangeType}, *};
+    use super::{
+        models::{ChangeType, IdEvent},
+        *,
+    };
     use crate::identity::doc::IdentityDocument;
 
     #[test]
     fn id_test() -> Result<(), IdentityError> {
         let did = create_did()?;
         let state = did.verify(None)?;
-        let doc: IdentityDocument = state.into();
-        eprintln!("{}", serde_json::to_string_pretty(&doc).unwrap());
+        /*let doc: IdentityDocument = state.into();
+        eprintln!("{}", serde_json::to_string_pretty(&doc).unwrap());*/
         Ok(())
     }
     #[test]
@@ -93,7 +115,7 @@ mod tests {
             recovery_key_digest: keypair.to_key().to_key_digest(),
             events: vec![IdEvent::CreateAuthenticationKey {
                 id: vec![1],
-                key: keypair.to_key(),
+                key: keypair.to_key().to_bytes(),
             }],
         };
         let key = keypair.to_key();
@@ -102,10 +124,12 @@ mod tests {
             let change_input = ChangeInput {
                 next_key_digest: key.to_key_digest(),
                 signer_keypair: keypair.clone(),
-                change: ChangeType::AddEvents{events: vec![IdEvent::CreateAuthenticationKey {
-                    id: vec![i],
-                    key: key.clone(),
-                }]},
+                change: ChangeType::AddEvents {
+                    events: vec![IdEvent::CreateAuthenticationKey {
+                        id: vec![i],
+                        key: key.to_bytes(),
+                    }],
+                },
             };
             did.change(change_input).unwrap();
         }

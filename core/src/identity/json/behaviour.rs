@@ -81,13 +81,12 @@ impl IdBehaviour for JsonIdentityBehavior {
         identity: &Identity,
         prev: Option<&Identity>,
     ) -> Result<IdentityState, IdentityError> {
-        let microledger = serde_json::from_slice(&identity.microledger)?;
+        let microledger: Microledger = serde_json::from_slice(&identity.microledger)?;
+        let cid = Cid::from_bytes(&identity.id)?;
+        cid.ensure(&serde_json::to_vec(&microledger.inception)?)?;
         if let Some(prev) = prev {
             is_valid_previous(&microledger, prev)?;
         }
-        let cid = Cid::from_bytes(&identity.id)?;
-        cid.ensure(&serde_json::to_vec(&microledger.inception)?)?;
-
         // Init current state to handle events
         let mut state = IdentityState {
             id: cid.to_bytes(),
@@ -103,26 +102,24 @@ impl IdBehaviour for JsonIdentityBehavior {
         for event in microledger.inception.events {
             state.handle_event(microledger.inception.timestamp, event)?;
         }
-        for log in &microledger.event_logs {
-            ensure_payload(log, &state.last_event_id)?;
-            match &log.payload.change {
-                ChangeType::Recover(change) => {
-                    let signer = state
-                        .recovery_key_digest
-                        .to_next_key(&log.payload.signer_key)?;
+        for log in microledger.event_logs {
+            ensure_payload(&log, &state.last_event_id)?;
+            match log.payload.change.clone() {
+                ChangeType::Recover(rec_key_digest) => {
+                    let signer = state.next_recovery_key(&log.payload.signer_key)?;
                     signer.verify(&serde_json::to_vec(&log.payload)?, &log.proof)?;
-                    state.recovery_key_digest = change.to_owned();
+                    state.recovery_key_digest = rec_key_digest;
                 }
                 ChangeType::AddEvents { events } => {
-                    let signer = state.next_key_digest.to_next_key(&log.payload.signer_key)?;
+                    let signer = state.next_signer_key(&log.payload.signer_key)?;
                     signer.verify(&serde_json::to_vec(&log.payload)?, &log.proof)?;
                     for event in events {
-                        state.handle_event(log.payload.timestamp, event.to_owned())?;
+                        state.handle_event(log.payload.timestamp, event)?;
                     }
                 }
             }
-            state.next_key_digest = log.payload.next_key_digest.to_owned();
-            state.last_event_id = log.event_id.clone();
+            state.next_key_digest = log.payload.next_key_digest;
+            state.last_event_id = log.event_id;
         }
         Ok(state)
     }

@@ -1,6 +1,8 @@
 use crate::decode_base;
 
-use super::{base::Idp2pBase, error::Idp2pMultiError, ED25519_CODE, key::Idp2pKey, hash::Idp2pHash};
+use super::{
+    base::Idp2pBase, error::Idp2pMultiError, hash::Idp2pHash, key::Idp2pKey, ED25519_CODE,
+};
 use cid::multihash::Multihash;
 use serde::{de::Error as SerdeError, Deserialize, Serialize};
 use std::io::Read;
@@ -37,7 +39,7 @@ impl Idp2pKeyDigest {
         }
     }
 
-    pub fn to_next_key(&self, public_bytes: &[u8]) -> Result<Idp2pKey, Idp2pMultiError>  {
+    pub fn to_next_key(&self, public_bytes: &[u8]) -> Result<Idp2pKey, Idp2pMultiError> {
         match &self {
             Self::Ed25519 { multi_digest } => {
                 let hasher = Idp2pHash::try_from(multi_digest.code())?;
@@ -45,7 +47,7 @@ impl Idp2pKeyDigest {
                 Idp2pKey::new(ED25519_CODE, public_bytes)
             }
         }
-    } 
+    }
 }
 
 impl Serialize for Idp2pKeyDigest {
@@ -75,6 +77,15 @@ mod tests {
 
     use super::*;
     #[test]
+    fn test_slice() {
+        let v: Vec<u8> = vec![1, 2, 3];
+        let mut r = v.as_slice();
+        let typ = read_u64(&mut r).unwrap();
+        let mut other_bytes: Vec<u8> = vec![];
+        r.read_to_end(&mut other_bytes).unwrap();
+        eprintln!("{} {:?} {:?}", typ, other_bytes, v);
+    }
+    /*#[test]
     fn enc_dec_test() -> Result<(), Idp2pMultiError> {
         let bytes = [0u8; 32];
         let key = Idp2pKey::new(ED25519_CODE, bytes)?;
@@ -83,5 +94,5 @@ mod tests {
         let decoded_key = Idp2pKeyDigest::from_bytes(digest_bytes)?;
         matches!(decoded_key, Idp2pKeyDigest::Ed25519 { multi_digest } if multi_digest.code() == 0x12);
         Ok(())
-    }
+    }*/
 }
