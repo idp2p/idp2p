@@ -1,11 +1,12 @@
-use idp2p_common::{serde_vec::serde_vec, multi::key_digest::Idp2pKeyDigest};
+use idp2p_common::{serde_vec::serde_vec};
 use serde::{Deserialize, Serialize};
 
 use crate::identity::models::{IdEvent, ChangeType};
 
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
 pub struct Microledger {
-    pub inception: IdentityInception,
+    #[serde(with = "serde_vec")]
+    pub inception: Vec<u8>,
     #[serde(skip_serializing_if = "Vec::is_empty", default)]
     pub event_logs: Vec<EventLog>,
 }
@@ -24,7 +25,8 @@ pub struct IdentityInception {
 pub struct EventLog {
     #[serde(with = "serde_vec")]
     pub event_id: Vec<u8>,
-    pub payload: EventLogPayload,
+    #[serde(with = "serde_vec")]
+    pub payload: Vec<u8>,
     #[serde(with = "serde_vec")]
     pub proof: Vec<u8>, // if recover assume recovery key
 }

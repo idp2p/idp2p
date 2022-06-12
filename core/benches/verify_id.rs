@@ -33,7 +33,7 @@ fn create_did(codec: Idp2pCodec) -> Identity {
     did
 }
 fn criterion_benchmark(c: &mut Criterion) {
-    let did = create_did(Idp2pCodec::Json);
+    let did = create_did(Idp2pCodec::Protobuf);
     c.bench_function("verify identity", |b| {
         b.iter(|| black_box(did.verify(None).unwrap()))
     });

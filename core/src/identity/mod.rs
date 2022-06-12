@@ -11,7 +11,6 @@ use self::{
     models::{ChangeType, IdEvent},
     state::IdentityState,
 };
-pub mod capnp;
 pub mod doc;
 pub mod error;
 pub mod json;

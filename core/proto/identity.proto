@@ -15,10 +15,10 @@ message Microledger {
 
 /* Identity inception model*/
 message IdentityInception {
-    int64 timestamp = 2; // UTC time 
-    bytes next_key_digest = 3; // MultiKeyDigest of next public key
-    bytes recovery_key_digest= 4; // MultiKeyDigest of next recovery public key
-    repeated IdentityEvent events = 5; // Initial events
+    int64 timestamp = 1; // UTC time 
+    bytes next_key_digest = 2; // MultiKeyDigest of next public key
+    bytes recovery_key_digest= 3; // MultiKeyDigest of next recovery public key
+    repeated IdentityEvent events = 4; // Initial events
 }
 
 message EventLog {
@@ -28,13 +28,13 @@ message EventLog {
 }
 
 message EventLogPayload{
-    bytes previous = 2; // MultiDigest of previous event payload bytes
-    bytes signer_key = 3; // Raw signer public key 
-    bytes next_key_digest = 4; // MultiKeyDigest digest of next public key
-    int64 timestamp = 5;
+    bytes previous = 1; // MultiDigest of previous event payload bytes
+    bytes signer_key = 2; // Raw signer public key 
+    bytes next_key_digest = 3; // MultiKeyDigest digest of next public key
+    int64 timestamp = 4;
     oneof change {
-        bytes recover = 6; // MultiKeyDigest of recovery public key
-        IdentityEvents events = 7; // Event list
+        bytes recover = 5; // MultiKeyDigest of recovery public key
+        IdentityEvents events = 6; // Event list
     }
     message IdentityEvents {
         repeated IdentityEvent events = 1;

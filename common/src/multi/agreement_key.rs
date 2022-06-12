@@ -3,11 +3,11 @@ use std::io::Read;
 use serde::{de::Error as SerdeError, Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use unsigned_varint::{encode as varint_encode, io::read_u64};
-use x25519_dalek::{PublicKey, SharedSecret, StaticSecret};
+use x25519_dalek::{PublicKey, StaticSecret};
 
 use crate::{decode_base, random::create_random};
 
-use super::{base::Idp2pBase, error::Idp2pMultiError, X25519_CODE, keypair::Idp2pKeypair};
+use super::{base::Idp2pBase, error::Idp2pMultiError, keypair::Idp2pKeypair, X25519_CODE};
 
 #[derive(PartialEq, Clone, Debug)]
 pub enum Idp2pAgreementKey {
@@ -62,7 +62,10 @@ impl Idp2pAgreementKey {
                 let ephermal_keypair = Idp2pKeypair::new_ed25519(create_random::<32>())?;
                 let secret_bytes = ephermal_keypair.to_secret_bytes();
                 let shared_secret = self.to_shared_secret(&secret_bytes)?;
-                Ok((ephermal_keypair.to_agreement_key().to_bytes(), shared_secret))
+                Ok((
+                    ephermal_keypair.to_agreement_key().to_bytes(),
+                    shared_secret,
+                ))
             }
         }
     }
@@ -70,7 +73,7 @@ impl Idp2pAgreementKey {
     pub fn to_shared_secret(&self, secret: &[u8]) -> Result<Vec<u8>, Idp2pMultiError> {
         match self {
             Idp2pAgreementKey::X25519 { public } => {
-                let secret_bytes: [u8;32] =  secret.try_into()?;
+                let secret_bytes: [u8; 32] = secret.try_into()?;
                 let sender_secret = StaticSecret::from(secret_bytes);
                 let shared_secret = sender_secret.diffie_hellman(&public);
                 Ok(shared_secret.to_bytes().to_vec())

@@ -1,5 +1,3 @@
-use idp2p_common::multi::{agreement_key::Idp2pAgreementKey, key::Idp2pKey};
-
 use crate::{
     identity::{
         error::IdentityError,

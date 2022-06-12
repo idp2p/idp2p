@@ -5,8 +5,8 @@ fn main() {
     prost_build
         .compile_protos(&["proto/identity.proto", "proto/message.proto"], &["proto"])
         .unwrap();
-    capnpc::CompilerCommand::new()
+    /*capnpc::CompilerCommand::new()
         .file("capnp/identity.capnp")
         .run()
-        .expect("schema compiler command");
+        .expect("schema compiler command");*/
 }
