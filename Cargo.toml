@@ -10,12 +10,12 @@ dotenv = "0.15.0"
 colored = "2.0.0"
 serde = { version = "1.0.130", features = ["derive"] }
 tokio = { version = "1.13.0", features = ["full"] }
-idp2p-common = { version = "0.1.0", path = "common" }
-idp2p-core = { version = "0.1.0", path = "core" }
+idp2p-common = { version = "0.1.0", path = "idp2p-common" }
+idp2p-core = { version = "0.1.0", path = "idp2p-core" }
 
 [workspace]
 edition = "2021"
 members = [
-    "common",
-    "core"
+    "idp2p-common",
+    "idp2p-core",
 ]
