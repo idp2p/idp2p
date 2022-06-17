@@ -1,8 +1,6 @@
-use std::io::Read;
-
-use super::{error::Idp2pMultiError, hash::Idp2pHash};
+use super::{error::Idp2pMultiError, hasher::Idp2pHasher};
 use cid::multihash::Multihash;
-use unsigned_varint::{encode as varint_encode, io::read_u64, io::read_u8};
+use unsigned_varint::{encode as varint_encode, io::read_u64};
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Idp2pCodec {
@@ -24,34 +22,47 @@ impl TryFrom<u64> for Idp2pCodec {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Idp2pId {
-    pub version: u64,      // idp2p version
+    pub version: u64,      // cid version
     pub codec: Idp2pCodec, // codec
-    pub mh: Multihash,     // multihash of content
+    pub cover: u64,        // content version
+    pub digest: Multihash, // multihash of content
 }
 
 impl Idp2pId {
-    pub fn new(codec: Idp2pCodec, hasher: Idp2pHash, content: &[u8]) -> Self {
+    pub fn new(cover: u64, content: &[u8]) -> Self {
         Self {
-            version: 0,
-            codec,
-            mh: hasher.digest(content),
+            version: 1,
+            codec: Idp2pCodec::Protobuf,
+            cover: cover,
+            digest: Idp2pHasher::default().digest(content),
         }
     }
 
     pub fn from_bytes<T: AsRef<[u8]>>(bytes: T) -> Result<Self, Idp2pMultiError> {
         let mut r = bytes.as_ref();
-        let version = read_u64(&mut r)?; // idp2p version
-        let codec = read_u64(&mut r)?; // content encoding
-        let code = read_u64(&mut r)?; // hash code
-        let mut code_buf = varint_encode::u64_buffer();
-        let code_bytes = varint_encode::u64(code, &mut code_buf);
-        let size = read_u8(&mut r)?; // digest size
-        let mut digest: Vec<u8> = vec![0; size as usize];
-        r.read_exact(&mut digest)?;
+        let version = read_u64(&mut r)?;
+        let codec = read_u64(&mut r)?;
+        let cover = read_u64(&mut r)?;
+        Self::from_fields(version, codec, cover, r)
+        /*Ok(Self {
+            version: version,
+            codec: codec.try_into()?,
+            cover: cover,
+            digest: Multihash::from_bytes(r)?,
+        })*/
+    }
+
+    pub fn from_fields(
+        version: u64,
+        codec: u64,
+        cover: u64,
+        digest: &[u8],
+    ) -> Result<Self, Idp2pMultiError> {
         Ok(Self {
             version: version,
             codec: codec.try_into()?,
-            mh: Multihash::from_bytes(&[code_bytes, &[size], &digest].concat())?,
+            cover: cover,
+            digest: Multihash::from_bytes(digest)?,
         })
     }
 
@@ -60,12 +71,19 @@ impl Idp2pId {
         let version = varint_encode::u64(self.version, &mut version_buf);
         let mut codec_buf = varint_encode::u64_buffer();
         let codec = varint_encode::u64(self.codec.clone() as u64, &mut codec_buf);
-        [version, codec, &self.mh.to_bytes()].concat()
+        let mut cover_buf = varint_encode::u64_buffer();
+        let cover = varint_encode::u64(self.cover.clone() as u64, &mut cover_buf);
+        [version, codec, cover, &self.digest.to_bytes()].concat()
     }
 
     pub fn ensure(&self, content: &[u8]) -> Result<(), Idp2pMultiError> {
-        let hasher = self.mh.code().try_into()?;
-        let expected_id = Self::new(self.codec.clone(), hasher, content);
+        let hasher: Idp2pHasher = self.digest.code().try_into()?;
+        let expected_id = Self {
+            version: self.version,
+            codec: self.codec.clone(),
+            cover: self.cover,
+            digest: hasher.digest(content),
+        };
         if expected_id != *self {
             return Err(Idp2pMultiError::InvalidCid);
         }
@@ -73,6 +91,31 @@ impl Idp2pId {
     }
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn enc_dec_test() -> Result<(), Idp2pMultiError> {
+        let id = Idp2pId::new(0, &vec![0u8; 50]);
+        let id2 = Idp2pId::from_bytes(&id.to_bytes())?;
+        assert_eq!(id, id2);
+        Ok(())
+    }
+}
+//let mut digest: Vec<u8> = vec![];
+//r.read_to_end(&mut digest)?;
+//Multihash::from_bytes(&digest);
+/*let code = read_u64(&mut r)?; // hash code
+let mut code_buf = varint_encode::u64_buffer();
+let code_bytes = varint_encode::u64(code, &mut code_buf);
+let size = read_u8(&mut r)?; // digest size
+let mut digest: Vec<u8> = vec![0; size as usize];
+r.read_exact(&mut digest)?;
+Ok(Self {
+    version: version,
+    codec: codec.try_into()?,
+    mh: Multihash::from_bytes(&[code_bytes, &[size], &digest].concat())?,
+})*/
 /*pub trait Idp2pCid {
     fn from_bytes(bytes: &[u8]) -> Result<Cid, Idp2pMultiError>;
     fn new_cid(codec: Idp2pCodec, content: &[u8]) -> Cid;

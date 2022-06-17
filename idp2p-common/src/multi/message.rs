@@ -1,17 +1,35 @@
-pub struct Idp2pMultiMessage{
-    version: u64,
-    codec: u64, // Codec of message
-    hash_code: u64, 
-    hash_size: u64,
-    id: Vec<u8>,
-    body: Vec<u8>
+use std::io::Read;
+
+use super::{error::Idp2pMultiError, id::Idp2pId};
+use unsigned_varint::{encode as varint_encode, io::{read_u64, read_u8}};
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct Idp2pMessage {
+    id: Idp2pId,
+    body: Vec<u8>,
 }
 
-impl Idp2pMultiMessage{
-    pub fn from_bytes(bytes: &[u8]) -> Result<Self, Idp2pMultiError>{
-        
+impl Idp2pMessage {
+    pub fn from_bytes<T: AsRef<[u8]>>(bytes: T) -> Result<Self, Idp2pMultiError> {
+        let mut r = bytes.as_ref();
+        let version = read_u64(&mut r)?;
+        let codec = read_u64(&mut r)?;
+        let cover = read_u64(&mut r)?;
+        let code = read_u64(&mut r)?; // hash code
+        let mut code_buf = varint_encode::u64_buffer();
+        let code_bytes = varint_encode::u64(code, &mut code_buf);
+        let size = read_u8(&mut r)?; // digest size
+        let mut digest: Vec<u8> = vec![0; size as usize];
+        r.read_exact(&mut digest)?;
+        let mut body: Vec<u8> = vec![];
+        r.read_to_end(&mut body)?;
+        Ok(Self {
+            id: Idp2pId::from_fields(version, codec, cover, &digest)?,
+            body 
+        })
     }
-    pub fn to_id(&self) -> Result<Vec<u8>>{
-       
+
+    pub fn to_bytes(&self) -> Result<Vec<u8>, Idp2pMultiError> {
+        Ok(vec![])
     }
 }

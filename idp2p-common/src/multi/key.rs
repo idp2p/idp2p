@@ -8,7 +8,7 @@ use unsigned_varint::{encode as varint_encode, io::read_u64};
 use crate::decode_base;
 
 use super::{
-    base::Idp2pBase, error::Idp2pMultiError, hash::Idp2pHash, key_digest::Idp2pKeyDigest,
+    base::Idp2pBase, error::Idp2pMultiError, hasher::Idp2pHasher, key_digest::Idp2pKeyDigest,
     ED25519_CODE,
 };
 
@@ -69,7 +69,7 @@ impl Idp2pKey {
     pub fn to_key_digest(&self) -> Vec<u8> {
         match self {
             Self::Ed25519 { public } => {
-                let mh = Idp2pHash::default().digest(public.to_bytes());
+                let mh = Idp2pHasher::default().digest(public.to_bytes());
                 let mut type_buf = varint_encode::u64_buffer();
                 let typ = varint_encode::u64(ED25519_CODE, &mut type_buf);
                 [typ, &mh.to_bytes()].concat()

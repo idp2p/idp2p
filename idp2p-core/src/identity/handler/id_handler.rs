@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use idp2p_common::{
     chrono::Utc,
     multi::{
-        hash::Idp2pHash,
+        hasher::Idp2pHasher,
         id::{Idp2pCodec, Idp2pId},
         key::Idp2pKey,
     },
@@ -190,7 +190,7 @@ impl IdentityHandler for ProtoIdentityHandler {
 }
 
 fn create_id(content: &[u8]) -> Vec<u8> {
-    Idp2pId::new(Idp2pCodec::Protobuf, Idp2pHash::default(), &content).to_bytes()
+    Idp2pId::new(0, &content).to_bytes()
 }
 fn is_valid_previous(
     can_ml: &idp2p_proto::Microledger,

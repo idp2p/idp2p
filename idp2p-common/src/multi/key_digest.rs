@@ -1,7 +1,7 @@
 use crate::decode_base;
 
 use super::{
-    base::Idp2pBase, error::Idp2pMultiError, hash::Idp2pHash, key::Idp2pKey, ED25519_CODE,
+    base::Idp2pBase, error::Idp2pMultiError, hasher::Idp2pHasher, key::Idp2pKey, ED25519_CODE,
 };
 use cid::multihash::Multihash;
 use serde::{de::Error as SerdeError, Deserialize, Serialize};
@@ -42,7 +42,7 @@ impl Idp2pKeyDigest {
     pub fn to_next_key(&self, public_bytes: &[u8]) -> Result<Idp2pKey, Idp2pMultiError> {
         match &self {
             Self::Ed25519 { multi_digest } => {
-                let hasher = Idp2pHash::try_from(multi_digest.code())?;
+                let hasher = Idp2pHasher::try_from(multi_digest.code())?;
                 hasher.ensure(*multi_digest, public_bytes)?;
                 Idp2pKey::new(ED25519_CODE, public_bytes)
             }

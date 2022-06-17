@@ -1,4 +1,4 @@
-use idp2p_common::multi::hash::Idp2pHash;
+use idp2p_common::multi::hasher::Idp2pHasher;
 use prost::Message;
 
 use crate::idp2p_proto::{
@@ -15,8 +15,8 @@ pub trait EventLogResolver {
 impl EventLogResolver for EventLog {
     fn try_resolve_payload(&self, last_event_id: &[u8]) -> Result<EventLogPayload, IdentityError> {
         // Get multihash of last_event_id
-        let mh = Idp2pHash::from_bytes(&self.event_id)?;
-        let hasher = Idp2pHash::try_from(mh.code())?;
+        let mh = Idp2pHasher::from_bytes(&self.event_id)?;
+        let hasher = Idp2pHasher::try_from(mh.code())?;
         // Ensure generated id equals event_id
         hasher.ensure(mh, &self.payload)?;
         let payload = EventLogPayload::decode(self.payload.as_slice())?;

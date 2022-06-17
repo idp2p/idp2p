@@ -2,35 +2,35 @@ use cid::multihash::{Multihash, MultihashDigest};
 
 use super::error::Idp2pMultiError;
 #[derive(Debug, Clone)]
-pub enum Idp2pHash {
+pub enum Idp2pHasher {
     Sha256 = 0x12,
 }
 
-impl TryFrom<u64> for Idp2pHash {
+impl TryFrom<u64> for Idp2pHasher {
     type Error = Idp2pMultiError;
 
     fn try_from(value: u64) -> Result<Self, Self::Error> {
         match value {
-            0x12 => Ok(Idp2pHash::Sha256),
+            0x12 => Ok(Idp2pHasher::Sha256),
             _ => Err(Idp2pMultiError::HashAlgError),
         }
     }
 }
 
-impl Default for Idp2pHash {
+impl Default for Idp2pHasher {
     fn default() -> Self {
-        Idp2pHash::Sha256
+        Idp2pHasher::Sha256
     }
 }
 
-impl Idp2pHash {
+impl Idp2pHasher {
     pub fn from_bytes(bytes: &[u8])-> Result<Multihash, Idp2pMultiError>{
         Ok(Multihash::from_bytes(bytes)?)
     }
     
     pub fn digest<T: AsRef<[u8]>>(&self, content: T) -> Multihash {
         match self {
-            Idp2pHash::Sha256 => cid::multihash::Code::Sha2_256.digest(content.as_ref()),
+            Idp2pHasher::Sha256 => cid::multihash::Code::Sha2_256.digest(content.as_ref()),
         }
     }
 
@@ -48,7 +48,7 @@ mod tests {
     use super::*;
     #[test]
     fn hash_test() {
-        let mh = Idp2pHash::default().digest(vec![]);
+        let mh = Idp2pHasher::default().digest(vec![]);
         assert_eq!(mh.code(), 0x12);
         assert_eq!(mh.size(), 32);
     }
