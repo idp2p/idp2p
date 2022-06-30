@@ -15,9 +15,7 @@ impl Idp2pMessage {
         let version = read_u64(&mut r)?;
         let codec = read_u64(&mut r)?;
         let cover = read_u64(&mut r)?;
-        let code = read_u64(&mut r)?; // hash code
-        let mut code_buf = varint_encode::u64_buffer();
-        let code_bytes = varint_encode::u64(code, &mut code_buf);
+        let _ = read_u64(&mut r)?; // hash code
         let size = read_u8(&mut r)?; // digest size
         let mut digest: Vec<u8> = vec![0; size as usize];
         r.read_exact(&mut digest)?;

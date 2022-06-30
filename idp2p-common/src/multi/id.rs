@@ -44,12 +44,6 @@ impl Idp2pId {
         let codec = read_u64(&mut r)?;
         let cover = read_u64(&mut r)?;
         Self::from_fields(version, codec, cover, r)
-        /*Ok(Self {
-            version: version,
-            codec: codec.try_into()?,
-            cover: cover,
-            digest: Multihash::from_bytes(r)?,
-        })*/
     }
 
     pub fn from_fields(

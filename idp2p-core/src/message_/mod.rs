@@ -6,15 +6,15 @@ use idp2p_common::{
 
 use self::error::IdMessageError;
 pub mod error;
+pub mod handler;
 
-pub trait IdMessageBehaviour {
+pub trait IdMessageHandler {
     fn encode(&self, codec: Idp2pCodec) -> Result<Vec<u8>, IdMessageError>;
     fn decode(&self, msg: &[u8]) -> Result<IdMessage, IdMessageError>;
 }
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct IdMessage {
-    id: Vec<u8>,
     from: Vec<u8>,
     to: Vec<u8>,
     created_at: i64,
@@ -24,11 +24,12 @@ pub struct IdMessage {
 impl IdMessage {
     /// Create a raw message.
     ///
-    /// * `input` - Message properties.
+    /// * `from` - Message sender.
+    /// * `to` - Message receiver.
+    /// * `body` - Message content.
     pub fn new(from: &[u8], to: &[u8], body: &[u8]) -> Self {
         let id: [u8; 32] = create_random();
-        IdMessage {
-            id: id.to_vec(),
+        Self {
             from: from.to_vec(),
             to: to.to_vec(),
             created_at: Utc::now().timestamp(),

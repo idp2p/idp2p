@@ -17,7 +17,13 @@ impl Idp2pBase {
         }
     }
 
-    pub fn decode(s: &str) -> Result<Vec<u8>, Idp2pMultiError>{
+    pub fn decode(s: &str) -> Result<Vec<u8>, Idp2pMultiError> {
         Ok(multibase::decode(s)?.1)
+    }
+
+    pub fn decode_sized<const N: usize>(s: &str) -> Result<[u8; N], Idp2pMultiError> {
+        let r = multibase::decode(s)?.1;
+        let data: [u8; N] = r.try_into().expect("Data size is not equal to given size");
+        Ok(data)
     }
 }

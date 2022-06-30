@@ -2,11 +2,7 @@ use std::collections::HashMap;
 
 use idp2p_common::{
     chrono::Utc,
-    multi::{
-        hasher::Idp2pHasher,
-        id::{Idp2pCodec, Idp2pId},
-        key::Idp2pKey,
-    },
+    multi::{id::Idp2pId, key::Idp2pKey},
 };
 use prost::Message;
 
@@ -25,7 +21,7 @@ pub struct ProtoIdentityHandler;
 impl IdentityHandler for ProtoIdentityHandler {
     fn new(&self, input: CreateIdentityInput) -> Result<Identity, IdentityError> {
         let mut inception = idp2p_proto::IdentityInception {
-            timestamp: Utc::now().timestamp(),
+            timestamp: input.timestamp,
             next_key_digest: input.next_key_digest,
             recovery_key_digest: input.recovery_key_digest,
             events: vec![],

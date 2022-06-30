@@ -1,11 +1,11 @@
 use idp2p_common::chrono::Utc;
-use idp2p_common::multi::enc_key::Idp2pEncryptionKey;
+use idp2p_common::multi::encryption_key::Idp2pEncryptionKey;
 use prost::Message;
 
 use crate::idp2p_proto;
-use crate::message::{CreateIdMessageInput, IdMessageError};
+use crate::message_::{ IdMessageError, IdMessage};
 
-pub fn new(input: CreateIdMessageInput) -> Result<Vec<u8>, IdMessageError> {
+pub fn new(input: IdMessage) -> Result<Vec<u8>, IdMessageError> {
     let auth_key = input
         .from
         .get_latest_auth_key()
@@ -17,7 +17,7 @@ pub fn new(input: CreateIdMessageInput) -> Result<Vec<u8>, IdMessageError> {
     if input.auth_keypair.to_key() != auth_key.key {
         return Err(IdMessageError::Other);
     }
-    let body = idp2p_proto::IdRawMessage {
+    let body = idp2p_proto::IdMessage {
         from: input.from.id,
         to: input.to.id,
         created_at: Utc::now().timestamp(),

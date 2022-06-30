@@ -1,42 +1,71 @@
+use std::io::Read;
+
 use crate::random::create_random;
 
-use super::error::Idp2pMultiError;
+use super::{error::Idp2pMultiError, AES256_CODE, AESGCM_CODE};
+use unsigned_varint::{encode as varint_encode, io::read_u64};
 
-pub struct EncryptedContent {
-    pub enc_alg: String,
-    pub initial_vector: Vec<u8>,
-    pub cipher: Vec<u8>,
-}
 pub enum Idp2pEncryptionKey {
-    AesGcm(Vec<u8>),
+    AesGcm (Vec<u8>),
 }
 
 impl Idp2pEncryptionKey {
-    pub fn encrypt(&self, msg: &[u8]) -> Result<EncryptedContent, Idp2pMultiError> {
+    pub fn new_aes_gcm() -> Self {
+        let iv: [u8; 12] = create_random();
+        Self::AesGcm(iv.to_vec())
+    }
+
+    pub fn from_bytes<T: AsRef<[u8]>>(bytes: T) -> Result<Self, Idp2pMultiError> {
+        let mut r = bytes.as_ref();
+        let enc_key_type = read_u64(&mut r)?;
+        let enc_type = read_u64(&mut r)?;
+        match enc_key_type {
+            AES256_CODE => {
+                match enc_type{
+                    AESGCM_CODE => {
+                        let mut iv_bytes = [0u8; 12];
+                        r.read_exact(&mut iv_bytes)?;
+                        Ok(Self::AesGcm(iv_bytes.to_vec()))
+                    },
+                    _ => Err(Idp2pMultiError::InvalidKeyCode)
+                }
+            }
+            _ => Err(Idp2pMultiError::InvalidKeyCode),
+        }
+    }
+
+    pub fn to_bytes(&self) -> Vec<u8> {
+        match &self {
+            Self::AesGcm (iv) => {
+                let mut enc_key_type_buf = varint_encode::u64_buffer();
+                let enc_key_type = varint_encode::u64(AES256_CODE, &mut enc_key_type_buf);
+                let mut enc_type_buf = varint_encode::u64_buffer();
+                let enc_type = varint_encode::u64(32, &mut enc_type_buf);
+                [enc_key_type, enc_type, &*iv].concat()
+            }
+        }
+    }
+
+    pub fn encrypt(&self, key: &[u8], msg: &[u8]) -> Result<Vec<u8>, Idp2pMultiError> {
         match self {
-            Idp2pEncryptionKey::AesGcm(key) => {
+            Idp2pEncryptionKey::AesGcm(iv) => {
                 use aes_gcm::{
                     aead::{generic_array::GenericArray, Aead, NewAead},
                     Aes256Gcm,
                 };
-                let iv: [u8; 12] = create_random();
                 let nonce = GenericArray::from_slice(&iv[..12]);
                 let aead = Aes256Gcm::new(GenericArray::from_slice(key));
                 let cipher = aead
                     .encrypt(&nonce, msg)
                     .map_err(|_| Idp2pMultiError::EncryptionError)?;
-                Ok(EncryptedContent {
-                    enc_alg: "A256CBC_HS512".to_string(),
-                    initial_vector: iv.to_vec(),
-                    cipher: cipher,
-                })
+                Ok(cipher)
             }
         }
     }
 
-    pub fn decrypt(&self, iv: &[u8], cipher: &[u8]) -> Result<Vec<u8>, Idp2pMultiError> {
+    pub fn decrypt(&self, key: &[u8], cipher: &[u8]) -> Result<Vec<u8>, Idp2pMultiError> {
         match self {
-            Idp2pEncryptionKey::AesGcm(key) => {
+            Idp2pEncryptionKey::AesGcm(iv) => {
                 use aes_gcm::{
                     aead::{generic_array::GenericArray, Aead, NewAead},
                     Aes256Gcm,

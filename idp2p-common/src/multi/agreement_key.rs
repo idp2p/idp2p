@@ -59,7 +59,7 @@ impl Idp2pAgreementKey {
     pub fn create_shared_secret(&self) -> Result<(Vec<u8>, Vec<u8>), Idp2pMultiError> {
         match self {
             Idp2pAgreementKey::X25519 { public: _ } => {
-                let ephermal_keypair = Idp2pKeypair::new_ed25519(create_random::<32>())?;
+                let ephermal_keypair = Idp2pKeypair::from_ed_secret(create_random::<32>())?;
                 let secret_bytes = ephermal_keypair.to_secret_bytes();
                 let shared_secret = self.to_shared_secret(&secret_bytes)?;
                 Ok((

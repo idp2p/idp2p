@@ -1,4 +1,3 @@
-pub mod message;
 pub mod identity;
 pub mod reqres;
 pub mod store;

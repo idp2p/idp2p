@@ -7,8 +7,9 @@ use idp2p_core::identity::{
 use idp2p_core::identity::handler::id_handler::ProtoIdentityHandler;
 
 fn create_did() -> Identity {
-    let keypair = Idp2pKeypair::new_ed25519(&[0u8; 32]).unwrap();
+    let keypair = Idp2pKeypair::from_ed_secret(&[0u8; 32]).unwrap();
     let input = CreateIdentityInput {
+        timestamp: 0,
         next_key_digest: keypair.to_key().to_key_digest(),
         recovery_key_digest: keypair.to_key().to_key_digest(),
         events: vec![IdEvent::CreateAuthenticationKey {

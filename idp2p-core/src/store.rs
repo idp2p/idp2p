@@ -1,20 +1,18 @@
 use std::{collections::HashMap, sync::Mutex};
 
 use idp2p_common::multi::keypair::Idp2pKeypair;
-use tokio::sync::mpsc::Sender;
+use tokio::sync::mpsc::{error::SendError, Sender};
 
-use crate::{
-    identity::{self, state::IdentityState, Identity}
-};
+use crate::identity::{self, state::IdentityState, Identity};
 
 use thiserror::Error;
 
 #[derive(Error, Debug)]
 pub enum IdStoreError {
     #[error(transparent)]
-    CommandSendError(#[from] tokio::sync::mpsc::error::SendError<IdStoreOutCommand>),
+    CommandSendError(#[from] SendError<IdStoreOutCommand>),
     #[error(transparent)]
-    EventSendError(#[from] tokio::sync::mpsc::error::SendError<IdStoreOutEvent>),
+    EventSendError(#[from] SendError<IdStoreOutEvent>),
     #[error(transparent)]
     IdentityError(#[from] identity::error::IdentityError),
 }
@@ -57,17 +55,22 @@ pub struct IdEntry {
     pub(crate) id_state: IdentityState,
 }
 
+pub struct IdSecret {
+    id: Vec<u8>,
+    keypair: Idp2pKeypair,
+}
+
 pub struct IdDb {
     pub(crate) id: Vec<u8>,
-    pub(crate) auth_keypair: Idp2pKeypair,
-    pub(crate) agree_keypair: Idp2pKeypair,
+    pub(crate) auth_secret: IdSecret,
+    pub(crate) agree_secret: IdSecret,
     pub(crate) identities: HashMap<Vec<u8>, IdEntry>,
 }
 
 pub struct IdStoreInput {
     pub(crate) identity: Identity,
-    pub(crate) auth_keypair: Idp2pKeypair,
-    pub(crate) agree_keypair: Idp2pKeypair,
+    pub(crate) auth_secret: IdSecret,
+    pub(crate) agree_secret: IdSecret,
     pub(crate) event_sender: Sender<IdStoreOutEvent>,
     pub(crate) command_sender: Sender<IdStoreOutCommand>,
 }
@@ -86,7 +89,7 @@ impl TryFrom<Identity> for IdEntry {
         let entry = IdEntry {
             waiting_publish: false,
             did: value,
-            id_state: state
+            id_state: state,
         };
         Ok(entry)
     }
@@ -105,8 +108,8 @@ impl IdStore {
     pub fn new(input: IdStoreInput) -> Result<Self, IdStoreError> {
         let mut db = IdDb {
             id: input.identity.id.clone(),
-            auth_keypair: input.auth_keypair,
-            agree_keypair: input.agree_keypair,
+            auth_secret: input.auth_secret,
+            agree_secret: input.agree_secret,
             identities: HashMap::new(),
         };
         db.push_entry(input.identity)?;
@@ -128,7 +131,10 @@ impl IdStore {
             IdStoreCommand::SendMessage { id, message } => {
                 let topic = String::from_utf8_lossy(&id).to_string();
                 //let msg = IdMessage::new(to, body)?;
-                let event = IdStoreOutCommand::PublishMessage{topic: topic, message: vec![]};
+                let event = IdStoreOutCommand::PublishMessage {
+                    topic: topic,
+                    message: vec![],
+                };
                 self.command_sender.send(event).await?;
             }
         }
@@ -189,11 +195,9 @@ impl IdStore {
             }
             IdStoreEvent::ReceivedMessage(msg) => {
                 let entry = db.identities.get_mut(topic.as_bytes());
-                if let Some(entry) = entry {
-
-                }
+                if let Some(entry) = entry {}
                 todo!()
-            },
+            }
         }
         Ok(())
     }

@@ -17,7 +17,7 @@ impl Clone for Idp2pKeypair {
     }
 }
 impl Idp2pKeypair {
-    pub fn new_ed25519<T: AsRef<[u8]>>(secret_bytes: T) -> Result<Self, Idp2pMultiError> {
+    pub fn from_ed_secret<T: AsRef<[u8]>>(secret_bytes: T) -> Result<Self, Idp2pMultiError> {
         let sk = SecretKey::from_bytes(secret_bytes.as_ref())?;
         let pk: PublicKey = (&sk).into();
         let sk = SecretKey::from_bytes(secret_bytes.as_ref())?;
