@@ -1,13 +1,14 @@
 use std::io::Read;
 
+use rand::rngs::OsRng;
 use serde::{de::Error as SerdeError, Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use unsigned_varint::{encode as varint_encode, io::read_u64};
-use x25519_dalek::{PublicKey, StaticSecret};
+use x25519_dalek::{EphemeralSecret, PublicKey};
 
-use crate::{decode_base, random::create_random};
+use crate::decode_base;
 
-use super::{base::Idp2pBase, error::Idp2pMultiError, keypair::Idp2pKeypair, X25519_CODE};
+use super::{base::Idp2pBase, error::Idp2pMultiError, X25519_CODE, agreement_secret::Idp2pAgreementSecret};
 
 #[derive(PartialEq, Clone, Debug)]
 pub enum Idp2pAgreementKey {
@@ -58,35 +59,27 @@ impl Idp2pAgreementKey {
 
     pub fn create_shared_secret(&self) -> Result<(Vec<u8>, Vec<u8>), Idp2pMultiError> {
         match self {
-            Idp2pAgreementKey::X25519 { public: _ } => {
-                let ephermal_keypair = Idp2pKeypair::from_ed_secret(create_random::<32>())?;
-                let secret_bytes = ephermal_keypair.to_secret_bytes();
-                let shared_secret = self.to_shared_secret(&secret_bytes)?;
-                Ok((
-                    ephermal_keypair.to_agreement_key().to_bytes(),
-                    shared_secret,
-                ))
-            }
-        }
-    }
-
-    pub fn to_shared_secret(&self, secret: &[u8]) -> Result<Vec<u8>, Idp2pMultiError> {
-        match self {
             Idp2pAgreementKey::X25519 { public } => {
-                let secret_bytes: [u8; 32] = secret.try_into()?;
-                let sender_secret = StaticSecret::from(secret_bytes);
-                let shared_secret = sender_secret.diffie_hellman(&public);
-                Ok(shared_secret.to_bytes().to_vec())
+                let ephemeral_secret = EphemeralSecret::new(OsRng);
+                let ephemeral_public = PublicKey::from(&ephemeral_secret);
+                let shared_secret = ephemeral_secret.diffie_hellman(&public);
+                Ok((
+                    ephemeral_public.as_bytes().to_vec(),
+                    shared_secret.to_bytes().to_vec(),
+                ))
             }
         }
     }
 
     pub fn to_id(&self) -> Vec<u8> {
         match self {
-            Self::X25519 { public } => Sha256::new()
-                .chain_update(public.to_bytes())
-                .finalize()
-                .to_vec(),
+            Self::X25519 { public } => {
+                let h = Sha256::new()
+                    .chain_update(public.to_bytes())
+                    .finalize()
+                    .to_vec();
+                h[0..16].to_vec()
+            }
         }
     }
 
@@ -128,6 +121,14 @@ mod tests {
         let key_bytes = key.to_bytes();
         let decoded_key = Idp2pAgreementKey::from_bytes(key_bytes)?;
         matches!(decoded_key, Idp2pAgreementKey::X25519 { public } if public.to_bytes() == bytes);
+        Ok(())
+    }
+
+    #[test]
+    fn to_id_test() -> Result<(), Idp2pMultiError> {
+        let bytes = [0u8; 32];
+        let key = Idp2pAgreementKey::new(X25519_CODE, bytes)?;
+        assert_eq!(key.to_id().len(), 16);
         Ok(())
     }
 }

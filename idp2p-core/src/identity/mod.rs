@@ -1,19 +1,22 @@
-use idp2p_common::{chrono::Utc, multi::{keypair::Idp2pKeypair}, random::create_random};
-
-use crate::{store::IdSecret};
+use idp2p_common::{
+    chrono::Utc,
+    multi::{agreement_secret::Idp2pAgreementSecret, key_secret::Idp2pKeySecret},
+    random::create_random,
+};
 
 use self::{
     error::IdentityError,
     handler::{id_handler::ProtoIdentityHandler, msg_handler::ProtoMessageHandler},
+    message::{IdMessage, MessageHandler},
     models::{ChangeType, IdEvent},
-    state::IdentityState, message::{MessageHandler, IdMessage},
+    state::IdentityState,
 };
 pub mod doc;
 pub mod error;
 pub mod handler;
+pub mod message;
 pub mod models;
 pub mod state;
-pub mod message;
 
 pub struct CreateIdentityInput {
     pub timestamp: i64,
@@ -27,7 +30,7 @@ pub struct CreateIdentityInput {
 #[derive(Debug)]
 pub struct ChangeInput {
     pub next_key_digest: Vec<u8>,
-    pub signer_keypair: Idp2pKeypair,
+    pub signer_secret: Idp2pKeySecret,
     pub change: ChangeType,
 }
 
@@ -51,11 +54,11 @@ pub trait IdentityHandler {
 
 impl Identity {
     pub fn create() -> Result<Self, IdentityError> {
-        let keypair = Idp2pKeypair::from_ed_secret(&create_random::<32>())?;
+        let secret = Idp2pKeySecret::from_bytes(&create_random::<32>())?;
         let input = CreateIdentityInput {
             timestamp: Utc::now().timestamp(),
-            next_key_digest: keypair.to_key().to_key_digest(),
-            recovery_key_digest: keypair.to_key().to_key_digest(),
+            next_key_digest: secret.to_key()?.to_key_digest(),
+            recovery_key_digest: secret.to_key()?.to_key_digest(),
             events: vec![],
         };
         ProtoIdentityHandler {}.new(input)
@@ -74,15 +77,18 @@ impl Identity {
         ProtoIdentityHandler {}.verify(self, prev)
     }
 
-    pub fn seal_msg(&self, to: IdentityState, body: &[u8]) -> Result<Vec<u8>, IdentityError>{
+    pub fn seal_msg(&self, to: IdentityState, body: &[u8]) -> Result<Vec<u8>, IdentityError> {
         let from_state = self.verify(None)?;
         Ok(vec![])
     }
 
-    pub fn decode_msg(&self, msg: &[u8], agreement_secret: IdSecret) -> Result<IdMessage, IdentityError>{
-        ProtoMessageHandler {}.decode_msg(msg, agreement_secret)
+    pub fn decode_msg(
+        &self,
+        agree_secret: Idp2pAgreementSecret,
+        msg: &[u8],
+    ) -> Result<IdMessage, IdentityError> {
+        ProtoMessageHandler {}.decode_msg(agree_secret, msg)
     }
-
 }
 
 #[cfg(test)]
@@ -94,12 +100,12 @@ mod tests {
     #[test]
     fn id_test() -> Result<(), IdentityError> {
         let secret_str = "bd6yg2qeifnixj4x3z2fclp5wd3i6ysjlfkxewqqt2thie6lfnkma";
-        let keypair = Idp2pKeypair::from_ed_secret(&Idp2pBase::decode(secret_str)?)?;
+        let keypair = Idp2pKeySecret::from_bytes(&Idp2pBase::decode(secret_str)?)?;
         let expected_id = "z3YygDRExrCXjGa8PEMeTWWTZMCFtVHwa84KtnQp6Uqb1YMCJUU";
         let input = CreateIdentityInput {
             timestamp: 0,
-            next_key_digest: keypair.to_key().to_key_digest(),
-            recovery_key_digest: keypair.to_key().to_key_digest(),
+            next_key_digest: keypair.to_key()?.to_key_digest(),
+            recovery_key_digest: keypair.to_key()?.to_key_digest(),
             events: vec![],
         };
         let did = Identity::new(input)?;
@@ -117,12 +123,15 @@ mod tests {
     }
 
     #[test]
-    fn verify_invalid_id_test()-> Result<(), IdentityError> {
+    fn verify_invalid_id_test() -> Result<(), IdentityError> {
         let mut did = Identity::create()?;
-        let l = did.id.len()- 1;
+        let l = did.id.len() - 1;
         did.id[l] = 1u8;
         let result = did.verify(None);
-        let is_err = matches!(result, Err(IdentityError::Idp2pMultiError(Idp2pMultiError::InvalidCid)));
+        let is_err = matches!(
+            result,
+            Err(IdentityError::Idp2pMultiError(Idp2pMultiError::InvalidCid))
+        );
         assert!(is_err, "{:?}", result);
         Ok(())
     }

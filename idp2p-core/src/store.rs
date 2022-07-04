@@ -1,6 +1,6 @@
 use std::{collections::HashMap, sync::Mutex};
 
-use idp2p_common::multi::keypair::Idp2pKeypair;
+use idp2p_common::multi::{key_secret::Idp2pKeySecret, agreement_secret::Idp2pAgreementSecret};
 use tokio::sync::mpsc::{error::SendError, Sender};
 
 use crate::identity::{self, state::IdentityState, Identity};
@@ -55,22 +55,17 @@ pub struct IdEntry {
     pub(crate) id_state: IdentityState,
 }
 
-pub struct IdSecret {
-    id: Vec<u8>,
-    keypair: Idp2pKeypair,
-}
-
 pub struct IdDb {
     pub(crate) id: Vec<u8>,
-    pub(crate) auth_secret: IdSecret,
-    pub(crate) agree_secret: IdSecret,
+    pub(crate) auth_secret: Idp2pKeySecret,
+    pub(crate) agree_secret: Idp2pAgreementSecret,
     pub(crate) identities: HashMap<Vec<u8>, IdEntry>,
 }
 
 pub struct IdStoreInput {
     pub(crate) identity: Identity,
-    pub(crate) auth_secret: IdSecret,
-    pub(crate) agree_secret: IdSecret,
+    pub(crate) auth_secret: Idp2pKeySecret,
+    pub(crate) agree_secret: Idp2pAgreementSecret,
     pub(crate) event_sender: Sender<IdStoreOutEvent>,
     pub(crate) command_sender: Sender<IdStoreOutCommand>,
 }

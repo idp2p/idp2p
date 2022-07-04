@@ -76,15 +76,19 @@ impl Idp2pKey {
             }
         }
     }
-
+    
     pub fn to_id(&self) -> Vec<u8> {
         match self {
-            Self::Ed25519 { public } => Sha256::new()
-                .chain_update(public.to_bytes())
-                .finalize()
-                .to_vec(),
+            Self::Ed25519 { public } => {
+                let h = Sha256::new()
+                    .chain_update(public.to_bytes())
+                    .finalize()
+                    .to_vec();
+                h[0..16].to_vec()
+            }
         }
     }
+
 
     pub fn did_code(&self) -> String {
         match self {

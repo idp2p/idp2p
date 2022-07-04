@@ -53,7 +53,7 @@ impl IdentityHandler for ProtoIdentityHandler {
     fn change(&self, did: &mut Identity, input: ChangeInput) -> Result<bool, IdentityError> {
         use idp2p_proto::event_log_payload::{Change, IdentityEvents};
         let state = self.verify(did, None)?;
-        let signer_key: Idp2pKey = input.signer_keypair.to_key();
+        let signer_key: Idp2pKey = input.signer_secret.to_key()?;
         let mut payload = idp2p_proto::EventLogPayload {
             previous: state.last_event_id,
             signer_key: signer_key.to_raw_bytes(),
@@ -110,7 +110,7 @@ impl IdentityHandler for ProtoIdentityHandler {
             }
         }
         let payload_bytes = payload.encode_to_vec();
-        let proof = input.signer_keypair.sign(&payload_bytes);
+        let proof = input.signer_secret.sign(&payload_bytes)?;
         let event_log = idp2p_proto::EventLog {
             event_id: create_id(&payload_bytes),
             payload: payload_bytes,
