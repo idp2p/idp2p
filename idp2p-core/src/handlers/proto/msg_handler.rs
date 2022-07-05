@@ -1,3 +1,9 @@
+use crate::{
+    error::Idp2pError,
+    id_message::{IdMessage, MessageHandler},
+    id_state::IdentityState,
+    idp2p_proto,
+};
 use idp2p_common::{
     chrono::Utc,
     multi::{
@@ -7,12 +13,6 @@ use idp2p_common::{
 };
 use prost::Message;
 
-use crate::identity::{
-    error::IdentityError,
-    message::{IdMessage, MessageHandler},
-};
-use crate::idp2p_proto;
-
 pub struct ProtoMessageHandler;
 
 impl MessageHandler for ProtoMessageHandler {
@@ -20,7 +20,7 @@ impl MessageHandler for ProtoMessageHandler {
         &self,
         agree_secret: Idp2pAgreementSecret,
         msg: &[u8],
-    ) -> Result<IdMessage, IdentityError> {
+    ) -> Result<IdMessage, Idp2pError> {
         let msg = idp2p_proto::IdEncryptedMessage::decode(msg)?;
         //let sender_agree_key = Idp2pAgreementKey::from_bytes(ephemeral_key)?;
         //let shared_key = agree_secret.to_shared_key(sender_agree_key)?;
@@ -30,15 +30,15 @@ impl MessageHandler for ProtoMessageHandler {
     fn seal_msg(
         &self,
         auth_secret: Idp2pKeySecret,
-        from: crate::identity::state::IdentityState,
-        to: crate::identity::state::IdentityState,
+        from: IdentityState,
+        to: IdentityState,
         body: &[u8],
-    ) -> Result<Vec<u8>, IdentityError> {
-        let auth_key_state = from.get_latest_auth_key().ok_or(IdentityError::Other)?;
-        let agree_key_state = to.get_latest_agree_key().ok_or(IdentityError::Other)?;
+    ) -> Result<Vec<u8>, Idp2pError> {
+        let auth_key_state = from.get_latest_auth_key().ok_or(Idp2pError::Other)?;
+        let agree_key_state = to.get_latest_agree_key().ok_or(Idp2pError::Other)?;
         let agree_key = Idp2pAgreementKey::from_bytes(agree_key_state.key)?;
         if auth_secret.to_key()?.to_bytes() != auth_key_state.key {
-            return Err(IdentityError::Other);
+            return Err(Idp2pError::Other);
         }
         let (shared_secret, ephemeral_key) = agree_key.create_shared_secret()?;
         let proof = auth_secret.sign(&ephemeral_key)?;

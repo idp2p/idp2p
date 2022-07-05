@@ -5,8 +5,8 @@ use unsigned_varint::{encode as varint_encode, io::{read_u64, read_u8}};
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Idp2pMessage {
-    id: Idp2pId,
-    body: Vec<u8>,
+    pub id: Idp2pId,
+    pub body: Vec<u8>,
 }
 
 impl Idp2pMessage {

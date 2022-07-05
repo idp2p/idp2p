@@ -1,21 +1,13 @@
 use std::{collections::HashMap, sync::Mutex};
 
-use idp2p_common::multi::{key_secret::Idp2pKeySecret, agreement_secret::Idp2pAgreementSecret};
-use tokio::sync::mpsc::{error::SendError, Sender};
+use idp2p_common::multi::{
+    agreement_secret::Idp2pAgreementSecret, id::Idp2pCodec, key_secret::Idp2pKeySecret,
+    message::Idp2pMessage,
+};
+use tokio::sync::mpsc::Sender;
 
-use crate::identity::{self, state::IdentityState, Identity};
+use crate::{error::Idp2pError, id_state::IdentityState, identity::Identity, HandlerResolver};
 
-use thiserror::Error;
-
-#[derive(Error, Debug)]
-pub enum IdStoreError {
-    #[error(transparent)]
-    CommandSendError(#[from] SendError<IdStoreOutCommand>),
-    #[error(transparent)]
-    EventSendError(#[from] SendError<IdStoreOutEvent>),
-    #[error(transparent)]
-    IdentityError(#[from] identity::error::IdentityError),
-}
 pub enum IdStoreEvent {
     ReceivedGet,
     ReceivedPost {
@@ -74,33 +66,25 @@ pub struct IdStore {
     pub(crate) db: Mutex<IdDb>,
     pub(crate) event_sender: Sender<IdStoreOutEvent>,
     pub(crate) command_sender: Sender<IdStoreOutCommand>,
-}
-
-impl TryFrom<Identity> for IdEntry {
-    type Error = IdStoreError;
-
-    fn try_from(value: Identity) -> Result<Self, Self::Error> {
-        let state = value.verify(None)?;
-        let entry = IdEntry {
-            waiting_publish: false,
-            did: value,
-            id_state: state,
-        };
-        Ok(entry)
-    }
+    pub(crate) codec: Idp2pCodec,
 }
 
 impl IdDb {
-    fn push_entry(&mut self, did: Identity) -> Result<(), IdStoreError> {
+    fn push_entry(&mut self, did: Identity) -> Result<(), Idp2pError> {
         let id = did.id.clone();
-        let entry: IdEntry = did.try_into()?;
+        let id_state = did.verify(None)?;
+        let entry = IdEntry {
+            waiting_publish: false,
+            did: did,
+            id_state: id_state,
+        };
         self.identities.insert(id, entry);
         Ok(())
     }
 }
 
 impl IdStore {
-    pub fn new(input: IdStoreInput) -> Result<Self, IdStoreError> {
+    pub fn new(input: IdStoreInput) -> Result<Self, Idp2pError> {
         let mut db = IdDb {
             id: input.identity.id.clone(),
             auth_secret: input.auth_secret,
@@ -112,11 +96,13 @@ impl IdStore {
             db: Mutex::new(db),
             event_sender: input.event_sender,
             command_sender: input.command_sender,
+            codec: Idp2pCodec::Protobuf,
         };
         Ok(store)
     }
 
-    pub async fn handle_command(&self, cmd: IdStoreCommand) -> Result<(), IdStoreError> {
+    pub async fn handle_command(&self, cmd: IdStoreCommand) -> Result<(), Idp2pError> {
+        let db = self.db.lock().unwrap();
         match cmd {
             IdStoreCommand::Get(id) => {
                 let topic = String::from_utf8_lossy(&id).to_string();
@@ -125,10 +111,22 @@ impl IdStore {
             }
             IdStoreCommand::SendMessage { id, message } => {
                 let topic = String::from_utf8_lossy(&id).to_string();
-                //let msg = IdMessage::new(to, body)?;
+                let from = db
+                    .identities
+                    .get(&db.id.clone())
+                    .expect("")
+                    .id_state
+                    .clone();
+                let to = db.identities.get(&id).expect("").id_state.clone();
+                let msg = self.codec.resolve_msg_handler().seal_msg(
+                    db.auth_secret.clone(),
+                    from,
+                    to,
+                    &message,
+                )?;
                 let event = IdStoreOutCommand::PublishMessage {
                     topic: topic,
-                    message: vec![],
+                    message: msg,
                 };
                 self.command_sender.send(event).await?;
             }
@@ -136,7 +134,7 @@ impl IdStore {
         Ok(())
     }
 
-    pub async fn handle_event(&self, topic: &str, event: IdStoreEvent) -> Result<(), IdStoreError> {
+    pub async fn handle_event(&self, topic: &str, event: IdStoreEvent) -> Result<(), Idp2pError> {
         let mut db = self.db.lock().unwrap();
         match event {
             IdStoreEvent::ReceivedGet => {
@@ -159,13 +157,12 @@ impl IdStore {
             IdStoreEvent::ReceivedPost { last_event_id, did } => {
                 let mut state = self.db.lock().unwrap();
                 let current = db.identities.get_mut(topic.as_bytes());
+                let id = did.id.clone();
+                log::info!("Got id: {:?}", id);
                 match current {
                     // When identity is new
                     None => {
-                        did.verify(None)?;
-                        let entry = did.clone().try_into()?;
-                        state.identities.insert(did.id.clone(), entry);
-                        log::info!("Got id: {:?}", did.id);
+                        db.push_entry(did)?;
                         let event = IdStoreOutEvent::IdentityCreated(topic.as_bytes().to_vec());
                         self.event_sender.send(event).await?;
                     }
@@ -190,7 +187,15 @@ impl IdStore {
             }
             IdStoreEvent::ReceivedMessage(msg) => {
                 let entry = db.identities.get_mut(topic.as_bytes());
-                if let Some(entry) = entry {}
+                if let Some(entry) = entry {
+                    let msg = Idp2pMessage::from_bytes(&msg)?;
+                    let dec_msg = msg
+                        .id
+                        .codec
+                        .resolve_msg_handler()
+                        .decode_msg(db.agree_secret.clone(), &msg.body)?;
+                    //let from = db.identities.get(&dec_msg.from).ok_or(IdStoreError::IdentityError(IdentityError::Other))?;
+                }
                 todo!()
             }
         }

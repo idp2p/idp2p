@@ -1,19 +1,18 @@
 use idp2p_common::multi::hasher::Idp2pHasher;
 use prost::Message;
 
-use crate::idp2p_proto::{
+use crate::{idp2p_proto::{
     identity_event::EventType, EventLog, EventLogPayload, IdentityEvent, Idp2pProof,
     Idp2pVerificationKey,
-};
-use crate::identity::{error::IdentityError, models::IdEvent};
+}, error::Idp2pError, identity::IdEvent};
 
 /// Resolve event payload from encoded protobuf
 pub trait EventLogResolver {
-    fn try_resolve_payload(&self, event_id: &[u8]) -> Result<EventLogPayload, IdentityError>;
+    fn try_resolve_payload(&self, event_id: &[u8]) -> Result<EventLogPayload, Idp2pError>;
 }
 
 impl EventLogResolver for EventLog {
-    fn try_resolve_payload(&self, last_event_id: &[u8]) -> Result<EventLogPayload, IdentityError> {
+    fn try_resolve_payload(&self, last_event_id: &[u8]) -> Result<EventLogPayload, Idp2pError> {
         // Get multihash of last_event_id
         let mh = Idp2pHasher::from_bytes(&self.event_id)?;
         let hasher = Idp2pHasher::try_from(mh.code())?;
@@ -24,7 +23,7 @@ impl EventLogResolver for EventLog {
         // Because all identity events point previous event.
         // First event points to inception event
         if payload.previous != *last_event_id {
-            return Err(IdentityError::InvalidPrevious);
+            return Err(Idp2pError::InvalidPrevious);
         }
         Ok(payload)
     }

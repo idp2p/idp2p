@@ -1,10 +1,9 @@
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
 use idp2p_common::multi::key_secret::Idp2pKeySecret;
-use idp2p_core::identity::{
-    models::{ChangeType, IdEvent},
+use idp2p_core::{identity::{
+    ChangeType, IdEvent,
     ChangeInput, CreateIdentityInput, Identity, IdentityHandler,
-};
-use idp2p_core::identity::handler::id_handler::ProtoIdentityHandler;
+}, handlers::proto::id_handler::ProtoIdentityHandler};
 
 fn create_did() -> Identity {
     let keypair = Idp2pKeySecret::from_bytes(&[0u8; 32]).unwrap();

@@ -1,15 +1,11 @@
 use crate::{
+    error::Idp2pError,
+    id_state::{AgreementKeyState, IdentityState, IdentityStateEventHandler, KeyState, ProofState},
     idp2p_proto::identity_event::EventType,
-};
-use crate::identity::{
-    error::IdentityError,
-    state::{
-        AgreementKeyState, IdentityState, IdentityStateEventHandler, KeyState, ProofState,
-    },
 };
 
 impl IdentityStateEventHandler<EventType> for IdentityState {
-    fn handle_event(&mut self, timestamp: i64, event: EventType) -> Result<(), IdentityError> {
+    fn handle_event(&mut self, timestamp: i64, event: EventType) -> Result<(), Idp2pError> {
         match event {
             EventType::CreateAssertionKey(key) => {
                 let previous_key = self.assertion_keys.last_mut();
