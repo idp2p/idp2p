@@ -8,7 +8,7 @@ use unsigned_varint::{encode as varint_encode, io::read_u64};
 use crate::decode_base;
 
 use super::{
-    base::Idp2pBase, error::Idp2pMultiError, hasher::Idp2pHasher, key_digest::Idp2pKeyDigest,
+    base::Idp2pBase, error::Idp2pMultiError, hasher::Idp2pHasher,
     ED25519_CODE,
 };
 

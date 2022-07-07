@@ -7,7 +7,7 @@ pub mod key_digest;
 pub mod agreement_key;
 pub mod agreement_secret;
 pub mod key;
-pub mod encryption_key;
+pub mod encryption_alg;
 pub mod hasher;
 pub mod id;
 pub mod key_secret;

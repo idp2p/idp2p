@@ -50,11 +50,11 @@ impl IdentityState {
         let key_digest = Idp2pKeyDigest::from_bytes(&self.recovery_key_digest)?;
         Ok(key_digest.to_next_key(signer_bytes)?)
     }
-    pub fn get_latest_auth_key(&self) -> Option<KeyState> {
-        None
+    pub fn get_latest_auth_key(&self) -> Option<&KeyState> {
+       self.authentication_keys.last()
     }
-    pub fn get_latest_agree_key(&self) -> Option<AgreementKeyState> {
-        None
+    pub fn get_latest_agree_key(&self) -> Option<&AgreementKeyState> {
+        self.agreement_keys.last()
     }
 }
 pub trait IdentityStateEventHandler<T> {

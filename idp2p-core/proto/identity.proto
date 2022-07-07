@@ -22,7 +22,7 @@ message IdentityInception {
 }
 
 message EventLog {
-    bytes event_id = 1; // MultiDigest of encoded payload bytes
+    bytes id = 1; // Multi identifier
     bytes payload = 2;  // Encoded bytes of event payload(It is encoded because of deterministic event_id and signature)
     bytes proof = 3;  // Signature of payload bytes 
 }

@@ -1,3 +1,4 @@
+use handlers::proto::{id_handler::ProtoIdentityHandler, msg_handler::ProtoMessageHandler};
 use id_message::MessageHandler;
 use identity::IdentityHandler;
 use idp2p_common::multi::id::Idp2pCodec;
@@ -17,14 +18,14 @@ pub trait HandlerResolver {
 impl HandlerResolver for Idp2pCodec{
     fn resolve_msg_handler(&self) -> Box<dyn MessageHandler> {
         match self{
-            Idp2pCodec::Protobuf => todo!(),
+            Idp2pCodec::Protobuf =>  Box::new(ProtoMessageHandler{}),
             Idp2pCodec::Json => todo!(),
         }
     }
 
     fn resolve_id_handler(&self) -> Box<dyn IdentityHandler> {
         match self{
-            Idp2pCodec::Protobuf => todo!(),
+            Idp2pCodec::Protobuf => Box::new(ProtoIdentityHandler{}),
             Idp2pCodec::Json => todo!(),
         }
     }

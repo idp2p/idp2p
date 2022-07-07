@@ -48,7 +48,7 @@ pub struct IdEntry {
 }
 
 pub struct IdDb {
-    pub(crate) id: Vec<u8>,
+    pub(crate) owner: IdentityState,
     pub(crate) auth_secret: Idp2pKeySecret,
     pub(crate) agree_secret: Idp2pAgreementSecret,
     pub(crate) identities: HashMap<Vec<u8>, IdEntry>,
@@ -86,7 +86,7 @@ impl IdDb {
 impl IdStore {
     pub fn new(input: IdStoreInput) -> Result<Self, Idp2pError> {
         let mut db = IdDb {
-            id: input.identity.id.clone(),
+            owner: input.identity.verify(None)?,
             auth_secret: input.auth_secret,
             agree_secret: input.agree_secret,
             identities: HashMap::new(),
@@ -113,7 +113,7 @@ impl IdStore {
                 let topic = String::from_utf8_lossy(&id).to_string();
                 let from = db
                     .identities
-                    .get(&db.id.clone())
+                    .get(&db.owner.id.clone())
                     .expect("")
                     .id_state
                     .clone();
@@ -155,7 +155,6 @@ impl IdStore {
                 }
             }
             IdStoreEvent::ReceivedPost { last_event_id, did } => {
-                let mut state = self.db.lock().unwrap();
                 let current = db.identities.get_mut(topic.as_bytes());
                 let id = did.id.clone();
                 log::info!("Got id: {:?}", id);
@@ -194,7 +193,10 @@ impl IdStore {
                         .codec
                         .resolve_msg_handler()
                         .decode_msg(db.agree_secret.clone(), &msg.body)?;
-                    //let from = db.identities.get(&dec_msg.from).ok_or(IdStoreError::IdentityError(IdentityError::Other))?;
+                    let from = db
+                        .identities
+                        .get(&dec_msg.from)
+                        .ok_or(Idp2pError::RequiredField("From".to_string()))?;
                 }
                 todo!()
             }

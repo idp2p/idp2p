@@ -76,23 +76,14 @@ mod tests {
     use crate::multi::key::Idp2pKey;
 
     use super::*;
+
     #[test]
-    fn test_slice() {
-        let v: Vec<u8> = vec![1, 2, 3];
-        let mut r = v.as_slice();
-        let typ = read_u64(&mut r).unwrap();
-        let mut other_bytes: Vec<u8> = vec![];
-        r.read_to_end(&mut other_bytes).unwrap();
-        eprintln!("{} {:?} {:?}", typ, other_bytes, v);
-    }
-    /*#[test]
     fn enc_dec_test() -> Result<(), Idp2pMultiError> {
         let bytes = [0u8; 32];
         let key = Idp2pKey::new(ED25519_CODE, bytes)?;
         let key_digest = key.to_key_digest();
-        let digest_bytes = key_digest.to_bytes();
-        let decoded_key = Idp2pKeyDigest::from_bytes(digest_bytes)?;
+        let decoded_key = Idp2pKeyDigest::from_bytes(key_digest)?;
         matches!(decoded_key, Idp2pKeyDigest::Ed25519 { multi_digest } if multi_digest.code() == 0x12);
         Ok(())
-    }*/
+    }
 }

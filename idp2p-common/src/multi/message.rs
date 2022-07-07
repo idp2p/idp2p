@@ -1,7 +1,9 @@
 use std::io::Read;
 
 use super::{error::Idp2pMultiError, id::Idp2pId};
-use unsigned_varint::{encode as varint_encode, io::{read_u64, read_u8}};
+use unsigned_varint::{
+    io::{read_u64, read_u8},
+};
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Idp2pMessage {
@@ -10,6 +12,12 @@ pub struct Idp2pMessage {
 }
 
 impl Idp2pMessage {
+    pub fn new(body: &[u8]) -> Self {
+        Self {
+            id: Idp2pId::new(0, body),
+            body: body.to_vec(),
+        }
+    }
     pub fn from_bytes<T: AsRef<[u8]>>(bytes: T) -> Result<Self, Idp2pMultiError> {
         let mut r = bytes.as_ref();
         let version = read_u64(&mut r)?;
@@ -23,11 +31,11 @@ impl Idp2pMessage {
         r.read_to_end(&mut body)?;
         Ok(Self {
             id: Idp2pId::from_fields(version, codec, cover, &digest)?,
-            body 
+            body,
         })
     }
 
     pub fn to_bytes(&self) -> Result<Vec<u8>, Idp2pMultiError> {
-        Ok(vec![])
+        Ok([&self.id.to_bytes()[..], &self.body[..]].concat())
     }
 }

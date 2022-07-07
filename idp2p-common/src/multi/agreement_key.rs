@@ -8,7 +8,7 @@ use x25519_dalek::{EphemeralSecret, PublicKey};
 
 use crate::decode_base;
 
-use super::{base::Idp2pBase, error::Idp2pMultiError, X25519_CODE, agreement_secret::Idp2pAgreementSecret};
+use super::{base::Idp2pBase, error::Idp2pMultiError, X25519_CODE};
 
 #[derive(PartialEq, Clone, Debug)]
 pub enum Idp2pAgreementKey {
@@ -59,13 +59,14 @@ impl Idp2pAgreementKey {
 
     pub fn create_shared_secret(&self) -> Result<(Vec<u8>, Vec<u8>), Idp2pMultiError> {
         match self {
-            Idp2pAgreementKey::X25519 { public } => {
+            Self::X25519 { public } => {
                 let ephemeral_secret = EphemeralSecret::new(OsRng);
                 let ephemeral_public = PublicKey::from(&ephemeral_secret);
+                let ephemeral_key = Self::X25519 { public: ephemeral_public };
                 let shared_secret = ephemeral_secret.diffie_hellman(&public);
                 Ok((
-                    ephemeral_public.as_bytes().to_vec(),
                     shared_secret.to_bytes().to_vec(),
+                    ephemeral_key.to_bytes(),
                 ))
             }
         }

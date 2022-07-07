@@ -110,7 +110,7 @@ impl IdentityHandler for ProtoIdentityHandler {
         let payload_bytes = payload.encode_to_vec();
         let proof = input.signer_secret.sign(&payload_bytes)?;
         let event_log = idp2p_proto::EventLog {
-            event_id: create_id(&payload_bytes),
+            id: create_id(&payload_bytes),
             payload: payload_bytes,
             proof: proof,
         };
@@ -129,12 +129,12 @@ impl IdentityHandler for ProtoIdentityHandler {
         let id = Idp2pId::from_bytes(&identity.id)?;
         // Check cid is produced with inception
         id.ensure(&microledger.inception)?;
-        // Decode inception bytes of microledger
-        let inception = idp2p_proto::IdentityInception::decode(&*microledger.inception)?;
         // If there is previous id check if it is base of that id
         if let Some(prev) = prev {
-            is_valid_previous(&microledger, prev)?;
+            is_valid_prev(&microledger, prev)?;
         }
+        // Decode inception bytes of microledger
+        let inception = idp2p_proto::IdentityInception::decode(&*microledger.inception)?;
         // Init current state to handle events
         let mut state = IdentityState {
             id: id.to_bytes(),
@@ -155,7 +155,15 @@ impl IdentityHandler for ProtoIdentityHandler {
         }
         use idp2p_proto::event_log_payload::Change;
         for log in microledger.event_logs {
-            let payload = log.try_resolve_payload(&state.last_event_id)?;
+            let log_id = Idp2pId::from_bytes(&log.id)?;
+            log_id.ensure(&log.payload)?;
+            let payload = log.try_resolve_payload()?;
+            // Previous event_id should match with last_event_id of state.
+            // Because all identity events point previous event.
+            // First event points to inception event
+            if payload.previous != state.last_event_id {
+                return Err(Idp2pError::InvalidPreviousEventLog);
+            }
             let change = payload
                 .change
                 .ok_or(Idp2pError::RequiredField("change".to_string()))?;
@@ -177,7 +185,7 @@ impl IdentityHandler for ProtoIdentityHandler {
                 }
             }
             state.next_key_digest = payload.next_key_digest;
-            state.last_event_id = log.event_id;
+            state.last_event_id = log.id;
         }
         Ok(state)
     }
@@ -186,14 +194,11 @@ impl IdentityHandler for ProtoIdentityHandler {
 fn create_id(content: &[u8]) -> Vec<u8> {
     Idp2pId::new(0, &content).to_bytes()
 }
-fn is_valid_previous(
-    can_ml: &idp2p_proto::Microledger,
-    prev: &Identity,
-) -> Result<bool, Idp2pError> {
+fn is_valid_prev(c: &idp2p_proto::Microledger, prev: &Identity) -> Result<bool, Idp2pError> {
     let prev_ml = idp2p_proto::Microledger::decode(&*prev.microledger)?;
     for (i, log) in prev_ml.event_logs.iter().enumerate() {
-        if log.event_id != can_ml.event_logs[i].event_id {
-            return Err(Idp2pError::InvalidId);
+        if log.id != c.event_logs[i].id {
+            return Err(Idp2pError::InvalidPrevious);
         }
     }
     Ok(true)
@@ -207,7 +212,7 @@ mod tests {
     };
 
     use super::*;
-    fn create() -> Result<Identity, Idp2pError> {
+    fn create() -> Result<(Identity, Idp2pKeySecret), Idp2pError> {
         let secret = Idp2pKeySecret::from_bytes(&create_random::<32>())?;
         let input = CreateIdentityInput {
             timestamp: Utc::now().timestamp(),
@@ -215,7 +220,7 @@ mod tests {
             recovery_key_digest: secret.to_key()?.to_key_digest(),
             events: vec![],
         };
-        ProtoIdentityHandler {}.new(input)
+        Ok((ProtoIdentityHandler {}.new(input)?, secret))
     }
 
     #[test]
@@ -235,17 +240,16 @@ mod tests {
     }
 
     #[test]
-    fn verify_test() -> Result<(), Idp2pError> {
-        let did = create()?;
+    fn verify_ok_test() -> Result<(), Idp2pError> {
+        let (did, _) = create()?;
         let result = did.verify(None);
         assert!(result.is_ok(), "{:?}", result);
-        //eprintln!("{:?}", result.unwrap());
         Ok(())
     }
 
     #[test]
     fn verify_invalid_id_test() -> Result<(), Idp2pError> {
-        let mut did = create()?;
+        let (mut did, _) = create()?;
         let l = did.id.len() - 1;
         did.id[l] = 1u8;
         let result = did.verify(None);
@@ -257,10 +261,19 @@ mod tests {
         Ok(())
     }
 
-    /*#[test]
-    fn verify_invalid_previous_test() {
-        let (mut ledger, secret) = create_microledger();
-        let id = ledger.inception.get_id();
+    #[test]
+    fn verify_invalid_previous_test() -> Result<(), Idp2pError> {
+        let (mut did, secret) = create()?;
+        let input = ChangeInput{
+             next_key_digest: secret.to_key()?.to_key_digest(),
+             signer_secret: secret,
+             change: ChangeType::AddEvents { events: vec![] }
+        };
+        did.change(input.clone())?;
+        //did.change(input)?;
+        let result = did.verify(None);
+        assert!(result.is_ok(), "{:?}", result);
+        /*let id = ledger.inception.get_id();
         let change = EventLogChange::SetDocument(DocumentDigest { value: vec![] });
         let signer = secret.to_publickey();
         let payload = ledger.create_event(&signer, &signer, change);
@@ -269,10 +282,11 @@ mod tests {
         ledger.events[0].payload.previous = "1".to_owned();
         let result = ledger.verify(&id);
         let is_err = matches!(result, Err(crate::IdentityError::InvalidPrevious));
-        assert!(is_err, "{:?}", result);
+        assert!(is_err, "{:?}", result);*/
+        Ok(())
     }
 
-    #[test]
+    /*#[test]
     fn verify_invalid_signature_test() {
         let (mut ledger, secret) = create_microledger();
         let id = ledger.inception.get_id();

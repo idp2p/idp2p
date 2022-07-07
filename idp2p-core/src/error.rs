@@ -12,8 +12,10 @@ pub enum Idp2pError {
     InvalidCreateKey,
     #[error("Invalid Revoke Key")]
     InvalidRevokeKey,
-    #[error("Invalid previous")]
+    #[error("Invalid previous identity")]
     InvalidPrevious,
+    #[error("Invalid previous event log")]
+    InvalidPreviousEventLog,
     #[error("Invalid event signature")]
     InvalidEventSignature,
     #[error("Invalid signer")]

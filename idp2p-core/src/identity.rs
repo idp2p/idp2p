@@ -2,7 +2,7 @@ use idp2p_common::multi::{key_secret::Idp2pKeySecret, id::Idp2pId};
 
 use crate::{error::Idp2pError, id_state::IdentityState, HandlerResolver};
 
-#[derive(Debug)]
+#[derive(PartialEq, Debug, Clone)]
 pub enum IdEvent {
     CreateAssertionKey { id: Vec<u8>, key: Vec<u8> },
     CreateAuthenticationKey { id: Vec<u8>, key: Vec<u8> },
@@ -13,12 +13,13 @@ pub enum IdEvent {
     RevokeAgreementKey(Vec<u8>),
 }
 
-#[derive(Debug)]
+#[derive(PartialEq, Debug, Clone)]
 pub enum ChangeType {
     AddEvents { events: Vec<IdEvent> },
     Recover(Vec<u8>),
 }
 
+#[derive(PartialEq, Debug, Clone)]
 pub struct CreateIdentityInput {
     pub timestamp: i64,
     // Next key digest(multikey digest)
@@ -28,7 +29,7 @@ pub struct CreateIdentityInput {
     pub events: Vec<IdEvent>,
 }
 
-#[derive(Debug)]
+#[derive(PartialEq, Debug, Clone)]
 pub struct ChangeInput {
     pub next_key_digest: Vec<u8>,
     pub signer_secret: Idp2pKeySecret,
