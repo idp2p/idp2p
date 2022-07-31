@@ -61,7 +61,7 @@ impl Into<IdentityEvent> for IdEvent {
     }
 }
 
-impl Into<IdMessage> for idp2p_proto::IdMessage {
+impl Into<IdMessage> for idp2p_proto::IdGossipMessageRaw {
     fn into(self) -> IdMessage {
         IdMessage{
             from: self.from,

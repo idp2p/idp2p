@@ -6,7 +6,10 @@ use idp2p_common::multi::{
 };
 use tokio::sync::mpsc::Sender;
 
-use crate::{error::Idp2pError, id_state::IdentityState, identity::Identity, HandlerResolver};
+use crate::{
+    error::Idp2pError, id_message::IdMessage, id_state::IdentityState, identity::Identity,
+    HandlerResolver,
+};
 
 pub enum IdStoreEvent {
     ReceivedGet,
@@ -54,8 +57,8 @@ pub struct IdDb {
     pub(crate) identities: HashMap<Vec<u8>, IdEntry>,
 }
 
-pub struct IdStoreInput {
-    pub(crate) identity: Identity,
+pub struct IdStoreOptions {
+    pub(crate) owner: Identity,
     pub(crate) auth_secret: Idp2pKeySecret,
     pub(crate) agree_secret: Idp2pAgreementSecret,
     pub(crate) event_sender: Sender<IdStoreOutEvent>,
@@ -84,18 +87,18 @@ impl IdDb {
 }
 
 impl IdStore {
-    pub fn new(input: IdStoreInput) -> Result<Self, Idp2pError> {
-        let mut db = IdDb {
-            owner: input.identity.verify(None)?,
-            auth_secret: input.auth_secret,
-            agree_secret: input.agree_secret,
+    pub fn new(options: IdStoreOptions) -> Result<Self, Idp2pError> {
+        let owner_state = options.owner.verify(None)?;
+        let db = IdDb {
+            owner: owner_state,
+            auth_secret: options.auth_secret,
+            agree_secret: options.agree_secret,
             identities: HashMap::new(),
         };
-        db.push_entry(input.identity)?;
         let store = Self {
             db: Mutex::new(db),
-            event_sender: input.event_sender,
-            command_sender: input.command_sender,
+            event_sender: options.event_sender,
+            command_sender: options.command_sender,
             codec: Idp2pCodec::Protobuf,
         };
         Ok(store)

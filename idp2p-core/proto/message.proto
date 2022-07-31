@@ -2,31 +2,62 @@ syntax = "proto3";
 import "identity.proto";
 package idp2p.pb;
 
-message IdMessage { 
+enum IdGossipMessageType{
+    GET = 0;
+    POST = 1;
+    MESSAGE = 2;
+}
+
+message IdGossipMessageWithTopic {
+    string topic = 1; 
+    IdGossipMessage gossip_message = 3; 
+}
+
+message IdGossipMessage {
+    IdGossipMessageType type = 1;
+    oneof payload {
+        Microledger post = 2; // Microledger of updated identity
+        IdGossipMessageCipher message = 3;
+    }   
+}
+
+message IdGossipMessageRaw { 
     bytes from = 1; 
     bytes signer_kid = 2; // Signer key id
     bytes proof = 3; // sig(from) with kid
     bytes to = 4; 
-    bytes body = 5;
-    int64 created_at = 6; // UTC Timestamp
+    int64 created_at = 5; // UTC Timestamp
+    bytes body = 6; // Bytes of IdGossipMessageBodyType
+    optional bytes reply_to = 7;
 }
 
 // id2id message
-message IdEncryptedMessage{
+message IdGossipMessageCipher{
     bytes ephemeral_key = 1; // One time key to encrypt message
     bytes agreement_kid = 2; // Receipent agreement key id to decrypt message
-    bytes encryption_key = 3; // MultiEncryptionKey i.e [0xa2][0x67636d][iv] 
+    bytes encryption_key = 3; // MultiEncryptionAlg i.e [0xa2][0x67636d][iv] 
     bytes cipherbody = 5; // Encrypted message body with codec 
 }
 
-message IdMessageResult{
-    bytes message_id = 1;
-    IdMessageStatus status = 2;
-    bytes result = 3;
+message IdGossipMessageBodyType{
+    oneof m_type{
+        string text = 1;
+        ConnectMessage connect = 2;
+        AcceptMessage accept =3;
+    }
 }
 
-enum IdMessageStatus {
-    OK                      = 0;
-    MALFORMED_MESSAGE       = 400;
-    UNEXPECTED_MESSAGE      = 401;
+message ConnectMessage{
+    PairIdentity pair_id = 1;
+    string pair_addr = 2;
+}
+
+message AcceptMessage{
+    PairIdentity pair_id = 1;
+    string pair_addr = 2;
+}
+
+message PairIdentity{
+    bytes authentication_key = 1;
+    bytes agreement_key = 2;
 }

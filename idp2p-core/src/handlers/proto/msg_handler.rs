@@ -21,12 +21,12 @@ impl MessageHandler for ProtoMessageHandler {
         agree_secret: Idp2pAgreementSecret,
         msg: &[u8],
     ) -> Result<IdMessage, Idp2pError> {
-        let msg = idp2p_proto::IdEncryptedMessage::decode(msg)?;
+        let msg = idp2p_proto::IdGossipMessageCipher::decode(msg)?;
         let sender_agree_key = Idp2pAgreementKey::from_bytes(msg.ephemeral_key)?;
         let shared_secret = agree_secret.to_shared_key(sender_agree_key)?;
         let dec_key = Idp2pEncryptionAlg::from_bytes(msg.encryption_key)?;
         let dec_msg_bytes = dec_key.decrypt(&shared_secret, &msg.cipherbody)?;
-        let id_msg = idp2p_proto::IdMessage::decode(&*dec_msg_bytes)?;
+        let id_msg = idp2p_proto::IdGossipMessageRaw::decode(&*dec_msg_bytes)?;
         Ok(id_msg.into())
     }
 
@@ -45,18 +45,19 @@ impl MessageHandler for ProtoMessageHandler {
         }
         let (shared_secret, ephemeral_key) = agree_key.create_shared_secret()?;
         let proof = auth_secret.sign(&ephemeral_key)?;
-        let id_msg = idp2p_proto::IdMessage {
+        let id_msg = idp2p_proto::IdGossipMessageRaw {
             from: from.id,
             to: to.id,
             signer_kid: auth_key_state.id,
             proof: proof,
             body: body.to_vec(),
             created_at: Utc::now().timestamp(),
+            reply_to: None
         };
         let raw_bytes = id_msg.encode_to_vec();
         let enc_key = Idp2pEncryptionAlg::new_aes_gcm();
         let enc_content = enc_key.encrypt(&shared_secret, &raw_bytes)?;
-        let msg = idp2p_proto::IdEncryptedMessage {
+        let msg = idp2p_proto::IdGossipMessageCipher {
             ephemeral_key: ephemeral_key,
             agreement_kid: agree_key_state.id,
             cipherbody: enc_content,
