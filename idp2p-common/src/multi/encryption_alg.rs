@@ -5,6 +5,14 @@ use crate::random::create_random;
 use super::{error::Idp2pMultiError, AES256_CODE, AESGCM_CODE};
 use unsigned_varint::{encode as varint_encode, io::read_u64};
 
+pub enum Idp2pEncryptionKeyCode {
+    Aes256 = 0xec,
+}
+
+pub enum Idp2pEncryptionCode {
+    AesGcm = 0xec,
+}
+// Change Alg to Method
 pub enum Idp2pEncryptionAlg {
     AesGcm (Vec<u8>),
 }

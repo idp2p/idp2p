@@ -1,15 +1,12 @@
-pub const ED25519_CODE: u64 = 0xed;
-pub const X25519_CODE: u64 = 0xec;
-pub const AES256_CODE: u64 = 0xa2;
-pub const AESGCM_CODE: u64 = 0x67636d;
-pub mod error;
-pub mod key_digest;
 pub mod agreement_key;
 pub mod agreement_secret;
-pub mod key;
+pub mod base;
 pub mod encryption_alg;
+pub mod error;
 pub mod hasher;
 pub mod id;
+pub mod key;
+pub mod key_digest;
 pub mod key_secret;
-pub mod base;
 pub mod message;
+

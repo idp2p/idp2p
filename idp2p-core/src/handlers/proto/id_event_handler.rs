@@ -12,39 +12,39 @@ impl IdentityStateEventHandler<EventType> for IdentityState {
                 if let Some(previous_key) = previous_key {
                     previous_key.expired_at = Some(timestamp);
                 }
-                let assertion_method = KeyState {
+                let assertion_state = KeyState {
                     id: key.id,
                     valid_at: timestamp,
                     expired_at: None,
                     key: key.value,
                 };
-                self.assertion_keys.push(assertion_method);
+                self.assertion_keys.push(assertion_state);
             }
             EventType::CreateAuthenticationKey(key) => {
                 let previous_key = self.authentication_keys.last_mut();
                 if let Some(previous_key) = previous_key {
                     previous_key.expired_at = Some(timestamp);
                 }
-                let authentication_method = KeyState {
+                let authentication_state = KeyState {
                     id: key.id,
                     valid_at: timestamp,
                     expired_at: None,
                     key: key.value,
                 };
-                self.authentication_keys.push(authentication_method);
+                self.authentication_keys.push(authentication_state);
             }
             EventType::CreateAgreementKey(key) => {
                 let previous_key = self.agreement_keys.last_mut();
                 if let Some(previous_key) = previous_key {
                     previous_key.expired_at = Some(timestamp);
                 }
-                let agreement_method = AgreementKeyState {
+                let agreement_state = AgreementKeyState {
                     id: key.id,
                     valid_at: timestamp,
                     expired_at: None,
                     key: key.value,
                 };
-                self.agreement_keys.push(agreement_method);
+                self.agreement_keys.push(agreement_state);
             }
             EventType::RevokeAssertionKey(kid) => {
                 let key = self.assertion_keys.iter_mut().find(|k| k.id == kid);

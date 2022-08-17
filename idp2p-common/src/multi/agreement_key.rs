@@ -1,18 +1,21 @@
 use std::io::Read;
 
 use rand::rngs::OsRng;
-use serde::{de::Error as SerdeError, Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use unsigned_varint::{encode as varint_encode, io::read_u64};
 use x25519_dalek::{EphemeralSecret, PublicKey};
 
-use crate::decode_base;
+use super::{ error::Idp2pMultiError};
 
-use super::{base::Idp2pBase, error::Idp2pMultiError, X25519_CODE};
+pub enum Idp2pAgreementKeyCode {
+    X25519 = 0xec,
+    Kyber512 = 0x1002,
+}
 
 #[derive(PartialEq, Clone, Debug)]
 pub enum Idp2pAgreementKey {
-    X25519 { public: PublicKey },
+    X25519 { public: [u8; 32] },
+    Kyber512 { public: [u8; 800] },
 }
 
 impl Idp2pAgreementKey {
@@ -21,7 +24,7 @@ impl Idp2pAgreementKey {
             X25519_CODE => {
                 let key_bytes: [u8; 32] = bytes.as_ref().try_into()?;
                 Ok(Self::X25519 {
-                    public: PublicKey::try_from(key_bytes)?,
+                    public: key_bytes,
                 })
             }
             _ => Err(Idp2pMultiError::InvalidKeyCode),
@@ -52,8 +55,9 @@ impl Idp2pAgreementKey {
                 let typ = varint_encode::u64(X25519_CODE, &mut type_buf);
                 let mut size_buf = varint_encode::u64_buffer();
                 let size = varint_encode::u64(32, &mut size_buf);
-                [typ, size, &public.to_bytes()].concat()
+                [typ, size, public].concat()
             }
+            Self::Kyber512 { public } => todo!()
         }
     }
 
@@ -62,13 +66,14 @@ impl Idp2pAgreementKey {
             Self::X25519 { public } => {
                 let ephemeral_secret = EphemeralSecret::new(OsRng);
                 let ephemeral_public = PublicKey::from(&ephemeral_secret);
-                let ephemeral_key = Self::X25519 { public: ephemeral_public };
-                let shared_secret = ephemeral_secret.diffie_hellman(&public);
-                Ok((
-                    shared_secret.to_bytes().to_vec(),
-                    ephemeral_key.to_bytes(),
-                ))
+                let ephemeral_key = Self::X25519 {
+                    public: ephemeral_public.to_bytes(),
+                };
+                let pk = x25519_dalek::PublicKey::try_from(*public)?;
+                let shared_secret = ephemeral_secret.diffie_hellman(&pk);
+                Ok((shared_secret.to_bytes().to_vec(), ephemeral_key.to_bytes()))
             }
+            Self::Kyber512 { public } => todo!()
         }
     }
 
@@ -76,41 +81,24 @@ impl Idp2pAgreementKey {
         match self {
             Self::X25519 { public } => {
                 let h = Sha256::new()
-                    .chain_update(public.to_bytes())
+                    .chain_update(public)
                     .finalize()
                     .to_vec();
                 h[0..16].to_vec()
             }
+            Self::Kyber512 { public } => todo!()
         }
     }
 
     pub fn did_scheme(&self) -> String {
         match self {
             Self::X25519 { public: _ } => "X25519VerificationKey2020".to_string(),
+            Self::Kyber512 { public } => todo!(),
         }
     }
 }
 
-impl Serialize for Idp2pAgreementKey {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
-        let s = Idp2pBase::default().encode(self.to_bytes());
-        format!("{}", s).serialize(serializer)
-    }
-}
 
-impl<'de> Deserialize<'de> for Idp2pAgreementKey {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        let s = String::deserialize(deserializer)?;
-        let bytes = decode_base!(s)?;
-        Ok(Self::from_bytes(bytes).map_err(SerdeError::custom)?)
-    }
-}
 
 #[cfg(test)]
 mod tests {
@@ -121,7 +109,7 @@ mod tests {
         let key = Idp2pAgreementKey::new(X25519_CODE, bytes)?;
         let key_bytes = key.to_bytes();
         let decoded_key = Idp2pAgreementKey::from_bytes(key_bytes)?;
-        matches!(decoded_key, Idp2pAgreementKey::X25519 { public } if public.to_bytes() == bytes);
+        matches!(decoded_key, Idp2pAgreementKey::X25519 { public } if public == bytes);
         Ok(())
     }
 

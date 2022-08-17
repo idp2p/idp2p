@@ -22,10 +22,10 @@ message IdGossipMessage {
 }
 
 message IdGossipMessageRaw { 
-    bytes from = 1; 
-    bytes signer_kid = 2; // Signer key id
-    bytes proof = 3; // sig(from) with kid
-    bytes to = 4; 
+    bytes from = 1; // Message sender
+    bytes signer_kid = 2; // POP kid
+    bytes proof = 3; // Proof of possesion
+    bytes to = 4; // Message receiver
     int64 created_at = 5; // UTC Timestamp
     bytes body = 6; // Bytes of IdGossipMessageBodyType
     optional bytes reply_to = 7;
@@ -42,19 +42,8 @@ message IdGossipMessageCipher{
 message IdGossipMessageBodyType{
     oneof m_type{
         string text = 1;
-        ConnectMessage connect = 2;
-        AcceptMessage accept =3;
+        // Handshaking messages
     }
-}
-
-message ConnectMessage{
-    PairIdentity pair_id = 1;
-    string pair_addr = 2;
-}
-
-message AcceptMessage{
-    PairIdentity pair_id = 1;
-    string pair_addr = 2;
 }
 
 message PairIdentity{

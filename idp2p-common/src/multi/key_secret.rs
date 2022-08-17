@@ -4,6 +4,8 @@ use ed25519_dalek::{Keypair, PublicKey, SecretKey, Signer};
 #[derive(Debug, Clone, PartialEq)]
 pub enum Idp2pKeySecret {
     Ed25519 { secret: [u8; 32] },
+    Dilithium2 { secret: [u8; 2528] },
+    Winternitz { secret: [u8; 2144] },
 }
 
 impl Idp2pKeySecret {
@@ -15,10 +17,12 @@ impl Idp2pKeySecret {
 
     pub fn sign<T: AsRef<[u8]>>(&self, payload: T) -> Result<Vec<u8>, Idp2pMultiError> {
         match self {
-            Idp2pKeySecret::Ed25519 { secret } => {
+            Self::Ed25519 { secret } => {
                 let keypair = to_ed_keypair(secret)?;
                 Ok(keypair.sign(payload.as_ref()).to_bytes().to_vec())
             }
+            Self::Dilithium2 { secret } => todo!(),
+            Self::Winternitz { secret } => todo!(),
         }
     }
 
@@ -27,9 +31,11 @@ impl Idp2pKeySecret {
             Self::Ed25519 { secret } => {
                 let keypair = to_ed_keypair(secret)?;
                 Ok(Idp2pKey::Ed25519 {
-                    public: keypair.public,
+                    public: keypair.public.to_bytes(),
                 })
             }
+            Self::Dilithium2 { secret } => todo!(),
+            Self::Winternitz { secret } => todo!(),
         }
     }
 }
