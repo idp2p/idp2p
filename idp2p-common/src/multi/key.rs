@@ -6,13 +6,6 @@ use unsigned_varint::{encode as varint_encode, io::read_u64};
 
 use super::{error::Idp2pMultiError, hasher::Idp2pHasher};
 
-pub trait Verifier {
-    
-}
-pub struct Idp2pPublicKey<const S: usize, V: Verifier>{
-    public: [u8; S]
-}
-
 
 #[derive(PartialEq, Clone, Debug)]
 pub enum Idp2pKeyCode {
@@ -79,7 +72,7 @@ impl Idp2pKey {
     }
 
     pub fn to_raw_bytes(&self) -> Vec<u8> {
-        match &self {
+       match &self {
             Self::Ed25519 { public } => public.to_vec(),
             Self::Dilithium2 { public } => public.to_vec(),
             Self::Winternitz { public } => public.to_vec(),

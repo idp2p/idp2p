@@ -30,8 +30,9 @@ impl Idp2pKeyDigest {
     }
 
     pub fn to_bytes(&self) -> Vec<u8> {
-        let mut type_buf = varint_encode::u64_buffer(); 
-        let typ = varint_encode::u64(self.code as u64, &mut type_buf);
+        let mut type_buf = varint_encode::u64_buffer();
+        let code = self.code.clone() as u64;
+        let typ = varint_encode::u64(code, &mut type_buf);
         [typ, &self.digest.to_bytes()].concat()
     }
 

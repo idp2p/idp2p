@@ -6,6 +6,7 @@ use unsigned_varint::{encode as varint_encode, io::read_u64};
 use x25519_dalek::{EphemeralSecret, PublicKey};
 
 use super::{ error::Idp2pMultiError};
+const X25519_CODE: u64 = 0xec;
 
 pub enum Idp2pAgreementKeyCode {
     X25519 = 0xec,

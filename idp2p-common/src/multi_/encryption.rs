@@ -2,11 +2,9 @@ use std::io::Read;
 
 use crate::random::create_random;
 
-use super::{error::Idp2pMultiError};
+use super::{error::Idp2pMultiError, AES256_CODE, AESGCM_CODE};
 use unsigned_varint::{encode as varint_encode, io::read_u64};
 
-const AES256_CODE: u64 = 0xec;
-const AESGCM_CODE: u64 = 0xec;
 pub enum Idp2pEncryptionKeyCode {
     Aes256 = 0xec,
 }
