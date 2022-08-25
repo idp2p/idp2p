@@ -1,101 +1,74 @@
-use unsigned_varint::io::read_u64;
+pub mod x25519;
+use std::io::Read;
 
-use super::{decode_key_bytes, encode_key, error::Idp2pMultiError, pub_to_id};
-const X25519_PUBSIZE: usize = 32;
-const X25519_MULTICODE: isize = 0xec;
-const KYBER512_PUBSIZE: usize = 800;
-const KYBER512_MULTICODE: isize = 0x0;
+use self::x25519::X25519PublicKey;
+use super::error::Idp2pMultiError;
+use sha2::{Digest, Sha256};
+use unsigned_varint::{encode as varint_encode, io::read_u64};
+const X25519_MULTICODE: u64 = 0xec;
+const KYBER768_MULTICODE: u64 = 0x6b768;
 
-pub enum Idp2pAgreementKeyCode {
-    X25519 = X25519_MULTICODE,
-    Kyber512 = KYBER512_MULTICODE,
+pub struct AgreementShared {
+    // Shared secret
+    pub secret: Vec<u8>,
+    // Ephemeral key or ciphertext
+    pub data: Vec<u8>,
 }
 
-impl TryFrom<u64> for Idp2pAgreementKeyCode {
-    type Error = Idp2pMultiError;
-
-    fn try_from(value: u64) -> Result<Self, Self::Error> {
-        match value as isize{
-            X25519_MULTICODE => Ok(Self::X25519),
-            _ => Err(Idp2pMultiError::InvalidKeyCode)
-        }
-    }
-}
-
-impl Idp2pAgreementKeyCode {
-    pub fn to_pub_key(&self, bytes: &[u8]) -> Result<Idp2pAgreementPublicKey, Idp2pMultiError> {
-        match &self {
-            Self::X25519 => Ok(Idp2pAgreementPublicKey::X25519 {
-                public: bytes.as_ref().try_into()?,
-            }),
-            Self::Kyber512 => Ok(Idp2pAgreementPublicKey::Kyber512 {
-                public: bytes.as_ref().try_into()?,
-            }),
-            _ => Err(Idp2pMultiError::InvalidKeyCode),
-        }
-    }
+pub trait AgreementPublicKey {
+    fn pub_bytes(&self) -> Vec<u8>;
+    fn create_data(&self) -> Result<AgreementShared, Idp2pMultiError>;
 }
 
 #[derive(PartialEq, Clone, Debug)]
 pub enum Idp2pAgreementPublicKey {
-    X25519 { public: [u8; X25519_PUBSIZE] },
-    Kyber512 { public: [u8; KYBER512_PUBSIZE] },
+    X25519(X25519PublicKey),
+    Kyber768(),
 }
 
 impl Idp2pAgreementPublicKey {
-    pub fn decode<T: AsRef<[u8]>>(bytes: T) -> Result<Self, Idp2pMultiError> {
-        let mut r = bytes.as_ref();
+    pub fn new(code: u64, bytes: &[u8]) -> Result<Self, Idp2pMultiError> {
+        todo!()
+    }
+    pub fn decode(bytes: &[u8]) -> Result<Self, Idp2pMultiError> {
+        let mut r = bytes;
         let code = read_u64(&mut r)?.try_into()?;
+        let size = read_u64(&mut r)?;
+        let mut public = vec![0u8; size as usize];
+        r.read_exact(&mut public)?;
         match code {
-            Idp2pAgreementKeyCode::X25519 => Ok(Self::X25519 {
-                public: decode_key_bytes(&mut r)?,
-            }),
-            Idp2pAgreementKeyCode::Kyber512 => {
-                todo!()
-            }
+            X25519_MULTICODE => Ok(Self::X25519(X25519PublicKey((&*public).try_into()?))),
+            KYBER768_MULTICODE => Ok(Self::X25519(X25519PublicKey((&*public).try_into()?))),
             _ => Err(Idp2pMultiError::InvalidKeyCode),
         }
     }
 
     pub fn encode(&self) -> Vec<u8> {
-        match &self {
-            Self::X25519 { public } => encode_key(Idp2pAgreementKeyCode::X25519 as u64, public),
-            Self::Kyber512 { public } => todo!(),
-        }
-    }
-
-    // Create 
-    pub fn create_shared_secret(&self) -> Result<(Vec<u8>, Vec<u8>), Idp2pMultiError> {
-        match self {
-            Self::X25519 { public } => idp2p_x25519::create_ss(*public),
-            Self::Kyber512 { public } => todo!(),
-        }
-    }
-
-    pub fn to_id(&self) -> [u8; 16] {
-        match self {
-            Self::X25519 { public } => pub_to_id(public),
-            Self::Kyber512 { public } => todo!(),
-        }
-    }
-}
-
-mod idp2p_x25519 {
-    use rand::rngs::OsRng;
-    use x25519_dalek::{EphemeralSecret, PublicKey};
-
-    use crate::multi_::error::Idp2pMultiError;
-
-    use super::Idp2pAgreementPublicKey;
-    pub(super) fn create_ss(public: [u8;32]) -> Result<(Vec<u8>, Vec<u8>), Idp2pMultiError> {
-        let ephemeral_secret = EphemeralSecret::new(OsRng);
-        let ephemeral_public = PublicKey::from(&ephemeral_secret);
-        let ephemeral_key = Idp2pAgreementPublicKey::X25519 {
-            public: ephemeral_public.to_bytes(),
+        let (code, size, bytes) = match &self {
+            Self::X25519(public) => (X25519_MULTICODE, 32u64, public.pub_bytes()),
+            Self::Kyber768() => todo!(),
         };
-        let pk = PublicKey::try_from(public)?;
-        let shared_secret = ephemeral_secret.diffie_hellman(&pk);
-        Ok((shared_secret.to_bytes().to_vec(), ephemeral_key.encode()))
+        let mut code_buf = varint_encode::u64_buffer();
+        let code = varint_encode::u64(code, &mut code_buf);
+        let mut size_buf = varint_encode::u64_buffer();
+        let size = varint_encode::u64(size, &mut size_buf);
+        [code, size, &bytes].concat()
+    }
+
+    // Create a new shared secret and data for the public key
+    pub fn create_shared(&self) -> Result<AgreementShared, Idp2pMultiError> {
+        match &self {
+            Self::X25519(public) => public.create_data(),
+            Self::Kyber768() => todo!(),
+        }
+    }
+
+    pub fn generate_id(&self) -> [u8; 16] {
+        let h = Sha256::new()
+            .chain_update(&self.encode())
+            .finalize()
+            .to_vec();
+        h[0..16].try_into().expect("Conversion failed")
     }
 }
 
@@ -105,10 +78,9 @@ mod tests {
     #[test]
     fn enc_dec_test() -> Result<(), Idp2pMultiError> {
         let bytes = [0u8; 32];
-        let key = Idp2pAgreementKeyCode::X25519.to_pub_key(&bytes)?;
-        let decoded_key = Idp2pAgreementPublicKey::decode(key.encode())?;
-        matches!(decoded_key, Idp2pAgreementPublicKey::X25519 { public } if public == bytes);
+        let key = Idp2pAgreementPublicKey::new(0xec, &bytes)?;
+        let decoded_key = Idp2pAgreementPublicKey::decode(&key.encode())?;
+        matches!(decoded_key, Idp2pAgreementPublicKey::X25519(X25519PublicKey(public)) if public == bytes);
         Ok(())
     }
-
 }

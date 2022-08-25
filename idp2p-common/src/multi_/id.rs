@@ -1,4 +1,4 @@
-use super::{error::Idp2pMultiError, hasher::Idp2pHasher};
+use super::{error::Idp2pMultiError, hash::Idp2pHasher};
 use cid::multihash::Multihash;
 use unsigned_varint::{encode as varint_encode, io::read_u64};
 
@@ -38,14 +38,6 @@ impl Idp2pId {
         }
     }
 
-    pub fn from_bytes<T: AsRef<[u8]>>(bytes: T) -> Result<Self, Idp2pMultiError> {
-        let mut r = bytes.as_ref();
-        let version = read_u64(&mut r)?;
-        let codec = read_u64(&mut r)?;
-        let cover = read_u64(&mut r)?;
-        Self::from_fields(version, codec, cover, r)
-    }
-
     pub fn from_fields(
         version: u64,
         codec: u64,
@@ -60,7 +52,15 @@ impl Idp2pId {
         })
     }
 
-    pub fn to_bytes(&self) -> Vec<u8> {
+    pub fn decode<T: AsRef<[u8]>>(bytes: T) -> Result<Self, Idp2pMultiError> {
+        let mut r = bytes.as_ref();
+        let version = read_u64(&mut r)?;
+        let codec = read_u64(&mut r)?;
+        let cover = read_u64(&mut r)?;
+        Self::from_fields(version, codec, cover, r)
+    }
+
+    pub fn encode(&self) -> Vec<u8> {
         let mut version_buf = varint_encode::u64_buffer();
         let version = varint_encode::u64(self.version, &mut version_buf);
         let mut codec_buf = varint_encode::u64_buffer();
@@ -91,7 +91,7 @@ mod tests {
     #[test]
     fn enc_dec_test() -> Result<(), Idp2pMultiError> {
         let id = Idp2pId::new(0, &vec![0u8; 50]);
-        let id2 = Idp2pId::from_bytes(&id.to_bytes())?;
+        let id2 = Idp2pId::decode(&id.encode())?;
         assert_eq!(id, id2);
         Ok(())
     }

@@ -1,5 +1,9 @@
 pub mod agreement;
+pub mod verification;
+pub mod hash;
+pub mod id;
 pub mod base;
+pub mod message;
 pub mod error;
 
 use std::io::Read;

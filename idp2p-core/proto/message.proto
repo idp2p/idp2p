@@ -14,7 +14,7 @@ message IdGossipMessageWithTopic {
 }
 
 message IdGossipMessage {
-    IdGossipMessageType type = 1;
+    c
     oneof payload {
         Microledger post = 2; // Microledger of updated identity
         IdGossipMessageCipher message = 3;
@@ -33,9 +33,10 @@ message IdGossipMessageRaw {
 
 // id2id message
 message IdGossipMessageCipher{
-    bytes ephemeral_key = 1; // One time key to encrypt message
-    bytes agreement_kid = 2; // Receipent agreement key id to decrypt message
-    bytes encryption_key = 3; // MultiEncryptionAlg i.e [0xa2][0x67636d][iv] 
+    bytes agreement_kid = 1; // Receipent agreement key id to decrypt message
+    bytes agreement_data = 2; // Ephemeral public key(x25519) or ciphertext(kyber)
+    int64 encryption_method = 3; // AESGCM(256)
+    bytes encryption_iv = 4; // 12 or 24 bytes initial vector
     bytes cipherbody = 5; // Encrypted message body with codec 
 }
 
