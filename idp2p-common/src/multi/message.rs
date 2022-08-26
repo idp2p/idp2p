@@ -36,6 +36,6 @@ impl Idp2pMessage {
     }
 
     pub fn to_bytes(&self) -> Result<Vec<u8>, Idp2pMultiError> {
-        Ok([&self.id.to_bytes()[..], &self.body[..]].concat())
+        Ok([&self.id.encode()[..], &self.body[..]].concat())
     }
 }

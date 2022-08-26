@@ -10,11 +10,10 @@ enum IdGossipMessageType{
 
 message IdGossipMessageWithTopic {
     string topic = 1; 
-    IdGossipMessage gossip_message = 3; 
+    IdGossipMessage gossip_message = 2; 
 }
 
 message IdGossipMessage {
-    c
     oneof payload {
         Microledger post = 2; // Microledger of updated identity
         IdGossipMessageCipher message = 3;

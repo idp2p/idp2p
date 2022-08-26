@@ -1,4 +1,7 @@
-use idp2p_common::multi::{key_secret::Idp2pKeySecret, id::Idp2pId};
+use idp2p_common::multi::{
+    id::Idp2pId,
+    verification::{Idp2pVerificationKeypair, Idp2pVerificationPublicKeyDigest},
+};
 
 use crate::{error::Idp2pError, id_state::IdentityState, HandlerResolver};
 
@@ -31,8 +34,8 @@ pub struct CreateIdentityInput {
 
 #[derive(PartialEq, Debug, Clone)]
 pub struct ChangeInput {
-    pub next_key_digest: Vec<u8>,
-    pub signer_secret: Idp2pKeySecret,
+    pub next_key_digest: Idp2pVerificationPublicKeyDigest,
+    pub signer_secret: Idp2pVerificationKeypair,
     pub change: ChangeType,
 }
 
@@ -47,22 +50,18 @@ pub struct Identity {
 pub trait IdentityHandler {
     fn new(&self, input: CreateIdentityInput) -> Result<Identity, Idp2pError>;
     fn change(&self, did: &mut Identity, input: ChangeInput) -> Result<bool, Idp2pError>;
-    fn verify(
-        &self,
-        did: &Identity,
-        prev: Option<&Identity>,
-    ) -> Result<IdentityState, Idp2pError>;
+    fn verify(&self, did: &Identity, prev: Option<&Identity>) -> Result<IdentityState, Idp2pError>;
 }
 
 impl Identity {
     pub fn change(&mut self, input: ChangeInput) -> Result<bool, Idp2pError> {
-        let id = Idp2pId::from_bytes(&self.id)?;
+        let id = Idp2pId::decode(&self.id)?;
         id.codec.resolve_id_handler().change(self, input)
     }
 
     /// Verify an identity and get state of identity
     pub fn verify(&self, prev: Option<&Identity>) -> Result<IdentityState, Idp2pError> {
-        let id = Idp2pId::from_bytes(&self.id)?;
+        let id = Idp2pId::decode(&self.id)?;
         id.codec.resolve_id_handler().verify(self, prev)
     }
 }

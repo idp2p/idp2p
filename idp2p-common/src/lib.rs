@@ -1,4 +1,3 @@
-pub mod multi_;
 pub mod multi;
 pub mod random;
 pub mod serde_vec;

@@ -1,7 +1,7 @@
 pub mod serde_vec {
     use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
-    use crate::{multi_::base::Idp2pBase, decode_base};
+    use crate::{multi::base::Idp2pBase, decode_base};
     pub fn deserialize<'de, D>(deserializer: D) -> Result<Vec<u8>, D::Error>
     where
         D: Deserializer<'de>,

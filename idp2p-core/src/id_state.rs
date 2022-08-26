@@ -1,6 +1,5 @@
-use idp2p_common::multi::{
-    key::Idp2pKey,
-    key_digest::Idp2pKeyDigest,
+use idp2p_common::multi::verification::{
+    Idp2pVerificationPublicKey, Idp2pVerificationPublicKeyDigest,
 };
 use std::collections::HashMap;
 
@@ -42,16 +41,22 @@ pub struct IdentityState {
 }
 
 impl IdentityState {
-    pub fn next_signer_key(&self, signer_bytes: &[u8]) -> Result<Idp2pKey, Idp2pError> {
-        let key_digest = Idp2pKeyDigest::from_bytes(&self.next_key_digest)?;
+    pub fn next_signer_key(
+        &self,
+        signer_bytes: &[u8],
+    ) -> Result<Idp2pVerificationPublicKey, Idp2pError> {
+        let key_digest = Idp2pVerificationPublicKeyDigest::decode(&self.next_key_digest)?;
         Ok(key_digest.to_next_key(signer_bytes)?)
     }
-    pub fn next_recovery_key(&self, signer_bytes: &[u8]) -> Result<Idp2pKey, Idp2pError> {
-        let key_digest = Idp2pKeyDigest::from_bytes(&self.recovery_key_digest)?;
+    pub fn next_recovery_key(
+        &self,
+        signer_bytes: &[u8],
+    ) -> Result<Idp2pVerificationPublicKey, Idp2pError> {
+        let key_digest = Idp2pVerificationPublicKeyDigest::decode(&self.recovery_key_digest)?;
         Ok(key_digest.to_next_key(signer_bytes)?)
     }
     pub fn get_latest_auth_key(&self) -> Option<&KeyState> {
-       self.authentication_keys.last()
+        self.authentication_keys.last()
     }
     pub fn get_latest_agree_key(&self) -> Option<&AgreementKeyState> {
         self.agreement_keys.last()

@@ -30,5 +30,7 @@ pub enum Idp2pMultiError {
     EncryptionError,
     #[error("DecryptionError")]
     DecryptionError,
+    #[error("Other")]
+    Other,
 }
 

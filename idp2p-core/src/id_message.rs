@@ -1,4 +1,4 @@
-use idp2p_common::multi::{agreement_secret::Idp2pAgreementSecret, key_secret::Idp2pKeySecret};
+use idp2p_common::multi::{verification::Idp2pVerificationKeypair, agreement::Idp2pAgreementKeypair};
 
 use super::{error::Idp2pError, id_state::IdentityState};
 
@@ -15,14 +15,14 @@ pub struct IdMessage {
 pub trait MessageHandler {
     fn seal_msg(
         &self,
-        auth_secret: Idp2pKeySecret,
+        auth_keypair: Idp2pVerificationKeypair,
         from: IdentityState,
         to: IdentityState,
         body: &[u8],
     ) -> Result<Vec<u8>, Idp2pError>;
     fn decode_msg(
         &self,
-        agree_secret: Idp2pAgreementSecret,
+        agree_keypair: Idp2pAgreementKeypair,
         msg: &[u8],
     ) -> Result<IdMessage, Idp2pError>;
 }

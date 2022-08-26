@@ -1,7 +1,7 @@
 pub mod x25519;
 use std::io::Read;
 
-use self::x25519::X25519PublicKey;
+use self::x25519::{X25519Keypair, X25519PublicKey};
 use super::error::Idp2pMultiError;
 use sha2::{Digest, Sha256};
 use unsigned_varint::{encode as varint_encode, io::read_u64};
@@ -20,16 +20,50 @@ pub trait AgreementPublicKey {
     fn create_data(&self) -> Result<AgreementShared, Idp2pMultiError>;
 }
 
+pub trait AgreementKeypair {
+    type PublicKeyType;
+    fn priv_bytes(&self) -> Vec<u8>;
+    fn to_public_key(&self) -> Self::PublicKeyType;
+    fn resolve_shared_secret(&self, data: &[u8]) -> Result<Vec<u8>, Idp2pMultiError>;
+}
+
 #[derive(PartialEq, Clone, Debug)]
 pub enum Idp2pAgreementPublicKey {
     X25519(X25519PublicKey),
     Kyber768(),
 }
 
+#[derive(Debug, Clone, PartialEq)]
+pub enum Idp2pAgreementKeypair {
+    X25519(X25519Keypair),
+    Kyber768(),
+}
+
+impl Idp2pAgreementKeypair {
+    pub fn to_public_key(&self) -> Idp2pAgreementPublicKey {
+        match self {
+            Self::X25519(xsecret) => Idp2pAgreementPublicKey::X25519(xsecret.to_public_key()),
+            Self::Kyber768() => todo!(),
+        }
+    }
+
+    pub fn resolve_shared_key(&self, data: &[u8]) -> Result<Vec<u8>, Idp2pMultiError> {
+        match self {
+            Self::X25519(xsecret) => xsecret.resolve_shared_secret(data),
+            Self::Kyber768() => todo!(),
+        }
+    }
+}
 impl Idp2pAgreementPublicKey {
     pub fn new(code: u64, bytes: &[u8]) -> Result<Self, Idp2pMultiError> {
-        todo!()
+        match code {
+            X25519_MULTICODE => Ok(Idp2pAgreementPublicKey::X25519(X25519PublicKey(
+                bytes.try_into()?,
+            ))),
+            _ => Err(Idp2pMultiError::InvalidKeyCode),
+        }
     }
+
     pub fn decode(bytes: &[u8]) -> Result<Self, Idp2pMultiError> {
         let mut r = bytes;
         let code = read_u64(&mut r)?.try_into()?;

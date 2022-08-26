@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use idp2p_common::{
     chrono::Utc,
-    multi::{id::Idp2pId, key::Idp2pKey},
+    multi::{id::Idp2pId, verification::Idp2pVerificationPublicKey},
 };
 use prost::Message;
 

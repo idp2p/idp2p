@@ -1,8 +1,8 @@
 use std::{collections::HashMap, sync::Mutex};
 
 use idp2p_common::multi::{
-    agreement_secret::Idp2pAgreementSecret, id::Idp2pCodec, key_secret::Idp2pKeySecret,
-    message::Idp2pMessage,
+    id::Idp2pCodec,
+    message::Idp2pMessage, agreement::Idp2pAgreementKeypair, verification::Idp2pVerificationKeypair,
 };
 use tokio::sync::mpsc::Sender;
 
@@ -52,15 +52,15 @@ pub struct IdEntry {
 
 pub struct IdDb {
     pub(crate) owner: IdentityState,
-    pub(crate) auth_secret: Idp2pKeySecret,
-    pub(crate) agree_secret: Idp2pAgreementSecret,
+    pub(crate) auth_keypair: Idp2pVerificationKeypair,
+    pub(crate) agree_keypair: Idp2pAgreementKeypair,
     pub(crate) identities: HashMap<Vec<u8>, IdEntry>,
 }
 
 pub struct IdStoreOptions {
     pub(crate) owner: Identity,
-    pub(crate) auth_secret: Idp2pKeySecret,
-    pub(crate) agree_secret: Idp2pAgreementSecret,
+    pub(crate) auth_keypair: Idp2pVerificationKeypair,
+    pub(crate) agree_keypair: Idp2pAgreementKeypair,
     pub(crate) event_sender: Sender<IdStoreOutEvent>,
     pub(crate) command_sender: Sender<IdStoreOutCommand>,
 }
@@ -91,8 +91,8 @@ impl IdStore {
         let owner_state = options.owner.verify(None)?;
         let db = IdDb {
             owner: owner_state,
-            auth_secret: options.auth_secret,
-            agree_secret: options.agree_secret,
+            auth_keypair: options.auth_keypair,
+            agree_keypair: options.agree_keypair,
             identities: HashMap::new(),
         };
         let store = Self {
@@ -122,7 +122,7 @@ impl IdStore {
                     .clone();
                 let to = db.identities.get(&id).expect("").id_state.clone();
                 let msg = self.codec.resolve_msg_handler().seal_msg(
-                    db.auth_secret.clone(),
+                    db.auth_keypair.clone(),
                     from,
                     to,
                     &message,
@@ -195,7 +195,7 @@ impl IdStore {
                         .id
                         .codec
                         .resolve_msg_handler()
-                        .decode_msg(db.agree_secret.clone(), &msg.body)?;
+                        .decode_msg(db.agree_keypair.clone(), &msg.body)?;
                     let from = db
                         .identities
                         .get(&dec_msg.from)
