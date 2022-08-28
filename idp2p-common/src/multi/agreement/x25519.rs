@@ -1,6 +1,6 @@
 use crate::multi::error::Idp2pMultiError;
 
-use super::{AgreementKeypair, AgreementPublicKey, AgreementShared};
+use super::{ AgreementPublicBehaviour, AgreementShared, AgreementSecretBehaviour};
 
 use rand::rngs::OsRng;
 use x25519_dalek::{EphemeralSecret, PublicKey, StaticSecret};
@@ -14,7 +14,7 @@ pub struct X25519Keypair {
     public: [u8; 32],
 }
 
-impl AgreementKeypair for X25519Keypair {
+impl AgreementSecretBehaviour for X25519Keypair {
     type PublicKeyType = X25519PublicKey;
     fn priv_bytes(&self) -> Vec<u8> {
         self.secret.to_vec()
@@ -45,12 +45,12 @@ impl X25519Keypair {
 }
 
 impl X25519PublicKey {
-    pub fn from_bytes(bytes: &[u8]) -> Result<Self, Idp2pMultiError> {
-        Ok(Self(bytes.try_into()?))
+    pub fn from_bytes(public: [u8;32]) -> Self {
+        Self(public)
     }
 }
 
-impl AgreementPublicKey for X25519PublicKey {
+impl AgreementPublicBehaviour for X25519PublicKey {
     fn pub_bytes(&self) -> Vec<u8> {
         self.0.to_vec()
     }

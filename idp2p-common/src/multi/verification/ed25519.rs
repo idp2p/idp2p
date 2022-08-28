@@ -2,7 +2,7 @@ use ed25519_dalek::{SecretKey, PublicKey, Keypair};
 
 use crate::multi::error::Idp2pMultiError;
 
-use super::{VerificationPublicKey, VerificationKeypair};
+use super::{Verifier, Signer};
 
 #[derive(PartialEq, Clone, Debug)]
 pub struct Ed25519Keypair {
@@ -13,7 +13,8 @@ pub struct Ed25519Keypair {
 #[derive(PartialEq, Clone, Debug)]
 pub struct Ed25519PublicKey([u8;32]);
 
-impl VerificationPublicKey for Ed25519PublicKey {
+impl Verifier for Ed25519PublicKey {
+
     fn pub_bytes(&self) -> Vec<u8> {
         self.0.to_vec()
     }
@@ -21,9 +22,13 @@ impl VerificationPublicKey for Ed25519PublicKey {
     fn verify(&self, payload: &[u8], sig: &[u8]) -> Result<bool, Idp2pMultiError> {
         todo!()
     }
+
+    fn encode(&self) -> Vec<u8> {
+        todo!()
+    }
 }
 
-impl VerificationKeypair for Ed25519Keypair{
+impl Signer for Ed25519Keypair{
     type PublicKeyType = Ed25519PublicKey;
 
     fn priv_bytes(&self) -> Vec<u8> {
@@ -54,5 +59,11 @@ impl Ed25519Keypair{
             secret: sk,
         };
         Ok(keypair)
+    }
+}
+
+impl Ed25519PublicKey{
+    pub fn from_bytes(bytes: [u8;32]) -> Self{
+        Self(bytes)
     }
 }
