@@ -3,11 +3,12 @@ use prost::Message;
 
 use crate::{
     error::Idp2pError,
+    id_message::IdMessage,
     identity::IdEvent,
     idp2p_proto::{
-        identity_event::EventType, EventLog, EventLogPayload, IdentityEvent, Idp2pProof,
-        Idp2pVerificationKey, self,
-    }, id_message::IdMessage,
+        self, identity_event::EventType, EventLog, EventLogPayload, IdentityEvent, Idp2pMultiKey,
+        Idp2pProof,
+    },
 };
 
 /// Resolve event payload from encoded protobuf
@@ -27,22 +28,22 @@ impl EventLogResolver for EventLog {
 impl Into<IdentityEvent> for IdEvent {
     fn into(self) -> IdentityEvent {
         match self {
-            IdEvent::CreateAssertionKey { id, key } => IdentityEvent {
-                event_type: Some(EventType::CreateAssertionKey(Idp2pVerificationKey {
+            IdEvent::CreateAssertionKey { id, multi_bytes } => IdentityEvent {
+                event_type: Some(EventType::CreateAssertionKey(Idp2pMultiKey {
                     id: id,
-                    value: key,
+                    bytes: multi_bytes,
                 })),
             },
-            IdEvent::CreateAuthenticationKey { id, key } => IdentityEvent {
-                event_type: Some(EventType::CreateAuthenticationKey(Idp2pVerificationKey {
+            IdEvent::CreateAuthenticationKey { id, multi_bytes } => IdentityEvent {
+                event_type: Some(EventType::CreateAuthenticationKey(Idp2pMultiKey {
                     id: id,
-                    value: key,
+                    bytes: multi_bytes,
                 })),
             },
-            IdEvent::CreateAgreementKey { id, key } => IdentityEvent {
-                event_type: Some(EventType::CreateAgreementKey(Idp2pVerificationKey {
+            IdEvent::CreateAgreementKey { id, multi_bytes } => IdentityEvent {
+                event_type: Some(EventType::CreateAgreementKey(Idp2pMultiKey {
                     id: id,
-                    value: key,
+                    bytes: multi_bytes,
                 })),
             },
             IdEvent::SetProof { key, value } => IdentityEvent {
@@ -63,13 +64,14 @@ impl Into<IdentityEvent> for IdEvent {
 
 impl Into<IdMessage> for idp2p_proto::IdGossipMessageRaw {
     fn into(self) -> IdMessage {
-        IdMessage{
+        IdMessage {
             from: self.from,
             to: self.to,
             signer_kid: self.signer_kid,
             proof: self.proof,
             created_at: self.created_at,
             body: self.body,
+            reply_to: self.reply_to
         }
     }
 }

@@ -2,12 +2,12 @@ use std::{collections::HashMap, sync::Mutex};
 
 use idp2p_common::multi::{
     id::Idp2pCodec,
-    message::Idp2pMessage, agreement::Idp2pAgreementKeypair, verification::Idp2pVerificationKeypair,
+    message::Idp2pMessage, agreement::Idp2pAgreementKeypair, authentication::Idp2pAuthenticationKeypair,
 };
 use tokio::sync::mpsc::Sender;
 
 use crate::{
-    error::Idp2pError, id_message::IdMessage, id_state::IdentityState, identity::Identity,
+    error::Idp2pError, id_state::IdentityState, identity::Identity,
     HandlerResolver,
 };
 
@@ -52,14 +52,14 @@ pub struct IdEntry {
 
 pub struct IdDb {
     pub(crate) owner: IdentityState,
-    pub(crate) auth_keypair: Idp2pVerificationKeypair,
+    pub(crate) auth_keypair: Idp2pAuthenticationKeypair,
     pub(crate) agree_keypair: Idp2pAgreementKeypair,
     pub(crate) identities: HashMap<Vec<u8>, IdEntry>,
 }
 
 pub struct IdStoreOptions {
     pub(crate) owner: Identity,
-    pub(crate) auth_keypair: Idp2pVerificationKeypair,
+    pub(crate) auth_keypair: Idp2pAuthenticationKeypair,
     pub(crate) agree_keypair: Idp2pAgreementKeypair,
     pub(crate) event_sender: Sender<IdStoreOutEvent>,
     pub(crate) command_sender: Sender<IdStoreOutCommand>,
@@ -190,7 +190,7 @@ impl IdStore {
             IdStoreEvent::ReceivedMessage(msg) => {
                 let entry = db.identities.get_mut(topic.as_bytes());
                 if let Some(entry) = entry {
-                    let msg = Idp2pMessage::from_bytes(&msg)?;
+                    let msg = Idp2pMessage::from_multi_bytes(&msg)?;
                     let dec_msg = msg
                         .id
                         .codec

@@ -34,9 +34,9 @@ impl AgreementKeyCode {
     }
 }
 pub struct AgreementShared {
-    // Shared secret
+    /// Shared secret
     pub secret: Vec<u8>,
-    // Ephemeral key or ciphertext
+    /// Ephemeral key or ciphertext
     pub data: Vec<u8>,
 }
 
@@ -65,6 +65,10 @@ pub enum Idp2pAgreementKeypair {
 }
 
 impl Idp2pAgreementKeypair {
+    pub fn new_x25519(secret: [u8;32]) -> Self{
+        Self::X25519(X25519Keypair::from_secret_bytes(secret))
+    }
+
     pub fn to_public_key(&self) -> Idp2pAgreementPublicKey {
         match self {
             Self::X25519(xsecret) => Idp2pAgreementPublicKey::X25519(xsecret.to_public_key()),
@@ -83,12 +87,12 @@ impl Idp2pAgreementPublicKey {
     pub fn new(code: u64, bytes: &[u8]) -> Result<Self, Idp2pMultiError> {
         match code {
             X25519_MULTICODE => Ok(Self::X25519(X25519PublicKey(bytes.try_into()?))),
-            KYBER768_MULTICODE => Ok(Self::X25519(X25519PublicKey(bytes.try_into()?))),
+            KYBER768_MULTICODE => todo!(),
             _ => Err(Idp2pMultiError::InvalidKeyCode),
         }
     }
 
-    pub fn from_bytes(bytes: &[u8]) -> Result<Self, Idp2pMultiError> {
+    pub fn from_multi_bytes(bytes: &[u8]) -> Result<Self, Idp2pMultiError> {
         let mut r = bytes;
         let code: AgreementKeyCode = read_u64(&mut r)?.try_into()?;
         match code {
@@ -101,7 +105,7 @@ impl Idp2pAgreementPublicKey {
         }
     }
 
-    pub fn to_bytes(&self) -> Vec<u8> {
+    pub fn to_multi_bytes(&self) -> Vec<u8> {
         let (code, bytes) = match &self {
             Self::X25519(public) => (X25519_MULTICODE, public.pub_bytes()),
             Self::Kyber768() => todo!(),
@@ -109,6 +113,13 @@ impl Idp2pAgreementPublicKey {
         let mut code_buf = varint_encode::u64_buffer();
         let code = varint_encode::u64(code, &mut code_buf);
         [code, &bytes].concat()
+    }
+
+    pub fn to_bytes(&self) -> Vec<u8> {
+        match &self {
+            Self::X25519(public) => public.pub_bytes(),
+            Self::Kyber768() => todo!()
+        }
     }
 
     // Create a new shared secret and data for the public key
@@ -132,11 +143,20 @@ impl Idp2pAgreementPublicKey {
 mod tests {
     use super::*;
     #[test]
+    fn create_resolve_shared_test() -> Result<(), Idp2pMultiError> {
+        let alice_keypair = Idp2pAgreementKeypair::new_x25519([0u8; 32]);
+        let shared_for_alice = alice_keypair.to_public_key().create_shared()?;
+        let shared_secret = alice_keypair.resolve_shared_key(&shared_for_alice.data)?;
+        assert_eq!(shared_for_alice.secret, shared_secret);
+        Ok(())
+    }
+
+    #[test]
     fn enc_dec_test() -> Result<(), Idp2pMultiError> {
-        let bytes = [0u8; 32];
-        //let key = AgreementPublicKey::new(0xec, &bytes)?;
-        //let decoded_key = AgreementPublicKey::from_bytes(&key.to_bytes())?;
-        //matches!(decoded_key, AgreementPublicKey::X25519(X25519PublicKey(public)) if public == bytes);
+        let key = Idp2pAgreementPublicKey::new(AgreementKeyCode::X25519 as u64, &[0u8; 32])?;
+        let bytes = key.to_multi_bytes();
+        let decoded_key = Idp2pAgreementPublicKey::from_multi_bytes(&bytes)?;
+        assert_eq!(key, decoded_key);
         Ok(())
     }
 }

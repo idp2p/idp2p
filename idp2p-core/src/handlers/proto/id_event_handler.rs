@@ -1,6 +1,9 @@
 use crate::{
     error::Idp2pError,
-    id_state::{AgreementKeyState, IdentityState, IdentityStateEventHandler, KeyState, ProofState},
+    id_state::{
+        AgreementPublicKeyState, AssertionPublicKeyState, AuthenticationPublicKeyState,
+        IdentityState, IdentityStateEventHandler, ProofState,
+    },
     idp2p_proto::identity_event::EventType,
 };
 
@@ -12,11 +15,11 @@ impl IdentityStateEventHandler<EventType> for IdentityState {
                 if let Some(previous_key) = previous_key {
                     previous_key.expired_at = Some(timestamp);
                 }
-                let assertion_state = KeyState {
+                let assertion_state = AssertionPublicKeyState {
                     id: key.id,
                     valid_at: timestamp,
                     expired_at: None,
-                    key: key.value,
+                    key_bytes: key.bytes,
                 };
                 self.assertion_keys.push(assertion_state);
             }
@@ -25,11 +28,11 @@ impl IdentityStateEventHandler<EventType> for IdentityState {
                 if let Some(previous_key) = previous_key {
                     previous_key.expired_at = Some(timestamp);
                 }
-                let authentication_state = KeyState {
+                let authentication_state = AuthenticationPublicKeyState {
                     id: key.id,
                     valid_at: timestamp,
                     expired_at: None,
-                    key: key.value,
+                    key_bytes: key.bytes,
                 };
                 self.authentication_keys.push(authentication_state);
             }
@@ -38,11 +41,11 @@ impl IdentityStateEventHandler<EventType> for IdentityState {
                 if let Some(previous_key) = previous_key {
                     previous_key.expired_at = Some(timestamp);
                 }
-                let agreement_state = AgreementKeyState {
+                let agreement_state = AgreementPublicKeyState {
                     id: key.id,
                     valid_at: timestamp,
                     expired_at: None,
-                    key: key.value,
+                    key_bytes: key.bytes,
                 };
                 self.agreement_keys.push(agreement_state);
             }

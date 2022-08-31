@@ -4,7 +4,7 @@ message IdGossipMessage {
     oneof id_message_payload {
         bytes get = 2; // Give me your identity
         Identity post = 3; // My identity is updated
-        IdMessage connect = 4; // Heyy, I want to connect with you, give me your active peer
+        IdMessage msg = 4; // Heyy, I want to connect with you, give me your active peer
     }   
 }
 

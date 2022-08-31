@@ -1,18 +1,37 @@
 use idp2p_common::multi::{
-    id::Idp2pId,
-    verification::{Idp2pVerificationKeypair, Idp2pVerificationPublicKeyDigest},
+    agreement::Idp2pAgreementPublicKey, assertion::Idp2pAssertionPublicKey,
+    authentication::Idp2pAuthenticationPublicKey, id::Idp2pId, ledgerkey::Idp2pLedgerKeypair,
 };
 
 use crate::{error::Idp2pError, id_state::IdentityState, HandlerResolver};
 
+/// Identity event input
+/// 
+/// When a program wants to create or change identity, it uses the enum.
 #[derive(PartialEq, Debug, Clone)]
 pub enum IdEvent {
-    CreateAssertionKey { id: Vec<u8>, key: Vec<u8> },
-    CreateAuthenticationKey { id: Vec<u8>, key: Vec<u8> },
-    CreateAgreementKey { id: Vec<u8>, key: Vec<u8> },
-    SetProof { key: Vec<u8>, value: Vec<u8> },
+    CreateAssertionKey {
+        id: Vec<u8>,
+        multi_bytes: Vec<u8>,
+    },
+    CreateAuthenticationKey {
+        id: Vec<u8>,
+        multi_bytes: Vec<u8>,
+    },
+    CreateAgreementKey {
+        id: Vec<u8>,
+        multi_bytes: Vec<u8>,
+    },
+    /// `key`: proof key as bytes , `value`: proof value as bytes 
+    SetProof {
+        key: Vec<u8>,
+        value: Vec<u8>,
+    },
+    /// Id of assertion key
     RevokeAssertionKey(Vec<u8>),
+    /// Id of authentication key
     RevokeAuthenticationKey(Vec<u8>),
+    /// Id of agreement key
     RevokeAgreementKey(Vec<u8>),
 }
 
@@ -34,8 +53,8 @@ pub struct CreateIdentityInput {
 
 #[derive(PartialEq, Debug, Clone)]
 pub struct ChangeInput {
-    pub next_key_digest: Idp2pVerificationPublicKeyDigest,
-    pub signer_secret: Idp2pVerificationKeypair,
+    pub next_key_digest: Vec<u8>,
+    pub signer_keypair: Idp2pLedgerKeypair,
     pub change: ChangeType,
 }
 
@@ -55,13 +74,13 @@ pub trait IdentityHandler {
 
 impl Identity {
     pub fn change(&mut self, input: ChangeInput) -> Result<bool, Idp2pError> {
-        let id = Idp2pId::decode(&self.id)?;
+        let id = Idp2pId::from_bytes(&self.id)?;
         id.codec.resolve_id_handler().change(self, input)
     }
 
     /// Verify an identity and get state of identity
     pub fn verify(&self, prev: Option<&Identity>) -> Result<IdentityState, Idp2pError> {
-        let id = Idp2pId::decode(&self.id)?;
+        let id = Idp2pId::from_bytes(&self.id)?;
         id.codec.resolve_id_handler().verify(self, prev)
     }
 }

@@ -22,7 +22,7 @@ message IdentityInception {
 }
 
 message EventLog {
-    bytes id = 1; // Multi identifier
+    bytes id = 1; // Multi id
     bytes payload = 2;  // Encoded bytes of event payload(It is encoded because of deterministic event_id and signature)
     bytes proof = 3;  // Signature of payload bytes 
 }
@@ -43,9 +43,9 @@ message EventLogPayload{
 
 message IdentityEvent {
     oneof event_type { 
-        Idp2pVerificationKey create_assertion_key = 1; // Assertion MultiKey
-        Idp2pVerificationKey create_authentication_key = 2; // Authentication MultiKey
-        Idp2pVerificationKey create_agreement_key = 3; // Agreement MultiKey
+        Idp2pMultiKey create_assertion_key = 1; // Assertion MultiKey
+        Idp2pMultiKey create_authentication_key = 2; // Authentication MultiKey
+        Idp2pMultiKey create_agreement_key = 3; // Agreement MultiKey
         Idp2pProof set_proof = 4; // Any proof about identity, it is the way to extend identity
         bytes revoke_assertion_key = 5; // Multi assertion key
         bytes revoke_authentication_key = 6; // Multi authentication key
@@ -58,7 +58,7 @@ message Idp2pProof{
     bytes value = 2; // Proof value
 }
 
-message Idp2pVerificationKey{
-    bytes id = 1; // Key key
-    bytes value = 2; // Proof value
+message Idp2pMultiKey{
+    bytes id = 1; // Id of the key
+    bytes bytes = 2; // Value of the key
 }

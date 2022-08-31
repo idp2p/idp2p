@@ -52,7 +52,7 @@ impl Idp2pId {
         })
     }
 
-    pub fn decode<T: AsRef<[u8]>>(bytes: T) -> Result<Self, Idp2pMultiError> {
+    pub fn from_bytes<T: AsRef<[u8]>>(bytes: T) -> Result<Self, Idp2pMultiError> {
         let mut r = bytes.as_ref();
         let version = read_u64(&mut r)?;
         let codec = read_u64(&mut r)?;
@@ -60,7 +60,7 @@ impl Idp2pId {
         Self::from_fields(version, codec, cover, r)
     }
 
-    pub fn encode(&self) -> Vec<u8> {
+    pub fn to_bytes(&self) -> Vec<u8> {
         let mut version_buf = varint_encode::u64_buffer();
         let version = varint_encode::u64(self.version, &mut version_buf);
         let mut codec_buf = varint_encode::u64_buffer();
@@ -70,6 +70,7 @@ impl Idp2pId {
         [version, codec, cover, &self.digest.to_bytes()].concat()
     }
 
+    /// Ensure the id is produced from the content
     pub fn ensure(&self, content: &[u8]) -> Result<(), Idp2pMultiError> {
         let hasher: Idp2pHasher = self.digest.code().try_into()?;
         let expected_id = Self {
@@ -91,7 +92,7 @@ mod tests {
     #[test]
     fn enc_dec_test() -> Result<(), Idp2pMultiError> {
         let id = Idp2pId::new(0, &vec![0u8; 50]);
-        let id2 = Idp2pId::decode(&id.encode())?;
+        let id2 = Idp2pId::from_bytes(&id.to_bytes())?;
         assert_eq!(id, id2);
         Ok(())
     }

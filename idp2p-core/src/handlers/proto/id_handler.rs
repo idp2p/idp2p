@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use idp2p_common::{
     chrono::Utc,
-    multi::{id::Idp2pId, verification::Idp2pVerificationPublicKey},
+    multi::{id::Idp2pId, ledgerkey::Idp2pLedgerPublicKey},
 };
 use prost::Message;
 
@@ -51,10 +51,10 @@ impl IdentityHandler for ProtoIdentityHandler {
     fn change(&self, did: &mut Identity, input: ChangeInput) -> Result<bool, Idp2pError> {
         use idp2p_proto::event_log_payload::{Change, IdentityEvents};
         let state = self.verify(did, None)?;
-        let signer_key: Idp2pKey = input.signer_secret.to_key()?;
+        let signer_key: Idp2pLedgerPublicKey = input.signer_keypair.to_public_key();
         let mut payload = idp2p_proto::EventLogPayload {
             previous: state.last_event_id,
-            signer_key: signer_key.to_raw_bytes(),
+            signer_key: signer_key.to_bytes(), // Raw public bytes because it is implicitly decided with digest
             next_key_digest: input.next_key_digest,
             timestamp: Utc::now().timestamp(),
             change: None,
@@ -79,13 +79,13 @@ impl IdentityHandler for ProtoIdentityHandler {
                 let mut id_events: Vec<idp2p_proto::IdentityEvent> = vec![];
                 for event in events {
                     match &event {
-                        IdEvent::CreateAssertionKey { id, key: _ } => {
+                        IdEvent::CreateAssertionKey { id, multi_bytes: _ } => {
                             validate_new_key!(assertion_keys, *id)
                         }
-                        IdEvent::CreateAuthenticationKey { id, key: _ } => {
+                        IdEvent::CreateAuthenticationKey { id, multi_bytes: _ } => {
                             validate_new_key!(authentication_keys, *id)
                         }
-                        IdEvent::CreateAgreementKey { id, key: _ } => {
+                        IdEvent::CreateAgreementKey { id, multi_bytes: _ } => {
                             validate_new_key!(agreement_keys, *id)
                         }
                         IdEvent::RevokeAssertionKey(kid) => {
@@ -108,7 +108,7 @@ impl IdentityHandler for ProtoIdentityHandler {
             }
         }
         let payload_bytes = payload.encode_to_vec();
-        let proof = input.signer_secret.sign(&payload_bytes)?;
+        let proof = input.signer_keypair.sign(&payload_bytes)?;
         let event_log = idp2p_proto::EventLog {
             id: create_id(&payload_bytes),
             payload: payload_bytes,
@@ -169,7 +169,7 @@ impl IdentityHandler for ProtoIdentityHandler {
                 .ok_or(Idp2pError::RequiredField("change".to_string()))?;
             match change {
                 Change::Recover(key_digest) => {
-                    let signer = state.next_recovery_key(&payload.signer_key)?;
+                    let signer = state.next_rec_key(&payload.signer_key)?;
                     signer.verify(&log.payload, &log.proof)?;
                     state.recovery_key_digest = key_digest;
                 }
@@ -207,31 +207,31 @@ fn is_valid_prev(c: &idp2p_proto::Microledger, prev: &Identity) -> Result<bool, 
 #[cfg(test)]
 mod tests {
     use idp2p_common::{
-        multi::{base::Idp2pBase, error::Idp2pMultiError, key_secret::Idp2pKeySecret},
+        multi::{base::Idp2pBase, error::Idp2pMultiError, ledgerkey::Idp2pLedgerKeypair},
         random::create_random,
     };
 
     use super::*;
-    fn create() -> Result<(Identity, Idp2pKeySecret), Idp2pError> {
-        let secret = Idp2pKeySecret::from_bytes(&create_random::<32>())?;
+    fn create() -> Result<(Identity, Idp2pLedgerKeypair), Idp2pError> {
+        let keypair = Idp2pLedgerKeypair::new_ed25519(create_random::<32>())?;
         let input = CreateIdentityInput {
             timestamp: Utc::now().timestamp(),
-            next_key_digest: secret.to_key()?.to_key_digest(),
-            recovery_key_digest: secret.to_key()?.to_key_digest(),
+            next_key_digest: keypair.to_public_key().to_digest()?.to_multi_bytes(),
+            recovery_key_digest: keypair.to_public_key().to_digest()?.to_multi_bytes(),
             events: vec![],
         };
-        Ok((ProtoIdentityHandler {}.new(input)?, secret))
+        Ok((ProtoIdentityHandler {}.new(input)?, keypair))
     }
 
     #[test]
     fn id_test() -> Result<(), Idp2pError> {
         let secret_str = "bd6yg2qeifnixj4x3z2fclp5wd3i6ysjlfkxewqqt2thie6lfnkma";
-        let keypair = Idp2pKeySecret::from_bytes(&Idp2pBase::decode(secret_str)?)?;
+        let keypair = Idp2pLedgerKeypair::new_ed25519(Idp2pBase::decode_sized::<32>(secret_str)?)?;
         let expected_id = "z3YygDRExrCXjGa8PEMeTWWTZMCFtVHwa84KtnQp6Uqb1YMCJUU";
         let input = CreateIdentityInput {
             timestamp: 0,
-            next_key_digest: keypair.to_key()?.to_key_digest(),
-            recovery_key_digest: keypair.to_key()?.to_key_digest(),
+            next_key_digest: keypair.to_public_key().to_digest()?.to_multi_bytes(),
+            recovery_key_digest: keypair.to_public_key().to_digest()?.to_multi_bytes(),
             events: vec![],
         };
         let did = ProtoIdentityHandler {}.new(input)?;
@@ -263,11 +263,11 @@ mod tests {
 
     #[test]
     fn verify_invalid_previous_test() -> Result<(), Idp2pError> {
-        let (mut did, secret) = create()?;
-        let input = ChangeInput{
-             next_key_digest: secret.to_key()?.to_key_digest(),
-             signer_secret: secret,
-             change: ChangeType::AddEvents { events: vec![] }
+        let (mut did, keypair) = create()?;
+        let input = ChangeInput {
+            next_key_digest: keypair.to_public_key().to_digest()?.to_multi_bytes(),
+            signer_keypair: keypair,
+            change: ChangeType::AddEvents { events: vec![] },
         };
         did.change(input.clone())?;
         //did.change(input)?;
