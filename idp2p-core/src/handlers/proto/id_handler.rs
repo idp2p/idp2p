@@ -207,13 +207,17 @@ fn is_valid_prev(c: &idp2p_proto::Microledger, prev: &Identity) -> Result<bool, 
 #[cfg(test)]
 mod tests {
     use idp2p_common::{
-        multi::{base::Idp2pBase, error::Idp2pMultiError, ledgerkey::Idp2pLedgerKeypair},
+        multi::{
+            base::Idp2pBase, error::Idp2pMultiError, ledgerkey::Idp2pLedgerKeypair,
+            verification::ed25519::Ed25519Keypair,
+        },
         random::create_random,
     };
 
     use super::*;
     fn create() -> Result<(Identity, Idp2pLedgerKeypair), Idp2pError> {
-        let keypair = Idp2pLedgerKeypair::new_ed25519(create_random::<32>())?;
+        let keypair =
+            Idp2pLedgerKeypair::Ed25519(Ed25519Keypair::from_secret(create_random::<32>()));
         let input = CreateIdentityInput {
             timestamp: Utc::now().timestamp(),
             next_key_digest: keypair.to_public_key().to_digest()?.to_multi_bytes(),
@@ -226,7 +230,10 @@ mod tests {
     #[test]
     fn id_test() -> Result<(), Idp2pError> {
         let secret_str = "bd6yg2qeifnixj4x3z2fclp5wd3i6ysjlfkxewqqt2thie6lfnkma";
-        let keypair = Idp2pLedgerKeypair::new_ed25519(Idp2pBase::decode_sized::<32>(secret_str)?)?;
+
+        let keypair = Idp2pLedgerKeypair::Ed25519(Ed25519Keypair::from_secret(
+            Idp2pBase::decode_sized::<32>(secret_str)?,
+        ));
         let expected_id = "z3YygDRExrCXjGa8PEMeTWWTZMCFtVHwa84KtnQp6Uqb1YMCJUU";
         let input = CreateIdentityInput {
             timestamp: 0,

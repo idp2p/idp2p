@@ -2,6 +2,7 @@ use std::io::Read;
 
 use super::{error::Idp2pMultiError, id::Idp2pId};
 use unsigned_varint::{
+    encode as varint_encode,
     io::{read_u64, read_u8},
 };
 
@@ -23,14 +24,17 @@ impl Idp2pMessage {
         let version = read_u64(&mut r)?;
         let codec = read_u64(&mut r)?;
         let cover = read_u64(&mut r)?;
-        read_u64(&mut r)?; // hash code
-        let size = read_u8(&mut r)?; // digest size
-        let mut digest: Vec<u8> = vec![0; size as usize];
-        r.read_exact(&mut digest)?;
+        let digest_code = read_u64(&mut r)?; // hash code
+        let digest_size = read_u8(&mut r)?; // digest size
+        let mut digest_bytes: Vec<u8> = vec![0; digest_size as usize];
+        r.read_exact(&mut digest_bytes)?;
+        let mut digest_code_buf = varint_encode::u64_buffer();
+        let digest_code_bytes = varint_encode::u64(digest_code, &mut digest_code_buf);
+        let mh_bytes = [digest_code_bytes, &[digest_size][..], &digest_bytes].concat();
         let mut body: Vec<u8> = vec![];
         r.read_to_end(&mut body)?;
         Ok(Self {
-            id: Idp2pId::from_fields(version, codec, cover, &digest)?,
+            id: Idp2pId::from_fields(version, codec, cover, &mh_bytes)?,
             body,
         })
     }
@@ -45,7 +49,7 @@ mod tests {
     use super::*;
     #[test]
     fn enc_dec_test() -> Result<(), Idp2pMultiError> {
-        let msg = Idp2pMessage::new(&vec![0u8;20]);
+        let msg = Idp2pMessage::new(&vec![0u8; 20]);
         let msg_bytes = msg.to_multi_bytes()?;
         let dec_msg = Idp2pMessage::from_multi_bytes(msg_bytes)?;
         assert_eq!(msg, dec_msg);

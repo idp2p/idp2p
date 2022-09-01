@@ -55,7 +55,7 @@ impl AgreementPublicBehaviour for X25519PublicKey {
         self.0.to_vec()
     }
 
-    fn create_data(&self) -> Result<AgreementShared, Idp2pMultiError> {
+    fn create_shared(&self) -> Result<AgreementShared, Idp2pMultiError> {
         let ephemeral_secret = EphemeralSecret::new(OsRng);
         let ephemeral_public = PublicKey::from(&ephemeral_secret);
         let pk = PublicKey::try_from(self.0)?;

@@ -4,24 +4,27 @@ use super::{
     error::Idp2pMultiError,
     hash::Idp2pHasher,
     verification::{
+        dilithium3::{Dilithium3Keypair, Dilithium3PublicKey},
         ed25519::{Ed25519Keypair, Ed25519PublicKey},
-        key_from_multi_bytes, key_to_multi_bytes, Signer, VerificationKeyCode, Verifier,
+        key_from_multi_bytes, key_to_multi_bytes,
+        winternitz::{WinternitzKeypair, WinternitzPublicKey},
+        Signer, VerificationKeyCode, Verifier,
     },
 };
-use unsigned_varint::{encode as varint_encode, io::read_u64};
+use unsigned_varint::{encode as varint_encode};
 
 #[derive(PartialEq, Clone, Debug)]
 pub enum Idp2pLedgerKeypair {
     Ed25519(Ed25519Keypair),
-    Dilithium3(),
-    Winternitz(),
+    Dilithium3(Dilithium3Keypair),
+    Winternitz(WinternitzKeypair),
 }
 
 #[derive(PartialEq, Clone, Debug)]
 pub enum Idp2pLedgerPublicKey {
     Ed25519(Ed25519PublicKey),
-    Dilithium3(),
-    Winternitz(),
+    Dilithium3(Dilithium3PublicKey),
+    Winternitz(WinternitzPublicKey),
 }
 
 #[derive(PartialEq, Clone, Debug)]
@@ -31,25 +34,23 @@ pub struct Idp2pLedgerPublicDigest {
 }
 
 impl Idp2pLedgerKeypair {
-    pub fn new_ed25519(secret: [u8; 32]) -> Result<Self, Idp2pMultiError> {
-        Ok(Self::Ed25519(Ed25519Keypair::from_secret(secret)?))
-    }
-
     pub fn to_public_key(&self) -> Idp2pLedgerPublicKey {
         match &self {
-            Idp2pLedgerKeypair::Ed25519(ed_pub) => {
-                Idp2pLedgerPublicKey::Ed25519(ed_pub.to_public_key())
+            Idp2pLedgerKeypair::Ed25519(pk) => Idp2pLedgerPublicKey::Ed25519(pk.to_public_key()),
+            Idp2pLedgerKeypair::Dilithium3(pk) => {
+                Idp2pLedgerPublicKey::Dilithium3(pk.to_public_key())
             }
-            Idp2pLedgerKeypair::Dilithium3() => todo!(),
-            Idp2pLedgerKeypair::Winternitz() => todo!(),
+            Idp2pLedgerKeypair::Winternitz(pk) => {
+                Idp2pLedgerPublicKey::Winternitz(pk.to_public_key())
+            }
         }
     }
 
     pub fn sign(&self, payload: &[u8]) -> Result<Vec<u8>, Idp2pMultiError> {
         match &self {
             Idp2pLedgerKeypair::Ed25519(keypair) => keypair.sign(payload),
-            Idp2pLedgerKeypair::Dilithium3() => todo!(),
-            Idp2pLedgerKeypair::Winternitz() => todo!(),
+            Idp2pLedgerKeypair::Dilithium3(keypair) => keypair.sign(payload),
+            Idp2pLedgerKeypair::Winternitz(keypair) => keypair.sign(payload),
         }
     }
 }
@@ -58,38 +59,35 @@ impl Idp2pLedgerPublicKey {
     pub fn from_multi_bytes(bytes: &[u8]) -> Result<Self, Idp2pMultiError> {
         let (code, public) = key_from_multi_bytes(bytes)?;
         match code {
-            VerificationKeyCode::Ed25519 => {
-                let public: [u8; 32] = (&*public).try_into()?;
-                Ok(Self::Ed25519(Ed25519PublicKey::from_bytes(public)))
-            }
-            VerificationKeyCode::Dilithium3 => todo!(),
-            VerificationKeyCode::Winternitz => todo!(),
+            VerificationKeyCode::Ed25519 => Ok(Self::Ed25519((&*public).try_into()?)),
+            VerificationKeyCode::Dilithium3 => Ok(Self::Dilithium3((&*public).try_into()?)),
+            VerificationKeyCode::Winternitz => Ok(Self::Winternitz((&*public).try_into()?)),
         }
     }
 
     // Serialize to bytes
     pub fn to_multi_bytes(&self) -> Result<Vec<u8>, Idp2pMultiError> {
         match &self {
-            Self::Ed25519(public) => {
-                key_to_multi_bytes(VerificationKeyCode::Ed25519, &public.pub_bytes())
+            Self::Ed25519(pk) => {
+                key_to_multi_bytes(VerificationKeyCode::Ed25519, &pk.pub_bytes())
             }
-            Self::Dilithium3() => todo!(),
-            Self::Winternitz() => todo!(),
+            Self::Dilithium3(pk) => todo!(),
+            Self::Winternitz(pk) => todo!(),
         }
     }
     pub fn to_bytes(&self) -> Vec<u8> {
         match &self {
-            Self::Ed25519(public) => public.pub_bytes(),
-            Self::Dilithium3() => todo!(),
-            Self::Winternitz() => todo!(),
+            Self::Ed25519(pk) => pk.pub_bytes(),
+            Self::Dilithium3(pk) => pk.pub_bytes(),
+            Self::Winternitz(pk) => pk.pub_bytes(),
         }
     }
     /// Verify payload with signature
     pub fn verify(&self, payload: &[u8], sig: &[u8]) -> Result<bool, Idp2pMultiError> {
         match &self {
-            Self::Ed25519(public) => public.verify(payload, sig),
-            Self::Dilithium3() => todo!(),
-            Self::Winternitz() => todo!(),
+            Self::Ed25519(pk) => pk.verify(payload, sig),
+            Self::Dilithium3(pk) => pk.verify(payload, sig),
+            Self::Winternitz(pk) => pk.verify(payload, sig),
         }
     }
 
@@ -116,9 +114,28 @@ impl Idp2pLedgerPublicDigest {
 
 #[cfg(test)]
 mod tests {
+    use crate::multi::verification::winternitz::WinternitzKeypair;
+
     use super::*;
     #[test]
-    fn try_from_test() -> Result<(), Idp2pMultiError> {
+    fn sign_verify_test() -> Result<(), Idp2pMultiError> {
+        let keypair = Idp2pLedgerKeypair::Ed25519(Ed25519Keypair::from_secret([0u8; 32]));
+        let pk = keypair.to_public_key();
+        let payload = vec![0u8; 10];
+        let sig = keypair.sign(&payload)?;
+        let r = pk.verify(&payload, &sig)?;
+        assert!(r);
+        Ok(())
+    }
+
+    #[test]
+    fn winternitz_sign_verify_test() -> Result<(), Idp2pMultiError> {
+        let keypair = Idp2pLedgerKeypair::Winternitz(WinternitzKeypair::generate());
+        let pk = keypair.to_public_key();
+        let payload = vec![0u8; 10];
+        let sig = keypair.sign(&payload)?;
+        let r = pk.verify(&payload, &sig)?;
+        assert!(r);
         Ok(())
     }
 }

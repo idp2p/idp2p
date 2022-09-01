@@ -1,7 +1,8 @@
 pub mod x25519;
+pub mod kyber768;
 use std::io::Read;
 
-use self::x25519::{X25519Keypair, X25519PublicKey};
+use self::{x25519::{X25519Keypair, X25519PublicKey}, kyber768::{Kyber768PublicKey, Kyber768Keypair}};
 use super::error::Idp2pMultiError;
 use sha2::{Digest, Sha256};
 use unsigned_varint::{encode as varint_encode, io::read_u64};
@@ -42,7 +43,7 @@ pub struct AgreementShared {
 
 pub trait AgreementPublicBehaviour {
     fn pub_bytes(&self) -> Vec<u8>;
-    fn create_data(&self) -> Result<AgreementShared, Idp2pMultiError>;
+    fn create_shared(&self) -> Result<AgreementShared, Idp2pMultiError>;
 }
 
 pub trait AgreementSecretBehaviour {
@@ -55,13 +56,13 @@ pub trait AgreementSecretBehaviour {
 #[derive(PartialEq, Clone, Debug)]
 pub enum Idp2pAgreementPublicKey {
     X25519(X25519PublicKey),
-    Kyber768(),
+    Kyber768(Kyber768PublicKey),
 }
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Idp2pAgreementKeypair {
     X25519(X25519Keypair),
-    Kyber768(),
+    Kyber768(Kyber768Keypair),
 }
 
 impl Idp2pAgreementKeypair {
@@ -71,15 +72,15 @@ impl Idp2pAgreementKeypair {
 
     pub fn to_public_key(&self) -> Idp2pAgreementPublicKey {
         match self {
-            Self::X25519(xsecret) => Idp2pAgreementPublicKey::X25519(xsecret.to_public_key()),
-            Self::Kyber768() => todo!(),
+            Self::X25519(keypair) => Idp2pAgreementPublicKey::X25519(keypair.to_public_key()),
+            Self::Kyber768(keypair) => Idp2pAgreementPublicKey::Kyber768(keypair.to_public_key()),
         }
     }
 
     pub fn resolve_shared_key(&self, data: &[u8]) -> Result<Vec<u8>, Idp2pMultiError> {
         match self {
-            Self::X25519(xsecret) => xsecret.resolve_shared_secret(data),
-            Self::Kyber768() => todo!(),
+            Self::X25519(keypair) => keypair.resolve_shared_secret(data),
+            Self::Kyber768(keypair) => keypair.resolve_shared_secret(data),
         }
     }
 }
@@ -87,7 +88,7 @@ impl Idp2pAgreementPublicKey {
     pub fn new(code: u64, bytes: &[u8]) -> Result<Self, Idp2pMultiError> {
         match code {
             X25519_MULTICODE => Ok(Self::X25519(X25519PublicKey(bytes.try_into()?))),
-            KYBER768_MULTICODE => todo!(),
+            KYBER768_MULTICODE => Ok(Self::Kyber768(Kyber768PublicKey(bytes.try_into()?))),
             _ => Err(Idp2pMultiError::InvalidKeyCode),
         }
     }
@@ -108,7 +109,7 @@ impl Idp2pAgreementPublicKey {
     pub fn to_multi_bytes(&self) -> Vec<u8> {
         let (code, bytes) = match &self {
             Self::X25519(public) => (X25519_MULTICODE, public.pub_bytes()),
-            Self::Kyber768() => todo!(),
+            Self::Kyber768(public) => (KYBER768_MULTICODE, public.pub_bytes()),
         };
         let mut code_buf = varint_encode::u64_buffer();
         let code = varint_encode::u64(code, &mut code_buf);
@@ -118,15 +119,15 @@ impl Idp2pAgreementPublicKey {
     pub fn to_bytes(&self) -> Vec<u8> {
         match &self {
             Self::X25519(public) => public.pub_bytes(),
-            Self::Kyber768() => todo!()
+            Self::Kyber768(public) => public.pub_bytes()
         }
     }
 
     // Create a new shared secret and data for the public key
     pub fn create_shared(&self) -> Result<AgreementShared, Idp2pMultiError> {
         match &self {
-            Self::X25519(public) => public.create_data(),
-            Self::Kyber768() => todo!(),
+            Self::X25519(public) => public.create_shared(),
+            Self::Kyber768(public) => public.create_shared(),
         }
     }
 
@@ -147,6 +148,16 @@ mod tests {
         let alice_keypair = Idp2pAgreementKeypair::new_x25519([0u8; 32]);
         let shared_for_alice = alice_keypair.to_public_key().create_shared()?;
         let shared_secret = alice_keypair.resolve_shared_key(&shared_for_alice.data)?;
+        assert_eq!(shared_for_alice.secret, shared_secret);
+        Ok(())
+    }
+
+    #[test]
+    fn kyber_create_resolve_shared_test() -> Result<(), Idp2pMultiError> {
+        let alice_keypair = Idp2pAgreementKeypair::Kyber768(Kyber768Keypair::generate());
+        let shared_for_alice = alice_keypair.to_public_key().create_shared()?;
+        let shared_secret = alice_keypair.resolve_shared_key(&shared_for_alice.data)?;
+        dbg!(&shared_secret);
         assert_eq!(shared_for_alice.secret, shared_secret);
         Ok(())
     }

@@ -2,18 +2,21 @@ use ed25519_dalek::{
     Keypair, PublicKey, SecretKey, Signature, Signer as EdSigner, Verifier as EdVerifier,
 };
 
-use crate::multi::error::Idp2pMultiError;
+use crate::{multi::error::Idp2pMultiError, random::create_random};
 
 use super::{Signer, Verifier};
+pub const ED25519_PUBLIC_SIZE: usize = 32;
+pub const ED25519_SECRET_SIZE: usize = 32;
+pub const ED25519_SIG_SIZE: usize = 64;
 
 #[derive(PartialEq, Clone, Debug)]
 pub struct Ed25519Keypair {
-    secret: [u8; 32],
-    public: [u8; 32],
+    secret: [u8; ED25519_PUBLIC_SIZE],
+    public: [u8; ED25519_SECRET_SIZE],
 }
 
 #[derive(PartialEq, Clone, Debug)]
-pub struct Ed25519PublicKey([u8; 32]);
+pub struct Ed25519PublicKey([u8; ED25519_PUBLIC_SIZE]);
 
 impl Verifier for Ed25519PublicKey {
     fn pub_bytes(&self) -> Vec<u8> {
@@ -21,10 +24,10 @@ impl Verifier for Ed25519PublicKey {
     }
 
     fn verify(&self, payload: &[u8], sig: &[u8]) -> Result<bool, Idp2pMultiError> {
-        let pubkey = PublicKey::from_bytes(&self.0)?;
-        let sig_bytes: [u8; 64] = sig.try_into()?;
+        let pk = PublicKey::from_bytes(&self.0)?;
+        let sig_bytes: [u8; ED25519_SIG_SIZE] = sig.try_into()?;
         let signature = Signature::from(sig_bytes);
-        pubkey.verify(payload, &signature)?;
+        pk.verify(payload, &signature)?;
         Ok(true)
     }
 }
@@ -42,20 +45,25 @@ impl Signer for Ed25519Keypair {
 
     fn sign(&self, payload: &[u8]) -> Result<Vec<u8>, Idp2pMultiError> {
         let keypair = self.to_ed_keypair()?;
-        let sig: [u8; 64] = keypair.sign(payload).to_bytes();
+        let sig: [u8; ED25519_SIG_SIZE] = keypair.sign(payload).to_bytes();
         Ok(sig.to_vec())
     }
 }
 
 impl Ed25519Keypair {
-    pub fn from_secret(secret: [u8; 32]) -> Result<Self, Idp2pMultiError> {
-        let sk = SecretKey::from_bytes(&secret)?;
+    pub fn generate() -> Self{
+        let secret = create_random::<ED25519_SECRET_SIZE>();
+        Self::from_secret(secret)
+    }
+
+    pub fn from_secret(secret: [u8; ED25519_PUBLIC_SIZE]) -> Self {
+        let sk = SecretKey::from_bytes(&secret).unwrap();
         let pk: PublicKey = (&sk).into();
         let keypair = Ed25519Keypair {
             public: *pk.as_bytes(),
             secret: secret,
         };
-        Ok(keypair)
+        keypair
     }
 
     fn to_ed_keypair(&self) -> Result<Keypair, Idp2pMultiError> {
@@ -69,8 +77,17 @@ impl Ed25519Keypair {
     }
 }
 
-impl Ed25519PublicKey {
-    pub fn from_bytes(bytes: [u8; 32]) -> Self {
+impl From<[u8; ED25519_PUBLIC_SIZE]> for Ed25519PublicKey{
+    fn from(bytes: [u8; ED25519_PUBLIC_SIZE]) -> Self {
         Self(bytes)
+    }
+}
+
+impl TryFrom<&[u8]> for Ed25519PublicKey{
+    type Error = Idp2pMultiError;
+
+    fn try_from(value: &[u8]) -> Result<Self, Self::Error> {
+        let public: [u8; ED25519_PUBLIC_SIZE] = value.try_into()?;
+        Ok(public.into())
     }
 }

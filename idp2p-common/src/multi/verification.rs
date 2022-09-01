@@ -1,4 +1,6 @@
 pub mod ed25519;
+pub mod dilithium3;
+pub mod winternitz;
 
 use std::io::Read;
 
