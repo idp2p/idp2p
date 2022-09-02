@@ -12,8 +12,8 @@ pub struct Dilithium3Keypair {
 pub struct Dilithium3PublicKey([u8; PQCLEAN_DILITHIUM3_CLEAN_CRYPTO_PUBLICKEYBYTES]);
 
 impl Verifier for Dilithium3PublicKey {
-    fn pub_bytes(&self) -> Vec<u8> {
-        self.0.to_vec()
+    fn as_bytes<'a>(&'a self) -> &'a [u8] {
+        &self.0
     }
 
     fn verify(&self, payload: &[u8], sig: &[u8]) -> Result<bool, Idp2pMultiError> {
@@ -33,10 +33,10 @@ impl Verifier for Dilithium3PublicKey {
 impl Signer for Dilithium3Keypair {
     type PublicKeyType = Dilithium3PublicKey;
 
-    fn priv_bytes(&self) -> Vec<u8> {
-        self.secret.to_vec()
+    fn priv_as_bytes<'a>(&'a self) -> &'a [u8] {
+        &self.secret
     }
-
+    
     fn to_public_key(&self) -> Self::PublicKeyType {
         Dilithium3PublicKey(self.public)
     }
@@ -93,3 +93,8 @@ impl TryFrom<&[u8]> for Dilithium3PublicKey{
     }
 }
 
+impl Dilithium3PublicKey{
+    pub fn as_bytes<'a>(&'a self) -> &'a [u8] {
+        &self.0
+    }
+}

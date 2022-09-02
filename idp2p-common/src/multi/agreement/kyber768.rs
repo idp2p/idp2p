@@ -14,8 +14,8 @@ pub struct Kyber768Keypair {
 
 impl AgreementSecretBehaviour for Kyber768Keypair {
     type PublicKeyType = Kyber768PublicKey;
-    fn priv_bytes(&self) -> Vec<u8> {
-        self.secret.to_vec()
+    fn priv_as_bytes<'a>(&'a self) -> &'a [u8] {
+        &self.secret
     }
 
     fn to_public_key(&self) -> Kyber768PublicKey {
@@ -54,15 +54,24 @@ impl Kyber768Keypair {
     }
 }
 
-impl Kyber768PublicKey {
-    pub fn from_bytes(public: [u8; PQCLEAN_KYBER768_CLEAN_CRYPTO_PUBLICKEYBYTES]) -> Self {
-        Self(public)
+impl From<[u8; PQCLEAN_KYBER768_CLEAN_CRYPTO_PUBLICKEYBYTES]> for Kyber768PublicKey{
+    fn from(value: [u8; PQCLEAN_KYBER768_CLEAN_CRYPTO_PUBLICKEYBYTES]) -> Self {
+        Self(value)
+    }
+}
+
+impl TryFrom<&[u8]> for Kyber768PublicKey{
+    type Error = Idp2pMultiError;
+
+    fn try_from(value: &[u8]) -> Result<Self, Self::Error> {
+        let public: [u8; PQCLEAN_KYBER768_CLEAN_CRYPTO_PUBLICKEYBYTES] = value.try_into()?;
+        Ok(public.into())
     }
 }
 
 impl AgreementPublicBehaviour for Kyber768PublicKey {
-    fn pub_bytes(&self) -> Vec<u8> {
-        self.0.to_vec()
+    fn as_bytes<'a>(&'a self) -> &'a [u8] {
+        &self.0
     }
 
     fn create_shared(&self) -> Result<AgreementShared, Idp2pMultiError> {

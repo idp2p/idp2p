@@ -5,19 +5,22 @@ use super::{ AgreementPublicBehaviour, AgreementShared, AgreementSecretBehaviour
 use rand::rngs::OsRng;
 use x25519_dalek::{EphemeralSecret, PublicKey, StaticSecret};
 
+pub const X25519_PUBLIC_SIZE: usize = 32;
+pub const X25519_SECRET_SIZE: usize = 32;
+
 #[derive(PartialEq, Clone, Debug)]
-pub struct X25519PublicKey(pub(super) [u8; 32]);
+pub struct X25519PublicKey(pub(super) [u8; X25519_PUBLIC_SIZE]);
 
 #[derive(PartialEq, Clone, Debug)]
 pub struct X25519Keypair {
-    secret: [u8; 32],
-    public: [u8; 32],
+    secret: [u8; X25519_SECRET_SIZE],
+    public: [u8; X25519_PUBLIC_SIZE],
 }
 
 impl AgreementSecretBehaviour for X25519Keypair {
     type PublicKeyType = X25519PublicKey;
-    fn priv_bytes(&self) -> Vec<u8> {
-        self.secret.to_vec()
+    fn priv_as_bytes<'a>(&'a self) -> &'a [u8] {
+        &self.secret
     }
 
     fn to_public_key(&self) -> X25519PublicKey {
@@ -26,7 +29,7 @@ impl AgreementSecretBehaviour for X25519Keypair {
 
     fn resolve_shared_secret(&self, data: &[u8]) -> Result<Vec<u8>, Idp2pMultiError> {
         let sender_secret = StaticSecret::from(self.secret);
-        let public_bytes: [u8; 32] = data.try_into()?;
+        let public_bytes: [u8; X25519_PUBLIC_SIZE] = data.try_into()?;
         let pk = PublicKey::try_from(public_bytes)?;
         let shared_secret = sender_secret.diffie_hellman(&pk);
         Ok(shared_secret.to_bytes().to_vec())
@@ -34,7 +37,7 @@ impl AgreementSecretBehaviour for X25519Keypair {
 }
 
 impl X25519Keypair {
-    pub fn from_secret_bytes(secret: [u8; 32]) -> Self {
+    pub fn from_secret_bytes(secret: [u8; X25519_SECRET_SIZE]) -> Self {
         let static_secret = StaticSecret::from(secret);
         let public_key = PublicKey::from(&static_secret);
         Self {
@@ -44,15 +47,25 @@ impl X25519Keypair {
     }
 }
 
-impl X25519PublicKey {
-    pub fn from_bytes(public: [u8;32]) -> Self {
-        Self(public)
+
+impl From<[u8; X25519_PUBLIC_SIZE]> for X25519PublicKey{
+    fn from(value: [u8; X25519_PUBLIC_SIZE]) -> Self {
+        Self(value)
+    }
+}
+
+impl TryFrom<&[u8]> for X25519PublicKey{
+    type Error = Idp2pMultiError;
+
+    fn try_from(value: &[u8]) -> Result<Self, Self::Error> {
+        let public: [u8; X25519_PUBLIC_SIZE] = value.try_into()?;
+        Ok(public.into())
     }
 }
 
 impl AgreementPublicBehaviour for X25519PublicKey {
-    fn pub_bytes(&self) -> Vec<u8> {
-        self.0.to_vec()
+    fn as_bytes<'a>(&'a self) -> &'a [u8] {
+        &self.0
     }
 
     fn create_shared(&self) -> Result<AgreementShared, Idp2pMultiError> {

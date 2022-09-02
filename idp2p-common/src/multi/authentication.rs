@@ -52,23 +52,23 @@ impl Idp2pAuthenticationPublicKey {
     // Serialize to bytes
     pub fn to_multi_bytes(&self) -> Result<Vec<u8>, Idp2pMultiError> {
         match &self {
-            Self::Ed25519(pk) => key_to_multi_bytes(VerificationKeyCode::Ed25519, &pk.pub_bytes()),
+            Self::Ed25519(pk) => key_to_multi_bytes(VerificationKeyCode::Ed25519, pk.as_bytes()),
             Self::Dilithium3(pk) => {
-                key_to_multi_bytes(VerificationKeyCode::Dilithium3, &pk.pub_bytes())
+                key_to_multi_bytes(VerificationKeyCode::Dilithium3, pk.as_bytes())
             }
         }
     }
-    pub fn to_bytes(&self) -> Vec<u8> {
+    pub fn as_bytes<'a>(&'a self) -> &'a [u8] {
         match &self {
-            Self::Ed25519(pk) => pk.pub_bytes(),
-            Self::Dilithium3(pk) => pk.pub_bytes(),
+            Self::Ed25519(pk) => pk.as_bytes(),
+            Self::Dilithium3(pk) => pk.as_bytes(),
         }
     }
     // Verify payload with signature
     pub fn verify(&self, payload: &[u8], sig: &[u8]) -> Result<bool, Idp2pMultiError> {
         match &self {
             Self::Ed25519(pk) => pk.verify(payload, sig),
-            Self::Dilithium3(pk) =>  pk.verify(payload, sig),
+            Self::Dilithium3(pk) => pk.verify(payload, sig),
         }
     }
 }

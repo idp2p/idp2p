@@ -39,7 +39,7 @@ impl MessageHandler for ProtoMessageHandler {
         let auth_key_state = from.get_latest_auth_key().ok_or(Idp2pError::Other)?.clone();
         let agree_key_state = to.get_latest_agree_key().ok_or(Idp2pError::Other)?.clone();
         let agree_key = Idp2pAgreementPublicKey::from_multi_bytes(&agree_key_state.key_bytes)?;
-        if auth_keypair.to_public_key().to_bytes() != auth_key_state.key_bytes {
+        if auth_keypair.to_public_key().as_bytes() != auth_key_state.key_bytes {
             return Err(Idp2pError::Other);
         }
         let shared = agree_key.create_shared()?;

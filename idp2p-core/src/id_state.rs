@@ -48,15 +48,15 @@ pub struct IdentityState {
 }
 
 impl IdentityState {
-    pub fn next_signer_key(&self, signer_bytes: &[u8]) -> Result<Idp2pLedgerPublicKey, Idp2pError> {
-        let key_digest = Idp2pLedgerPublicKey::from_multi_bytes(&self.next_key_digest)?;
-        todo!()
-        //Ok(key_digest.to_next_key(signer_bytes)?)
+    pub fn next_signer_key(&self, signer_pk: &[u8]) -> Result<Idp2pLedgerPublicKey, Idp2pError> {
+        let key_digest = Idp2pLedgerPublicDigest::from_multi_bytes(&self.next_key_digest)?;
+        key_digest.ensure_public(signer_pk)?;
+        Ok(Idp2pLedgerPublicKey::new(key_digest.code(), signer_pk)?)
     }
-    pub fn next_rec_key(&self, signer_bytes: &[u8]) -> Result<Idp2pLedgerPublicKey, Idp2pError> {
-        todo!()
-        //let key_digest = Idp2pLedgerPublicDigest::from_bytes(&self.recovery_key_digest)?;
-        //Ok(key_digest.to_next_key(signer_bytes)?)
+    pub fn next_rec_key(&self, signer_pk: &[u8]) -> Result<Idp2pLedgerPublicKey, Idp2pError> {
+        let key_digest = Idp2pLedgerPublicDigest::from_multi_bytes(&self.recovery_key_digest)?;
+        key_digest.ensure_public(signer_pk)?;
+        Ok(Idp2pLedgerPublicKey::new(key_digest.code(), signer_pk)?)
     }
     pub fn get_latest_auth_key(&self) -> Option<&AuthenticationPublicKeyState> {
         self.authentication_keys.last()

@@ -11,9 +11,10 @@ pub struct WinternitzKeypair {
 pub struct WinternitzPublicKey([u8; winternitz::PUBKEY_SIZE]);
 
 impl Verifier for WinternitzPublicKey {
-    fn pub_bytes(&self) -> Vec<u8> {
-        self.0.to_vec()
+    fn as_bytes<'a>(&'a self) -> &'a [u8] {
+        &self.0
     }
+
     fn verify(&self, payload: &[u8], sig: &[u8]) -> Result<bool, Idp2pMultiError> {
         let result = winternitz::verify(&self.0, payload, &sig).unwrap();
         Ok(result)
@@ -23,8 +24,8 @@ impl Verifier for WinternitzPublicKey {
 impl Signer for WinternitzKeypair {
     type PublicKeyType = WinternitzPublicKey;
 
-    fn priv_bytes(&self) -> Vec<u8> {
-        self.secret.to_vec()
+    fn priv_as_bytes<'a>(&'a self) -> &'a [u8] {
+        &self.secret
     }
 
     fn to_public_key(&self) -> Self::PublicKeyType {
@@ -72,5 +73,11 @@ impl TryFrom<&[u8]> for WinternitzPublicKey{
     fn try_from(value: &[u8]) -> Result<Self, Self::Error> {
         let public: [u8; winternitz::PUBKEY_SIZE] = value.try_into()?;
         Ok(public.into())
+    }
+}
+
+impl WinternitzPublicKey{
+    pub fn as_bytes<'a>(&'a self) -> &'a [u8] {
+        &self.0
     }
 }

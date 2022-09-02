@@ -1,8 +1,11 @@
-pub mod x25519;
 pub mod kyber768;
+pub mod x25519;
 use std::io::Read;
 
-use self::{x25519::{X25519Keypair, X25519PublicKey}, kyber768::{Kyber768PublicKey, Kyber768Keypair}};
+use self::{
+    kyber768::{Kyber768Keypair, Kyber768PublicKey},
+    x25519::{X25519Keypair, X25519PublicKey},
+};
 use super::error::Idp2pMultiError;
 use sha2::{Digest, Sha256};
 use unsigned_varint::{encode as varint_encode, io::read_u64};
@@ -42,13 +45,13 @@ pub struct AgreementShared {
 }
 
 pub trait AgreementPublicBehaviour {
-    fn pub_bytes(&self) -> Vec<u8>;
+    fn as_bytes<'a>(&'a self) -> &'a [u8];
     fn create_shared(&self) -> Result<AgreementShared, Idp2pMultiError>;
 }
 
 pub trait AgreementSecretBehaviour {
     type PublicKeyType;
-    fn priv_bytes(&self) -> Vec<u8>;
+    fn priv_as_bytes<'a>(&'a self) -> &'a [u8];
     fn to_public_key(&self) -> Self::PublicKeyType;
     fn resolve_shared_secret(&self, data: &[u8]) -> Result<Vec<u8>, Idp2pMultiError>;
 }
@@ -66,7 +69,7 @@ pub enum Idp2pAgreementKeypair {
 }
 
 impl Idp2pAgreementKeypair {
-    pub fn new_x25519(secret: [u8;32]) -> Self{
+    pub fn new_x25519(secret: [u8; 32]) -> Self {
         Self::X25519(X25519Keypair::from_secret_bytes(secret))
     }
 
@@ -97,29 +100,25 @@ impl Idp2pAgreementPublicKey {
         let mut r = bytes;
         let code: AgreementKeyCode = read_u64(&mut r)?.try_into()?;
         match code {
-            AgreementKeyCode::X25519 => {
-                let mut public = [0u8; 32];
-                r.read_exact(&mut public)?;
-                return Ok(Self::X25519(X25519PublicKey::from_bytes(public)));
-            }
-            AgreementKeyCode::Kyber768 => todo!(),
+            AgreementKeyCode::X25519 => Ok(Self::X25519((r).try_into()?)),
+            AgreementKeyCode::Kyber768 => Ok(Self::Kyber768((r).try_into()?)),
         }
     }
 
     pub fn to_multi_bytes(&self) -> Vec<u8> {
         let (code, bytes) = match &self {
-            Self::X25519(public) => (X25519_MULTICODE, public.pub_bytes()),
-            Self::Kyber768(public) => (KYBER768_MULTICODE, public.pub_bytes()),
+            Self::X25519(public) => (X25519_MULTICODE, public.as_bytes()),
+            Self::Kyber768(public) => (KYBER768_MULTICODE, public.as_bytes()),
         };
         let mut code_buf = varint_encode::u64_buffer();
         let code = varint_encode::u64(code, &mut code_buf);
-        [code, &bytes].concat()
+        [code, bytes].concat()
     }
 
-    pub fn to_bytes(&self) -> Vec<u8> {
+    pub fn as_bytes<'a>(&'a self) -> &'a [u8] {
         match &self {
-            Self::X25519(public) => public.pub_bytes(),
-            Self::Kyber768(public) => public.pub_bytes()
+            Self::X25519(public) => public.as_bytes(),
+            Self::Kyber768(public) => public.as_bytes(),
         }
     }
 
@@ -133,7 +132,7 @@ impl Idp2pAgreementPublicKey {
 
     pub fn generate_id(&self) -> [u8; 16] {
         let h = Sha256::new()
-            .chain_update(&self.to_bytes())
+            .chain_update(self.as_bytes())
             .finalize()
             .to_vec();
         h[0..16].try_into().expect("Conversion failed")
@@ -164,7 +163,10 @@ mod tests {
 
     #[test]
     fn enc_dec_test() -> Result<(), Idp2pMultiError> {
-        let key = Idp2pAgreementPublicKey::new(AgreementKeyCode::X25519 as u64, &[0u8; 32])?;
+        let key = Idp2pAgreementPublicKey::new(
+            AgreementKeyCode::Kyber768 as u64,
+            &[0u8; pqcrypto_kyber::ffi::PQCLEAN_KYBER768_CLEAN_CRYPTO_PUBLICKEYBYTES],
+        )?;
         let bytes = key.to_multi_bytes();
         let decoded_key = Idp2pAgreementPublicKey::from_multi_bytes(&bytes)?;
         assert_eq!(key, decoded_key);

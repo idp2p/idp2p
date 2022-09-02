@@ -1,3 +1,5 @@
+use std::io::Read;
+
 use cid::multihash::Multihash;
 
 use super::{
@@ -11,7 +13,7 @@ use super::{
         Signer, VerificationKeyCode, Verifier,
     },
 };
-use unsigned_varint::{encode as varint_encode};
+use unsigned_varint::{encode as varint_encode, io::read_u64};
 
 #[derive(PartialEq, Clone, Debug)]
 pub enum Idp2pLedgerKeypair {
@@ -56,6 +58,13 @@ impl Idp2pLedgerKeypair {
 }
 
 impl Idp2pLedgerPublicKey {
+    pub fn new(code: VerificationKeyCode, pk: &[u8]) -> Result<Self, Idp2pMultiError> {
+        match code {
+            VerificationKeyCode::Ed25519 => Ok(Self::Ed25519(pk.try_into()?)),
+            VerificationKeyCode::Dilithium3 => Ok(Self::Dilithium3(pk.try_into()?)),
+            VerificationKeyCode::Winternitz => Ok(Self::Winternitz(pk.try_into()?)),
+        }
+    }
     pub fn from_multi_bytes(bytes: &[u8]) -> Result<Self, Idp2pMultiError> {
         let (code, public) = key_from_multi_bytes(bytes)?;
         match code {
@@ -68,18 +77,20 @@ impl Idp2pLedgerPublicKey {
     // Serialize to bytes
     pub fn to_multi_bytes(&self) -> Result<Vec<u8>, Idp2pMultiError> {
         match &self {
-            Self::Ed25519(pk) => {
-                key_to_multi_bytes(VerificationKeyCode::Ed25519, &pk.pub_bytes())
+            Self::Ed25519(pk) => key_to_multi_bytes(VerificationKeyCode::Ed25519, pk.as_bytes()),
+            Self::Dilithium3(pk) => {
+                key_to_multi_bytes(VerificationKeyCode::Dilithium3, pk.as_bytes())
             }
-            Self::Dilithium3(pk) => todo!(),
-            Self::Winternitz(pk) => todo!(),
+            Self::Winternitz(pk) => {
+                key_to_multi_bytes(VerificationKeyCode::Winternitz, pk.as_bytes())
+            }
         }
     }
-    pub fn to_bytes(&self) -> Vec<u8> {
+    pub fn as_bytes<'a>(&'a self) -> &'a [u8] {
         match &self {
-            Self::Ed25519(pk) => pk.pub_bytes(),
-            Self::Dilithium3(pk) => pk.pub_bytes(),
-            Self::Winternitz(pk) => pk.pub_bytes(),
+            Self::Ed25519(pk) => pk.as_bytes(),
+            Self::Dilithium3(pk) => pk.as_bytes(),
+            Self::Winternitz(pk) => pk.as_bytes(),
         }
     }
     /// Verify payload with signature
@@ -93,12 +104,36 @@ impl Idp2pLedgerPublicKey {
 
     // To key digest
     pub fn to_digest(&self) -> Result<Idp2pLedgerPublicDigest, Idp2pMultiError> {
-        todo!()
+        let (code, pk) = match &self {
+            Self::Ed25519(pk) => (VerificationKeyCode::Ed25519, pk.as_bytes()),
+            Self::Dilithium3(pk) => (VerificationKeyCode::Dilithium3, pk.as_bytes()),
+            Self::Winternitz(pk) => (VerificationKeyCode::Winternitz, pk.as_bytes()),
+        };
+        Ok(Idp2pLedgerPublicDigest::new(code, pk))
     }
 }
 
 impl Idp2pLedgerPublicDigest {
-    pub fn from_multi_bytes() {}
+    pub fn new(code: VerificationKeyCode, pk: &[u8]) -> Self {
+        let mh = Idp2pHasher::default().digest(pk);
+        Self {
+            code: code,
+            digest: mh,
+        }
+    }
+    pub fn code(&self) -> VerificationKeyCode {
+        self.code.clone()
+    }
+    pub fn from_multi_bytes(bytes: &[u8]) -> Result<Idp2pLedgerPublicDigest, Idp2pMultiError> {
+        let mut r = bytes;
+        let code: VerificationKeyCode = read_u64(&mut r)?.try_into()?;
+        let mut mh_bytes: Vec<u8> = vec![];
+        r.read_to_end(&mut mh_bytes)?;
+        Ok(Self {
+            code: code,
+            digest: Multihash::from_bytes(&mh_bytes)?,
+        })
+    }
     pub fn to_multi_bytes(&self) -> Vec<u8> {
         let code = self.code.clone() as u64;
         let mut code_buf = varint_encode::u64_buffer();

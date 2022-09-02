@@ -40,13 +40,13 @@ impl VerificationKeyCode{
     }
 }
 pub trait Verifier {
-    fn pub_bytes(&self) -> Vec<u8>;
+    fn as_bytes<'a>(&'a self) -> &'a [u8];
     fn verify(&self, payload: &[u8], sig: &[u8]) -> Result<bool, Idp2pMultiError>;
 }
 
 pub trait Signer {
     type PublicKeyType;
-    fn priv_bytes(&self) -> Vec<u8>;
+    fn priv_as_bytes<'a>(&'a self) -> &'a [u8];
     fn to_public_key(&self) -> Self::PublicKeyType;
     fn sign(&self, payload: &[u8]) -> Result<Vec<u8>, Idp2pMultiError>;
 }

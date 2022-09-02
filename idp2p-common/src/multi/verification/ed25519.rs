@@ -19,8 +19,8 @@ pub struct Ed25519Keypair {
 pub struct Ed25519PublicKey([u8; ED25519_PUBLIC_SIZE]);
 
 impl Verifier for Ed25519PublicKey {
-    fn pub_bytes(&self) -> Vec<u8> {
-        self.0.to_vec()
+    fn as_bytes<'a>(&'a self) -> &'a [u8] {
+        &self.0
     }
 
     fn verify(&self, payload: &[u8], sig: &[u8]) -> Result<bool, Idp2pMultiError> {
@@ -35,8 +35,8 @@ impl Verifier for Ed25519PublicKey {
 impl Signer for Ed25519Keypair {
     type PublicKeyType = Ed25519PublicKey;
 
-    fn priv_bytes(&self) -> Vec<u8> {
-        self.secret.to_vec()
+    fn priv_as_bytes<'a>(&'a self) -> &'a [u8] {
+        &self.secret
     }
 
     fn to_public_key(&self) -> Self::PublicKeyType {
@@ -89,5 +89,11 @@ impl TryFrom<&[u8]> for Ed25519PublicKey{
     fn try_from(value: &[u8]) -> Result<Self, Self::Error> {
         let public: [u8; ED25519_PUBLIC_SIZE] = value.try_into()?;
         Ok(public.into())
+    }
+}
+
+impl Ed25519PublicKey{
+    pub fn as_bytes<'a>(&'a self) -> &'a [u8] {
+        &self.0
     }
 }

@@ -54,7 +54,7 @@ impl IdentityHandler for ProtoIdentityHandler {
         let signer_key: Idp2pLedgerPublicKey = input.signer_keypair.to_public_key();
         let mut payload = idp2p_proto::EventLogPayload {
             previous: state.last_event_id,
-            signer_key: signer_key.to_bytes(), // Raw public bytes because it is implicitly decided with digest
+            signer_key: signer_key.as_bytes().to_vec(), // Raw public bytes because it is implicitly decided with digest
             next_key_digest: input.next_key_digest,
             timestamp: Utc::now().timestamp(),
             change: None,

@@ -192,7 +192,6 @@ impl IdStore {
                 if let Some(entry) = entry {
                     let msg = Idp2pMessage::from_multi_bytes(&msg)?;
                     let dec_msg = msg
-                        .id
                         .codec
                         .resolve_msg_handler()
                         .decode_msg(db.agree_keypair.clone(), &msg.body)?;
