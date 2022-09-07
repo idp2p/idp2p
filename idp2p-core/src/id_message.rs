@@ -25,5 +25,5 @@ pub trait MessageHandler {
         &self,
         agree_keypair: Idp2pAgreementKeypair,
         msg: &[u8],
-    ) -> Result<IdMessage, Idp2pError>;
+    ) -> Result<(IdMessage, Vec<u8>), Idp2pError>;
 }

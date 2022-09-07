@@ -1,4 +1,4 @@
-use crate::multi::error::Idp2pMultiError;
+use crate::{multi::error::Idp2pMultiError, random::create_random};
 
 use super::{ AgreementPublicBehaviour, AgreementShared, AgreementSecretBehaviour};
 
@@ -37,6 +37,11 @@ impl AgreementSecretBehaviour for X25519Keypair {
 }
 
 impl X25519Keypair {
+    pub fn generate() -> Self{
+        let secret = create_random::<X25519_SECRET_SIZE>();
+        Self::from_secret_bytes(secret)
+    }
+
     pub fn from_secret_bytes(secret: [u8; X25519_SECRET_SIZE]) -> Self {
         let static_secret = StaticSecret::from(secret);
         let public_key = PublicKey::from(&static_secret);

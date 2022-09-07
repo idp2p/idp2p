@@ -1,4 +1,4 @@
-use idp2p_common::multi::ledgerkey::{Idp2pLedgerPublicKey, Idp2pLedgerPublicDigest};
+use idp2p_common::multi::ledgerkey::{Idp2pLedgerPublicDigest, Idp2pLedgerPublicKey};
 use std::collections::HashMap;
 
 use crate::error::Idp2pError;
@@ -10,7 +10,6 @@ pub struct AssertionPublicKeyState {
     pub expired_at: Option<i64>,
     pub key_bytes: Vec<u8>,
 }
-
 
 #[derive(PartialEq, Debug, Clone)]
 pub struct AuthenticationPublicKeyState {
@@ -63,6 +62,12 @@ impl IdentityState {
     }
     pub fn get_latest_agree_key(&self) -> Option<&AgreementPublicKeyState> {
         self.agreement_keys.last()
+    }
+    pub fn get_auth_key_by_id(&self, kid: &[u8]) -> Option<&AuthenticationPublicKeyState> {
+        self.authentication_keys.iter().find(|pk| pk.id == kid)
+    }
+    pub fn get_agree_key_by_id(&self, kid: &[u8]) -> Option<&AgreementPublicKeyState> {
+        self.agreement_keys.iter().find(|pk| pk.id == kid)
     }
 }
 pub trait IdentityStateEventHandler<T> {

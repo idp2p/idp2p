@@ -52,61 +52,20 @@ impl IdentityHandler for ProtoIdentityHandler {
         use idp2p_proto::event_log_payload::{Change, IdentityEvents};
         let state = self.verify(did, None)?;
         let signer_key: Idp2pLedgerPublicKey = input.signer_keypair.to_public_key();
-        let mut payload = idp2p_proto::EventLogPayload {
+        let change = match input.change {
+            ChangeType::AddEvents { events } => {
+                let proto_events = map_events_to_proto(events, &state)?;
+                Change::Events(IdentityEvents { events: proto_events })
+            }
+            ChangeType::Recover(key_digest) => Change::Recover(key_digest),
+        };
+        let payload = idp2p_proto::EventLogPayload {
             previous: state.last_event_id,
             signer_key: signer_key.as_bytes().to_vec(), // Raw public bytes because it is implicitly decided with digest
             next_key_digest: input.next_key_digest,
             timestamp: Utc::now().timestamp(),
-            change: None,
+            change: Some(change),
         };
-
-        match input.change {
-            ChangeType::AddEvents { events } => {
-                macro_rules! validate_new_key {
-                    ($ks: ident, $kid: expr) => {{
-                        if state.$ks.iter().any(|k| k.id == $kid) {
-                            return Err(Idp2pError::InvalidCreateKey);
-                        }
-                    }};
-                }
-                macro_rules! validate_revoke_key {
-                    ($ks: ident, $kid: expr) => {{
-                        if state.$ks.iter().any(|k| k.id == $kid) {
-                            return Err(Idp2pError::InvalidRevokeKey);
-                        }
-                    }};
-                }
-                let mut id_events: Vec<idp2p_proto::IdentityEvent> = vec![];
-                for event in events {
-                    match &event {
-                        IdEvent::CreateAssertionKey { id, multi_bytes: _ } => {
-                            validate_new_key!(assertion_keys, *id)
-                        }
-                        IdEvent::CreateAuthenticationKey { id, multi_bytes: _ } => {
-                            validate_new_key!(authentication_keys, *id)
-                        }
-                        IdEvent::CreateAgreementKey { id, multi_bytes: _ } => {
-                            validate_new_key!(agreement_keys, *id)
-                        }
-                        IdEvent::RevokeAssertionKey(kid) => {
-                            validate_revoke_key!(assertion_keys, *kid)
-                        }
-                        IdEvent::RevokeAuthenticationKey(kid) => {
-                            validate_revoke_key!(authentication_keys, *kid)
-                        }
-                        IdEvent::RevokeAgreementKey(kid) => {
-                            validate_revoke_key!(agreement_keys, *kid)
-                        }
-                        _ => {}
-                    }
-                    id_events.push(event.into());
-                }
-                payload.change = Some(Change::Events(IdentityEvents { events: id_events }));
-            }
-            ChangeType::Recover(key_digest) => {
-                payload.change = Some(Change::Recover(key_digest));
-            }
-        }
         let payload_bytes = payload.encode_to_vec();
         let proof = input.signer_keypair.sign(&payload_bytes)?;
         let event_log = idp2p_proto::EventLog {
@@ -159,8 +118,6 @@ impl IdentityHandler for ProtoIdentityHandler {
             log_id.ensure(&log.payload)?;
             let payload = log.try_resolve_payload()?;
             // Previous event_id should match with last_event_id of state.
-            // Because all identity events point previous event.
-            // First event points to inception event
             if payload.previous != state.last_event_id {
                 return Err(Idp2pError::InvalidPreviousEventLog);
             }
@@ -194,8 +151,56 @@ impl IdentityHandler for ProtoIdentityHandler {
 fn create_id(content: &[u8]) -> Vec<u8> {
     Idp2pId::new(0, &content).to_bytes()
 }
+
+fn map_events_to_proto(events: Vec<IdEvent>, state: &IdentityState) -> Result<Vec<idp2p_proto::IdentityEvent>, Idp2pError> {
+    macro_rules! validate_new_key {
+        ($ks: ident, $kid: expr) => {{
+            if state.$ks.iter().any(|k| k.id == $kid) {
+                return Err(Idp2pError::InvalidCreateKey);
+            }
+        }};
+    }
+    macro_rules! validate_revoke_key {
+        ($ks: ident, $kid: expr) => {{
+            if state.$ks.iter().any(|k| k.id == $kid) {
+                return Err(Idp2pError::InvalidRevokeKey);
+            }
+        }};
+    }
+    let mut proto_events: Vec<idp2p_proto::IdentityEvent> = vec![];
+    for event in events {
+        match &event {
+            IdEvent::CreateAssertionKey { id, multi_bytes: _ } => {
+                validate_new_key!(assertion_keys, *id)
+            }
+            IdEvent::CreateAuthenticationKey { id, multi_bytes: _ } => {
+                validate_new_key!(authentication_keys, *id)
+            }
+            IdEvent::CreateAgreementKey { id, multi_bytes: _ } => {
+                validate_new_key!(agreement_keys, *id)
+            }
+            IdEvent::RevokeAssertionKey(kid) => {
+                validate_revoke_key!(assertion_keys, *kid)
+            }
+            IdEvent::RevokeAuthenticationKey(kid) => {
+                validate_revoke_key!(authentication_keys, *kid)
+            }
+            IdEvent::RevokeAgreementKey(kid) => {
+                validate_revoke_key!(agreement_keys, *kid)
+            }
+            _ => {}
+        }
+        proto_events.push(event.into());
+    }
+    Ok(proto_events)
+}
+
 fn is_valid_prev(c: &idp2p_proto::Microledger, prev: &Identity) -> Result<bool, Idp2pError> {
     let prev_ml = idp2p_proto::Microledger::decode(&*prev.microledger)?;
+    prev.verify(None)?;
+    if prev_ml.event_logs.len() >= c.event_logs.len(){
+        return Err(Idp2pError::InvalidPrevious);
+    }
     for (i, log) in prev_ml.event_logs.iter().enumerate() {
         if log.id != c.event_logs[i].id {
             return Err(Idp2pError::InvalidPrevious);
@@ -211,13 +216,12 @@ mod tests {
             base::Idp2pBase, error::Idp2pMultiError, ledgerkey::Idp2pLedgerKeypair,
             verification::ed25519::Ed25519Keypair,
         },
-        random::create_random,
     };
 
     use super::*;
     fn create() -> Result<(Identity, Idp2pLedgerKeypair), Idp2pError> {
         let keypair =
-            Idp2pLedgerKeypair::Ed25519(Ed25519Keypair::from_secret(create_random::<32>()));
+            Idp2pLedgerKeypair::Ed25519(Ed25519Keypair::generate());
         let input = CreateIdentityInput {
             timestamp: Utc::now().timestamp(),
             next_key_digest: keypair.to_public_key().to_digest()?.to_multi_bytes(),
@@ -231,7 +235,7 @@ mod tests {
     fn id_test() -> Result<(), Idp2pError> {
         let secret_str = "bd6yg2qeifnixj4x3z2fclp5wd3i6ysjlfkxewqqt2thie6lfnkma";
 
-        let keypair = Idp2pLedgerKeypair::Ed25519(Ed25519Keypair::from_secret(
+        let keypair = Idp2pLedgerKeypair::Ed25519(Ed25519Keypair::from_secret_bytes(
             Idp2pBase::decode_sized::<32>(secret_str)?,
         ));
         let expected_id = "z3YygDRExrCXjGa8PEMeTWWTZMCFtVHwa84KtnQp6Uqb1YMCJUU";
@@ -271,109 +275,17 @@ mod tests {
     #[test]
     fn verify_invalid_previous_test() -> Result<(), Idp2pError> {
         let (mut did, keypair) = create()?;
+        let original_did = did.clone();
         let input = ChangeInput {
             next_key_digest: keypair.to_public_key().to_digest()?.to_multi_bytes(),
             signer_keypair: keypair,
             change: ChangeType::AddEvents { events: vec![] },
         };
-        did.change(input.clone())?;
-        //did.change(input)?;
-        let result = did.verify(None);
-        assert!(result.is_ok(), "{:?}", result);
-        /*let id = ledger.inception.get_id();
-        let change = EventLogChange::SetDocument(DocumentDigest { value: vec![] });
-        let signer = secret.to_publickey();
-        let payload = ledger.create_event(&signer, &signer, change);
-        let proof = secret.sign(&payload);
-        ledger.save_event(payload, &proof);
-        ledger.events[0].payload.previous = "1".to_owned();
-        let result = ledger.verify(&id);
-        let is_err = matches!(result, Err(crate::IdentityError::InvalidPrevious));
-        assert!(is_err, "{:?}", result);*/
+        did.change(input)?;
+        let result = original_did.verify(Some(&did));
+        let is_err = matches!(result, Err(Idp2pError::InvalidPrevious));
+        assert!(is_err, "{:?}", result);
         Ok(())
     }
 
-    /*#[test]
-    fn verify_invalid_signature_test() {
-        let (mut ledger, secret) = create_microledger();
-        let id = ledger.inception.get_id();
-        let change = EventLogChange::SetDocument(DocumentDigest { value: vec![] });
-        let signer = secret.to_publickey();
-        let payload = ledger.create_event(&signer, &signer, change);
-        let proof = secret.sign(&payload);
-        ledger.save_event(payload, &proof);
-        ledger.events[0].proof = vec![0; 64];
-        let result = ledger.verify(&id);
-        let is_err = matches!(result, Err(crate::IdentityError::InvalidEventSignature));
-        assert!(is_err, "{:?}", result);
-    }
-
-    #[test]
-    fn verify_set_doc_invalid_signer_test() {
-        let (mut ledger, secret) = create_microledger();
-        let id = ledger.inception.get_id();
-        let change = EventLogChange::SetDocument(DocumentDigest { value: vec![] });
-        let signer = secret.to_publickey();
-        let payload = ledger.create_event(&signer, &signer, change);
-        let proof = secret.sign(&payload);
-        ledger.save_event(payload, &proof);
-        let new_secret = EdSecret::new();
-        let new_ed_key = new_secret.to_publickey();
-        ledger.events[0].payload.signer_key = new_ed_key.to_vec();
-        ledger.events[0].proof = new_secret.sign(&ledger.events[0].payload).to_vec();
-        let result = ledger.verify(&id);
-        let is_err = matches!(result, Err(crate::IdentityError::InvalidSigner));
-        assert!(is_err, "{:?}", result);
-    }
-
-    #[test]
-    fn verify_set_proof_invalid_signer_test() {
-        let (mut ledger, secret) = create_microledger();
-        let id = ledger.inception.get_id();
-        let change = EventLogChange::SetProof(ProofStatement {
-            key: vec![],
-            value: vec![],
-        });
-        let signer = secret.to_publickey();
-        let payload = ledger.create_event(&signer, &signer, change);
-        let proof = secret.sign(&payload);
-        ledger.save_event(payload, &proof);
-        let new_secret = EdSecret::new();
-        let new_ed_key = new_secret.to_publickey();
-        ledger.events[0].payload.signer_key = new_ed_key.to_vec();
-        ledger.events[0].proof = new_secret.sign(&ledger.events[0].payload).to_vec();
-        let result = ledger.verify(&id);
-        let is_err = matches!(result, Err(crate::IdentityError::InvalidSigner));
-        assert!(is_err, "{:?}", result);
-    }
-
-    #[test]
-    fn verify_recovery_invalid_signer_test() {
-        let (mut ledger, secret) = create_microledger();
-        let id = ledger.inception.get_id();
-        let signer = secret.to_publickey();
-        let rec = RecoverStatement {
-            key_type: ED25519.to_owned(),
-            recovery_key_digest: hash(&signer),
-        };
-        let change = EventLogChange::Recover(rec);
-        let payload = ledger.create_event(&signer, &signer, change);
-        let proof = secret.sign(&payload);
-        ledger.save_event(payload, &proof);
-        let new_secret = EdSecret::new();
-        let new_ed_key = new_secret.to_publickey();
-        ledger.events[0].payload.signer_key = new_ed_key.to_vec();
-        ledger.events[0].proof = new_secret.sign(&ledger.events[0].payload).to_vec();
-        let result = ledger.verify(&id);
-        let is_err = matches!(result, Err(crate::IdentityError::InvalidSigner));
-        assert!(is_err, "{:?}", result);
-    }
-
-    fn create_microledger() -> (MicroLedger, idp2p_common::ed_secret::EdSecret) {
-        let secret_str = "bd6yg2qeifnixj4x3z2fclp5wd3i6ysjlfkxewqqt2thie6lfnkma";
-        let secret = idp2p_common::ed_secret::EdSecret::from_str(secret_str).unwrap();
-        let d = secret.to_publickey_digest().unwrap();
-        let ledger = MicroLedger::new(&d, &d);
-        (ledger, secret)
-    }*/
 }

@@ -1,13 +1,15 @@
 use std::{collections::HashMap, sync::Mutex};
 
 use idp2p_common::multi::{
+    agreement::Idp2pAgreementKeypair,
+    authentication::{Idp2pAuthenticationKeypair, Idp2pAuthenticationPublicKey},
     id::Idp2pCodec,
-    message::Idp2pMessage, agreement::Idp2pAgreementKeypair, authentication::Idp2pAuthenticationKeypair,
+    message::Idp2pMessage,
 };
 use tokio::sync::mpsc::Sender;
 
 use crate::{
-    error::Idp2pError, id_state::IdentityState, identity::Identity,
+    error::Idp2pError, id_message::IdMessage, id_state::IdentityState, identity::Identity,
     HandlerResolver,
 };
 
@@ -30,6 +32,7 @@ pub enum IdStoreOutEvent {
     IdentityCreated(Vec<u8>),
     IdentityUpdated(Vec<u8>),
     IdentitySkipped(Vec<u8>),
+    MessageReceived(IdMessage),
 }
 
 #[derive(Debug)]
@@ -189,9 +192,9 @@ impl IdStore {
             }
             IdStoreEvent::ReceivedMessage(msg) => {
                 let entry = db.identities.get_mut(topic.as_bytes());
-                if let Some(entry) = entry {
+                if entry.is_some() {
                     let msg = Idp2pMessage::from_multi_bytes(&msg)?;
-                    let dec_msg = msg
+                    let (dec_msg, agree_data) = msg
                         .codec
                         .resolve_msg_handler()
                         .decode_msg(db.agree_keypair.clone(), &msg.body)?;
@@ -199,10 +202,89 @@ impl IdStore {
                         .identities
                         .get(&dec_msg.from)
                         .ok_or(Idp2pError::RequiredField("From".to_string()))?;
+                    let signer_pk_state = from
+                        .id_state
+                        .get_auth_key_by_id(&dec_msg.signer_kid)
+                        .ok_or(Idp2pError::Other)?;
+                    let signer_pk =
+                        Idp2pAuthenticationPublicKey::from_multi_bytes(&signer_pk_state.key_bytes)?;
+                    signer_pk.verify(&agree_data, &dec_msg.proof)?;
+                    let event = IdStoreOutEvent::MessageReceived(dec_msg);
+                    self.event_sender.send(event).await?;
                 }
-                todo!()
             }
         }
+        Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use idp2p_common::{
+        chrono::Utc,
+        multi::{
+            agreement::x25519::X25519Keypair, ledgerkey::Idp2pLedgerKeypair,
+            verification::ed25519::Ed25519Keypair,
+        },
+    };
+
+    use crate::identity::{CreateIdentityInput, IdEvent};
+
+    use super::*;
+    #[test]
+    fn get_test() -> Result<(), Idp2pError> {
+        let alice_ledger_keypair = Idp2pLedgerKeypair::Ed25519(Ed25519Keypair::generate());
+        let bob_ledger_keypair = Idp2pLedgerKeypair::Ed25519(Ed25519Keypair::generate());
+        let alice_auth_keypair = Idp2pAuthenticationKeypair::Ed25519(Ed25519Keypair::generate());
+        let bob_auth_keypair = Idp2pAuthenticationKeypair::Ed25519(Ed25519Keypair::generate());
+        let alice_agree_keypair = Idp2pAgreementKeypair::X25519(X25519Keypair::generate());
+        let bob_agree_keypair = Idp2pAgreementKeypair::X25519(X25519Keypair::generate());
+        let alice_auth_pk = alice_auth_keypair.to_public_key();
+        let alice_agree_pk = alice_agree_keypair.to_public_key();
+        let bob_auth_pk = bob_auth_keypair.to_public_key();
+        let bob_agree_pk = bob_agree_keypair.to_public_key();
+        let alice_auth_event = IdEvent::CreateAuthenticationKey {
+            id: alice_auth_pk.generate_id().to_vec(),
+            multi_bytes: alice_auth_pk.to_multi_bytes(),
+        };
+        let alice_agree_event = IdEvent::CreateAgreementKey  {
+            id: alice_agree_pk.generate_id().to_vec(),
+            multi_bytes: alice_agree_pk.to_multi_bytes(),
+        };
+        let bob_auth_event = IdEvent::CreateAuthenticationKey {
+            id: bob_auth_pk.generate_id().to_vec(),
+            multi_bytes: bob_auth_pk.to_multi_bytes(),
+        };
+        let bob_agree_event = IdEvent::CreateAgreementKey  {
+            id: bob_agree_pk.generate_id().to_vec(),
+            multi_bytes: bob_agree_pk.to_multi_bytes(),
+        };
+        let alice_input = CreateIdentityInput {
+            timestamp: Utc::now().timestamp(),
+            next_key_digest: alice_ledger_keypair
+                .to_public_key()
+                .to_digest()?
+                .to_multi_bytes(),
+            recovery_key_digest: alice_ledger_keypair
+                .to_public_key()
+                .to_digest()?
+                .to_multi_bytes(),
+            events: vec![alice_auth_event, alice_agree_event],
+        };
+        let bob_input = CreateIdentityInput {
+            timestamp: Utc::now().timestamp(),
+            next_key_digest: bob_ledger_keypair
+                .to_public_key()
+                .to_digest()?
+                .to_multi_bytes(),
+            recovery_key_digest: bob_ledger_keypair
+                .to_public_key()
+                .to_digest()?
+                .to_multi_bytes(),
+            events: vec![bob_auth_event, bob_agree_event],
+        };
+        let alice_did = Identity::new_protobuf(alice_input)?;
+        let bob_did = Identity::new_protobuf(bob_input)?;
         Ok(())
     }
 }

@@ -25,6 +25,6 @@ prost-build = "0.10.4"
 criterion = "0.3"
 
 [[bench]]
-name = "arr"
+name = "verify_id"
 harness = false
 

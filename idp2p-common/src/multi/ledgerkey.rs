@@ -75,7 +75,7 @@ impl Idp2pLedgerPublicKey {
     }
 
     // Serialize to bytes
-    pub fn to_multi_bytes(&self) -> Result<Vec<u8>, Idp2pMultiError> {
+    pub fn to_multi_bytes(&self) -> Vec<u8> {
         match &self {
             Self::Ed25519(pk) => key_to_multi_bytes(VerificationKeyCode::Ed25519, pk.as_bytes()),
             Self::Dilithium3(pk) => {
@@ -154,7 +154,7 @@ mod tests {
     use super::*;
     #[test]
     fn sign_verify_test() -> Result<(), Idp2pMultiError> {
-        let keypair = Idp2pLedgerKeypair::Ed25519(Ed25519Keypair::from_secret([0u8; 32]));
+        let keypair = Idp2pLedgerKeypair::Ed25519(Ed25519Keypair::generate());
         let pk = keypair.to_public_key();
         let payload = vec![0u8; 10];
         let sig = keypair.sign(&payload)?;

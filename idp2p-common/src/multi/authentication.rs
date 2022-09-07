@@ -1,3 +1,5 @@
+use sha2::{Sha256, Digest};
+
 use super::{
     error::Idp2pMultiError,
     verification::{
@@ -50,7 +52,7 @@ impl Idp2pAuthenticationPublicKey {
     }
 
     // Serialize to bytes
-    pub fn to_multi_bytes(&self) -> Result<Vec<u8>, Idp2pMultiError> {
+    pub fn to_multi_bytes(&self) -> Vec<u8> {
         match &self {
             Self::Ed25519(pk) => key_to_multi_bytes(VerificationKeyCode::Ed25519, pk.as_bytes()),
             Self::Dilithium3(pk) => {
@@ -71,6 +73,14 @@ impl Idp2pAuthenticationPublicKey {
             Self::Dilithium3(pk) => pk.verify(payload, sig),
         }
     }
+    
+    pub fn generate_id(&self) -> [u8; 16] {
+        let h = Sha256::new()
+            .chain_update(self.as_bytes())
+            .finalize()
+            .to_vec();
+        h[0..16].try_into().expect("Conversion failed")
+    }
 }
 
 #[cfg(test)]
@@ -78,7 +88,7 @@ mod tests {
     use super::*;
     #[test]
     fn sign_verify_test() -> Result<(), Idp2pMultiError> {
-        let keypair = Idp2pAuthenticationKeypair::Ed25519(Ed25519Keypair::from_secret([0u8; 32]));
+        let keypair = Idp2pAuthenticationKeypair::Ed25519(Ed25519Keypair::from_secret_bytes([0u8; 32]));
         let pk = keypair.to_public_key();
         let payload = vec![0u8; 10];
         let sig = keypair.sign(&payload)?;

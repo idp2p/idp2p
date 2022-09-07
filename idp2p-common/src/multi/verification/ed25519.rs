@@ -53,10 +53,10 @@ impl Signer for Ed25519Keypair {
 impl Ed25519Keypair {
     pub fn generate() -> Self{
         let secret = create_random::<ED25519_SECRET_SIZE>();
-        Self::from_secret(secret)
+        Self::from_secret_bytes(secret)
     }
 
-    pub fn from_secret(secret: [u8; ED25519_PUBLIC_SIZE]) -> Self {
+    pub fn from_secret_bytes(secret: [u8; ED25519_PUBLIC_SIZE]) -> Self {
         let sk = SecretKey::from_bytes(&secret).unwrap();
         let pk: PublicKey = (&sk).into();
         let keypair = Ed25519Keypair {

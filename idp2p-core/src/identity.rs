@@ -1,12 +1,9 @@
-use idp2p_common::multi::{
-    agreement::Idp2pAgreementPublicKey, assertion::Idp2pAssertionPublicKey,
-    authentication::Idp2pAuthenticationPublicKey, id::Idp2pId, ledgerkey::Idp2pLedgerKeypair,
-};
+use idp2p_common::multi::{id::Idp2pId, ledgerkey::Idp2pLedgerKeypair};
 
-use crate::{error::Idp2pError, id_state::IdentityState, HandlerResolver};
+use crate::{error::Idp2pError, id_state::IdentityState, HandlerResolver, handlers::proto::id_handler::ProtoIdentityHandler};
 
 /// Identity event input
-/// 
+///
 /// When a program wants to create or change identity, it uses the enum.
 #[derive(PartialEq, Debug, Clone)]
 pub enum IdEvent {
@@ -22,7 +19,7 @@ pub enum IdEvent {
         id: Vec<u8>,
         multi_bytes: Vec<u8>,
     },
-    /// `key`: proof key as bytes , `value`: proof value as bytes 
+    /// `key`: proof key as bytes , `value`: proof value as bytes
     SetProof {
         key: Vec<u8>,
         value: Vec<u8>,
@@ -73,6 +70,9 @@ pub trait IdentityHandler {
 }
 
 impl Identity {
+    pub fn new_protobuf(input: CreateIdentityInput) -> Result<Identity, Idp2pError> {
+        ProtoIdentityHandler.new(input)
+    }
     pub fn change(&mut self, input: ChangeInput) -> Result<bool, Idp2pError> {
         let id = Idp2pId::from_bytes(&self.id)?;
         id.codec.resolve_id_handler().change(self, input)

@@ -2,6 +2,7 @@ use crate::random::create_random;
 
 use super::error::Idp2pMultiError;
 
+pub const AESGCM_CODE: u64 =  0xa21;
 pub enum Idp2pEncryptionMethod {
     AesGcm { iv: Vec<u8> },
 }
@@ -14,7 +15,7 @@ impl Idp2pEncryptionMethod {
 
     pub fn from_code(code: u64, iv: &[u8]) -> Result<Self, Idp2pMultiError> {
         match code {
-            0xa21 => Ok(Self::AesGcm { iv: iv.to_vec() }),
+            AESGCM_CODE => Ok(Self::AesGcm { iv: iv.to_vec() }),
             _ => Err(Idp2pMultiError::InvalidKeyCode),
         }
     }

@@ -51,14 +51,14 @@ pub trait Signer {
     fn sign(&self, payload: &[u8]) -> Result<Vec<u8>, Idp2pMultiError>;
 }
 
-pub fn key_to_multi_bytes(code: VerificationKeyCode, bytes: &[u8]) -> Result<Vec<u8>, Idp2pMultiError> {
+pub fn key_to_multi_bytes(code: VerificationKeyCode, bytes: &[u8]) -> Vec<u8> {
     let size = code.pub_size();
     if bytes.len() as u64 != size {
         panic!("Key length is not suitable");
     }
     let mut code_buf = varint_encode::u64_buffer();
     let code = varint_encode::u64(code as u64, &mut code_buf);
-    Ok([code, bytes].concat())
+    [code, bytes].concat()
 }
 
 pub fn key_from_multi_bytes(bytes: &[u8]) -> Result<(VerificationKeyCode, Vec<u8>), Idp2pMultiError> {
@@ -77,7 +77,7 @@ mod tests {
     fn enc_dec_test() -> Result<(), Idp2pMultiError> {
         let code = VerificationKeyCode::Ed25519;
         let bytes = vec![0u8;32];
-        let multi_bytes = key_to_multi_bytes(code.clone(), &bytes)?;
+        let multi_bytes = key_to_multi_bytes(code.clone(), &bytes);
         let (dec_code, dec_bytes) = key_from_multi_bytes(&multi_bytes)?;
         assert_eq!(code, dec_code);
         assert_eq!(bytes, dec_bytes);
