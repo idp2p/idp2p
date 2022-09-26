@@ -1,4 +1,4 @@
-use idp2p_core::id_store::{IdStoreOutCommand, IdStoreOutEvent};
+use idp2p_core::id_store::IdStoreOutEvent;
 use libp2p::{
     futures::StreamExt,
     identity,
@@ -44,18 +44,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             .build()
     };
     swarm.listen_on(format!("/ip4/127.0.0.1/tcp/{}", opt.port).parse()?)?;
-    let (cmd_sender, mut cmd_recv) = tokio::sync::mpsc::channel::<IdStoreOutCommand>(100);
     let (event_sender, mut event_recv) = tokio::sync::mpsc::channel::<IdStoreOutEvent>(100);
-    
+
     loop {
         tokio::select! {
             line = stdin.next_line() => {
                 let line = line?.expect("stdin closed");
                 println!("{line}");
             }
-            store_cmd = cmd_recv.recv() => {
-               
-            }
+            
             store_event = event_recv.recv() => {
 
             }

@@ -1,26 +1,36 @@
 use std::{collections::HashMap, sync::Mutex};
 
+use idp2p_common::multi::{
+    agreement::Idp2pAgreementKeypair,
+    authentication::{Idp2pAuthenticationKeypair, Idp2pAuthenticationPublicKey},
+    id::Idp2pCodec,
+    message::Idp2pMessage,
+};
 use tokio::sync::mpsc::Sender;
 
-use crate::{error::Idp2pError, id_state::IdentityState, identity::Identity};
+use crate::{
+    error::Idp2pError,
+    id_state::IdentityState,
+    identity::Identity,
+};
 
 pub enum IdStoreEvent {
-    ReceivedGet,
-    ReceivedPost {
-        last_event_id: Vec<u8>,
-        did: Identity,
-    },
+    ReceivedMessage(Vec<u8>),
+}
+
+pub enum IdStoreCommand {
+    SendMessage { id: Vec<u8>, message: IdMessageBody },
 }
 
 #[derive(Debug)]
 pub enum IdStoreOutEvent {
-    IdentityCreated(Vec<u8>),
-    IdentityUpdated(Vec<u8>),
-    IdentitySkipped(Vec<u8>),
-    PostPublished { topic: String, microledger: Vec<u8> },
-    WaitAndPostPublished(Vec<u8>),
+    MessageReceived(IdMessage),
 }
 
+#[derive(Debug)]
+pub enum IdStoreOutCommand {
+    PublishMessage { topic: String, message: Vec<u8> },
+}
 
 #[derive(PartialEq, Debug, Clone)]
 pub struct IdEntry {
@@ -33,18 +43,25 @@ pub struct IdEntry {
 }
 
 pub struct IdDb {
-    pub(crate) owner: Vec<u8>,
+    pub(crate) owner: IdentityState,
+    pub(crate) auth_keypair: Idp2pAuthenticationKeypair,
+    pub(crate) agree_keypair: Idp2pAgreementKeypair,
     pub(crate) identities: HashMap<Vec<u8>, IdEntry>,
 }
 
 pub struct IdStoreOptions {
     pub(crate) owner: Identity,
+    pub(crate) auth_keypair: Idp2pAuthenticationKeypair,
+    pub(crate) agree_keypair: Idp2pAgreementKeypair,
     pub(crate) event_sender: Sender<IdStoreOutEvent>,
+    pub(crate) command_sender: Sender<IdStoreOutCommand>,
 }
 
 pub struct IdStore {
     pub(crate) db: Mutex<IdDb>,
     pub(crate) event_sender: Sender<IdStoreOutEvent>,
+    pub(crate) command_sender: Sender<IdStoreOutCommand>,
+    pub(crate) codec: Idp2pCodec,
 }
 
 impl IdDb {
@@ -59,87 +76,88 @@ impl IdDb {
         self.identities.insert(id, entry);
         Ok(())
     }
+
+    pub fn to_msg_handler_state(&self) -> MessageHandlerState {
+        MessageHandlerState {
+            agree_keypair: self.agree_keypair.clone(),
+            auth_keypair: self.auth_keypair.clone(),
+            from: self.owner.clone(),
+        }
+    }
 }
 
 impl IdStore {
     pub fn new(options: IdStoreOptions) -> Result<Self, Idp2pError> {
+        let owner_state = options.owner.verify(None)?;
         let db = IdDb {
-            owner: options.owner.id,
+            owner: owner_state,
+            auth_keypair: options.auth_keypair,
+            agree_keypair: options.agree_keypair,
             identities: HashMap::new(),
         };
         let store = Self {
             db: Mutex::new(db),
-            event_sender: options.event_sender
+            event_sender: options.event_sender,
+            command_sender: options.command_sender,
+            codec: Idp2pCodec::Protobuf,
         };
         Ok(store)
     }
 
-    pub fn get_agree_key(&self, id: &[u8]) -> Result<Vec<u8>, Idp2pError> {
+    pub async fn handle_command(&self, cmd: IdStoreCommand) -> Result<(), Idp2pError> {
         let db = self.db.lock().unwrap();
-        Ok(db
-            .identities
-            .get(id)
-            .unwrap()
-            .id_state.clone()
-            .get_latest_agree_key()
-            .unwrap()
-            .key_bytes.clone())
-    }
-
-    pub async fn get_auth_key(&self, id: &[u8]) -> Result<(), Idp2pError> {
-        let db = self.db.lock().unwrap();
-
+        match cmd {
+            IdStoreCommand::Get(id) => {
+                let topic = String::from_utf8_lossy(&id).to_string();
+                let event = IdStoreOutCommand::PublishGet(topic);
+                self.command_sender.send(event).await?;
+            }
+            IdStoreCommand::SendMessage { id, message } => {
+                let topic = String::from_utf8_lossy(&id).to_string();
+                let to = db.identities.get(&id).expect("").id_state.clone();
+                let encoded_msg = match self.codec {
+                    Idp2pCodec::Protobuf => {
+                        ProtoMessageHandler(db.to_msg_handler_state()).seal(to, message)?
+                    }
+                    Idp2pCodec::Json => todo!(),
+                };
+                let event = IdStoreOutCommand::PublishMessage {
+                    topic: topic,
+                    message: encoded_msg.message,
+                };
+                self.command_sender.send(event).await?;
+            }
+        }
         Ok(())
     }
 
     pub async fn handle_event(&self, topic: &str, event: IdStoreEvent) -> Result<(), Idp2pError> {
         let mut db = self.db.lock().unwrap();
         match event {
-            IdStoreEvent::ReceivedGet => {
+           IdStoreEvent::ReceivedMessage(msg) => {
                 let entry = db.identities.get_mut(topic.as_bytes());
-                if let Some(entry) = entry {
-                    if &entry.did.id == topic.as_bytes() {
-                        log::info!("Published id: {:?}", topic);
-                        let cmd = IdStoreOutEvent::PostPublished {
-                            topic: topic.to_string(),
-                            microledger: entry.did.microledger.clone(),
-                        };
-                        self.event_sender.send(cmd).await?;
-                    } else {
-                        entry.waiting_publish = true;
-                        let cmd = IdStoreOutEvent::WaitAndPostPublished(topic.as_bytes().to_vec());
-                        self.event_sender.send(cmd).await?;
-                    }
-                }
-            }
-            IdStoreEvent::ReceivedPost { last_event_id, did } => {
-                let current = db.identities.get_mut(topic.as_bytes());
-                let id = did.id.clone();
-                log::info!("Got id: {:?}", id);
-                match current {
-                    // When identity is new
-                    None => {
-                        db.push_entry(did)?;
-                        let event = IdStoreOutEvent::IdentityCreated(topic.as_bytes().to_vec());
-                        self.event_sender.send(event).await?;
-                    }
-                    // There is a current identity
-                    Some(entry) => {
-                        // If there is a waiting publish, remove it
-                        entry.waiting_publish = false;
-                        // Identity has a new state
-                        if last_event_id != entry.id_state.last_event_id {
-                            //entry.did.is_next(did.clone())?;
-                            entry.did = did.clone();
-                            log::info!("Updated id: {:?}", did.id);
-                            let event = IdStoreOutEvent::IdentityUpdated(topic.as_bytes().to_vec());
-                            self.event_sender.send(event).await?;
-                        } else {
-                            log::info!("Skipped id: {:?}", did.id);
-                            let event = IdStoreOutEvent::IdentitySkipped(topic.as_bytes().to_vec());
-                            self.event_sender.send(event).await?;
+                if entry.is_some() {
+                    let msg = Idp2pMessage::from_multi_bytes(&msg)?;
+                    let dec_result = match msg.codec {
+                        Idp2pCodec::Protobuf => {
+                            ProtoMessageHandler(db.to_msg_handler_state()).decode(&msg.body)?
                         }
-                    }
+                        Idp2pCodec::Json => todo!(),
+                    };
+
+                    let from = db
+                        .identities
+                        .get(&dec_result.message.from)
+                        .ok_or(Idp2pError::RequiredField("From".to_string()))?;
+                    let signer_pk_state = from
+                        .id_state
+                        .get_auth_key_by_id(&dec_result.message.signer_kid)
+                        .ok_or(Idp2pError::Other)?;
+                    let signer_pk =
+                        Idp2pAuthenticationPublicKey::from_multi_bytes(&signer_pk_state.key_bytes)?;
+                    signer_pk.verify(&dec_result.agreement_data, &dec_result.message.proof)?;
+                    let event = IdStoreOutEvent::MessageReceived(dec_result.message);
+                    self.event_sender.send(event).await?;
                 }
             }
         }
@@ -152,9 +170,7 @@ mod tests {
     use idp2p_common::{
         chrono::Utc,
         multi::{
-            agreement::{x25519::X25519Keypair, Idp2pAgreementKeypair},
-            authentication::Idp2pAuthenticationKeypair,
-            ledgerkey::Idp2pLedgerKeypair,
+            agreement::x25519::X25519Keypair, ledgerkey::Idp2pLedgerKeypair,
             verification::ed25519::Ed25519Keypair,
         },
     };

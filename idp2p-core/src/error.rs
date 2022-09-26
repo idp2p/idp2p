@@ -2,7 +2,7 @@ use idp2p_common::multi::error::Idp2pMultiError;
 use thiserror::Error;
 use tokio::sync::mpsc::error::SendError;
 
-use crate::id_store::{IdStoreOutCommand, IdStoreOutEvent};
+use crate::id_store::IdStoreOutEvent;
 
 #[derive(Error, Debug)]
 pub enum Idp2pError {
@@ -28,8 +28,6 @@ pub enum Idp2pError {
     DecodeError(#[from] prost::DecodeError),
     #[error(transparent)]
     Idp2pMultiError(#[from] Idp2pMultiError),
-    #[error(transparent)]
-    CommandSendError(#[from] SendError<IdStoreOutCommand>),
     #[error(transparent)]
     EventSendError(#[from] SendError<IdStoreOutEvent>),
     #[error("Other")]

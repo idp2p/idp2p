@@ -3,7 +3,6 @@ use prost::Message;
 
 use crate::{
     error::Idp2pError,
-    id_message::IdMessage,
     identity::IdEvent,
     idp2p_proto::{
         self, identity_event::EventType, EventLog, EventLogPayload, IdentityEvent, Idp2pMultiKey,
@@ -58,20 +57,6 @@ impl Into<IdentityEvent> for IdEvent {
             IdEvent::RevokeAgreementKey(kid) => IdentityEvent {
                 event_type: Some(EventType::RevokeAgreementKey(kid)),
             },
-        }
-    }
-}
-
-impl Into<IdMessage> for idp2p_proto::IdGossipMessageRaw {
-    fn into(self) -> IdMessage {
-        IdMessage {
-            from: self.from,
-            to: self.to,
-            signer_kid: self.signer_kid,
-            proof: self.proof,
-            created_at: self.created_at,
-            body: self.body,
-            reply_to: self.reply_to
         }
     }
 }

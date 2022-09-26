@@ -2,8 +2,8 @@ use criterion::{black_box, criterion_group, criterion_main, Criterion};
 use idp2p_common::multi::ledgerkey::Idp2pLedgerKeypair;
 use idp2p_core::{identity::{
     ChangeType, IdEvent,
-    ChangeInput, CreateIdentityInput, Identity, IdentityHandler,
-}, handlers::proto::id_handler::ProtoIdentityHandler};
+    ChangeInput, CreateIdentityInput, Identity, IdentityDecoder,
+}, decoders::proto::id_decoder::ProtoIdentityDecoder};
 
 /*fn create_did() -> Identity {
     let keypair = Idp2pKeySecret::from_bytes(&[0u8; 32]).unwrap();
@@ -35,7 +35,7 @@ use idp2p_core::{identity::{
     did
 }*/
 fn criterion_benchmark(c: &mut Criterion) {
-    let id_behaviour = ProtoIdentityHandler {};
+    let id_behaviour = ProtoIdentityDecoder {};
     //let did = create_did();
     c.bench_function("verify identity", |b| {
         //b.iter(|| black_box(id_behaviour.verify(&did, None).unwrap()))

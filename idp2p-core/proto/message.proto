@@ -14,39 +14,31 @@ message IdGossipMessageWithTopic {
 }
 
 message IdGossipMessage {
+    IdGossipMessageType m_type = 1;
     oneof payload {
         Microledger post = 2; // Microledger of updated identity
-        IdGossipMessageCipher message = 3;
+        IdMessageEnvelope envelope = 3;
     }   
 }
 
-message IdGossipMessageRaw { 
-    bytes from = 1; // Message sender
-    bytes signer_kid = 2; // POP kid
-    bytes proof = 3; // Proof of possesion
-    bytes to = 4; // Message receiver
-    int64 created_at = 5; // UTC Timestamp
-    bytes body = 6; // Bytes of IdGossipMessageBodyType
+message IdMessage {
+    bytes id = 1; // Unique message id(multihash of shared secret) 
+    bytes from = 2; // Message sender
+    bytes to = 3; // Message receiver
+    bytes signer_kid = 4; // Signer key id
+    bytes proof = 5; // Proof of agreement data with signer_kid
+    int64 created_at = 6; // UTC Timestamp
     optional bytes reply_to = 7;
+    oneof body {
+        string text = 8;
+    }
 }
 
 // id2id message
-message IdGossipMessageCipher{
+message IdMessageEnvelope{
     bytes agreement_kid = 1; // Receipent agreement key id to decrypt message
     bytes agreement_data = 2; // Ephemeral public key(x25519) or ciphertext(kyber)
     int64 encryption_method = 3; // AESGCM(256)
     bytes encryption_iv = 4; // 12 or 24 bytes initial vector
     bytes cipherbody = 5; // Encrypted message body with codec 
-}
-
-message IdGossipMessageBodyType{
-    oneof m_type{
-        string text = 1;
-        // Handshaking messages
-    }
-}
-
-message PairIdentity{
-    bytes authentication_key = 1;
-    bytes agreement_key = 2;
 }

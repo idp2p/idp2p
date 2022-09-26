@@ -1,6 +1,6 @@
-use idp2p_common::multi::{id::Idp2pId, ledgerkey::Idp2pLedgerKeypair};
+use idp2p_common::multi::{id::{Idp2pId, Idp2pCodec}, ledgerkey::Idp2pLedgerKeypair};
 
-use crate::{error::Idp2pError, id_state::IdentityState, HandlerResolver, handlers::proto::id_handler::ProtoIdentityHandler};
+use crate::{error::Idp2pError, id_state::IdentityState, decoders::proto::id_decoder::ProtoIdentityDecoder};
 
 /// Identity event input
 ///
@@ -63,7 +63,7 @@ pub struct Identity {
     pub microledger: Vec<u8>,
 }
 
-pub trait IdentityHandler {
+pub trait IdentityDecoder {
     fn new(&self, input: CreateIdentityInput) -> Result<Identity, Idp2pError>;
     fn change(&self, did: &mut Identity, input: ChangeInput) -> Result<bool, Idp2pError>;
     fn verify(&self, did: &Identity, prev: Option<&Identity>) -> Result<IdentityState, Idp2pError>;
@@ -71,16 +71,23 @@ pub trait IdentityHandler {
 
 impl Identity {
     pub fn new_protobuf(input: CreateIdentityInput) -> Result<Identity, Idp2pError> {
-        ProtoIdentityHandler.new(input)
+        ProtoIdentityDecoder.new(input)
     }
+
     pub fn change(&mut self, input: ChangeInput) -> Result<bool, Idp2pError> {
         let id = Idp2pId::from_bytes(&self.id)?;
-        id.codec.resolve_id_handler().change(self, input)
+        match id.codec{
+            Idp2pCodec::Protobuf => ProtoIdentityDecoder.change(self, input),
+            Idp2pCodec::Json => todo!(),
+        }
     }
 
     /// Verify an identity and get state of identity
     pub fn verify(&self, prev: Option<&Identity>) -> Result<IdentityState, Idp2pError> {
         let id = Idp2pId::from_bytes(&self.id)?;
-        id.codec.resolve_id_handler().verify(self, prev)
+        match id.codec{
+            Idp2pCodec::Protobuf => ProtoIdentityDecoder.verify(self, prev),
+            Idp2pCodec::Json => todo!(),
+        }
     }
 }

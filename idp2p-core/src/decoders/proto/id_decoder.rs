@@ -8,15 +8,15 @@ use prost::Message;
 
 use crate::{
     error::Idp2pError,
-    handlers::proto::mapper::EventLogResolver,
+    decoders::proto::mapper::EventLogResolver,
     id_state::{IdentityState, IdentityStateEventHandler},
-    identity::{ChangeInput, ChangeType, CreateIdentityInput, IdEvent, Identity, IdentityHandler},
+    identity::{ChangeInput, ChangeType, CreateIdentityInput, IdEvent, Identity, IdentityDecoder},
     idp2p_proto,
 };
 
-pub struct ProtoIdentityHandler;
+pub struct ProtoIdentityDecoder;
 
-impl IdentityHandler for ProtoIdentityHandler {
+impl IdentityDecoder for ProtoIdentityDecoder {
     fn new(&self, input: CreateIdentityInput) -> Result<Identity, Idp2pError> {
         let mut inception = idp2p_proto::IdentityInception {
             timestamp: input.timestamp,
@@ -228,7 +228,7 @@ mod tests {
             recovery_key_digest: keypair.to_public_key().to_digest()?.to_multi_bytes(),
             events: vec![],
         };
-        Ok((ProtoIdentityHandler {}.new(input)?, keypair))
+        Ok((ProtoIdentityDecoder {}.new(input)?, keypair))
     }
 
     #[test]
@@ -245,7 +245,7 @@ mod tests {
             recovery_key_digest: keypair.to_public_key().to_digest()?.to_multi_bytes(),
             events: vec![],
         };
-        let did = ProtoIdentityHandler {}.new(input)?;
+        let did = ProtoIdentityDecoder {}.new(input)?;
         assert_eq!(Idp2pBase::default().encode(&did.id), expected_id);
         Ok(())
     }
