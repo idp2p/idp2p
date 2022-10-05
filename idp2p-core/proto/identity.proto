@@ -53,12 +53,12 @@ message IdentityEvent {
     }
 }
 
-message Idp2pProof{
+message Idp2pProof {
     bytes key = 1; // Proof key
     bytes value = 2; // Proof value
 }
 
-message Idp2pMultiKey{
+message Idp2pMultiKey {
     bytes id = 1; // Id of the key
     bytes bytes = 2; // Value of the key
 }

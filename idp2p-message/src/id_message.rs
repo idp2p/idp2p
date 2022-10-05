@@ -19,7 +19,8 @@ pub struct IdMessage {
 #[derive(Debug, Clone, PartialEq)]
 pub enum IdMessageBody {
     Text(String),
-    Connect
+    Connect,
+    Disconnect
 }
 
 #[derive(Debug, Clone, PartialEq)]

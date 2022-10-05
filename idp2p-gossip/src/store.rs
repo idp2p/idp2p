@@ -4,49 +4,28 @@ use tokio::sync::mpsc::Sender;
 
 use crate::{error::Idp2pError, id_state::IdentityState, identity::Identity};
 
-pub enum IdStoreEvent {
-    ReceivedGet,
-    ReceivedPost {
-        last_event_id: Vec<u8>,
-        did: Identity,
-    },
-}
-
-#[derive(Debug)]
-pub enum IdStoreOutEvent {
-    IdentityCreated(Vec<u8>),
-    IdentityUpdated(Vec<u8>),
-    IdentitySkipped(Vec<u8>),
-    PostPublished { topic: String, microledger: Vec<u8> },
-    WaitAndPostPublished(Vec<u8>),
-}
-
 #[derive(PartialEq, Debug, Clone)]
 pub struct IdEntry {
     // Identity ledger
-    pub(crate) did: Identity,
+    did: Identity,
     // State of requiring publish
-    pub(crate) waiting_publish: bool,
+    waiting_publish: bool,
     // Current state
-    pub(crate) id_state: IdentityState,
+    id_state: IdentityState,
+    // Subscribers
+    messages: Vec<PeerId>
 }
 
-pub struct IdDb {
-    pub(crate) owner: Vec<u8>,
-    pub(crate) identities: HashMap<Vec<u8>, IdEntry>,
+pub struct GossipState {
+    tokens: HashSet<String>,
+    identities: HashMap<Vec<u8>, IdEntry>,
 }
 
-pub struct IdStoreOptions {
-    pub(crate) owner: Identity,
-    pub(crate) event_sender: Sender<IdStoreOutEvent>,
+pub struct GossipStore{
+    state: Mutex<GossipState>
 }
 
-pub struct IdStore {
-    pub(crate) db: Mutex<IdDb>,
-    pub(crate) event_sender: Sender<IdStoreOutEvent>,
-}
-
-impl IdDb {
+impl IdStore {
     fn push_entry(&mut self, did: Identity) -> Result<(), Idp2pError> {
         let id = did.id.clone();
         let id_state = did.verify(None)?;
@@ -55,42 +34,17 @@ impl IdDb {
             did: did,
             id_state: id_state,
         };
-        self.identities.insert(id, entry);
+        self.db.insert(id, entry);
         Ok(())
     }
 }
 
 impl IdStore {
-    pub fn new(options: IdStoreOptions) -> Result<Self, Idp2pError> {
-        let db = IdDb {
-            owner: options.owner.id,
-            identities: HashMap::new(),
-        };
+    pub fn new() -> Result<Self, Idp2pError> {
         let store = Self {
-            db: Mutex::new(db),
-            event_sender: options.event_sender,
+            db: Mutex::new(HashMap::new())
         };
         Ok(store)
-    }
-
-    pub fn get_latest_agree_key(&self, id: &[u8]) -> Result<Vec<u8>, Idp2pError> {
-        let db = self.db.lock().unwrap();
-        let did = db.identities.get(id).ok_or(Idp2pError::InvalidId)?;
-        let key = did
-            .id_state
-            .get_latest_agree_key()
-            .ok_or(Idp2pError::InvalidId)?;
-        Ok(key.key_bytes.clone())
-    }
-
-    pub fn get_latest_auth_key(&self, id: &[u8]) -> Result<Vec<u8>, Idp2pError> {
-        let db = self.db.lock().unwrap();
-        let did = db.identities.get(id).ok_or(Idp2pError::InvalidId)?;
-        let key = did
-            .id_state
-            .get_latest_auth_key()
-            .ok_or(Idp2pError::InvalidId)?;
-        Ok(key.key_bytes.clone())
     }
 
     pub async fn handle_event(&self, topic: &str, event: IdStoreEvent) -> Result<(), Idp2pError> {
