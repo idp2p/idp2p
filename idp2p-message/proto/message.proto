@@ -12,9 +12,10 @@ message Idp2pOneShotMessage {
      Idp2pProof proof = 3; // Proof of agreement hint
      int64 created_at = 4; // UTC Timestamp
      oneof body {
-         TextMessage text = 5; // PubSub message(only)
-         InspectMessage inspect = 6; // PubSub message(only)
-         ConnectMessage connect = 7; // P2P message(why not pubsub?)
+         InspectRequest inspect_req = 5; // PubSub message(only)
+         InspectResponse inspect_res = 6; // PubSub message(only)
+         Connect connect = 7; // P2P connection message(why not pubsub?)
+         bytes other = 8; // PubSub or P2P  message(e.g text message)
      }
 }
  
@@ -35,9 +36,7 @@ message Idp2pConnectionMessage {
  
 message Idp2pConnectionMsgEnvelope {
      bytes connection_id = 1;
-     int64 encryption_method = 2; // AESGCM(256)
-     bytes encryption_iv = 3; // 12 or 24 bytes initial vector
-     bytes cipherbody = 4; // Encrypted connection message
+     bytes cipherbody = 2; // Encrypted connection message
 }
  
 message Idp2pMessage {

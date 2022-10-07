@@ -1,4 +1,4 @@
-#[derive(Debug, StructOpt)]
+/*#[derive(Debug, StructOpt)]
 #[structopt(name = "idp2pgossip", about = "Usage of idp2p gossip.")]
 struct Opt {
     #[structopt(short = "p", long = "port", default_value = "43727")]
@@ -17,9 +17,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 println!("{line}");
             }
             
-            pair_event = pair.recv() => {
-                
-            }
             swarm_event = swarm.select_next_some() => {
                 match swarm_event {
                     SwarmEvent::NewListenAddr { address, .. } => {
@@ -36,4 +33,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             }
         }
     }
-}
+}*/
+fn main(){}
+pub mod error;
+pub mod store;
+pub mod swarm;
