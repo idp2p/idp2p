@@ -54,7 +54,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             .build()
     };
     swarm.listen_on(format!("/ip4/127.0.0.1/tcp/{}", opt.port).parse()?)?;
-    
+
     loop {
         tokio::select! {
             line = stdin.next_line() => {
@@ -62,7 +62,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 println!("{line}");
                 swarm.behaviour_mut().pairsub.send_request(
                     &PeerId::from_str(&line)?,
-                    PairsubRequest{access_token: "abc".to_owned(), message: PairsubRequestKind::Get}
+                    PairsubRequest{message:PairsubRequestKind::Get, pair_id: "abc".to_owned() }
                  );
             }
 

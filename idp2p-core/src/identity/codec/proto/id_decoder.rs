@@ -8,7 +8,7 @@ use prost::Message;
 
 use crate::{
     error::Idp2pError,
-    decoders::proto::mapper::EventLogResolver,
+    codec::proto::mapper::EventLogResolver,
     id_state::{IdentityState, IdentityStateEventHandler},
     identity::{ChangeInput, ChangeType, CreateIdentityInput, IdEvent, Identity, IdentityDecoder},
     idp2p_proto,

@@ -1,27 +1,27 @@
 syntax = "proto3";
-package idp2p.pb;
-
-message PubsubMessage {
-    oneof pubsub_message{
-        bool resolve = 1;
-        bytes publish = 2; // bytes of microledger
-        bytes envelope = 3; // [codec][bytes of oneshotmessage]
-    }
-}
+package pairsub.pb;
 
 message PairsubMessage {
     string topic = 1;
-    PubsubMessage message = 2; 
+    bytes message = 2; 
 }
 
 message PairsubRequest {
-    string access_token = 1;
+    string pair_id = 1;
     oneof pairsub_request_kind {
         bool get = 2;
-        SubscribeMessage subscribe = 3;
-        PairsubMessage publish = 4;
+        bool notify = 3;
+        SubscribeMessage subscribe = 4;
+        UnsubscribeMessage unsubscribe = 5;
+        PublishMessage publish = 6;
     }
-    message SubscribeMessage{
+    message PublishMessage {
+        repeated PairsubMessage messages = 1;
+    }
+    message SubscribeMessage {
+        repeated string topics = 1;
+    }
+    message UnsubscribeMessage {
         repeated string topics = 1;
     }
 }
@@ -29,7 +29,7 @@ message PairsubRequest {
 message PairsubResponse {
     oneof response_status{
         bool ok = 1;
-        GetOk get_ok = 2;
+        GetResult get_result = 2;
         PairsubResponseError error = 3;
     } 
     message PairsubResponseError {
@@ -37,8 +37,7 @@ message PairsubResponse {
         string code = 2;
         string message = 3; 
     }
-    message GetOk{
+    message GetResult{
          repeated PairsubMessage messages = 1;
     }
 }
-

@@ -14,11 +14,12 @@ tokio = { version = "1.13.0", features = ["full"] }
 idp2p-common = { version = "0.1.0", path = "idp2p-common" }
 idp2p-core = { version = "0.1.0", path = "idp2p-core" }
 idp2p-pairsub = { version = "0.1.0", path = "idp2p-pairsub" }
-idp2p-gossip = { version = "0.1.0", path = "idp2p-gossip" }
 
 [workspace]
 edition = "2021"
 members = [
     "idp2p-common",
-    "idp2p-core"
+    "idp2p-core",
+    "idp2p-wallet",
+    "hosts/idp2p-gossip"
 ]

@@ -1,0 +1,18 @@
+[package]
+edition = "2021"
+name = "idp2p-id"
+version = "0.1.0"
+
+[dependencies]
+log = "0.4.16"
+thiserror = "1.0"
+libp2p = "0.46.1"
+prost = "0.10.4"
+async-trait = "0.1.53"
+tokio = { version = "1.13.0", features = ["full"] }
+idp2p-common = { version = "0.1.0", path="../idp2p-common"}
+idp2p-core = { version = "0.1.0", path="../idp2p-core"}
+idp2p-pairsub = { version = "0.1.0", path="../idp2p-pairsub"}
+
+[build-dependencies]
+prost-build = "0.10.4"

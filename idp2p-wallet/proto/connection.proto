@@ -1,0 +1,12 @@
+
+ // p2p messages with connection
+ message Idp2pConnectionMessage {
+    Idp2pProof proof = 1; // Proof of the message body
+    int64 created_at = 2; // UTC Timestamp
+    bytes body = 3; 
+}
+
+message Idp2pConnectionMsgEnvelope {
+    bytes connection_id = 1;
+    bytes cipherbody = 2; // Encrypted connection message
+}

@@ -1,0 +1,3 @@
+- Sync messages and wallet peers
+- Store messages
+- Store encrypted wallet

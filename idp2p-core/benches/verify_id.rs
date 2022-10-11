@@ -3,7 +3,7 @@ use idp2p_common::multi::ledgerkey::Idp2pLedgerKeypair;
 use idp2p_core::{identity::{
     ChangeType, IdEvent,
     ChangeInput, CreateIdentityInput, Identity, IdentityDecoder,
-}, decoders::proto::id_decoder::ProtoIdentityDecoder};
+}, codec::proto::id_decoder::ProtoIdentityDecoder};
 
 /*fn create_did() -> Identity {
     let keypair = Idp2pKeySecret::from_bytes(&[0u8; 32]).unwrap();

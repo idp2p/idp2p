@@ -1,0 +1,48 @@
+syntax = "proto3";
+package idp2p.pb;
+
+message Idp2pProof {
+
+}
+
+message Idp2pOneShotMessage {
+    bytes from = 1; // Message sender
+    bytes to = 2; // Message receiver
+    bytes signer_kid = 3;
+    bytes proof = 4; // Proof of agreement hint
+    int64 created_at = 5; // UTC Timestamp
+    oneof oneshot_message_kind {
+        TextMessage text = 6;
+        InspectRequest inspect_req = 7; // PubSub message(only)
+        InspectResponse inspect_res = 8; // PubSub message(only)
+        AgreementRequest agreement_req = 9; // P2P connection message(why not pubsub?)
+        AgreementResponse agreement_res = 10;
+        bytes other = 11; // PubSub or P2P  message(e.g text message)
+    }
+
+    message TextMessage{
+        bytes id = 1;
+        string body = 2;
+        optional bytes ref_id = 3;
+    }
+    message InspectRequest{
+
+    }
+    message InspectResponse{
+
+    }
+    message AgreementRequest{
+
+    }
+    message AgreementResponse{
+
+    }
+}
+
+message Idp2pOneShotMsgEnvelope {
+    bytes agreement_kid = 1; // Receipent agreement key id to decrypt message
+    bytes agreement_hint = 2; // Ephemeral public key(x25519) or ciphertext(kyber)
+    int64 encryption_method = 3; // AESGCM(256)
+    bytes encryption_iv = 4; // 12 or 24 bytes initial vector
+    bytes cipherbody = 5; // One time message
+}
