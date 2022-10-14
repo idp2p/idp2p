@@ -23,7 +23,7 @@ message Idp2pOneShotMessage {
     message TextMessage{
         bytes id = 1;
         string body = 2;
-        optional bytes ref_id = 3;
+        optional bytes reply_to = 3;
     }
     message InspectRequest{
 

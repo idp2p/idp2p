@@ -32,7 +32,7 @@ message EventLogPayload{
     bytes signer_key = 2; // Raw signer public key 
     bytes next_key_digest = 3; // MultiKeyDigest digest of next public key
     int64 timestamp = 4;
-    oneof change {
+    oneof mutation_kind {
         bytes recover = 5; // MultiKeyDigest of recovery public key
         IdentityEvents events = 6; // Event list
     }
@@ -42,7 +42,7 @@ message EventLogPayload{
 }
 
 message IdentityEvent {
-    oneof event_type { 
+    oneof id_event_kind { 
         Idp2pMultiKey create_assertion_key = 1; // Assertion MultiKey
         Idp2pMultiKey create_authentication_key = 2; // Authentication MultiKey
         Idp2pMultiKey create_agreement_key = 3; // Agreement MultiKey

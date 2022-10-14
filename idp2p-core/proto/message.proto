@@ -2,43 +2,60 @@ syntax = "proto3";
 import "identity.proto";
 package idp2p.pb;
 
-enum IdGossipMessageType{
-    GET = 0;
-    POST = 1;
-    MESSAGE = 2;
+message TextMessage{
+    bytes id = 1;
+    string body = 2;
+    optional bytes reply_to = 3;
 }
 
-message IdGossipMessageWithTopic {
-    string topic = 1; 
-    IdGossipMessage gossip_message = 2; 
+message RelayInfo{
+    string addr = 1;
+    int64 src_port = 2;
 }
 
-message IdGossipMessage {
-    IdGossipMessageType m_type = 1;
-    oneof payload {
-        Microledger post = 2; // Microledger of updated identity
-        IdMessageEnvelope envelope = 3;
-    }   
+message ConnectRequest {
+    bytes id = 1;
+    string peer_id = 2;
+    RelayInfo relay = 3;
 }
 
-message IdMessage {
-    bytes id = 1; // Unique message id(multihash of shared secret) 
-    bytes from = 2; // Message sender
-    bytes to = 3; // Message receiver
-    bytes signer_kid = 4; // Signer key id
-    bytes proof = 5; // Proof of agreement data with signer_kid
-    int64 created_at = 6; // UTC Timestamp
-    optional bytes reply_to = 7;
-    oneof body {
-        string text = 8;
+message ConnectResponse {
+    bytes id = 1;
+    bytes reply_to = 2;
+
+}
+
+message P2pEvent{
+
+}
+
+message Idp2pOneShotMessage {
+    bytes from = 1; // Message sender
+    bytes to = 2; // Message receiver
+    bytes kid = 3; // Signer kid for proof
+    bytes proof = 4; // Proof of agreement hint
+    int64 created_at = 5; // UTC Timestamp
+    oneof oneshot_message_kind {
+        TextMessage text = 6;
+        ConnectRequest connect_req = 7; 
+        ConnectResponse connect_res = 8;
+        P2pEvent p2p_event = 9;
+        // ...
     }
 }
 
-// id2id message
-message IdMessageEnvelope{
+message Idp2pOneShotMsgEnvelope {
     bytes agreement_kid = 1; // Receipent agreement key id to decrypt message
-    bytes agreement_data = 2; // Ephemeral public key(x25519) or ciphertext(kyber)
+    bytes agreement_hint = 2; // Ephemeral public key(x25519) or ciphertext(kyber)
     int64 encryption_method = 3; // AESGCM(256)
     bytes encryption_iv = 4; // 12 or 24 bytes initial vector
-    bytes cipherbody = 5; // Encrypted message body with codec 
+    bytes cipherbody = 5; // One time message
+}
+
+message Idp2pPubsubMessage {
+    oneof pubsub_message_kind {
+       string resolve_request = 1; // 
+       Identity resolve_response = 2;
+       Idp2pOneShotMsgEnvelope oneshot_message = 3;
+    }
 }

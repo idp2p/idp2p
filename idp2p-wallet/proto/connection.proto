@@ -8,5 +8,5 @@
 
 message Idp2pConnectionMsgEnvelope {
     bytes connection_id = 1;
-    bytes cipherbody = 2; // Encrypted connection message
+    bytes cipherbody = 2; // Encrypted message
 }

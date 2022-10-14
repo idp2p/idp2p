@@ -1,3 +1,4 @@
+mod mapper;
 use std::collections::HashMap;
 
 use idp2p_common::{
@@ -8,16 +9,13 @@ use prost::Message;
 
 use crate::{
     error::Idp2pError,
-    codec::proto::mapper::EventLogResolver,
-    id_state::{IdentityState, IdentityStateEventHandler},
-    identity::{ChangeInput, ChangeType, CreateIdentityInput, IdEvent, Identity, IdentityDecoder},
-    idp2p_proto,
+    idp2p_proto, identity::{IdentityCodec, models::{CreateInput, IdEvent, MutateInput, MutationKind}, Identity, state::IdentityState},
 };
 
-pub struct ProtoIdentityDecoder;
+pub struct ProtoIdentityCodec;
 
-impl IdentityDecoder for ProtoIdentityDecoder {
-    fn new(&self, input: CreateIdentityInput) -> Result<Identity, Idp2pError> {
+impl IdentityCodec for ProtoIdentityCodec {
+    fn new(&self, input: CreateInput) -> Result<Identity, Idp2pError> {
         let mut inception = idp2p_proto::IdentityInception {
             timestamp: input.timestamp,
             next_key_digest: input.next_key_digest,
@@ -48,23 +46,23 @@ impl IdentityDecoder for ProtoIdentityDecoder {
         Ok(did)
     }
 
-    fn change(&self, did: &mut Identity, input: ChangeInput) -> Result<bool, Idp2pError> {
-        use idp2p_proto::event_log_payload::{Change, IdentityEvents};
+    fn mutate(&self, did: &mut Identity, input: MutateInput) -> Result<bool, Idp2pError> {
+        use idp2p_proto::event_log_payload::{MutationKind as ProtoMutationKind, IdentityEvents};
         let state = self.verify(did, None)?;
         let signer_key: Idp2pLedgerPublicKey = input.signer_keypair.to_public_key();
-        let change = match input.change {
-            ChangeType::AddEvents { events } => {
+        let mutation = match input.mutation {
+            MutationKind::AddEvents { events } => {
                 let proto_events = map_events_to_proto(events, &state)?;
-                Change::Events(IdentityEvents { events: proto_events })
+                ProtoMutationKind::Events(IdentityEvents { events: proto_events })
             }
-            ChangeType::Recover(key_digest) => Change::Recover(key_digest),
+            MutationKind::Recover(key_digest) => ProtoMutationKind::Recover(key_digest),
         };
         let payload = idp2p_proto::EventLogPayload {
             previous: state.last_event_id,
             signer_key: signer_key.as_bytes().to_vec(), // Raw public bytes because it is implicitly decided with digest
             next_key_digest: input.next_key_digest,
             timestamp: Utc::now().timestamp(),
-            change: Some(change),
+            mutation_kind: Some(mutation),
         };
         let payload_bytes = payload.encode_to_vec();
         let proof = input.signer_keypair.sign(&payload_bytes)?;
@@ -112,7 +110,7 @@ impl IdentityDecoder for ProtoIdentityDecoder {
                 .ok_or(Idp2pError::RequiredField("event_type".to_string()))?;
             state.handle_event(inception.timestamp, event)?;
         }
-        use idp2p_proto::event_log_payload::Change;
+        use idp2p_proto::event_log_payload::MutationKind as ProtoMutationKind;
         for log in microledger.event_logs {
             let log_id = Idp2pId::from_bytes(&log.id)?;
             log_id.ensure(&log.payload)?;
@@ -125,12 +123,12 @@ impl IdentityDecoder for ProtoIdentityDecoder {
                 .change
                 .ok_or(Idp2pError::RequiredField("change".to_string()))?;
             match change {
-                Change::Recover(key_digest) => {
+                ProtoMutationKind::Recover(key_digest) => {
                     let signer = state.next_rec_key(&payload.signer_key)?;
                     signer.verify(&log.payload, &log.proof)?;
                     state.recovery_key_digest = key_digest;
                 }
-                Change::Events(events) => {
+                ProtoMutationKind::Events(events) => {
                     let signer = state.next_signer_key(&payload.signer_key)?;
                     signer.verify(&log.payload, &log.proof)?;
                     for event in events.events {
