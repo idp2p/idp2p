@@ -5,6 +5,7 @@ use crate::{multi::error::Idp2pMultiError, random::create_random};
 pub struct WinternitzKeypair {
     secret: [u8; winternitz::PRIVKEY_SIZE],
     public: [u8; winternitz::PUBKEY_SIZE],
+    
 }
 
 #[derive(PartialEq, Clone, Debug)]

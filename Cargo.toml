@@ -21,5 +21,6 @@ members = [
     "idp2p-common",
     "idp2p-core",
     "idp2p-wallet",
-    "hosts/idp2p-gossip"
+    "hosts/idp2p-gossip",
+    "hosts/idp2p-ledger"
 ]

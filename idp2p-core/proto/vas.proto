@@ -1,0 +1,50 @@
+syntax = "proto3";
+package idp2p.pb;
+
+/* Assertion microledger model */
+message VerifiableAssertion {
+    bytes id = 1; // Content identifier of microledger inception(See https://github.com/multiformats/cid)
+    bytes inception = 2; // Encoded bytes of inception(It is encoded because of deterministic cid)
+    repeated AssertionMutation mutations = 3; // List of mutations
+}
+
+/* Assertion inception model*/
+message AssertionInception {
+    bytes next_issuer_pk_hash = 1; // MultiKeyDigest of next public key
+    bytes next_owner_pk_hash = 2; // MultiKeyDigest of next public key
+    bytes proof = 3; // Initial assertions
+}
+
+message AssertionMutation {
+    bytes id = 1; // Multi id
+    bytes payload = 2;  // Encoded bytes of event payload(It is encoded because of deterministic event_id and signature)
+    bytes signature = 3;  // Signature of payload bytes 
+}
+
+message AssertionMutationPayload {
+    bytes previous = 1; // MultiDigest of previous event payload bytes
+    repeated AssertionKind assertions = 2;
+}
+
+message AssertionKind {
+    oneof assertion_kind {
+        OwnerAssertion owner_assertion = 1;
+        OwnerAssertion issuer_assertion = 2;
+        OwnerAssertion change_owner = 3;
+    }
+}
+
+message OwnerAssertion {
+    bytes owner_pk = 1; // Raw signer public key 
+    bytes next_owner_pk_hash = 2; // MultiKeyDigest digest of next public key
+    bytes proof = 3;
+}
+
+message IssuerAssertion {
+    bytes issuer_pk = 1; // Raw signer public key 
+    bytes next_issuer_pk_hash = 2; // MultiKeyDigest digest of next public key
+    oneof assertion_kind {
+       bytes proof = 3;
+       bytes change_owner = 3
+    }
+}

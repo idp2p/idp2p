@@ -1,0 +1,21 @@
+message ValueBlock {
+    bytes id = 1;
+    map<bytes, bytes> mutations = 2;
+}
+
+message Value {
+    bytes id = 1; // Digest of inception
+    bytes inception = 2; // MutationPayload bytes
+}
+
+message Mutation {
+    bytes payload = 1; // MutationPayload bytes
+    bytes public_key = 2; // Signer public key
+    bytes proof = 3; // Signature of payload with pk
+}
+
+message MutationPayload {
+    bytes next_public_digest = 1; // Digest of public key
+    bytes mutation_nonce = 2; // To prevent correlation
+    bytes mutation_digest = 3;  // -> It is hash(credential + nonce) 
+}

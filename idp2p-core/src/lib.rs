@@ -1,4 +1,4 @@
-pub mod identity;
+pub mod vas;
 pub mod error;
 
 pub mod idp2p_proto {
