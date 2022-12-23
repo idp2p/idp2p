@@ -1,50 +1,50 @@
 syntax = "proto3";
 package idp2p.pb;
 
-/* Assertion microledger model */
-message VerifiableAssertion {
-    bytes id = 1; // Content identifier of microledger inception(See https://github.com/multiformats/cid)
-    bytes inception = 2; // Encoded bytes of inception(It is encoded because of deterministic cid)
-    repeated AssertionMutation mutations = 3; // List of mutations
+message VerifiableCred {
+   bytes merkle_root = 1;
+   repeated string keys = 2;
+   repeated bytes seals = 3;
+}
+
+message VerifiableCreds {
+    repeated VerifiableCred creds = 1;
 }
 
 /* Assertion inception model*/
 message AssertionInception {
-    bytes next_issuer_pk_hash = 1; // MultiKeyDigest of next public key
-    bytes next_owner_pk_hash = 2; // MultiKeyDigest of next public key
-    bytes proof = 3; // Initial assertions
+    bytes ctrl_next_pk_hash = 1; // MultiKeyHash of next public key(ed25519)
+    bytes owner_next_pk_hash = 2; // MultiKeyHash of next public key(Winternitz)
+    bytes creds_hash = 3; // MultiHash of credentials
+    repeated bytes seals = 4; // MultiHash of issuer secret
 }
 
 message AssertionMutation {
-    bytes id = 1; // Multi id
-    bytes payload = 2;  // Encoded bytes of event payload(It is encoded because of deterministic event_id and signature)
-    bytes signature = 3;  // Signature of payload bytes 
+    bytes payload = 1;  // Encoded bytes of event payload(It is encoded because of deterministic event_id and signature)
+    bytes signature = 2;  // Signature of payload bytes 
 }
 
 message AssertionMutationPayload {
-    bytes previous = 1; // MultiDigest of previous event payload bytes
-    repeated AssertionKind assertions = 2;
+    oneof assertion_kind {
+        ControllerAssertion ctrl_assertion = 1;
+        OwnerAssertion owner_assertion = 2;
+        bytes revoke_seal = 3; // 
+    }
 }
 
-message AssertionKind {
-    oneof assertion_kind {
-        OwnerAssertion owner_assertion = 1;
-        OwnerAssertion issuer_assertion = 2;
-        OwnerAssertion change_owner = 3;
+message ControllerAssertion {
+    bytes ctrl_pk = 1; // Raw signer public key 
+    bytes ctrl_next_pk_hash = 2; // MultiHash digest of next public key
+    oneof ctrl_assertion_kind {
+       bool revoke = 3;
+       bytes change_owner = 4;
     }
 }
 
 message OwnerAssertion {
     bytes owner_pk = 1; // Raw signer public key 
-    bytes next_owner_pk_hash = 2; // MultiKeyDigest digest of next public key
-    bytes proof = 3;
+    bytes owner_next_pk_hash = 2; // MultiHash digest of next public key
+    bytes creds_hash = 3; // MultiHash of credentials
+    repeated bytes seals = 4; // MultiHash of issuer key
 }
 
-message IssuerAssertion {
-    bytes issuer_pk = 1; // Raw signer public key 
-    bytes next_issuer_pk_hash = 2; // MultiKeyDigest digest of next public key
-    oneof assertion_kind {
-       bytes proof = 3;
-       bytes change_owner = 3
-    }
-}
