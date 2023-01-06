@@ -1,12 +1,6 @@
 syntax = "proto3";
 package idp2p.pb;
 
-/* Identity model */
-message Identity {
-    bytes id = 1; // Content identifier of microledger inception(See https://github.com/multiformats/cid)
-    
-    Microledger microledger = 2; // All information about identity
-}
 
 /* Identity microledger model */
 message Microledger {
@@ -16,13 +10,13 @@ message Microledger {
 
 /* Identity inception model*/
 message IdentityInception {
-    bytes next_key_digest = 2; // MultiKeyDigest of next public key
-    bytes recovery_key_digest= 3; // MultiKeyDigest of next recovery public key
-    repeated IdentityEvent events = 4; // Initial events
+    bytes next_key_digest = 1; // MultiKeyDigest of next public key
+    bytes recovery_key_digest= 2; // MultiKeyDigest of next recovery public key
+    repeated IdentityEvent events = 3; // Initial events
 }
 
 message EventLog {
-    bytes id = 1; // Multi id
+    bytes id = 1; // Multi id of payload
     bytes payload = 2;  // Encoded bytes of event payload(It is encoded because of deterministic event_id and signature)
     bytes proof = 3;  // Signature of payload bytes 
 }
@@ -31,10 +25,9 @@ message EventLogPayload{
     bytes previous = 1; // MultiDigest of previous event payload bytes
     bytes signer_key = 2; // Raw signer public key 
     bytes next_key_digest = 3; // MultiKeyDigest digest of next public key
-    int64 timestamp = 4;
     oneof mutation_kind {
-        bytes recover = 5; // MultiKeyDigest of recovery public key
-        IdentityEvents events = 6; // Event list
+        bytes recover = 4; // MultiKeyDigest of recovery public key
+        IdentityEvents events = 5; // Event list
     }
     message IdentityEvents {
         repeated IdentityEvent events = 1;
@@ -49,13 +42,7 @@ message IdentityEvent {
         bytes revoke_assertion_key = 4; // Multi assertion key
         bytes revoke_authentication_key = 5; // Multi authentication key
         bytes revoke_agreement_key = 6; // Multi agreement key
-        Idp2pProof set_proof = 7; // Any proof about identity, it is the way to extend identity
     }
-}
-
-message Idp2pProof {
-    bytes key = 1; // Proof key
-    bytes value = 2; // Proof value
 }
 
 message Idp2pMultiKey {

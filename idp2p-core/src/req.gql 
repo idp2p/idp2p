@@ -1,0 +1,12 @@
+{
+  addresses{
+    work{
+      zipcode,
+      city("New York", "Washington")
+    }
+    home{
+      city,
+      zipcode
+    }
+  }
+}
