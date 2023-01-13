@@ -1,7 +1,7 @@
 syntax = "proto3";
 package idp2p.pb;
 
-message VerifiableProofEventKind {
+message VerifiableCredentialEventKind {
     oneof event_kind {
         bytes inception = 1;
         bytes mutation = 2;
@@ -10,7 +10,7 @@ message VerifiableProofEventKind {
 }
 
 /* Assertion inception model*/
-message VerifiableProofInception {
+message VerifiableCredentialInception {
     bytes root_next_pk_hash = 1; // MultiKeyHash of next public key(Winternitz)
     bytes owner_next_pk_hash = 2; // MultiKeyHash of next public key(ed25519)
     bytes cred_proof_tree_root = 3; // MultiHash of credentials
