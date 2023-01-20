@@ -1,38 +1,39 @@
-use idp2p_common::{
-    multi::id::{Idp2pCodec, Idp2pId},
-    sdt::TrieNode,
-};
-use crate::{
-    error::Idp2pError,
-    idp2p_proto::{
-        self, 
-    },
+use idp2p_common::multi::{
+    id::{Idp2pCodec, Idp2pId},
 };
 
-#[derive(PartialEq, Debug, Clone)]
-pub struct CreateInput {
-    // Next key digest(multikey digest)
-    pub root_next_pk_hash: Vec<u8>,
-    // Recovery key digest(multikey digest)
-    pub owner_next_pk_hash: Vec<u8>,
-    pub sdt_proof: Vec<u8>
-}
+use crate::error::Idp2pError;
+
+use self::{models::{MutateInput, CreateInput}, state::IdentityState, codec::proto::ProtoIdentityCodec};
+;
 
 #[derive(PartialEq, Debug, Clone)]
 pub struct Identity {
     pub id: Vec<u8>,
-    pub sdt: TrieNode, // private
-    pub microledger: idp2p_proto::Microledger, // public
+    pub sdt: TrieNode,
+    pub assertion_keys: Vec<AssertionPublicKeyState>,
+    pub authentication_keys: Vec<AuthenticationPublicKeyState>,
+    pub agreement_keys: Vec<AgreementPublicKeyState>,
+    pub microledger: Vec<u8>,
+}
+
+pub trait IdentityCodec {
+    fn new(&self, input: CreateInput) -> Result<Identity, Idp2pError>;
+    fn mutate(&self, did: &mut Identity, input: MutateInput) -> Result<bool, Idp2pError>;
+    fn verify(&self, did: &Identity, prev: Option<&Identity>) -> Result<IdentityState, Idp2pError>;
 }
 
 impl Identity {
-    pub fn new(input: CreateInput) -> Result<Identity, Idp2pError> {
-        
+    pub fn new_protobuf(input: CreateInput) -> Result<Identity, Idp2pError> {
+        ProtoIdentityCodec.new(input)
     }
 
     pub fn mutate(&mut self, input: MutateInput) -> Result<bool, Idp2pError> {
         let id = Idp2pId::from_bytes(&self.id)?;
-        
+        match id.codec {
+            Idp2pCodec::Protobuf => ProtoIdentityCodec.mutate(self, input),
+            Idp2pCodec::Json => todo!(),
+        }
     }
 
     /// Verify an identity and get state of identity
@@ -69,7 +70,7 @@ impl Identity {
              "name": "Adem",
              "birthday": "01.01.2011",
              "seals": {
-
+                
              }
           }
        }

@@ -1,9 +1,9 @@
-message IdentityEvent {
-    oneof event_kind {
-        Inception inception = 1;
-        Mutation mutation = 2;
-        Recover recover = 3;
-    }
+syntax = "proto3";
+package idp2p.pb;
+
+message Microledger {
+    bytes inception = 1;
+    repeated Mutation mutations = 2;
 }
 
 /* Identity inception model*/
@@ -11,21 +11,39 @@ message Inception {
     bytes root_next_pk_hash = 1; // MultiKeyHash of next public key(Winternitz)
     bytes owner_next_pk_hash = 2; // MultiKeyHash of next public key(ed25519)
     bytes sdt_proof = 3; // MultiHash of trie root
+    AssertionKeys assertion_keys = 4;
 }
 
 message Mutation {
     bytes payload = 1;  // Encoded bytes of mutation payload(It is encoded because of deterministic event_id and signature)
-    bytes signature = 2;  // Signature of payload bytes(signed with owner pk)
+    bytes signature = 2;  // Signature of payload bytes(signed with owner or root pk )
 }
 
 message MutationPayload {
+    oneof mutation_kind {
+        SetProof set_proof = 1;
+        Recover recover = 2;
+    }
+}
+
+message SetProof {
     bytes owner_pk = 1; // Raw signer public key 
     bytes owner_next_pk_hash = 2; // MultiHash digest of next public key
     bytes sdt_proof = 3; // MultiHash of credentials
+    AssertionKeys assertion_keys = 4;
 }
 
 message Recover {
     bytes root_pk = 1; // Raw signer public key 
     bytes root_next_pk_hash = 2; // MultiHash digest of next public key
     bytes owner_next_pk_hash = 3; // MultiHash of trie root
+}
+
+message Idp2pMultiKey {
+    bytes id = 1; // Id of the key
+    bytes bytes = 2; // Value of the key
+}
+
+message AssertionKeys {
+    repeated Idp2pMultiKey keys = 1;
 }

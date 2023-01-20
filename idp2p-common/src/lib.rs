@@ -1,4 +1,5 @@
 pub mod multi;
+pub mod sdt;
 pub mod random;
 pub mod serde_vec;
 pub use thiserror;
