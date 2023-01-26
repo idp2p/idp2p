@@ -69,7 +69,7 @@ impl Identity {
              "name": "Adem",
              "birthday": "01.01.2011",
              "seals": {
-
+               
              }
           }
        }
