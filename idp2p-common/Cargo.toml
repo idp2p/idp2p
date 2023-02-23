@@ -6,7 +6,7 @@ version = "0.1.0"
 [dependencies]
 log = "0.4.16"
 regex = "1.5.5"
-thiserror = "1.0"
+thiserror = "1.0.38"
 multibase = "0.9.1"
 chrono = "0.4.19"
 cid = "0.7.0"

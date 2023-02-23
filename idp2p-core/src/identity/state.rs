@@ -2,37 +2,6 @@ use std::collections::HashMap;
 
 use idp2p_common::multi::ledgerkey::{Idp2pLedgerPublicDigest, Idp2pLedgerPublicKey};
 
-use crate::error::Idp2pError;
-#[derive(PartialEq, Debug, Clone)]
-pub struct AssertionPublicKeyState {
-    pub id: Vec<u8>,
-    pub valid_at: i64,
-    pub expired_at: Option<i64>,
-    pub key_bytes: Vec<u8>,
-}
-
-#[derive(PartialEq, Debug, Clone)]
-pub struct AuthenticationPublicKeyState {
-    pub id: Vec<u8>,
-    pub valid_at: i64,
-    pub expired_at: Option<i64>,
-    pub key_bytes: Vec<u8>,
-}
-
-#[derive(PartialEq, Debug, Clone)]
-pub struct AgreementPublicKeyState {
-    pub id: Vec<u8>,
-    pub valid_at: i64,
-    pub expired_at: Option<i64>,
-    pub key_bytes: Vec<u8>,
-}
-
-#[derive(PartialEq, Debug, Clone)]
-pub struct ProofState {
-    pub valid_at: i64,
-    pub expired_at: Option<i64>,
-    pub value: Vec<u8>,
-}
 
 #[derive(PartialEq, Debug, Clone)]
 pub struct IdentityState {
@@ -40,10 +9,7 @@ pub struct IdentityState {
     pub last_event_id: Vec<u8>,
     pub next_key_digest: Vec<u8>,
     pub recovery_key_digest: Vec<u8>,
-    pub assertion_keys: Vec<AssertionPublicKeyState>,
-    pub authentication_keys: Vec<AuthenticationPublicKeyState>,
-    pub agreement_keys: Vec<AgreementPublicKeyState>,
-    pub proofs: HashMap<Vec<u8>, ProofState>,
+    pub proofs: Vec<Vec<u8>>
 }
 
 pub trait IdentityStateEventMapper<T> {

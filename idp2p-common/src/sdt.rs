@@ -77,6 +77,20 @@ mod tests {
     use super::*;
     #[test]
     fn trie_test() {
+        /*
+          {
+            "subject": "idp2p://xxxx",
+            "previous": {
+               "subject": "idp2p://xxxx",
+               "body": {
+
+                }  
+            },
+            "body": {
+
+             }
+          }
+         */  
         let personal = TrieNode::new_branch("personal", vec![TrieNode::new_claim("name", "Adem")]);
         let assertion_key1 = TrieNode::new_claim("key1", "11111111");
         let assertion_keys = TrieNode::new_branch("assertion_keys", vec![assertion_key1]);

@@ -1,33 +1,6 @@
 syntax = "proto3";
-import "identity.proto";
+import "id.proto";
 package idp2p.pb;
-
-message TextMessage{
-    bytes id = 1;
-    string body = 2;
-    optional bytes reply_to = 3;
-}
-
-message RelayInfo{
-    string addr = 1;
-    int64 src_port = 2;
-}
-
-message ConnectRequest {
-    bytes id = 1;
-    string peer_id = 2;
-    RelayInfo relay = 3;
-}
-
-message ConnectResponse {
-    bytes id = 1;
-    bytes reply_to = 2;
-
-}
-
-message P2pEvent{
-
-}
 
 message Idp2pOneShotMessage {
     bytes from = 1; // Message sender
@@ -35,13 +8,7 @@ message Idp2pOneShotMessage {
     bytes kid = 3; // Signer kid for proof
     bytes proof = 4; // Proof of agreement hint
     int64 created_at = 5; // UTC Timestamp
-    oneof oneshot_message_kind {
-        TextMessage text = 6;
-        ConnectRequest connect_req = 7; 
-        ConnectResponse connect_res = 8;
-        P2pEvent p2p_event = 9;
-        // ...
-    }
+    bytes body = 6; // Message body
 }
 
 message Idp2pOneShotMsgEnvelope {
@@ -52,10 +19,20 @@ message Idp2pOneShotMsgEnvelope {
     bytes cipherbody = 5; // One time message
 }
 
+message Idp2pResolveCommit {
+    bytes public_key = 1; //
+    bytes last_event_id = 2;
+    bytes signature = 3; 
+}
+
 message Idp2pPubsubMessage {
+    bytes id = 1; // Message id(Multihash of public key)
+    bytes subject = 2; // This message is about(the first byte is topic)
     oneof pubsub_message_kind {
-       string resolve_request = 1; // 
-       Identity resolve_response = 2;
-       Idp2pOneShotMsgEnvelope oneshot_message = 3;
+       bool resolve_request = 3; 
+       Idp2pMicroledger resolve_response = 4; // 
+       Idp2pResolveCommit resolve_commit = 5;
+       Idp2pEvent microledger_event = 6;
+       Idp2pOneShotMsgEnvelope oneshot_message = 7;
     }
 }
