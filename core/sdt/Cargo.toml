@@ -1,0 +1,17 @@
+[package]
+name = "idp2p-sdt"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+log = "0.4.16"
+thiserror = "1.0.38"
+rand = "0.8.5"
+hex = "0.4.2"
+sha2 = "0.10.1"
+serde_json = "1.0.81"
+serde = { version = "1.0.130", features = ["derive"] }
+[dependencies.serde_with]
+version = "1.11.0"
+features = [ "macros" ]
+

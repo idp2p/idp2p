@@ -11,12 +11,14 @@ colored = "2.0.0"
 libp2p = "0.46.1"
 serde = { version = "1.0.130", features = ["derive"] }
 tokio = { version = "1.13.0", features = ["full"] }
-idp2p-common = { version = "0.1.0", path = "idp2p-common" }
-idp2p-core = { version = "0.1.0", path = "idp2p-core" }
+idp2p-common = { version = "0.1.0", path = "core/common" }
+idp2p-identity = { version = "0.1.0", path = "core/identity" }
+idp2p-pairsub = { version = "0.1.0", path = "comm/pairsub" }
 
 [workspace]
 edition = "2021"
 members = [
-    "idp2p-common",
-    "idp2p-core"
+    "core/common",
+    "core/identity",
+    "comm/pairsub"
 ]

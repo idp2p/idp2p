@@ -1,0 +1,39 @@
+syntax = "proto3";
+package idp2p.pb;
+
+message Idp2pMicroledger {
+    bytes inception = 1;
+    repeated Idp2pEvent events = 2;
+}
+
+/* Identity inception model*/
+message Idp2pInception {
+    bytes root_next_pk_hash = 1; // MultiKeyHash of next public key(Winternitz)
+    bytes owner_next_pk_hash = 2; // MultiKeyHash of next public key(ed25519)
+}
+
+message Idp2pEvent {
+    bytes id = 1;
+    bytes payload = 2;  // Encoded bytes of mutation payload(It is encoded because of deterministic event_id and signature)
+    bytes signature = 3;  // Signature of payload bytes(signed with owner or root pk )
+}
+
+message Idp2pEventPayload {
+    bytes previous = 1;
+    oneof event_kind {
+        Idp2pMutation mutation = 2;
+        Idp2pRecover recover = 3;
+    }
+}
+
+message Idp2pMutation {
+    bytes owner_pk = 1; // Raw signer public key 
+    bytes owner_next_pk_hash = 2; // MultiHash digest of next public key
+    bytes proof = 3; // MultiHash of claims
+}
+
+message Idp2pRecover {
+    bytes root_pk = 1; // Raw signer public key 
+    bytes root_next_pk_hash = 2; // MultiHash digest of next public key
+    bytes owner_next_pk_hash = 3; // MultiHash of trie root
+}
