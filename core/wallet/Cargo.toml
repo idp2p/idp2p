@@ -1,16 +1,12 @@
 [package]
-name = "idp2p-sdt"
-version = "0.1.0"
 edition = "2021"
+name = "idp2p-wallet"
+version = "0.1.0"
 
 [dependencies]
 log = "0.4.16"
 thiserror = "1.0.38"
-serde_json = "1.0.81"
+tokio = { version = "1.13.0", features = ["full"] }
 serde = { version = "1.0.130", features = ["derive"] }
 idp2p-common = { version = "0.1.0", path="../common"}
-
-[dependencies.serde_with]
-version = "1.11.0"
-features = [ "macros" ]
-
+idp2p-sdt = { version = "0.1.0", path="../sdt"}

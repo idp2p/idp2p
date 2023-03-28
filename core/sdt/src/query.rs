@@ -1,10 +1,4 @@
-use rand::{thread_rng, RngCore};
-use serde::Serialize;
-use sha2::Digest;
-
-use crate::error::SdtError;
-
-pub(crate) fn create_random<const N: usize>() -> [u8; N] {
+/*pub(crate) fn create_random<const N: usize>() -> [u8; N] {
     let mut key_data = [0u8; N];
     let mut key_rng = thread_rng();
     key_rng.fill_bytes(&mut key_data);
@@ -21,7 +15,7 @@ pub(crate) fn digest_hex(payload: &str) -> String {
 
 pub(crate) fn to_hex_str<T: AsRef<[u8]>>(data: T) -> String{
    format!("0x{}", hex::encode(data))
-}
+}*/
 
 #[derive(PartialEq, Debug, Clone)]
 struct QueryNode {

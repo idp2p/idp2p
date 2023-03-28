@@ -2,15 +2,13 @@ pub mod error;
 pub mod node;
 pub mod proof;
 pub mod service;
-pub mod utils;
+pub mod query;
 pub mod value;
 
 use proof::SdtProof;
 use error::SdtError;
 use node::SdtNode;
 use serde::{Deserialize, Serialize};
-
-const VERSION: u64 = 0x1;
 
 #[derive(PartialEq, Debug, Clone, Serialize, Deserialize)]
 pub struct SdtItem {
@@ -20,7 +18,6 @@ pub struct SdtItem {
 
 #[derive(PartialEq, Debug, Clone, Serialize, Deserialize)]
 pub struct Sdt {
-    pub version: u64, // JSON + HEX + SHA256
     pub subject: String,
     pub inception: SdtItem,
 }
@@ -58,7 +55,6 @@ impl SdtItem {
 impl Sdt {
     pub fn new(sub: &str, node: SdtNode) -> Self {
         Sdt {
-            version: VERSION,
             subject: sub.to_owned(),
             inception: SdtItem { node, next: None },
         }
@@ -83,7 +79,6 @@ impl Sdt {
     pub fn gen_proof(&self) -> Result<String, SdtError> {
         let inception_root = self.inception.node.gen_proof()?;
         let inception_proof = SdtProof::new()
-            .insert_i64("version", VERSION as i64)
             .insert_str("subject", &self.subject)
             .insert_str("root", &inception_root)
             .digest()?;

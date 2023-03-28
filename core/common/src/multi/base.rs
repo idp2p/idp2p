@@ -2,6 +2,7 @@ use super::error::Idp2pMultiError;
 
 pub enum Idp2pBase {
     Base58Btc,
+    Hex
 }
 
 impl Default for Idp2pBase {
@@ -14,6 +15,7 @@ impl Idp2pBase {
     pub fn encode<T: AsRef<[u8]>>(&self, bytes: T) -> String {
         match self {
             Idp2pBase::Base58Btc => multibase::encode(multibase::Base::Base58Btc, bytes),
+            Idp2pBase::Hex => multibase::encode(multibase::Base::Base16Lower, bytes),
         }
     }
 

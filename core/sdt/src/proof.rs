@@ -1,6 +1,7 @@
 use std::collections::BTreeMap;
+use idp2p_common::utils::digest;
 use serde::{Deserialize, Serialize};
-use crate::{error::SdtError, utils::digest, value::SdtValueKind};
+use crate::{error::SdtError, value::SdtValueKind};
 
 #[derive(PartialEq, Debug, Clone, Serialize, Deserialize)]
 pub struct SdtProof(BTreeMap<String, SdtValueKind>);
@@ -25,6 +26,6 @@ impl SdtProof {
     }
 
     pub fn digest(&mut self) -> Result<String, SdtError> {
-        digest(&self.0)
+        Ok(digest(&self.0)?)
     }
 }

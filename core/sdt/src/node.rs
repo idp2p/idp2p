@@ -6,7 +6,7 @@ use serde_json::Number;
 use crate::{
     error::SdtError,
     proof::SdtProof,
-    utils::parse_query,
+    query::parse_query,
     value::{SdtValue, SdtValueKind},
 };
 #[derive(PartialEq, Debug, Clone, Serialize, Deserialize)]
