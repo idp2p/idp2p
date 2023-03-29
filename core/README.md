@@ -7,4 +7,4 @@
 - `Common`: 
 - `Identity`:
 - `Sdt`:
-- `Wallet`:
+- `Consent`:

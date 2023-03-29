@@ -27,6 +27,7 @@ impl Identity {
         let inception = idp2p_proto::Idp2pInception {
             owner_next_pk_hash: owner_pk_hash.to_vec(),
             root_next_pk_hash: root_pk_hash.to_vec(),
+            anchor_method: None
         }
         .encode_to_vec();
         let id = Idp2pId::new(1, &inception);

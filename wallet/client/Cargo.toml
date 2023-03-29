@@ -1,12 +1,13 @@
 [package]
 edition = "2021"
-name = "idp2p-wallet"
+name = "idp2p-client-wallet"
 version = "0.1.0"
 
 [dependencies]
 log = "0.4.16"
 thiserror = "1.0.38"
+bincode = "1.3.3"
 tokio = { version = "1.13.0", features = ["full"] }
 serde = { version = "1.0.130", features = ["derive"] }
-idp2p-common = { version = "0.1.0", path="../common"}
-idp2p-sdt = { version = "0.1.0", path="../sdt"}
+idp2p-common = { version = "0.1.0", path="../../core/common"}
+idp2p-sdt = { version = "0.1.0", path="../../core/sdt"}

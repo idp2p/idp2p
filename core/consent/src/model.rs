@@ -1,7 +1,20 @@
-pub struct Consent {
+pub struct ConsentRequest {
+    pub id: String,
     pub context: String,
     pub subject: String,
-    pub consents: Vec<ConsentKind>,
+    pub verifier: String,
+    pub body: Vec<ConsentKind>
+}
+
+// Verifier proof
+// Subject proof + sdt
+
+pub struct Consent {
+    pub id: String,
+    pub context: String,
+    pub from: String,
+    pub to: String,
+    pub body: Vec<ConsentKind>,
 }
 
 pub enum ConsentKind {

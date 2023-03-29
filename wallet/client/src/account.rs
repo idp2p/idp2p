@@ -5,9 +5,9 @@ use std::{
 
 use idp2p_common::chrono::Utc;
 use idp2p_sdt::Sdt;
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 
-use crate::{error::WalletError, consent::Consent};
+use crate::{error::WalletError};
 
 #[derive(PartialEq, Debug, Clone, Serialize, Deserialize)]
 pub struct Account {
@@ -37,41 +37,42 @@ pub struct AccountRaw {
     pub assert_priv_key: Vec<u8>,
     pub agree_priv_key: Vec<u8>,
     pub profile: Sdt,
-    pub proofs: Vec<String>
+    pub proofs: Vec<String>,
 }
 
 #[derive(PartialEq, Debug, Clone, Serialize, Deserialize)]
 pub struct Wallet {
     pub salt: Vec<u8>,
-    pub accounts: HashMap<String, Account>
+    pub username: String, // Default username
+    pub accounts: HashMap<String, Account>,
 }
 
 #[derive(Debug, Clone)]
 pub struct WalletStore(Arc<Mutex<Wallet>>);
 
 impl WalletStore {
-    pub fn new(pwd: &str) -> Result<(), WalletError> {
-        // Create a wallet
-        todo!()
-    }
-
-    pub fn load(&self) -> Result<Vec<String>, WalletError> {
+    pub fn load(&self) -> Result<(), WalletError> {
         todo!()
     }
 
     pub fn new_account(
-        name: &str,
+        username: &str,
         pwd: &str,
         raw: AccountRaw,
     ) -> Result<AccountResult, WalletError> {
         todo!()
     }
 
-    pub fn login(&self, name: &str, pwd: &str) -> Result<AccountResult, WalletError> {
+    pub fn login(&self, pwd: &str, username: Option<&str>) -> Result<AccountResult, WalletError> {
         let mut db = self.0.lock().unwrap();
-        if let Some(acc) = db.accounts.get_mut(name) {
+        let user = if let Some(username) = username {
+            username.to_owned()
+        } else {
+            db.username.clone()
+        };
+        if let Some(acc) = db.accounts.get_mut(&user) {
             let createt_at = Utc::now().timestamp();
-            /*let raw = 
+            /*let raw =
             acc.session = AccountSession{
                 created_at: DateTime::timestamp(),
                 raw: raw,
@@ -95,7 +96,5 @@ impl AccountSession {
         todo!()
     }
 
-    pub fn assert(consent: Consent) {
-        
-    }
+    pub fn assert() {}
 }
