@@ -4,7 +4,7 @@ use std::fmt;
 use self::text::{Heading, Text, TextKind};
 
 #[derive(PartialEq, Eq, Clone)]
-pub struct Consent {
+pub struct ConsentView {
     pub header: Header,
     pub body: Body,
     pub footer: Footer,

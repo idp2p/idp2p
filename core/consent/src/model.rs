@@ -1,31 +1,21 @@
 pub struct ConsentRequest {
-    pub id: String,
+    pub id: String, 
     pub context: String,
     pub subject: String,
     pub verifier: String,
-    pub body: Vec<ConsentKind>
+    pub disclosures: Vec<Disclosure>,
+    pub contract: Value,
+    pub payments: Vec<Payment>,
+    pub view: ConsentView,
 }
 
 // Verifier proof
-// Subject proof + sdt
+// Subject proof 
+// Information(Sdt)
 
-pub struct Consent {
-    pub id: String,
-    pub context: String,
-    pub from: String,
-    pub to: String,
-    pub body: Vec<ConsentKind>,
-}
-
-pub enum ConsentKind {
-    Disclosure {
-        latest: bool,
-        query: String,
-    },
-    Assertion {
-        data: String,
-        payment: Option<Payment>,
-    },
+pub struct Disclosure {
+    latest: bool,
+    query: String,
 }
 
 pub struct Payment {
