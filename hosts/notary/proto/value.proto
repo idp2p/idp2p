@@ -1,0 +1,15 @@
+syntax = "proto3";
+package idp2p.pb;
+
+message BatchKeyValue {
+    bytes key = 1;
+    bytes value = 2;
+}
+
+message Batch {
+    repeated BatchKeyValue values = 1;
+}
+
+message Block {
+    repeated bytes batch = 1;
+}

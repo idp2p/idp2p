@@ -26,8 +26,7 @@ impl Identity {
     pub fn new(owner_pk_hash: &[u8], root_pk_hash: &[u8]) -> Result<Identity, Idp2pError> {
         let inception = idp2p_proto::Idp2pInception {
             owner_next_pk_hash: owner_pk_hash.to_vec(),
-            root_next_pk_hash: root_pk_hash.to_vec(),
-            anchor_method: None
+            root_next_pk_hash: root_pk_hash.to_vec()
         }
         .encode_to_vec();
         let id = Idp2pId::new(1, &inception);

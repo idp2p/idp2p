@@ -1,14 +1,28 @@
-use crate::{error::SdtError, node::SdtClaim, Sdt};
+use crate::{error::SdtError, node::SdtClaim, Sdt, SdtContext};
 use serde::{Deserialize, Serialize};
 
 #[derive(PartialEq, Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "cmd", content = "payload")]
 pub enum SdtInput {
-    Inception { subject: String, claim: SdtClaim },
-    Mutation { sdt: Sdt, claim: SdtClaim },
-    Selection { sdt: Sdt, query: String },
+    Inception {
+        subject: String,
+        context: SdtContext,
+        claim: SdtClaim,
+    },
+    Mutation {
+        sdt: Sdt,
+        context: SdtContext,
+        claim: SdtClaim,
+    },
+    Selection {
+        sdt: Sdt,
+        query: String,
+    },
     Proof(Sdt),
-    Verification { sdt: Sdt, proof: String },
+    Verification {
+        sdt: Sdt,
+        proof: String,
+    },
 }
 
 #[derive(PartialEq, Debug, Clone, Serialize, Deserialize)]
@@ -39,12 +53,18 @@ impl SdtService {
     fn execute_inner(&self) -> Result<SdtResult, SdtError> {
         let input: SdtInput = serde_json::from_str(&self.0)?;
         let result = match input {
-            SdtInput::Inception { subject, claim } => {
-                SdtResult::Inception(Sdt::new(&subject, claim.to_node()))
-            }
-            SdtInput::Mutation { sdt, claim } => {
+            SdtInput::Inception {
+                subject,
+                context,
+                claim,
+            } => SdtResult::Inception(Sdt::new(&subject, context, claim.to_node())),
+            SdtInput::Mutation {
+                sdt,
+                context,
+                claim,
+            } => {
                 let mut sdt_clone = sdt.clone();
-                SdtResult::Mutation(sdt_clone.mutate(claim.to_node()).build())
+                SdtResult::Mutation(sdt_clone.mutate(context, claim.to_node()).build())
             }
             SdtInput::Selection { sdt, query } => {
                 let mut sdt_clone = sdt.clone();
@@ -64,13 +84,17 @@ mod tests {
 
     #[test]
     fn parse_test() -> Result<(), SdtError> {
+        let context = r#"{
+            "/idp2p/personal": "/ipfs/bafyb...",
+            "/idp2p/keys": "/ipfs/bafyb..."
+        }"#;
         let claim_str = r#"{
-            "personal": {
+            "/idp2p/personal": {
                "name": "Adem",
                "surname": "Çağlın",
                "age": 5
             },
-            "keys": {
+            "/idp2p/keys": {
                "assertions": {
                   "key-1": "0x12...."
                }
@@ -79,6 +103,7 @@ mod tests {
         let claim: SdtClaim = serde_json::from_str(claim_str)?;
         let cmd = SdtInput::Inception {
             subject: "did:p2p:123456".to_owned(),
+            context: serde_json::from_str::<SdtContext>(context)?,
             claim: claim,
         };
         let svc = SdtService(serde_json::to_string(&cmd)?);

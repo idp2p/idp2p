@@ -19,13 +19,6 @@ pub struct Account {
 }
 
 #[derive(PartialEq, Debug, Clone, Serialize, Deserialize)]
-pub struct AccountResult {
-    pub id: String,
-    pub ttl: u32,
-    pub session: Option<i64>,
-}
-
-#[derive(PartialEq, Debug, Clone, Serialize, Deserialize)]
 pub struct AccountSession {
     pub created_at: i64,
     pub raw: AccountRaw,
@@ -43,7 +36,7 @@ pub struct AccountRaw {
 #[derive(PartialEq, Debug, Clone, Serialize, Deserialize)]
 pub struct Wallet {
     pub salt: Vec<u8>,
-    pub username: String, // Default username
+    pub default_user: String,
     pub accounts: HashMap<String, Account>,
 }
 
@@ -59,16 +52,16 @@ impl WalletStore {
         username: &str,
         pwd: &str,
         raw: AccountRaw,
-    ) -> Result<AccountResult, WalletError> {
+    ) -> Result<(), WalletError> {
         todo!()
     }
 
-    pub fn login(&self, pwd: &str, username: Option<&str>) -> Result<AccountResult, WalletError> {
+    pub fn login(&self, pwd: &str, username: Option<&str>) -> Result<(), WalletError> {
         let mut db = self.0.lock().unwrap();
         let user = if let Some(username) = username {
             username.to_owned()
         } else {
-            db.username.clone()
+            db.default_user.clone()
         };
         if let Some(acc) = db.accounts.get_mut(&user) {
             let createt_at = Utc::now().timestamp();

@@ -1,0 +1,4 @@
+- Generate block
+- Attest block
+- Propagate block
+- Commit block

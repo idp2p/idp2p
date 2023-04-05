@@ -1,0 +1,28 @@
+message ContractBody {
+    bytes nonce = 1;
+    string context = 2;
+    bytes subject = 3;
+    bytes verifier = 4;
+    bytes payload = 5;
+    repeated Query queries = 6;
+    repeated Payment payments = 7;
+}
+
+message Query {
+    bool latest = 1;
+    string payload = 2;
+}
+
+message Payment {
+    string address = 1; // crypto address
+    string method = 2;  // btc, eth ...
+    double amount = 3;   // payment amount
+}
+
+message Idp2pContract {
+    bytes id = 1;
+    bytes payload = 2;  
+    bytes verifier_sig = 3;  
+    bytes subject_sig = 4;
+    Idp2pProof proof = 5;
+}

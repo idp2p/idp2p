@@ -1,4 +1,4 @@
-pub struct ConsentRequest {
+pub struct ContractRequest {
     pub id: String, 
     pub context: String,
     pub subject: String,

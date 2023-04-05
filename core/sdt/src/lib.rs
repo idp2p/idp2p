@@ -1,17 +1,21 @@
 pub mod error;
 pub mod node;
 pub mod proof;
-pub mod service;
 pub mod query;
+pub mod service;
 pub mod value;
 
-use proof::SdtProof;
+use std::collections::HashMap;
+
 use error::SdtError;
 use node::SdtNode;
+use proof::SdtProof;
 use serde::{Deserialize, Serialize};
 
+pub type SdtContext = HashMap<String, String>;
 #[derive(PartialEq, Debug, Clone, Serialize, Deserialize)]
 pub struct SdtItem {
+    pub context: SdtContext,
     pub node: SdtNode,
     pub next: Option<Box<SdtItem>>,
 }
@@ -53,16 +57,24 @@ impl SdtItem {
 }
 
 impl Sdt {
-    pub fn new(sub: &str, node: SdtNode) -> Self {
+    pub fn new(sub: &str, ctx: SdtContext, node: SdtNode) -> Self {
         Sdt {
             subject: sub.to_owned(),
-            inception: SdtItem { node, next: None },
+            inception: SdtItem {
+                context: ctx,
+                node,
+                next: None,
+            },
         }
     }
 
-    pub fn mutate(&mut self, node: SdtNode) -> &mut Self {
+    pub fn mutate(&mut self, ctx: SdtContext, node: SdtNode) -> &mut Self {
         let current = self.inception.find_current();
-        current.next = Some(Box::new(SdtItem { node, next: None }));
+        current.next = Some(Box::new(SdtItem {
+            context: ctx,
+            node,
+            next: None,
+        }));
         self
     }
 
@@ -142,11 +154,11 @@ mod tests {
         let new_claim: SdtClaim = serde_json::from_str(new_claim_str)?;
         let mutation: SdtClaim = serde_json::from_str(mutation_str)?;
         let mutation2: SdtClaim = serde_json::from_str(mutation2_str)?;
-        let mut sdt = Sdt::new("did:p2p:123456", new_claim.to_node())
-            .mutate(mutation.to_node())
-            .mutate(mutation2.to_node())
+        let mut sdt = Sdt::new("did:p2p:123456", HashMap::new(), new_claim.to_node())
+            .mutate(HashMap::new(), mutation.to_node())
+            .mutate(HashMap::new(), mutation2.to_node())
             .build();
-        sdt.mutate(SdtNode::new());
+        sdt.mutate(HashMap::new(), SdtNode::new());
         let proof = sdt.gen_proof()?;
         let selected = sdt.select(query)?;
         let proof2 = selected.gen_proof()?;
