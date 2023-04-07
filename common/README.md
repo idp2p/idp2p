@@ -7,6 +7,3 @@
 - `Common`: 
 - `Sdt`:
 - `Proof`:
-- `Identity`:
-- `Credential`:
-- `Contract`:

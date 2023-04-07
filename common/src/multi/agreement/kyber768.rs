@@ -1,4 +1,4 @@
-use crate::multi::error::Idp2pMultiError;
+use crate::error::Idp2pMultiError;
 
 use super::{AgreementPublicBehaviour, AgreementSecretBehaviour, AgreementShared};
 use pqcrypto_kyber::ffi::*;

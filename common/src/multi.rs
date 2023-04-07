@@ -5,7 +5,4 @@ pub mod authentication;
 pub mod ledgerkey;
 pub mod hash;
 pub mod id;
-pub mod base;
-pub mod message;
-pub mod encryption;
 pub mod error;

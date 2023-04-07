@@ -1,4 +1,4 @@
-use crate::{multi::error::Idp2pMultiError, random::create_random};
+use crate::{error::Idp2pMultiError, random::create_random};
 
 use super::{ AgreementPublicBehaviour, AgreementShared, AgreementSecretBehaviour};
 

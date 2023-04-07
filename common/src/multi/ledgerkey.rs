@@ -149,7 +149,7 @@ impl Idp2pLedgerPublicDigest {
 
 #[cfg(test)]
 mod tests {
-    use crate::multi::verification::winternitz::WinternitzKeypair;
+    use crate::verification::winternitz::WinternitzKeypair;
 
     use super::*;
     #[test]
