@@ -2,7 +2,7 @@ use ed25519_dalek::{
     Keypair, PublicKey, SecretKey, Signature, Signer as EdSigner, Verifier as EdVerifier,
 };
 
-use crate::{multi::error::Idp2pMultiError, random::create_random};
+use crate::{multi::error::Idp2pMultiError, create_random};
 
 use super::{Signer, Verifier};
 pub const ED25519_PUBLIC_SIZE: usize = 32;

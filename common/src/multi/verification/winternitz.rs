@@ -1,5 +1,5 @@
 use super::{Signer, Verifier};
-use crate::{multi::error::Idp2pMultiError, random::create_random};
+use crate::{multi::error::Idp2pMultiError, create_random};
 
 #[derive(PartialEq, Clone, Debug)]
 pub struct WinternitzKeypair {

@@ -1,5 +1,4 @@
-use crate::{error::Idp2pMultiError, random::create_random};
-
+use crate::{create_random, multi:: error::Idp2pMultiError};
 use super::{ AgreementPublicBehaviour, AgreementShared, AgreementSecretBehaviour};
 
 use rand::rngs::OsRng;
@@ -74,7 +73,7 @@ impl AgreementPublicBehaviour for X25519PublicKey {
     }
 
     fn create_shared(&self) -> Result<AgreementShared, Idp2pMultiError> {
-        let ephemeral_secret = EphemeralSecret::new(OsRng);
+        let ephemeral_secret = EphemeralSecret::random_from_rng(OsRng);
         let ephemeral_public = PublicKey::from(&ephemeral_secret);
         let pk = PublicKey::try_from(self.0)?;
         let shared_secret = ephemeral_secret.diffie_hellman(&pk);

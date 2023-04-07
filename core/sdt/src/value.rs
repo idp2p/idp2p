@@ -1,4 +1,4 @@
-use idp2p_common::{random::create_random, utils::to_hex_str};
+use idp2p_common::{create_random, to_hex_str};
 use serde::{Deserialize, Serialize};
 
 use crate::{

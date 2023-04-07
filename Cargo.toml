@@ -15,5 +15,6 @@ tokio = { version = "1.13.0", features = ["full"] }
 [workspace]
 edition = "2021"
 members = [
-    "common"
+    "common",
+    "core/sdt"
 ]

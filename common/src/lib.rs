@@ -1,4 +1,5 @@
 pub mod multi;
+use rand::{thread_rng, RngCore};
 use serde::Serialize;
 use sha2::Digest;
 
