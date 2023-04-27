@@ -1,13 +1,13 @@
 syntax = "proto3";
 package idp2p.pb;
 
-message BatchKeyValue {
-    bytes key = 1;
-    bytes value = 2;
+message KeyValue {
+    bytes key = 1; // Can be an identity, credential or contract identifier
+    bytes value = 2; // Can be an identity event, credential event or contract body
 }
 
 message Batch {
-    repeated BatchKeyValue values = 1;
+    repeated KeyValue values = 1;
 }
 
 message Block {

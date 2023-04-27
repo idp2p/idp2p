@@ -8,13 +8,13 @@ package idp2p.pb;
 message Idp2pMicroledger {
     bytes inception = 1;
     repeated Idp2pEvent events = 2;
-    repeated Idp2pProof proofs = 3;
+    repeated bytes proofs = 3;
 }
 
 /* Identity inception model*/
 message Idp2pInception {
-    bytes root_next_pk_hash = 1; // MultiKeyHash of next public key(Winternitz)
-    bytes owner_next_pk_hash = 2; // MultiKeyHash of next public key(ed25519)
+    bytes rec_next_pk_hash = 1; // MultiKeyHash of next public key(Winternitz)
+    bytes next_pk_hash = 2; // MultiKeyHash of next public key(ed25519)
 }
 
 message Idp2pEvent {
@@ -32,13 +32,13 @@ message Idp2pEventPayload {
 }
 
 message Idp2pMutation {
-    bytes owner_pk = 1; // Raw signer public key 
-    bytes owner_next_pk_hash = 2; // MultiHash digest of next public key
+    bytes current_pk = 1; // Raw signer public key 
+    bytes next_pk_hash = 2; // MultiHash digest of next public key
     bytes proof = 3; // Selective Disclosure Trie
 }
 
 message Idp2pRecover {
-    bytes root_pk = 1; // Raw signer public key 
-    bytes root_next_pk_hash = 2; // MultiHash of next root public key
-    bytes owner_next_pk_hash = 3; // MultiHash of next public key
+    bytes current_rec_pk = 1; // Raw signer public key 
+    bytes rec_next_pk_hash = 2; // MultiHash of next root public key
+    bytes next_pk_hash = 3; // MultiHash of next public key
 }

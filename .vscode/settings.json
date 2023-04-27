@@ -1,12 +1,17 @@
 {
     "files.exclude": {
-        "**/*lock": true,
-        "**/target": true,
+
         "**/LICENSE": true
     },
     "protoc": {
         "options": [
             "--proto_path=${workspaceRoot}/core/proto",
         ]
-    }
+    },
+    "rust-analyzer.linkedProjects": [
+        "./wallet/server/Cargo.toml",
+        "./core/identity/Cargo.toml",
+        "./wallet/client/Cargo.toml",
+        "./wallet/client/Cargo.toml"
+    ]
 }

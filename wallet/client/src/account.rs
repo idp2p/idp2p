@@ -24,6 +24,11 @@ pub struct AccountSession {
     pub raw: AccountRaw,
 }
 
+pub enum SessionKind {
+    Admin,
+    Contract(Vec<u8>)
+}
+
 #[derive(PartialEq, Debug, Clone, Serialize, Deserialize)]
 pub struct AccountRaw {
     pub auth_priv_key: Vec<u8>,
@@ -80,7 +85,7 @@ impl WalletStore {
     }
 }
 
-impl AccountSession {
+/*impl ContractSession {
     pub fn connect(url: String) -> Vec<u8> {
         // get request to url/did.json
         // create an ephemeral key with agreement
@@ -89,5 +94,5 @@ impl AccountSession {
         todo!()
     }
 
-    pub fn assert() {}
-}
+    pub fn confirm() {}
+}*/

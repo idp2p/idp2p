@@ -9,12 +9,14 @@ env_logger = "0.9.0"
 dotenv = "0.15.0"
 colored = "2.0.0"
 libp2p = "0.46.1"
-serde = { version = "1.0.130", features = ["derive"] }
+serde = "1.0.160"
 tokio = { version = "1.13.0", features = ["full"] }
 
 [workspace]
 edition = "2021"
 members = [
     "common",
-    "core/sdt"
+    "core/sdt",
+    "core/identity",
+    "core/contract"
 ]

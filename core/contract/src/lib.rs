@@ -1,1 +1,1 @@
-pub mod tmpl;
+pub mod model;
