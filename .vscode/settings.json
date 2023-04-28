@@ -3,15 +3,8 @@
 
         "**/LICENSE": true
     },
-    "protoc": {
-        "options": [
-            "--proto_path=${workspaceRoot}/core/proto",
-        ]
-    },
     "rust-analyzer.linkedProjects": [
-        "./wallet/server/Cargo.toml",
-        "./core/identity/Cargo.toml",
-        "./wallet/client/Cargo.toml",
-        "./wallet/client/Cargo.toml"
-    ]
+        "./core/identity/Cargo.toml"
+    ],
+    "rust-analyzer.procMacro.enable": false
 }
