@@ -2,16 +2,20 @@ syntax = "proto3";
 package idp2p.pb;
 
 message KeyValue {
-    bytes key = 2; // Can be an identity, credential or contract identifier
-    bytes value = 3; // Can be an identity event, credential event or contract hash
+    bytes key = 1; // Can be an identity, credential or contract identifier
+    bytes value = 2; // Can be an identity event, credential event or contract hash
+}
+
+message BlockPayload {
+    bytes mutation_root = 1;
+    repeated bytes inception_roots = 2; 
 }
 
 message BlockHeader {
-    bytes previous = 1;
-    bytes inception_root = 2;
-    bytes mutation_root = 3;
-    bytes nonce = 4;
-    int64 timestamp = 5;
+    bytes prev = 1;
+    bytes root = 2;
+    bytes nonce = 3;
+    int64 timestamp = 4;
 }
 
 
