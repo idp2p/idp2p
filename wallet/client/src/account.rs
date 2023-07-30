@@ -41,7 +41,7 @@ pub struct AccountRaw {
 #[derive(PartialEq, Debug, Clone, Serialize, Deserialize)]
 pub struct Wallet {
     pub salt: Vec<u8>,
-    pub default_user: String,
+    pub default_account: String,
     pub accounts: HashMap<String, Account>,
 }
 

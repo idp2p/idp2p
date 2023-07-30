@@ -12,8 +12,8 @@ message BlockPayload {
 }
 
 message BlockHeader {
-    bytes prev = 1;
-    bytes root = 2;
+    bytes prev_hash = 1;
+    bytes current_hash = 2;
     bytes nonce = 3;
     int64 timestamp = 4;
 }

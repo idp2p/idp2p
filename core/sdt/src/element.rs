@@ -13,68 +13,68 @@ use crate::{
 #[serde(untagged)]
 pub enum SdtClaim {
     Value(SdtValueKind),
-    Node(HashMap<String, SdtClaim>),
+    Element(HashMap<String, SdtClaim>),
 }
 
 #[derive(PartialEq, Debug, Clone, Serialize, Deserialize)]
-pub struct SdtNode(HashMap<String, SdtNodeKind>);
+pub struct SdtElement(HashMap<String, SdtElementKind>);
 
 #[derive(PartialEq, Debug, Clone, Serialize, Deserialize)]
 #[serde(untagged)]
-pub enum SdtNodeKind {
+pub enum SdtElementKind {
     Proof(String),
     Value(SdtValue),
-    Node(SdtNode),
+    Element(SdtElement),
 }
 
 impl SdtClaim {
-    pub fn to_node(&self) -> SdtNode {
-        let mut node = SdtNode::new();
-        if let SdtClaim::Node(map) = &self {
+    pub fn to_element(&self) -> SdtElement {
+        let mut element = SdtElement::new();
+        if let SdtClaim::Element(map) = &self {
             for (k, v) in map {
                 match v {
                     SdtClaim::Value(val) => {
-                        node.add_value(k, val.to_owned());
+                        element.add_value(k, val.to_owned());
                     }
-                    SdtClaim::Node(_) => {
-                        node.add_node(k, v.to_node());
+                    SdtClaim::Element(_) => {
+                        element.add_element(k, v.to_element());
                     }
                 }
             }
         }
-        return node.build();
+        return element.build();
     }
 }
 
-impl SdtNodeKind {
+impl SdtElementKind {
     pub fn gen_proof(&self) -> Result<String, SdtError> {
         match &self {
             Self::Proof(p) => Ok(p.to_owned()),
             Self::Value(value) => value.gen_proof(),
-            Self::Node(children) => children.gen_proof(),
+            Self::Element(children) => children.gen_proof(),
         }
     }
 }
 
-impl SdtNode {
+impl SdtElement {
     pub fn new() -> Self {
-        let map: HashMap<String, SdtNodeKind> = HashMap::new();
+        let map: HashMap<String, SdtElementKind> = HashMap::new();
         Self(map)
     }
 
-    pub fn add_node(&mut self, key: &str, map: Self) -> &mut Self {
-        self.0.insert(key.to_owned(), SdtNodeKind::Node(map));
+    pub fn add_element(&mut self, key: &str, map: Self) -> &mut Self {
+        self.0.insert(key.to_owned(), SdtElementKind::Element(map));
         self
     }
     pub fn add_value(&mut self, key: &str, val: SdtValueKind) -> &mut Self {
         self.0
-            .insert(key.to_owned(), SdtNodeKind::Value(SdtValue::new(val)));
+            .insert(key.to_owned(), SdtElementKind::Value(SdtValue::new(val)));
         self
     }
 
     pub fn add_proof(&mut self, key: &str, proof: &str) -> &mut Self {
         self.0
-            .insert(key.to_owned(), SdtNodeKind::Proof(proof.to_owned()));
+            .insert(key.to_owned(), SdtElementKind::Proof(proof.to_owned()));
         self
     }
 
@@ -102,17 +102,17 @@ impl SdtNode {
         let mut map: HashMap<String, SdtClaim> = HashMap::new();
         for (k, v) in &self.0 {
             match v {
-                SdtNodeKind::Value(val) => {
+                SdtElementKind::Value(val) => {
                     map.insert(k.to_owned(), SdtClaim::Value(val.value.to_owned()));
                 }
-                SdtNodeKind::Node(inner) => {
+                SdtElementKind::Element(inner) => {
                     map.insert(k.to_owned(), inner.to_claim());
                 }
                 _ => {}
             }
         }
 
-        SdtClaim::Node(map)
+        SdtClaim::Element(map)
     }
 
     pub fn gen_proof(&self) -> Result<String, SdtError> {
@@ -125,25 +125,25 @@ impl SdtNode {
 
     pub fn select(&mut self, query: &str) -> Result<(), SdtError> {
         let query_keys = parse_query(query);
-        let mut stack: Vec<(String, &mut SdtNode)> = vec![("/".to_owned(), self)];
-        while let Some((path, node)) = stack.pop() {
+        let mut stack: Vec<(String, &mut SdtElement)> = vec![("/".to_owned(), self)];
+        while let Some((path, element)) = stack.pop() {
             let mut path_keys: HashMap<String, String> = HashMap::new();
-            for (key, val) in node.0.to_owned() {
+            for (key, val) in element.0.to_owned() {
                 let path_key = format!("{}{}/", path, key.to_owned());
                 if !query_keys.contains(&path_key) {
                     let matched = query_keys.iter().any(|x| x.starts_with(&path_key));
                     if !matched {
-                        node.add_proof(&key, &val.gen_proof()?);
+                        element.add_proof(&key, &val.gen_proof()?);
                     } else {
                         path_keys.insert(key, path_key);
                     }
                 }
             }
 
-            for (key, val) in &mut node.0 {
-                if let SdtNodeKind::Node(inner_node) = val {
+            for (key, val) in &mut element.0 {
+                if let SdtElementKind::Element(inner_el) = val {
                     if let Some(path_key) = path_keys.get(key) {
-                        stack.push((path_key.to_owned(), inner_node));
+                        stack.push((path_key.to_owned(), inner_el));
                     }
                 }
             }
@@ -169,7 +169,7 @@ mod tests {
                 "keys": "0x1234567890"
             }"#;
 
-        let r: SdtNode = serde_json::from_str(result_str)?;
+        let r: SdtElement = serde_json::from_str(result_str)?;
         assert_eq!(
             "0x79ee471c5bb7fb0b51a9fc628f4ad7a21f8304c0ed13ee4364efbfd4ffbd85e6",
             r.gen_proof()?
@@ -225,7 +225,7 @@ mod tests {
             }
           }
         "#;
-        let r: SdtNode = serde_json::from_str(result_str)?;
+        let r: SdtElement = serde_json::from_str(result_str)?;
         assert_eq!(
             "0x5ddd4d67e93ee0cb027933eb9a024770fc985964bf7770d7f9a47033bd447c37",
             r.gen_proof()?
@@ -235,18 +235,18 @@ mod tests {
 
     #[test]
     fn test_select() -> Result<(), SdtError> {
-        let personal = SdtNode::new()
+        let personal = SdtElement::new()
             .add_str_value("name", "Adem")
             .add_str_value("surname", "Çağlın")
             .add_bool_value("over_18", true)
             .build();
-        let assertion_method = SdtNode::new().add_str_value("key_1", "0x12").build();
-        let keys = SdtNode::new()
-            .add_node("assertion_method", assertion_method)
+        let assertion_method = SdtElement::new().add_str_value("key_1", "0x12").build();
+        let keys = SdtElement::new()
+            .add_element("assertion_method", assertion_method)
             .build();
-        let mut root = SdtNode::new()
-            .add_node("personal", personal)
-            .add_node("keys", keys)
+        let mut root = SdtElement::new()
+            .add_element("personal", personal)
+            .add_element("keys", keys)
             .build();
         let query = "
         {
@@ -257,109 +257,109 @@ mod tests {
         }";
         root.select(query)?;
         match &root.0.get("personal").unwrap() {
-            SdtNodeKind::Node(personal_node) => {
-                match &personal_node.0.get("name").unwrap() {
-                    SdtNodeKind::Value(_) => {}
+            SdtElementKind::Element(personal_el) => {
+                match &personal_el.0.get("name").unwrap() {
+                    SdtElementKind::Value(_) => {}
                     _ => panic!("Name should be value"),
                 }
-                match &personal_node.0.get("surname").unwrap() {
-                    SdtNodeKind::Value(_) => {}
+                match &personal_el.0.get("surname").unwrap() {
+                    SdtElementKind::Value(_) => {}
                     _ => panic!("Surname should be value"),
                 }
-                match &personal_node.0.get("over_18").unwrap() {
-                    SdtNodeKind::Proof(_) => {}
+                match &personal_el.0.get("over_18").unwrap() {
+                    SdtElementKind::Proof(_) => {}
                     _ => panic!("Over 18 should be proof"),
                 }
             }
-            _ => panic!("Personal should be node"),
+            _ => panic!("Personal should be element"),
         }
         match &root.0.get("keys").unwrap() {
-            SdtNodeKind::Proof(_) => {}
-            _ => panic!("Personal should be node"),
+            SdtElementKind::Proof(_) => {}
+            _ => panic!("Personal should be element"),
         }
         Ok(())
     }
 
     #[test]
-    fn test_new_sdt_node() {
-        let sdt_node = SdtNode::new();
-        assert_eq!(sdt_node.0.len(), 0);
+    fn test_new_sdt_element() {
+        let sdt_el = SdtElement::new();
+        assert_eq!(sdt_el.0.len(), 0);
     }
 
     #[test]
-    fn test_add_value_to_sdt_node() {
-        let mut sdt_node = SdtNode::new();
-        sdt_node.add_value("name", SdtValueKind::String("John".to_owned()));
-        assert_eq!(sdt_node.0.len(), 1);
-        let name = sdt_node.0.get("name").unwrap();
+    fn test_add_value_to_sdt_element() {
+        let mut sdt_el = SdtElement::new();
+        sdt_el.add_value("name", SdtValueKind::String("John".to_owned()));
+        assert_eq!(sdt_el.0.len(), 1);
+        let name = sdt_el.0.get("name").unwrap();
         match name {
-            SdtNodeKind::Value(val) => {
+            SdtElementKind::Value(val) => {
                 assert_eq!(val.value, SdtValueKind::String("John".to_owned()))
             }
-            _ => panic!("Expected SdtNodeKind::Value"),
+            _ => panic!("Expected SdtElementKind::Value"),
         }
     }
 
     #[test]
-    fn test_add_node_to_sdt_node() {
-        let mut sdt_node = SdtNode::new();
-        let mut inner_node = SdtNode::new();
-        inner_node.add_value("age", SdtValueKind::new_i64(30));
-        sdt_node.add_node("person", inner_node);
-        assert_eq!(sdt_node.0.len(), 1);
-        let person = sdt_node.0.get("person").unwrap();
+    fn test_add_element_to_sdt_element() {
+        let mut sdt_el = SdtElement::new();
+        let mut inner_el = SdtElement::new();
+        inner_el.add_value("age", SdtValueKind::new_i64(30));
+        sdt_el.add_element("person", inner_el);
+        assert_eq!(sdt_el.0.len(), 1);
+        let person = sdt_el.0.get("person").unwrap();
         match person {
-            SdtNodeKind::Node(node) => {
-                assert_eq!(node.0.len(), 1);
-                let age = node.0.get("age").unwrap();
+            SdtElementKind::Element(el) => {
+                assert_eq!(el.0.len(), 1);
+                let age = el.0.get("age").unwrap();
                 match age {
-                    SdtNodeKind::Value(val) => {
+                    SdtElementKind::Value(val) => {
                         assert_eq!(val.value, SdtValueKind::new_i64(30))
                     }
-                    _ => panic!("Expected SdtNodeKind::Value"),
+                    _ => panic!("Expected SdtElementKind::Value"),
                 }
             }
-            _ => panic!("Expected SdtNodeKind::Node"),
+            _ => panic!("Expected SdtElementKind::Element"),
         }
     }
 
     #[test]
-    fn test_add_proof_to_sdt_node() {
-        let mut sdt_node = SdtNode::new();
-        sdt_node.add_proof("name", "proof");
-        assert_eq!(sdt_node.0.len(), 1);
-        let proof = sdt_node.0.get("name").unwrap();
+    fn test_add_proof_to_sdt_element() {
+        let mut sdt_el = SdtElement::new();
+        sdt_el.add_proof("name", "proof");
+        assert_eq!(sdt_el.0.len(), 1);
+        let proof = sdt_el.0.get("name").unwrap();
         match proof {
-            SdtNodeKind::Proof(p) => assert_eq!(p, "proof"),
-            _ => panic!("Expected SdtNodeKind::Proof"),
+            SdtElementKind::Proof(p) => assert_eq!(p, "proof"),
+            _ => panic!("Expected SdtElementKind::Proof"),
         }
     }
 
     #[test]
-    fn test_add_str_value_to_sdt_node() {
-        let mut sdt_node = SdtNode::new();
-        sdt_node.add_str_value("name", "John");
-        assert_eq!(sdt_node.0.len(), 1);
-        let name = sdt_node.0.get("name").unwrap();
+    fn test_add_str_value_to_sdt_element() {
+        let mut sdt_el = SdtElement::new();
+        sdt_el.add_str_value("name", "John");
+        assert_eq!(sdt_el.0.len(), 1);
+        let name = sdt_el.0.get("name").unwrap();
         match name {
-            SdtNodeKind::Value(val) => {
+            SdtElementKind::Value(val) => {
                 assert_eq!(val.value, SdtValueKind::String("John".to_owned()))
             }
-            _ => panic!("Expected SdtNodeKind::Value"),
+            _ => panic!("Expected SdtElementKind::Value"),
         }
     }
 
     #[test]
-    fn test_add_number_value_to_sdt_node() {
-        let mut sdt_node = SdtNode::new();
-        sdt_node.add_number_value("age", 30);
-        assert_eq!(sdt_node.0.len(), 1);
-        let age = sdt_node.0.get("age").unwrap();
+    fn test_add_number_value_to_sdt_element() {
+        let mut sdt_el = SdtElement::new();
+        sdt_el.add_number_value("age", 30);
+        assert_eq!(sdt_el.0.len(), 1);
+        let age = sdt_el.0.get("age").unwrap();
         match age {
-            SdtNodeKind::Value(val) => {
+            SdtElementKind::Value(val) => {
                 assert_eq!(val.value, SdtValueKind::new_i64(30))
             }
-            _ => panic!("Expected SdtNodeKind::Value"),
+            _ => panic!("Expected SdtElementKind::Value"),
         }
     }
 }

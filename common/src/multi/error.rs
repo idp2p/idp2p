@@ -7,11 +7,9 @@ pub enum Idp2pMultiError {
     #[error(transparent)]
     Ed25519Error(#[from] ed25519_dalek::ed25519::Error),
     #[error(transparent)]
-    MultihashError(#[from] cid::multihash::Error),
+    MultihashError(#[from] multihash::Error),
     #[error(transparent)]
-    MultibaseError(#[from] cid::multibase::Error),
-    #[error(transparent)]
-    CidError(#[from] cid::Error),
+    MultibaseError(#[from] multibase::Error),
     #[error(transparent)]
     VarintReadError(#[from] unsigned_varint::io::ReadError),
     #[error(transparent)]
@@ -21,9 +19,9 @@ pub enum Idp2pMultiError {
     #[error("Invalid hash alg")]
     HashAlgError,
     #[error("InvalidKeyCode")]
+    InvalidId,
+    #[error("InvalidId")]
     InvalidKeyCode,
-    #[error("InvalidCid")]
-    InvalidCid,
     #[error("InvalidDigest")]
     InvalidDigest,
     #[error("EncryptionError")]

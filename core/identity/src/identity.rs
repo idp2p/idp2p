@@ -2,9 +2,7 @@ use crate::{
     error::Idp2pError,
     idp2p_proto::{self},
 };
-use idp2p_common::multi::{
-    id::Idp2pId, ledgerkey::Idp2pLedgerKeypair, verification::ed25519::Ed25519Keypair,
-};
+use idp2p_common::{multihash::Multihash, multi::id::Idp2pId};
 use prost::Message;
 
 #[derive(PartialEq, Debug, Clone)]
@@ -27,27 +25,31 @@ impl Identity {
         let inception = idp2p_proto::Idp2pInception {
             next_pk_hash: owner_pk_hash.to_vec(),
             rec_next_pk_hash: root_pk_hash.to_vec()
-        }
-        .encode_to_vec();
-        let id = Idp2pId::new(1, &inception);
+        };
+        let inception = inception.encode_to_vec();
+        let mh = Multihash::<64>::wrap(0x12, &inception)?;
+        let id = Idp2pId::Identity(mh.to_bytes());
         let microledger = idp2p_proto::Idp2pMicroledger {
             inception: inception,
             events: vec![],
             proofs: vec![]
         };
+        
         Ok(Identity {
-            id: id.to_bytes(),
+            id: id.to_bytes()?,
             microledger: microledger.encode_to_vec(),
         })
     }
 
     pub fn from_bytes(bytes: &[u8]) -> Result<Identity, Idp2pError> {
+        let microledger:idp2p_proto::Idp2pMicroledger = idp2p_proto::Idp2pMicroledger::decode(bytes)?;
+        
         todo!()
     }
 
-    pub fn mutate(&mut self, proof: &[u8]) -> Result<(), Idp2pError> {
-        let owner_keypair = Idp2pLedgerKeypair::Ed25519(Ed25519Keypair::generate());
-        let id = Idp2pId::from_bytes(&self.id)?;
+    pub fn mutate(&mut self, _proof: &[u8]) -> Result<(), Idp2pError> {
+        //let owner_keypair = Idp2pLedgerKeypair::Ed25519(Ed25519Keypair::generate());
+        //let id = Idp2pId::from_bytes(&self.id)?;
         todo!()
     }
 

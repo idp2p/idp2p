@@ -1,6 +1,5 @@
 pub mod kyber768;
 pub mod x25519;
-use std::io::Read;
 
 use self::{
     kyber768::{Kyber768Keypair, Kyber768PublicKey},

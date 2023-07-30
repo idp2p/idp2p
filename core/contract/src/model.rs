@@ -1,9 +1,9 @@
 use serde_json::Value;
 pub struct Idp2pContract {
-    id: String,
-    payload: Idp2pContractBody,
-    signatures: Vec<Idp2pContractSig>,
-    proof: String,
+    pub id: String,
+    pub payload: Idp2pContractBody,
+    pub signatures: Vec<Idp2pContractSig>,
+    pub proof: String,
 }
 
 pub struct Idp2pContractBody {
@@ -18,14 +18,14 @@ pub struct Idp2pContractBody {
 
 
 pub struct Idp2pContractSig {
-    id: String,
-    key_id:  String, 
-    sig: String 
+    pub id: String,
+    pub key_id:  String, 
+    pub sig: String 
 }
 
 pub struct Idp2pQuery {
-    latest: bool,
-    payload: Value,
+    pub latest: bool,
+    pub payload: Value,
 }
 
 pub struct Idp2pPayment {

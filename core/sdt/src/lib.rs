@@ -1,5 +1,5 @@
 pub mod error;
-pub mod node;
+pub mod element;
 pub mod proof;
 pub mod query;
 pub mod service;
@@ -8,25 +8,24 @@ pub mod value;
 use std::collections::HashMap;
 
 use error::SdtError;
-use node::SdtNode;
+use element::SdtElement;
 use proof::SdtProof;
 use serde::{Deserialize, Serialize};
 
-pub type SdtContext = HashMap<String, String>;
 #[derive(PartialEq, Debug, Clone, Serialize, Deserialize)]
-pub struct SdtItem {
-    pub context: SdtContext,
-    pub node: SdtNode,
-    pub next: Option<Box<SdtItem>>,
+pub struct SdtNode {
+    pub context: HashMap<String, String>,
+    pub payload: SdtElement,
+    pub next: Option<Box<SdtNode>>,
 }
 
 #[derive(PartialEq, Debug, Clone, Serialize, Deserialize)]
 pub struct Sdt {
     pub subject: String,
-    pub inception: SdtItem,
+    pub inception: SdtNode,
 }
 
-impl SdtItem {
+impl SdtNode {
     pub fn find_current(&mut self) -> &mut Self {
         if self.next.is_none() {
             return self;
@@ -35,7 +34,7 @@ impl SdtItem {
     }
 
     pub fn select(&mut self, query: &str) -> Result<&mut Self, SdtError> {
-        self.node.select(query)?;
+        self.payload.select(query)?;
         if self.next.is_none() {
             return Ok(self);
         }
@@ -43,10 +42,10 @@ impl SdtItem {
     }
 
     pub fn gen_proof(&self, prev: &str) -> Result<String, SdtError> {
-        let node_proof = self.node.gen_proof()?;
+        let paylaod_proof = self.payload.gen_proof()?;
         let item_proof = SdtProof::new()
             .insert_str("previous", prev)
-            .insert_str("root", &node_proof)
+            .insert_str("root", &paylaod_proof)
             .digest()?;
         if let Some(next) = &self.next {
             return next.gen_proof(&item_proof);
@@ -57,22 +56,22 @@ impl SdtItem {
 }
 
 impl Sdt {
-    pub fn new(sub: &str, ctx: SdtContext, node: SdtNode) -> Self {
+    pub fn new(sub: &str, ctx: HashMap<String, String>, payload: SdtElement) -> Self {
         Sdt {
             subject: sub.to_owned(),
-            inception: SdtItem {
+            inception: SdtNode {
                 context: ctx,
-                node,
+                payload,
                 next: None,
             },
         }
     }
 
-    pub fn mutate(&mut self, ctx: SdtContext, node: SdtNode) -> &mut Self {
+    pub fn mutate(&mut self, ctx: HashMap<String, String>, payload: SdtElement) -> &mut Self {
         let current = self.inception.find_current();
-        current.next = Some(Box::new(SdtItem {
+        current.next = Some(Box::new(SdtNode{
             context: ctx,
-            node,
+            payload,
             next: None,
         }));
         self
@@ -89,7 +88,7 @@ impl Sdt {
     }
 
     pub fn gen_proof(&self) -> Result<String, SdtError> {
-        let inception_root = self.inception.node.gen_proof()?;
+        let inception_root = self.inception.payload.gen_proof()?;
         let inception_proof = SdtProof::new()
             .insert_str("subject", &self.subject)
             .insert_str("root", &inception_root)
@@ -114,7 +113,7 @@ impl Sdt {
 
 #[cfg(test)]
 mod tests {
-    use crate::node::SdtClaim;
+    use crate::element::SdtClaim;
 
     use super::*;
     #[test]
@@ -154,11 +153,13 @@ mod tests {
         let new_claim: SdtClaim = serde_json::from_str(new_claim_str)?;
         let mutation: SdtClaim = serde_json::from_str(mutation_str)?;
         let mutation2: SdtClaim = serde_json::from_str(mutation2_str)?;
-        let mut sdt = Sdt::new("did:p2p:123456", HashMap::new(), new_claim.to_node())
-            .mutate(HashMap::new(), mutation.to_node())
-            .mutate(HashMap::new(), mutation2.to_node())
+        let context = HashMap::from([("personal".to_owned(), "baxyz".to_owned())]);
+        let mut sdt = Sdt::new("did:p2p:123456", context.clone(), new_claim.to_element())
+            .mutate(context.clone(), mutation.to_element())
+            .mutate(context, mutation2.to_element())
             .build();
-        sdt.mutate(HashMap::new(), SdtNode::new());
+        sdt.mutate(HashMap::new(), SdtElement::new());
+        eprintln!("{:?}", sdt);
         let proof = sdt.gen_proof()?;
         let selected = sdt.select(query)?;
         let proof2 = selected.gen_proof()?;

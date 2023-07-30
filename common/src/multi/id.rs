@@ -1,6 +1,6 @@
-use super::{error::Idp2pMultiError, hash::Idp2pHasher};
-use cid::multihash::Multihash;
-use unsigned_varint::{encode as varint_encode, io::read_u64};
+use super::error::Idp2pMultiError;
+use multihash::Multihash;
+use unsigned_varint::{encode as varint_encode, io::read_u8};
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Idp2pCodec {
@@ -21,6 +21,81 @@ impl TryFrom<u64> for Idp2pCodec {
 }
 
 #[derive(Debug, Clone, PartialEq)]
+pub enum Idp2pId {
+    Identity(Vec<u8>),
+    IdEvent(Vec<u8>),
+    Credential(Vec<u8>),
+    Contract(Vec<u8>),
+    BlockItem(u8, Vec<u8>),
+}
+
+impl Idp2pId {
+    pub fn from_bytes<T: AsRef<[u8]>>(bytes: T) -> Result<Self, Idp2pMultiError> {
+        let mut r = bytes.as_ref();
+        let typ = read_u8(&mut r)?;
+        match typ {
+            1 => Ok(Self::Identity(r.to_vec())),
+            2 => Ok(Self::IdEvent(r.to_vec())),
+            3 => Ok(Self::Credential(r.to_vec())),
+            4 => Ok(Self::Contract(r.to_vec())),
+            5 => {
+                let tx_type = read_u8(&mut r)?;
+                Ok(Self::BlockItem(tx_type, r.to_vec()))
+            }
+            _ => Err(Idp2pMultiError::InvalidId),
+        }
+    }
+
+    pub fn to_bytes(&self) -> Result<Vec<u8>, Idp2pMultiError> {
+        let mut body: Vec<u8> = vec![];
+
+        let typ: u8 = match self {
+            Self::Identity(mh) => {
+                body.extend_from_slice(mh);
+                1
+            }
+            Self::IdEvent(mh) => {
+                body.extend_from_slice(mh);
+                2
+            }
+            Self::Credential(mh) => {
+                body.extend_from_slice(mh);
+                3
+            }
+            Self::Contract(mh) => {
+                body.extend_from_slice(mh);
+                4
+            }
+            Self::BlockItem(tx_type, mh) => {
+                let mut tx_type_buf = varint_encode::u8_buffer();
+                body.extend_from_slice(varint_encode::u8(*tx_type, &mut tx_type_buf));
+                body.extend_from_slice(mh);
+                5
+            }
+        };
+        let mut typ_buf = varint_encode::u8_buffer();
+        Ok([varint_encode::u8(typ, &mut typ_buf), &body].concat())
+    }
+
+    /// Ensure the id is produced from the content
+    pub fn ensure(&self, content: &[u8]) -> Result<(), Idp2pMultiError> {
+        let mh_bytes: &Vec<u8> = match self {
+            Self::BlockItem(_, mh) => mh,
+            Self::Identity(mh) => mh,
+            Self::IdEvent(mh) => mh,
+            Self::Contract(mh) => mh,
+            Self::Credential(mh) => mh
+        };
+        let mh =  Multihash::<64>::from_bytes(mh_bytes)?;
+        let expected_mh = Multihash::<64>::wrap(mh.code(), content)?;
+        if mh != expected_mh {
+            return Err(Idp2pMultiError::InvalidDigest);
+        }
+        Ok(())
+    }
+}
+
+/*#[derive(Debug, Clone, PartialEq)]
 pub struct Idp2pId {
     pub version: u64,      // cid version
     pub codec: Idp2pCodec, // codec
@@ -84,15 +159,15 @@ impl Idp2pId {
         }
         Ok(())
     }
-}
+}*/
 
 #[cfg(test)]
 mod tests {
     use super::*;
     #[test]
     fn enc_dec_test() -> Result<(), Idp2pMultiError> {
-        let id = Idp2pId::new(0, &vec![0u8; 50]);
-        let id2 = Idp2pId::from_bytes(&id.to_bytes())?;
+        let id = Idp2pId::Identity(vec![]);
+        let id2 = Idp2pId::from_bytes(&id.to_bytes()?)?;
         assert_eq!(id, id2);
         Ok(())
     }

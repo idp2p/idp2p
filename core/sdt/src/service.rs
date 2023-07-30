@@ -1,4 +1,6 @@
-use crate::{error::SdtError, node::SdtClaim, Sdt, SdtContext};
+use std::collections::HashMap;
+
+use crate::{error::SdtError, element::SdtClaim, Sdt};
 use serde::{Deserialize, Serialize};
 
 #[derive(PartialEq, Debug, Clone, Serialize, Deserialize)]
@@ -6,12 +8,12 @@ use serde::{Deserialize, Serialize};
 pub enum SdtInput {
     Inception {
         subject: String,
-        context: SdtContext,
+        context: HashMap<String, String>,
         claim: SdtClaim,
     },
     Mutation {
         sdt: Sdt,
-        context: SdtContext,
+        context: HashMap<String, String>,
         claim: SdtClaim,
     },
     Selection {
@@ -57,14 +59,14 @@ impl SdtService {
                 subject,
                 context,
                 claim,
-            } => SdtResult::Inception(Sdt::new(&subject, context, claim.to_node())),
+            } => SdtResult::Inception(Sdt::new(&subject, context, claim.to_element())),
             SdtInput::Mutation {
                 sdt,
                 context,
                 claim,
             } => {
                 let mut sdt_clone = sdt.clone();
-                SdtResult::Mutation(sdt_clone.mutate(context, claim.to_node()).build())
+                SdtResult::Mutation(sdt_clone.mutate(context, claim.to_element()).build())
             }
             SdtInput::Selection { sdt, query } => {
                 let mut sdt_clone = sdt.clone();
@@ -103,7 +105,7 @@ mod tests {
         let claim: SdtClaim = serde_json::from_str(claim_str)?;
         let cmd = SdtInput::Inception {
             subject: "did:p2p:123456".to_owned(),
-            context: serde_json::from_str::<SdtContext>(context)?,
+            context: serde_json::from_str::<HashMap<String, String>>(context)?,
             claim: claim,
         };
         let svc = SdtService(serde_json::to_string(&cmd)?);

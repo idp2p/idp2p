@@ -1,10 +1,9 @@
 use std::io::Read;
 
-use cid::multihash::Multihash;
+use multihash::Multihash;
 
 use super::{
     error::Idp2pMultiError,
-    hash::Idp2pHasher,
     verification::{
         dilithium3::{Dilithium3Keypair, Dilithium3PublicKey},
         ed25519::{Ed25519Keypair, Ed25519PublicKey},
@@ -32,7 +31,7 @@ pub enum Idp2pLedgerPublicKey {
 #[derive(PartialEq, Clone, Debug)]
 pub struct Idp2pLedgerPublicDigest {
     code: VerificationKeyCode,
-    digest: Multihash,
+    digest: Multihash<64>,
 }
 
 impl Idp2pLedgerKeypair {
@@ -115,7 +114,7 @@ impl Idp2pLedgerPublicKey {
 
 impl Idp2pLedgerPublicDigest {
     pub fn new(code: VerificationKeyCode, pk: &[u8]) -> Self {
-        let mh = Idp2pHasher::default().digest(pk);
+        let mh =  Multihash::<64>::wrap(0x12, pk).unwrap();
         Self {
             code: code,
             digest: mh,
@@ -131,7 +130,7 @@ impl Idp2pLedgerPublicDigest {
         r.read_to_end(&mut mh_bytes)?;
         Ok(Self {
             code: code,
-            digest: Multihash::from_bytes(&mh_bytes)?,
+            digest: Multihash::<64>::from_bytes(&mh_bytes)?,
         })
     }
     pub fn to_multi_bytes(&self) -> Vec<u8> {
@@ -141,8 +140,10 @@ impl Idp2pLedgerPublicDigest {
         [code, &self.digest.to_bytes()].concat()
     }
     pub fn ensure_public(&self, public: &[u8]) -> Result<(), Idp2pMultiError> {
-        let hasher = Idp2pHasher::try_from(self.digest.code())?;
-        hasher.ensure(self.digest, public)?;
+        let hash = Multihash::<64>::wrap(self.digest.code(), public)?;
+        if self.digest != hash{
+           return Err(Idp2pMultiError::InvalidDigest);
+        }
         Ok(())
     }
 }
