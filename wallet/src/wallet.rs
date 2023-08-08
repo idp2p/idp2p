@@ -10,39 +10,30 @@ use serde::{Deserialize, Serialize};
 use crate::{error::WalletError};
 
 #[derive(PartialEq, Debug, Clone, Serialize, Deserialize)]
-pub struct Account {
-    pub id: String,
-    pub ttl: u32,
-    pub iv: Vec<u8>,
-    pub cipher: Vec<u8>,
-    pub session: Option<AccountSession>,
+pub struct  WalletPublicKey {
+    id: String,
+    pk: Vec<u8>
 }
 
 #[derive(PartialEq, Debug, Clone, Serialize, Deserialize)]
-pub struct AccountSession {
-    pub created_at: i64,
-    pub raw: AccountRaw,
-}
-
-pub enum SessionKind {
-    Admin,
-    Contract(Vec<u8>)
-}
-
-#[derive(PartialEq, Debug, Clone, Serialize, Deserialize)]
-pub struct AccountRaw {
-    pub auth_priv_key: Vec<u8>,
-    pub assert_priv_key: Vec<u8>,
-    pub agree_priv_key: Vec<u8>,
-    pub profile: Sdt,
-    pub proofs: Vec<String>,
+pub struct WalletSession {
+    ttl: i64,
+    created_at: i64
 }
 
 #[derive(PartialEq, Debug, Clone, Serialize, Deserialize)]
 pub struct Wallet {
-    pub salt: Vec<u8>,
-    pub default_account: String,
-    pub accounts: HashMap<String, Account>,
+    id: String,
+    username: String,
+    salt: Vec<u8>,
+    iv: Vec<u8>,
+    cipher: Vec<u8>,
+    next_pk_digest: Vec<u8>,
+    next_rec_pk_digest: Vec<u8>,
+    assertions: Vec<WalletPublicKey>,
+    authentications: Vec<WalletPublicKey>,
+    agreements: Vec<WalletPublicKey>,
+    session: Option<WalletSession>
 }
 
 #[derive(Debug, Clone)]
