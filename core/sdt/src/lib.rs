@@ -5,8 +5,6 @@ pub mod query;
 pub mod service;
 pub mod value;
 
-use std::collections::HashMap;
-
 use error::SdtError;
 use element::SdtElement;
 use proof::SdtProof;
@@ -14,7 +12,6 @@ use serde::{Deserialize, Serialize};
 
 #[derive(PartialEq, Debug, Clone, Serialize, Deserialize)]
 pub struct SdtNode {
-    pub context: HashMap<String, String>,
     pub payload: SdtElement,
     pub next: Option<Box<SdtNode>>,
 }
@@ -56,21 +53,19 @@ impl SdtNode {
 }
 
 impl Sdt {
-    pub fn new(sub: &str, ctx: HashMap<String, String>, payload: SdtElement) -> Self {
+    pub fn new(sub: &str, payload: SdtElement) -> Self {
         Sdt {
             subject: sub.to_owned(),
             inception: SdtNode {
-                context: ctx,
                 payload,
                 next: None,
             },
         }
     }
 
-    pub fn mutate(&mut self, ctx: HashMap<String, String>, payload: SdtElement) -> &mut Self {
+    pub fn mutate(&mut self, payload: SdtElement) -> &mut Self {
         let current = self.inception.find_current();
         current.next = Some(Box::new(SdtNode{
-            context: ctx,
             payload,
             next: None,
         }));
@@ -153,12 +148,12 @@ mod tests {
         let new_claim: SdtClaim = serde_json::from_str(new_claim_str)?;
         let mutation: SdtClaim = serde_json::from_str(mutation_str)?;
         let mutation2: SdtClaim = serde_json::from_str(mutation2_str)?;
-        let context = HashMap::from([("personal".to_owned(), "baxyz".to_owned())]);
-        let mut sdt = Sdt::new("did:p2p:123456", context.clone(), new_claim.to_element())
-            .mutate(context.clone(), mutation.to_element())
-            .mutate(context, mutation2.to_element())
+        
+        let mut sdt = Sdt::new("did:p2p:123456", new_claim.to_element())
+            .mutate(mutation.to_element())
+            .mutate( mutation2.to_element())
             .build();
-        sdt.mutate(HashMap::new(), SdtElement::new());
+        sdt.mutate(SdtElement::new());
         eprintln!("{:?}", sdt);
         let proof = sdt.gen_proof()?;
         let selected = sdt.select(query)?;

@@ -1,17 +1,20 @@
 use crate::{
     error::Idp2pError,
-    idp2p_proto::{self},
+    idp2p_proto::{
+        idp2p_event_payload::EventKind, Idp2pEventPayload, Idp2pInception, Idp2pMicroledger,
+        Idp2pMutation, Idp2pEvent,
+    },
 };
-use idp2p_common::{multihash::Multihash, multi::id::Idp2pId};
+use idp2p_common::multi::id::{content_hash, Idp2pId};
 use prost::Message;
 
 #[derive(PartialEq, Debug, Clone)]
 pub struct IdentityState {
     pub id: Vec<u8>,
-    pub latest_event_id: Vec<u8>,
-    pub owner_next_pk_hash: Vec<u8>,
-    pub root_next_pk_hash: Vec<u8>,
-    pub proof: Vec<u8>,
+    pub last_event_id: Vec<u8>,
+    pub next_pk_hash: Vec<u8>,
+    pub next_rec_pk_hash: Vec<u8>,
+    pub last_proof: Vec<u8>,
 }
 
 #[derive(PartialEq, Debug, Clone)]
@@ -21,33 +24,53 @@ pub struct Identity {
 }
 
 impl Identity {
-    pub fn new(owner_pk_hash: &[u8], root_pk_hash: &[u8]) -> Result<Identity, Idp2pError> {
-        let inception = idp2p_proto::Idp2pInception {
-            next_pk_hash: owner_pk_hash.to_vec(),
-            rec_next_pk_hash: root_pk_hash.to_vec()
+    pub fn new(next_pk_hash: &[u8], next_rec_pk_hash: &[u8]) -> Result<Identity, Idp2pError> {
+        let inception = Idp2pInception {
+            next_pk_hash: next_pk_hash.to_vec(),
+            next_rec_pk_hash: next_rec_pk_hash.to_vec(),
         };
-        let inception = inception.encode_to_vec();
-        let mh = Multihash::<64>::wrap(0x12, &inception)?;
-        let id = Idp2pId::Identity(mh.to_bytes());
-        let microledger = idp2p_proto::Idp2pMicroledger {
-            inception: inception,
+        let microledger = Idp2pMicroledger {
+            inception: inception.encode_to_vec(),
             events: vec![],
-            proofs: vec![]
         };
-        
+        let mh = content_hash(&microledger.inception)?;
         Ok(Identity {
-            id: id.to_bytes()?,
+            id: Idp2pId::Identity(mh).to_bytes()?,
             microledger: microledger.encode_to_vec(),
         })
     }
 
     pub fn from_bytes(bytes: &[u8]) -> Result<Identity, Idp2pError> {
-        let microledger:idp2p_proto::Idp2pMicroledger = idp2p_proto::Idp2pMicroledger::decode(bytes)?;
-        
-        todo!()
+        let microledger: Idp2pMicroledger = Idp2pMicroledger::decode(bytes)?;
+
+        let mh = content_hash(&microledger.inception)?;
+        Ok(Identity {
+            id: Idp2pId::Identity(mh).to_bytes()?,
+            microledger: bytes.to_vec(),
+        })
     }
 
-    pub fn mutate(&mut self, _proof: &[u8]) -> Result<(), Idp2pError> {
+    pub fn mutate(
+        &self,
+        current_pk: &[u8],
+        next_pk_hash: &[u8],
+        proof: &[u8],
+    ) -> Result<(), Idp2pError> {
+        let mut microledger: Idp2pMicroledger = Idp2pMicroledger::decode(&*self.microledger)?;
+        let event_kind = EventKind::Mutation(Idp2pMutation {
+            current_pk: current_pk.to_vec(),
+            next_pk_hash: next_pk_hash.to_vec(),
+            proof: proof.to_vec(),
+        });
+        let payload = Idp2pEventPayload {
+            previous: microledger.events.last().unwrap().id.clone(),
+            event_kind: Some(event_kind),
+        };
+        microledger.events.push(Idp2pEvent{
+            id: todo!(),
+            payload: todo!(),
+            signature: todo!(),
+        });
         //let owner_keypair = Idp2pLedgerKeypair::Ed25519(Ed25519Keypair::generate());
         //let id = Idp2pId::from_bytes(&self.id)?;
         todo!()

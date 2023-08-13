@@ -33,7 +33,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         let mdns = Mdns::new(Default::default()).await?;
 
         let behaviour = Idp2pBehaviour {
-            gossipsub: build_gossipsub(),
+            gossipsub: build_ossipsub(),
             mdns: mdns,
         };
         let executor = Box::new(|fut| {

@@ -8,12 +8,10 @@ use serde::{Deserialize, Serialize};
 pub enum SdtInput {
     Inception {
         subject: String,
-        context: HashMap<String, String>,
         claim: SdtClaim,
     },
     Mutation {
         sdt: Sdt,
-        context: HashMap<String, String>,
         claim: SdtClaim,
     },
     Selection {
@@ -57,16 +55,14 @@ impl SdtService {
         let result = match input {
             SdtInput::Inception {
                 subject,
-                context,
                 claim,
-            } => SdtResult::Inception(Sdt::new(&subject, context, claim.to_element())),
+            } => SdtResult::Inception(Sdt::new(&subject, claim.to_element())),
             SdtInput::Mutation {
                 sdt,
-                context,
                 claim,
             } => {
                 let mut sdt_clone = sdt.clone();
-                SdtResult::Mutation(sdt_clone.mutate(context, claim.to_element()).build())
+                SdtResult::Mutation(sdt_clone.mutate(claim.to_element()).build())
             }
             SdtInput::Selection { sdt, query } => {
                 let mut sdt_clone = sdt.clone();
@@ -105,7 +101,6 @@ mod tests {
         let claim: SdtClaim = serde_json::from_str(claim_str)?;
         let cmd = SdtInput::Inception {
             subject: "did:p2p:123456".to_owned(),
-            context: serde_json::from_str::<HashMap<String, String>>(context)?,
             claim: claim,
         };
         let svc = SdtService(serde_json::to_string(&cmd)?);

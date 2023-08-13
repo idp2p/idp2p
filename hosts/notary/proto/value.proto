@@ -7,15 +7,15 @@ message KeyValue {
 }
 
 message BlockPayload {
-    bytes mutation_root = 1;
-    repeated bytes inception_roots = 2; 
+    bytes mutation_root = 1; // Merkle root of mutations
+    repeated bytes inception_roots = 2; // 
 }
 
 message BlockHeader {
-    bytes prev_hash = 1;
-    bytes current_hash = 2;
-    bytes nonce = 3;
-    int64 timestamp = 4;
+    uint64 id = 1; // This is the idp2p clock, it starts from 0 and increments 1 for each block
+    bytes hash = 2; // Block merkle root
+    bytes prev_hash = 3; // Privous block hash
+    int64 timestamp = 4; // Time of block creation
 }
 
 

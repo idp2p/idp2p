@@ -17,6 +17,5 @@ edition = "2021"
 members = [
     "common",
     "core/sdt",
-    "core/identity",
-    "core/contract"
+    "core/identity"
 ]
