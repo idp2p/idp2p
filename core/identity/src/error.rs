@@ -24,8 +24,6 @@ pub enum Idp2pError {
     #[error(transparent)]
     DecodeError(#[from] prost::DecodeError),
     #[error(transparent)]
-    MultihashError(#[from] idp2p_common::multihash::Error),
-    #[error(transparent)]
     Idp2pMultiError(#[from] Idp2pMultiError),
     #[error("Other")]
     Other,

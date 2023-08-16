@@ -6,38 +6,35 @@ package idp2p.pb;
 // Individuals send its own material when connecting
 
 message Idp2pMicroledger {
-    bytes inception = 1;
+    bytes inception = 1; 
     repeated Idp2pEvent events = 2;
 }
 
-/* Identity inception model*/
+/* Identity base model 2-2-3 2-3-4*/
 message Idp2pInception {
-    bytes next_pk_hash = 1; // MultiKeyHash of next public key(ed25519)
-    bytes next_rec_pk_hash = 2; // MultiKeyHash of next public key(Winternitz)
+    uint32 m = 1; // Mutation
+    uint32 r = 2; // Recovery
+    uint32 n = 3; // Total
+    repeated bytes key_hashs = 4; // MultiKeyHash of public key
+    bytes sdt_proof = 5;
+}
+
+message Idp2pSignature {
+    bytes hash = 1;
+    bytes key = 2;
+    bytes sig = 3; 
 }
 
 message Idp2pEvent {
     bytes id = 1;
     bytes payload = 2;  // Encoded bytes of mutation payload(It is encoded because of deterministic event_id and signature)
-    bytes signature = 3;  // Signature of payload bytes(signed with owner or root pk )
+    repeated Idp2pSignature signatures = 3;  // Signature of payload bytes 
 }
 
 message Idp2pEventPayload {
     bytes previous = 1;
     oneof event_kind {
-        Idp2pMutation mutation = 2;
-        Idp2pRecover recover = 3;
+        bytes mutation = 2;
+        Idp2pInception recover = 3;
     }
-}
-
-message Idp2pMutation {
-    bytes current_pk = 1; // Raw signer public key 
-    bytes next_pk_hash = 2; // MultiHash digest of next public key
-    bytes proof = 3; // Selective Disclosure Trie Root
-}
-
-message Idp2pRecover {
-    bytes current_rec_pk = 1; // Raw signer public key 
-    bytes next_rec_pk_hash = 2; // MultiHash of next root public key
-    bytes next_pk_hash = 3; // MultiHash of next public key
 }

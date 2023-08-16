@@ -1,13 +1,5 @@
-use super::error::Idp2pMultiError;
-use multihash::Multihash;
+use super::{error::Idp2pMultiError, hash::Idp2pMultiHash};
 use unsigned_varint::{encode as varint_encode, io::read_u8};
-const SHA_256: u64 = 0x12;
-const MAX_HASH_SIZE: usize = 64;
-
-pub fn content_hash<T: AsRef<[u8]>>(content: T) -> Result<Vec<u8>, Idp2pMultiError> {
-    let mh = Multihash::<MAX_HASH_SIZE>::wrap(SHA_256, content.as_ref())?;
-    Ok(mh.to_bytes())
-}
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Idp2pId {
@@ -75,11 +67,8 @@ impl Idp2pId {
             Self::Contract(mh) => mh,
             Self::Credential(mh) => mh,
         };
-        let mh = Multihash::<MAX_HASH_SIZE>::from_bytes(mh_bytes)?;
-        let expected_mh = Multihash::<MAX_HASH_SIZE>::wrap(mh.code(), content)?;
-        if mh != expected_mh {
-            return Err(Idp2pMultiError::InvalidDigest);
-        }
+        let mh = Idp2pMultiHash::from_bytes(&mh_bytes)?;
+        mh.ensure(content)?;
         Ok(())
     }
 }

@@ -1,7 +1,5 @@
 use std::io::Read;
 
-use multihash::Multihash;
-
 use super::{
     error::Idp2pMultiError,
     verification::{
@@ -10,7 +8,7 @@ use super::{
         key_from_multi_bytes, key_to_multi_bytes,
         winternitz::{WinternitzKeypair, WinternitzPublicKey},
         Signer, VerificationKeyCode, Verifier,
-    },
+    }, hash::Idp2pMultiHash,
 };
 use unsigned_varint::{encode as varint_encode, io::read_u64};
 
@@ -28,11 +26,7 @@ pub enum Idp2pLedgerPublicKey {
     Winternitz(WinternitzPublicKey),
 }
 
-#[derive(PartialEq, Clone, Debug)]
-pub struct Idp2pLedgerPublicDigest {
-    code: VerificationKeyCode,
-    digest: Multihash<64>,
-}
+
 
 impl Idp2pLedgerKeypair {
     pub fn to_public_key(&self) -> Idp2pLedgerPublicKey {
@@ -102,49 +96,55 @@ impl Idp2pLedgerPublicKey {
     }
 
     // To key digest
-    pub fn to_digest(&self) -> Result<Idp2pLedgerPublicDigest, Idp2pMultiError> {
+    pub fn to_digest(&self) -> Result<Idp2pLedgerPublicHash, Idp2pMultiError> {
         let (code, pk) = match &self {
             Self::Ed25519(pk) => (VerificationKeyCode::Ed25519, pk.as_bytes()),
             Self::Dilithium3(pk) => (VerificationKeyCode::Dilithium3, pk.as_bytes()),
             Self::Winternitz(pk) => (VerificationKeyCode::Winternitz, pk.as_bytes()),
         };
-        Ok(Idp2pLedgerPublicDigest::new(code, pk))
+        let hash = Idp2pMultiHash::new(pk)?;
+        Ok(Idp2pLedgerPublicHash::new(code, hash))
     }
 }
 
-impl Idp2pLedgerPublicDigest {
-    pub fn new(code: VerificationKeyCode, pk: &[u8]) -> Self {
-        let mh =  Multihash::<64>::wrap(0x12, pk).unwrap();
+#[derive(PartialEq, Clone, Debug)]
+pub struct Idp2pLedgerPublicHash {
+    code: VerificationKeyCode,
+    hash: Idp2pMultiHash,
+}
+
+impl Idp2pLedgerPublicHash {
+    pub fn new(code: VerificationKeyCode, hash: Idp2pMultiHash) -> Self {
         Self {
             code: code,
-            digest: mh,
+            hash: hash,
         }
     }
+
     pub fn code(&self) -> VerificationKeyCode {
         self.code.clone()
     }
-    pub fn from_multi_bytes(bytes: &[u8]) -> Result<Idp2pLedgerPublicDigest, Idp2pMultiError> {
+    
+    pub fn from_multi_bytes(bytes: &[u8]) -> Result<Idp2pLedgerPublicHash, Idp2pMultiError> {
         let mut r = bytes;
         let code: VerificationKeyCode = read_u64(&mut r)?.try_into()?;
         let mut mh_bytes: Vec<u8> = vec![];
         r.read_to_end(&mut mh_bytes)?;
         Ok(Self {
             code: code,
-            digest: Multihash::<64>::from_bytes(&mh_bytes)?,
+            hash: Idp2pMultiHash::from_bytes(&mh_bytes)?,
         })
     }
+
     pub fn to_multi_bytes(&self) -> Vec<u8> {
         let code = self.code.clone() as u64;
         let mut code_buf = varint_encode::u64_buffer();
         let code = varint_encode::u64(code, &mut code_buf);
-        [code, &self.digest.to_bytes()].concat()
+        [code, &self.hash.to_bytes()].concat()
     }
+
     pub fn ensure_public(&self, public: &[u8]) -> Result<(), Idp2pMultiError> {
-        let hash = Multihash::<64>::wrap(self.digest.code(), public)?;
-        if self.digest != hash{
-           return Err(Idp2pMultiError::InvalidDigest);
-        }
-        Ok(())
+        self.hash.ensure(public)
     }
 }
 
