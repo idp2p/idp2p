@@ -1,0 +1,11 @@
+[package]
+name = "idp2p-comm"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+serde = { workspace = true }
+libp2p = { version = "0.52.3", features = ["tokio", "macros", "tcp", "mdns", "gossipsub", "request-response", "cbor", "yamux"]}
+
+[build-dependencies]
+prost-build = "0.12.1"
