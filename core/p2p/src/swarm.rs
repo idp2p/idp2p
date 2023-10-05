@@ -1,22 +1,35 @@
-use std::borrow::BorrowMut;
-
 use libp2p::{gossipsub, mdns, request_response, swarm::NetworkBehaviour};
+use serde::{Deserialize, Serialize};
 
-use crate::model::{MessageRequest, MessageResponse};
+use crate::{DigestId, block::Block};
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct NetworkRequest {
+    id: DigestId,         // Block Id
+    client_id: DigestId,  // dfd
+    client_kid: DigestId, // degf
+    signature: Vec<u8>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub enum NetworkResponse {
+    Block(Block),
+    MessageId(DigestId),
+}
 
 #[derive(NetworkBehaviour)]
 #[behaviour(to_swarm = "Idp2pEvent")]
 pub struct Idp2pBehaviour {
     pub gossipsub: gossipsub::Behaviour,
     pub mdns: mdns::tokio::Behaviour,
-    pub reqres: request_response::cbor::Behaviour<MessageRequest, MessageResponse>,
+    pub reqres: request_response::cbor::Behaviour<NetworkRequest, NetworkResponse>,
 }
 
 #[derive(Debug)]
 pub enum Idp2pEvent {
     Mdns(mdns::Event),
     Gossipsub(gossipsub::Event),
-    RequestResponse(request_response::Event<MessageRequest, MessageResponse>),
+    RequestResponse(request_response::Event<NetworkRequest, NetworkResponse>),
 }
 
 impl From<mdns::Event> for Idp2pEvent {
@@ -31,8 +44,8 @@ impl From<gossipsub::Event> for Idp2pEvent {
     }
 }
 
-impl From<request_response::Event<MessageRequest, MessageResponse>> for Idp2pEvent {
-    fn from(event: request_response::Event<MessageRequest, MessageResponse>) -> Self {
+impl From<request_response::Event<NetworkRequest, NetworkResponse>> for Idp2pEvent {
+    fn from(event: request_response::Event<NetworkRequest, NetworkResponse>) -> Self {
         Idp2pEvent::RequestResponse(event)
     }
 }
@@ -61,11 +74,7 @@ impl Idp2pBehaviour {
                 propagation_source,
                 message_id,
                 message,
-            } => {
-                if message.topic.as_str().len() == 0 {
-                    
-                }
-            },
+            } => if message.topic.as_str().len() == 0 {},
             _ => {}
         }
     }

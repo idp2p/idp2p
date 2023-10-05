@@ -11,13 +11,15 @@ colored = "2.0.0"
 
 [workspace.dependencies]
 tokio = { version = "1.32.0", features = ["full"] }
-serde = "1.0.188"
+sha2 = { version = "0.10.7", default-features = false }
+serde = { version = "1.0.188", default-features = false, features = ["derive", "alloc"] }
 
 
 [workspace]
 edition = "2021"
 members = [
     "common",
+    "core/common",
     "core/identity",
     "core/sdt",
     "core/p2p"

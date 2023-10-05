@@ -1,0 +1,9 @@
+[package]
+edition = "2021"
+name = "idp2p-core"
+version = "0.1.0"
+
+[dependencies]
+sha2 = { workspace = true }
+serde = { workspace = true }
+serde_bytes = { version = "0.11.12", default-features = false, features=["alloc"] }
