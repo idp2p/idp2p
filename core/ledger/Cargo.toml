@@ -1,10 +1,11 @@
 [package]
-name = "idp2p-comm"
+name = "idp2p-ledger"
 version = "0.1.0"
 edition = "2021"
 
 [dependencies]
 serde = { workspace = true }
+idp2p-wasmsg = { workspace = true }
 libp2p = { version = "0.52.3", features = ["tokio", "macros", "tcp", "mdns", "gossipsub", "request-response", "cbor", "yamux"]}
 
 [build-dependencies]

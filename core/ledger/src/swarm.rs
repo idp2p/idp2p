@@ -1,7 +1,16 @@
+use std::{
+    cell::RefCell,
+    collections::{BTreeMap, HashMap},
+};
+
+use idp2p_wasmsg::{
+    event::{StoredEvent, WasmInput},
+    message::PureMessage,
+};
 use libp2p::{gossipsub, mdns, request_response, swarm::NetworkBehaviour};
 use serde::{Deserialize, Serialize};
 
-use crate::{DigestId, block::Block};
+use crate::DigestId;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct NetworkRequest {
@@ -13,7 +22,7 @@ pub struct NetworkRequest {
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub enum NetworkResponse {
-    Block(Block),
+    Block(Vec<u8>),
     MessageId(DigestId),
 }
 
@@ -77,5 +86,64 @@ impl Idp2pBehaviour {
             } => if message.topic.as_str().len() == 0 {},
             _ => {}
         }
+    }
+
+    pub fn handle_message(&mut self, msg: PureMessage) {
+        let store = InMemoryStore::new(&msg.channel);
+        let mut input = WasmInput {
+            payload: msg.payload,
+            state: BTreeMap::new(),
+        };
+        for p in msg.projections {
+            input.state.insert(p.clone(), store.get(&p));
+        }
+        // call block wasm
+        let messages: Vec<PureMessage> = vec![];
+        for m in messages {
+            let mut minput = WasmInput {
+                payload: m.payload,
+                state: BTreeMap::new(),
+            };
+            for p in m.projections {
+                minput.state.insert(p.clone(), store.get(&p));
+            }
+            // call wasm 
+            // check result
+            // update db
+        }
+    }
+}
+
+pub struct InMemoryStore {
+    pub channel: String,
+    pub values: RefCell<HashMap<String, Vec<StoredEvent>>>,
+}
+
+impl InMemoryStore {
+    pub fn new(ch: &str) -> Self {
+        Self {
+            channel: ch.to_string(),
+            values: RefCell::new(HashMap::new()),
+        }
+    }
+}
+
+pub trait Store {
+    fn get(&self, key: &str) -> Vec<StoredEvent>;
+    fn put(&self, key: &str, value: Vec<StoredEvent>);
+    fn commit(&self);
+}
+
+impl Store for InMemoryStore {
+    fn get(&self, key: &str) -> Vec<StoredEvent> {
+        todo!()
+    }
+
+    fn put(&self, key: &str, value: Vec<StoredEvent>) {
+        todo!()
+    }
+
+    fn commit(&self) {
+        todo!()
     }
 }

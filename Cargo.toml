@@ -13,14 +13,14 @@ colored = "2.0.0"
 tokio = { version = "1.32.0", features = ["full"] }
 sha2 = { version = "0.10.7", default-features = false }
 serde = { version = "1.0.188", default-features = false, features = ["derive", "alloc"] }
-
+idp2p-wasmsg = { version = "0.1.0", path = "core/wasmsg" }
 
 [workspace]
 edition = "2021"
 members = [
     "common",
-    "core/common",
+    "core/wasmsg",
     "core/identity",
     "core/sdt",
-    "core/p2p"
+    "core/ledger"
 ]

@@ -1,4 +1,6 @@
-pub type WasmEvent = BTreeMap<String, Vec<u8>>; 
+use alloc::collections::BTreeMap;
+
+use serde::{Serialize, Deserialize};
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct StoredEvent {
@@ -7,16 +9,19 @@ pub struct StoredEvent {
 }
 
 pub struct WasmInput {
-    payload: Vec<u8>,
-    state: BTreeMap<String, Vec<StoredEvent>>,
+    pub payload: Vec<u8>,
+    pub state: BTreeMap<String, Vec<StoredEvent>>,
 }
 
-#[purewasm_bindgen]
-pub fn handle(input: WasmInput) -> Result<WasmEvent, PureError> {
-
-}
+//pub type WasmResult = Result<BTreeMap<String, Vec<u8>>, PureError>;
 
 /*
+#[purewasm_bindgen]
+pub fn handle(input: WasmInput) -> WasmResult {
+   
+}
+
+
   let state = BTreeMap<String, Vec<StoredEvent>> // query database 
   let input = WasmInput::new(payload, state);
   let event: WasmEvent = call_purewasm(input)?;
