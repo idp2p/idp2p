@@ -1,0 +1,17 @@
+[package]
+edition = "2021"
+name = "idp2p-wots"
+version = "0.1.0"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+lol_alloc = "0.4.0"
+bincode = { version = "2.0.0-rc.3", default-features = false, features = ["derive", "alloc"] }
+sha2 = { version = "0.10.7", default-features = false }
+
+[profile.release]
+panic = "abort"
+strip = true
+lto = true

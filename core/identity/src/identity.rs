@@ -1,53 +1,46 @@
+
+use prost::Message;
 use crate::{
     error::Idp2pError,
-    idp2p_proto::{
-        idp2p_event_payload::EventKind, Idp2pEvent, Idp2pEventPayload, Idp2pInception,
-        Idp2pMicroledger,
-    },
+    idp2p_proto::{IdEvent, IdEventPayload, IdInception, IdMicroledger},
 };
-use idp2p_common::multi::{
-    hash::Idp2pMultiHash,
-    id::Idp2pId,
-    ledgerkey::{Idp2pLedgerPublicHash, Idp2pLedgerPublicKey},
-};
-use prost::Message;
+use idp2p_common::multi::{hash::Idp2pMultiHash, id::Idp2pId, ledgerkey::Idp2pLedgerPublicKey};
 
 #[derive(PartialEq, Debug, Clone)]
-pub struct IdentityState {
+pub struct IdState {
     pub id: Vec<u8>,
-    pub m: u32,
-    pub r: u32,
-    pub n: u32,
-    pub key_hashs: Vec<Vec<u8>>,
+    pub min_signer: u8,
+    pub total_signer: u8,
+    pub signers: Vec<Vec<u8>>,
     pub event_id: Vec<u8>,
-    pub sdt_proof: Vec<u8>,
+    pub state: Vec<u8>
 }
 
+
 #[derive(PartialEq, Debug, Clone)]
-pub struct Identity {
-    pub id: Vec<u8>,
-    pub microledger: Vec<u8>,
-}
+pub struct Identity(IdMicroledger);
 
 impl Identity {
-    pub fn new(inception: Idp2pInception) -> Result<Identity, Idp2pError> {
-        let microledger = Idp2pMicroledger {
+    /*pub fn new(inception: IdInception) -> Result<Identity, Idp2pError> {
+        let microledger = IdMicroledger {
             inception: inception.encode_to_vec(),
             events: vec![],
         };
-        let mh = Idp2pMultiHash::new(&microledger.inception)?;
+        
+        let hash_alg = inception.schema.unwrap().hash_algo;
+        let mh = Idp2pMultiHash::new(&microledger.inception, hash_alg)?;
         Ok(Identity {
-            id: Idp2pId::Identity(mh.to_bytes()).to_bytes()?,
+            id: Idp2pId::Id(mh.to_bytes()).to_bytes()?,
             microledger: microledger.encode_to_vec(),
         })
     }
 
-    pub fn from_bytes(bytes: &[u8]) -> Result<Identity, Idp2pError> {
-        let microledger: Idp2pMicroledger = Idp2pMicroledger::decode(bytes)?;
-
-        let mh = Idp2pMultiHash::new(&microledger.inception)?;
+    pub fn from_bytes(id_bytes: &[u8], bytes: &[u8]) -> Result<Identity, Idp2pError> {
+        let microledger: IdMicroledger = IdMicroledger::decode(bytes)?;
+        let id = Idp2pId::from_bytes(id_bytes)?;
+        id.ensure(&microledger.inception)?;
         Ok(Identity {
-            id: Idp2pId::Identity(mh.to_bytes()).to_bytes()?,
+            id: id_bytes.to_vec(),
             microledger: bytes.to_vec(),
         })
     }
@@ -62,14 +55,21 @@ impl Identity {
         Ok(payload.encode_to_vec())
     }
 
-    pub fn prepare_recover(&self, recover: Idp2pInception) -> Result<Vec<u8>, Idp2pError> {
+    pub fn prepare_recover(&self, recover: Idp2pConfig) -> Result<Idp2pEvent, Idp2pError> {
         let state = self.verify()?;
         let event_kind = EventKind::Recover(recover);
         let payload = Idp2pEventPayload {
             previous: state.event_id,
             event_kind: Some(event_kind),
         };
-        Ok(payload.encode_to_vec())
+        let paylaod_bytes = payload.encode_to_vec();
+        let mh = Idp2pMultiHash::new(&paylaod_bytes, state.hash_alg)?;
+
+        Ok(Idp2pEvent {
+            id: Idp2pId::IdEvent(mh.to_bytes()).to_bytes()?,
+            payload: paylaod_bytes,
+            signatures: vec![],
+        })
     }
 
     pub fn push_event(&mut self, event: Idp2pEvent) -> Result<(), Idp2pError> {
@@ -85,14 +85,16 @@ impl Identity {
         id.ensure(&microledger.inception)?;
         // Decode inception bytes of microledger
         let inception: Idp2pInception = Idp2pInception::decode(&*microledger.inception)?;
+        let config = inception.config.unwrap();
         // Init current state to handle events
         let mut state = IdentityState {
             id: self.id.clone(),
             event_id: self.id.clone(),
-            m: inception.m,
-            r: inception.r,
-            n: inception.n,
-            key_hashs: inception.key_hashs.clone(),
+            hash_alg: config.hash_alg,
+            m: config.m,
+            r: config.r,
+            n: config.n,
+            signers: config.signers.clone(),
             sdt_proof: inception.sdt_proof.clone(),
         };
         for event in microledger.events {
@@ -107,14 +109,15 @@ impl Identity {
                 .ok_or(Idp2pError::RequiredField("event_kind".to_string()))?;
             let sig_len = event.signatures.len();
             for s in event.signatures {
-                if !state.key_hashs.contains(&s.hash) {
+                let signer = Idp2pLedgerPublicKey::from_multi_bytes(&s.public_key)?;
+                let signer_hash = signer.to_digest(state.hash_alg)?;
+
+                if !state.signers.contains(&signer_hash.to_multi_bytes()) {
                     return Err(Idp2pError::Other);
                 }
-                let key_hash = Idp2pLedgerPublicHash::from_multi_bytes(&s.hash)?;
-                key_hash.ensure_public(&s.key)?;
 
-                let signer = Idp2pLedgerPublicKey::new(key_hash.code(), &s.key)?;
-                signer.verify(&event.payload, &s.sig)?;
+                let signer = Idp2pLedgerPublicKey::from_multi_bytes(&s.public_key)?;
+                signer.verify(&event.payload, &s.sig_bytes)?;
             }
             use EventKind::*;
             match event_kind {
@@ -128,17 +131,17 @@ impl Identity {
                     if sig_len < state.r as usize {
                         return Err(Idp2pError::Other);
                     }
-                    state.key_hashs = recover.key_hashs;
+                    state.hash_alg = recover.hash_alg;
+                    state.signers = recover.signers;
                     state.m = recover.m;
                     state.r = recover.r;
                     state.n = recover.n;
-                    state.sdt_proof = recover.sdt_proof;
                 }
             }
             state.event_id = event.id;
         }
         Ok(state)
-    }
+    }*/
 }
 
 #[cfg(test)]

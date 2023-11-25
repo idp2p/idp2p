@@ -1,40 +1,42 @@
 syntax = "proto3";
 package idp2p.pb;
 
-// Resolve process is different for organizations and individuals
-// Organizations should serve its material via http
-// Individuals send its own material when connecting
-
-message Idp2pMicroledger {
-    bytes inception = 1; 
-    repeated Idp2pEvent events = 2;
-}
-
-/* Identity base model 2-2-3 2-3-4*/
-message Idp2pInception {
-    uint32 m = 1; // Mutation
-    uint32 r = 2; // Recovery
-    uint32 n = 3; // Total
-    repeated bytes key_hashs = 4; // MultiKeyHash of public key
-    bytes sdt_proof = 5;
-}
-
-message Idp2pSignature {
-    bytes hash = 1;
-    bytes key = 2;
-    bytes sig = 3; 
-}
-
-message Idp2pEvent {
+message IdMicroledger {
     bytes id = 1;
-    bytes payload = 2;  // Encoded bytes of mutation payload(It is encoded because of deterministic event_id and signature)
-    repeated Idp2pSignature signatures = 3;  // Signature of payload bytes 
+    bytes inception = 2; 
+    repeated Kv events = 3;
 }
 
-message Idp2pEventPayload {
-    bytes previous = 1;
-    oneof event_kind {
-        bytes mutation = 2;
-        Idp2pInception recover = 3;
-    }
+/* Identity inception*/
+message IdInception {
+    uint64 timestamp = 1; // The time of chain, it is not real timestamp
+    uint32 min_signer = 2; // m of n
+    uint32 total_signer = 3; // total number of signers
+    repeated bytes signers = 4; // KeyId bytes 
+    bytes state = 5; // Current state of id
+}
+
+message IdSignature {
+    bytes signer_id = 1;
+    bytes signer_pk = 2; 
+    bytes sig_bytes = 3;
+}
+
+message Kv {
+    bytes key = 1;
+    bytes value = 2; 
+}
+
+message IdEvent {
+    bytes payload = 2;  // Encoded bytes of mutation payload(It is encoded because of deterministic event_id and signature)
+    repeated IdSignature signatures = 3;  // Signature of payload bytes 
+}
+
+message IdEventPayload {
+    uint64 timestamp = 1;
+    bytes previous = 2;
+    repeated Kv signers= 3;
+    optional bytes min_signer = 4; // Current state of id
+    optional bytes total_signer = 5; // Current state of id
+    optional bytes state = 6;
 }

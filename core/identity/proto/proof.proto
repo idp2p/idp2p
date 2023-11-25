@@ -1,0 +1,39 @@
+syntax = "proto3";
+package idp2p.pb;
+
+message InceptionMerkleProofDraft {
+    bytes subject = 1; // Id of the entity
+    bytes hash = 2;
+    uint64 index = 3;
+    bytes root = 4;
+}
+
+message InceptionMerkleProof {
+    bytes subject = 1; // Id of the entity
+    bytes hash = 2;
+    uint64 index = 3;
+    bytes branch_id = 4; 
+    bytes branch_hash = 5;
+    uint64 branch_index = 6;
+    bytes root = 7;
+}
+
+message MutationMerkleProofDraft {
+    bytes subject = 1; // Id of the entity
+    bytes value = 2;
+    bytes hash = 3;
+    uint64 index = 4;
+    bytes root = 5;
+}
+
+
+message MutationMerkleProof {
+    bytes subject = 1; // Id of the entity
+    bytes value = 2;
+    bytes hash = 3;
+    uint64 index = 4;
+    bytes branch_id = 5; // Id of the entity
+    bytes branch_hash = 6;
+    uint64 branch_index = 7;
+    bytes root = 8;
+}

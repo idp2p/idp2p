@@ -3,23 +3,22 @@ use unsigned_varint::{encode as varint_encode, io::read_u8};
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Idp2pId {
-    Identity(Vec<u8>),
+    Id(Vec<u8>),
     IdEvent(Vec<u8>),
-    Credential(Vec<u8>),
-    Contract(Vec<u8>),
+    IdSignerKey(Vec<u8>),
     BlockItem(u8, Vec<u8>),
 }
 
 impl Idp2pId {
     pub fn from_bytes<T: AsRef<[u8]>>(bytes: T) -> Result<Self, Idp2pMultiError> {
         let mut r = bytes.as_ref();
+        
         let typ = read_u8(&mut r)?;
         match typ {
-            1 => Ok(Self::Identity(r.to_vec())),
+            1 => Ok(Self::Id(r.to_vec())),
             2 => Ok(Self::IdEvent(r.to_vec())),
-            3 => Ok(Self::Credential(r.to_vec())),
-            4 => Ok(Self::Contract(r.to_vec())),
-            5 => {
+            3 => Ok(Self::IdSignerKey(r.to_vec())),
+            4 => {
                 let tx_type = read_u8(&mut r)?;
                 Ok(Self::BlockItem(tx_type, r.to_vec()))
             }
@@ -27,11 +26,12 @@ impl Idp2pId {
         }
     }
 
+
     pub fn to_bytes(&self) -> Result<Vec<u8>, Idp2pMultiError> {
         let mut body: Vec<u8> = vec![];
 
         let typ: u8 = match self {
-            Self::Identity(mh) => {
+            Self::Id(mh) => {
                 body.extend_from_slice(mh);
                 1
             }
@@ -39,19 +39,15 @@ impl Idp2pId {
                 body.extend_from_slice(mh);
                 2
             }
-            Self::Credential(mh) => {
+            Self::IdSignerKey(mh) => {
                 body.extend_from_slice(mh);
                 3
-            }
-            Self::Contract(mh) => {
-                body.extend_from_slice(mh);
-                4
             }
             Self::BlockItem(tx_type, mh) => {
                 let mut tx_type_buf = varint_encode::u8_buffer();
                 body.extend_from_slice(varint_encode::u8(*tx_type, &mut tx_type_buf));
                 body.extend_from_slice(mh);
-                5
+                4
             }
         };
         let mut typ_buf = varint_encode::u8_buffer();
@@ -61,11 +57,11 @@ impl Idp2pId {
     /// Ensure the id is produced from the content
     pub fn ensure(&self, content: &[u8]) -> Result<(), Idp2pMultiError> {
         let mh_bytes: &Vec<u8> = match self {
-            Self::BlockItem(_, mh) => mh,
-            Self::Identity(mh) => mh,
+            Self::Id(mh) => mh,
             Self::IdEvent(mh) => mh,
-            Self::Contract(mh) => mh,
-            Self::Credential(mh) => mh,
+            Self::IdSignerKey(mh) => mh,
+            Self::BlockItem(_, mh) => mh,
+
         };
         let mh = Idp2pMultiHash::from_bytes(&mh_bytes)?;
         mh.ensure(content)?;
@@ -144,7 +140,7 @@ mod tests {
     use super::*;
     #[test]
     fn enc_dec_test() -> Result<(), Idp2pMultiError> {
-        let id = Idp2pId::Identity(vec![]);
+        let id = Idp2pId::Id(vec![]);
         let id2 = Idp2pId::from_bytes(&id.to_bytes()?)?;
         assert_eq!(id, id2);
         Ok(())

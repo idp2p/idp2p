@@ -1,6 +1,5 @@
 pub mod multi;
 pub use chrono;
-pub use multibase;
 use rand::{thread_rng, RngCore};
 use serde::Serialize;
 use sha2::Digest;

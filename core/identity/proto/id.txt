@@ -1,0 +1,77 @@
+type KeyId = [U8];
+type EventId = [U8];
+
+struct Self {
+    id: Id,
+    inception: {
+        timestamp: U64,
+        min_signer: U8, 
+        total_signer: U8,     
+        signers: [KeyId],
+        state: [U8]
+    },
+    events: Map<EventId, Event>
+}
+
+ struct Self {
+        id: [U8]
+        inception: {
+
+        }
+        validate(self){
+           expected_id = generate_id(self.inception)
+           assert(self.id == expected_id)
+           id_state = {
+             id: self.id,
+             index: self.inception.index,
+             state: self.inception.state,
+             min_signer: self.inception.min_signer, 
+             total_signer: self.inception.total_signer,     
+             signers: self.inception.signers
+           }
+           for (event_id, event) in self.events {
+             expected_event_id = generate_id(event)
+             assert(event_id == expected_event_id)
+           }  
+        }
+    }
+    struct Event {
+
+        validate(){
+
+        }
+    }
+
+struct Event {
+    payload: {
+        previous: EventId,
+        state: [U8],
+        signers: Map<KeyId, KeyId>
+    }
+    signatures:[IdSignature]
+}
+
+struct IdSignature {
+    signer_id: KeyId,
+    signer_pk: [U8], 
+    sig_bytes: [U8]
+}
+
+validate Self {
+   expected_id = generate_id(self.inception)
+   assert(self.id == expected_id)   
+   id_state = {
+      id: self.id,
+      index: self.inception.index,
+      state: self.inception.state,
+      min_signer: self.inception.min_signer, 
+      total_signer: self.inception.total_signer,     
+      signers: self.inception.signers
+   }
+   for (event_id, event) in self.events {
+      assert()
+   }
+}
+
+// generate_id
+// verify

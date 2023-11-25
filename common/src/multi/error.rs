@@ -9,8 +9,6 @@ pub enum Idp2pMultiError {
     #[error(transparent)]
     MultihashError(#[from] multihash::Error),
     #[error(transparent)]
-    MultibaseError(#[from] multibase::Error),
-    #[error(transparent)]
     VarintReadError(#[from] unsigned_varint::io::ReadError),
     #[error(transparent)]
     Infallible(#[from] std::convert::Infallible),

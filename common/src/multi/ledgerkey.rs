@@ -96,13 +96,13 @@ impl Idp2pLedgerPublicKey {
     }
 
     // To key digest
-    pub fn to_digest(&self) -> Result<Idp2pLedgerPublicHash, Idp2pMultiError> {
+    pub fn to_digest(&self, alg: u64) -> Result<Idp2pLedgerPublicHash, Idp2pMultiError> {
         let (code, pk) = match &self {
             Self::Ed25519(pk) => (VerificationKeyCode::Ed25519, pk.as_bytes()),
             Self::Dilithium3(pk) => (VerificationKeyCode::Dilithium3, pk.as_bytes()),
             Self::Winternitz(pk) => (VerificationKeyCode::Winternitz, pk.as_bytes()),
         };
-        let hash = Idp2pMultiHash::new(pk)?;
+        let hash = Idp2pMultiHash::new(pk, alg)?;
         Ok(Idp2pLedgerPublicHash::new(code, hash))
     }
 }

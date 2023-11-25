@@ -2,7 +2,7 @@ syntax = "proto3";
 package idp2p.pb;
 
 message KeyValue {
-    bytes key = 1; // Can be an identity, credential or contract identifier
+    bytes key = 1; // Can be an id_event, credential or contract identifier
     bytes value = 2; // Can be an identity event, credential event or contract hash
 }
 

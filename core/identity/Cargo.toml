@@ -7,7 +7,7 @@ version = "0.1.0"
 log = "0.4.16"
 thiserror = "1.0.38"
 prost = "0.11.9"
-tokio = { version = "1.13.0", features = ["full"] }
+rs_merkle = "1.4.1"
 idp2p-common = { version = "0.1.0", path="../../common"}
 
 [build-dependencies]

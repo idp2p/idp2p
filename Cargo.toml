@@ -16,6 +16,7 @@ tokio = { version = "1.13.0", features = ["full"] }
 edition = "2021"
 members = [
     "common",
+    "core/identity",
     "core/sdt",
-    "core/identity"
+    "core/wots"
 ]
