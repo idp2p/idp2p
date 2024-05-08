@@ -1,4 +1,0 @@
-- Create block data and send it to notary
-- Hold data(interested)
-- Verify a block 
-- Resolve a key
