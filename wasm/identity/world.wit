@@ -1,0 +1,21 @@
+package idp2p:wasmid@0.1.0;
+
+world wasmid {
+  use model.{ 
+    id-inception,
+    id-state, 
+    id-event, 
+    id-inception-input, 
+    id-event-input, 
+    id-create-result,
+    id-create-event-result  
+  };
+
+  export verify-inception: func(inception: id-inception) -> result<id-state, string>;
+
+  export verify-event: func(state: id-state, event: id-event) -> result<id-state, string>;
+
+  export create: func(input: id-inception-input) -> result<id-create-result, string>;
+
+  export create-event: func(input: id-event-input) -> result<id-create-event-result, string>;
+}

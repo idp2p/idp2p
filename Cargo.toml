@@ -1,20 +1,37 @@
 [package]
-edition = "2021"
 name = "idp2p"
-version = "0.1.0"
-
-[dependencies]
-structopt = "0.3.25"
-env_logger = "0.10.0"
-dotenv = "0.15.0"
-colored = "2.0.0"
-libp2p = "0.51.3"
-serde = "1.0.160"
-tokio = { version = "1.13.0", features = ["full"] }
+edition = "2021"
 
 [workspace]
 edition = "2021"
 members = [
-    "core/wasmid",
-    "core/sdt"
+    "core",
+    "wasm/identity",
+    "wasm/sdt",
 ]
+
+[profile.dev]
+lto = true
+opt-level = "z"
+strip = "symbols"
+
+[dependencies]
+wasmtime = "21.0.1"
+wit-component = "0.209.1"
+
+[workspace.dependencies]
+rand = "0.8.5"
+lol_alloc = "0.4.1"
+regex = { version = "1.10.5", default-features = false }
+anyhow = { version = "1.0.86", default-features = false }
+serde = { version = "1.0.203", default-features = false, features = [
+    "derive",
+    "alloc",
+] }
+ciborium = { version = "0.2.2", default-features = false }
+serde_json = { version = "1.0.94", default-features = false }
+ed25519-dalek  = { version = "2.1.1", default-features = false }
+sha2 = { version = "0.10.8", default-features = false }
+multihash = {version = "0.19.1", default-features = false }
+cid = {version = "0.11.1", default-features = false, features = ["alloc"]}
+wit-bindgen = { version = "0.26.0", default-features = false, features = ["macros"] }

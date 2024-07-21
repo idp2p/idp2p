@@ -1,0 +1,12 @@
+[package]
+name = "idp2p-core"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+anyhow = { workspace = true }
+regex = { workspace = true }
+sha2 = { workspace = true }
+multihash = {workspace = true }
+cid = {workspace = true }
+ed25519-dalek = {workspace = true }
