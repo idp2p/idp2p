@@ -1,13 +1,15 @@
 use alloc::{
+    borrow::ToOwned,
     collections::BTreeMap,
     string::{String, ToString},
     vec::Vec,
-    borrow::ToOwned
 };
+use idp2p_core::to_hex_str;
 use serde::{Deserialize, Serialize};
 use serde_json::Number;
 
 use crate::{
+    host,
     proof::SdtProof,
     query::parse_query,
     value::{SdtValue, SdtValueKind},
@@ -17,6 +19,25 @@ use crate::{
 pub enum SdtClaim {
     Value(SdtValueKind),
     Element(BTreeMap<String, SdtClaim>),
+}
+
+impl SdtClaim {
+    pub fn to_element(&self) -> SdtElement {
+        let mut element = SdtElement::new();
+        if let SdtClaim::Element(map) = &self {
+            for (k, v) in map {
+                match v {
+                    SdtClaim::Value(val) => {
+                        element.add_value(k, &to_hex_str(&host::rand()), val.to_owned());
+                    }
+                    SdtClaim::Element(_) => {
+                        element.add_element(k, v.to_element());
+                    }
+                }
+            }
+        }
+        return element.build();
+    }
 }
 
 #[derive(PartialEq, Debug, Clone, Serialize, Deserialize)]
@@ -50,6 +71,7 @@ impl SdtElement {
         self.0.insert(key.to_string(), SdtElementKind::Element(map));
         self
     }
+
     pub fn add_value(&mut self, key: &str, salt: &str, val: SdtValueKind) -> &mut Self {
         self.0.insert(
             key.to_string(),

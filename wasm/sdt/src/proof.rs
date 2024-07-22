@@ -1,4 +1,5 @@
 use alloc::{ string::{String, ToString}, collections::BTreeMap };
+use idp2p_core::{hash, to_hex_str};
 use serde::{Deserialize, Serialize};
 use crate::{ value::SdtValueKind};
 
@@ -25,7 +26,8 @@ impl SdtProof {
     }
 
     pub fn digest(&mut self) -> anyhow::Result<String> {
-        todo!()
-        //digest(&self.0)
+        let encoded = serde_json::to_vec(&self.0)?;
+        let digest = hash::sha256_hash(&encoded)?;
+        Ok(to_hex_str(&digest))
     }
 }

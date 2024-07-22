@@ -14,8 +14,6 @@ mod verify;
 
 pub const ID_VERSION: (u16, u16, u16) = (0, 1, 0);
 pub const BINARY_CODE: u64 = 0x55;
-pub const ED_CODE: u64 = 0xed;
-pub const SHA2_256_CODE: u64 = 0x12;
 
 #[cfg(target_arch = "wasm32")]
 #[global_allocator]

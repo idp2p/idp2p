@@ -6,6 +6,7 @@ extern crate alloc;
 
 use alloc::string::{String, ToString};
 
+use host::rand;
 #[cfg(target_arch = "wasm32")]
 use lol_alloc::{FreeListAllocator, LockedAllocator};
 
@@ -13,6 +14,8 @@ mod element;
 mod value;
 mod proof;
 mod query;
+
+pub const SDT_VERSION: (u16, u16, u16) = (0, 1, 0);
 
 #[cfg(target_arch = "wasm32")]
 #[global_allocator]
@@ -30,5 +33,22 @@ wit_bindgen::generate!({
     world: "sdt",
 });
 
-pub const ID_VERSION: (u16, u16, u16) = (0, 1, 0);
-pub const BINARY_CODE: u64 = 0x55;
+struct SdtComponent;
+
+export!(SdtComponent);
+
+impl Guest for SdtComponent {
+    fn gen_sdt(raw: String,) -> Result<String, String> {
+        Err(raw)
+    }
+        
+    fn query_sdt(sdt: String, query:String,) -> Result<String, String> {
+        todo!()
+    }  
+
+    fn verify_sdt(proof: String, root: String) -> Result<bool, String> {
+        let x =  rand();
+        todo!()
+    }  
+}
+

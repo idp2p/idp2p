@@ -1,4 +1,13 @@
 package idp2p:sdt@0.1.0;
 
 world sdt {
+     import host: interface {
+        rand: func() -> list<u8>;
+     }
+    
+     export verify-sdt: func(proof: string, root: string) -> result<bool, string>;
+
+     export gen-sdt: func(raw: string) -> result<string, string>;
+    
+     export query-sdt: func(sdt: string, query: string) -> result<string, string>;
 }
