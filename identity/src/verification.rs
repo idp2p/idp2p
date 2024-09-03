@@ -1,26 +1,47 @@
+use crate::{
+    event::{IdEvent, IdInception, IdActionKind::*},
+    exports::idp2p::id::verification::{IdState, PersistedIdEvent, PersistedIdInception},
+};
 use cid::Cid;
-use crate::{IdEvent, IdInception, IdState};
 use idp2p_core::{cid::CidExt, verifying::Ed25519PublicKey};
 
-pub fn verify_inception(inception: IdInception) -> anyhow::Result<IdState> {
-    let payload = inception.to_bytes()?;
-    let cid = Cid::from_bytes(inception.id.as_slice())?;
-    cid.ensure(payload.as_slice())?;
-    if inception.m_of_n.m >= inception.m_of_n.n {
-        anyhow::bail!("invalid m of n")
-    }
-    if inception.signers.len() < inception.m_of_n.n as usize {
-        anyhow::bail!("not enough signers")
+pub fn verify_inception(persisted_inception: PersistedIdInception) -> anyhow::Result<IdState> {
+    let inception = IdInception::from_bytes(&persisted_inception.payload)?;
+    let cid = Cid::from_bytes(persisted_inception.id.as_slice())?;
+    cid.ensure(persisted_inception.payload.as_slice())?;
+    let mut id_state = IdState {
+        id: persisted_inception.id.clone(),
+        event_id: persisted_inception.id.clone(),
+        signer: inception.signer,
+        recovery: inception.recovery,
+        state: None,
+        assertions: vec![],
+        authentications: vec![],
+        agreements: vec![],
+        used: vec![],
+    };
+    for a in inception.actions.iter() {
+        match a {
+            UpdateState(_) => todo!(),
+            AddAssertionKey(_) => todo!(),
+            RemoveAssertionKey(_) => todo!(),
+            AddAuthenticationKey(_) => todo!(),
+            RemoveAuthenticationKey(_) => todo!(),
+            AddAgreementKey(_) => todo!(),
+            RemoveAgreementKey(_) => todo!(),
+        }
     }
     Ok(IdState {
-        id: inception.id.clone(),
-        latest_m_of_n: inception.m_of_n,
-        latest_signers: inception.signers.clone(),
-        latest_event_id: inception.id.clone(),
-        latest_state: inception.state.clone(),
-        signers: inception.signers,
-        states: vec![inception.state],
-        events: vec![inception.id],
+        id: persisted_inception.id.clone(),
+        event_id: persisted_inception.id.clone(),
+        signer: inception.signer,
+        recovery: inception.recovery,
+        // find update state event and set state
+        state: inception.events.iter().filter(|e| matches!(e.payload, IdEventKind::UpdateState(_))).collect(),
+        assertions: todo!(),
+        authentications: todo!(),
+        agreements: todo!(),
+        used: todo!(),
     })
 }
 

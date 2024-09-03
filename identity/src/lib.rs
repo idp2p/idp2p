@@ -5,14 +5,14 @@ extern crate alloc;
 
 use alloc::string::{String, ToString};
 
+use exports::idp2p::id::verification::{Guest, PersistedIdEvent, PersistedIdInception};
 #[cfg(target_arch = "wasm32")]
 use lol_alloc::{FreeListAllocator, LockedAllocator};
 
 mod command;
-mod encoder;
-mod verify;
+mod event;
+mod verification;
 
-pub const ID_VERSION: (u16, u16, u16) = (0, 1, 0);
 pub const BINARY_CODE: u64 = 0x55;
 
 #[cfg(target_arch = "wasm32")]
@@ -28,7 +28,7 @@ fn panic(_info: &core::panic::PanicInfo) -> ! {
 
 wit_bindgen::generate!({
     path: ".",
-    world: "wasmid",
+    world: "idp2p-id",
 });
 
 struct GuestComponent;
@@ -36,7 +36,17 @@ struct GuestComponent;
 export!(GuestComponent);
 
 impl Guest for GuestComponent {
-    fn verify_inception(inception: IdInception) -> Result<IdState, String> {
+    fn verify_inception(inception: PersistedIdInception) -> Result<IdState, String> {
+        
+        todo!()
+    }
+
+    fn verify_event(state: IdState, event: PersistedIdEvent) -> Result<IdState, String> {
+        todo!()
+    }
+}
+/*
+fn verify_inception(inception: IdInception) -> Result<IdState, String> {
         verify::verify_inception(inception).map_err(|e| e.to_string())
     }
 
@@ -51,4 +61,4 @@ impl Guest for GuestComponent {
     fn create_event(input: IdEventInput) -> Result<IdCreateEventResult, String> {
         command::create_event(input).map_err(|e| e.to_string())
     }
-}
+*/

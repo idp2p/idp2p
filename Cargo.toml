@@ -6,8 +6,8 @@ edition = "2021"
 edition = "2021"
 members = [
     "core",
-    "wasm/identity",
-    "wasm/sdt",
+    "identity",
+    "network",
 ]
 
 [profile.dev]
@@ -34,5 +34,5 @@ serde_json = { version = "1.0.94", default-features = false }
 ed25519-dalek  = { version = "2.1.1", default-features = false }
 sha2 = { version = "0.10.8", default-features = false }
 multihash = {version = "0.19.1", default-features = false }
-cid = {version = "0.11.1", default-features = false, features = ["alloc"]}
+cid = {version = "0.11.1", default-features = false, features = ["alloc", "serde"]}
 wit-bindgen = { version = "0.26.0", default-features = false, features = ["macros"] }

@@ -1,0 +1,5 @@
+package idp2p:id@0.1.0;
+
+world idp2p-id {
+  export verification;
+}

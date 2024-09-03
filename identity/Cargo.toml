@@ -24,6 +24,6 @@ lol_alloc = { workspace = true }
 anyhow = { workspace = true }
 ed25519-dalek  = { workspace = true }
 wit-bindgen = { workspace = true }
-idp2p-core ={ path = "../../core" }
+idp2p-core ={ path = "../core" }
 
 
