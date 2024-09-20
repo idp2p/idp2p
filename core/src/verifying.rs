@@ -31,7 +31,6 @@ impl Ed25519PublicKey {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     #[test]
     fn to_bytes_test() {}
 }

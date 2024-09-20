@@ -19,6 +19,7 @@ strip = "symbols"
 crate-type = ["cdylib"]
 
 [dependencies]
+serde = { workspace = true }
 cid ={ workspace = true }
 lol_alloc = { workspace = true }
 anyhow = { workspace = true }

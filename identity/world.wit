@@ -1,5 +1,10 @@
 package idp2p:id@0.1.0;
 
 world idp2p-id {
+  import host: interface {
+    gen-signer: func() -> list<u8>;
+    gen-assertion: func() -> list<u8>;
+    gen-agreement: func() -> list<u8>;
+  }
   export verification;
 }

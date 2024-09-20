@@ -18,11 +18,17 @@ interface verification {
         payload: list<u8>,
     }
 
+    record id-proof {
+        id: cid,
+        pk: list<u8>,
+        sig: list<u8>,
+    }
+
     record persisted-id-event {
         id: cid,
         version: string,
         payload: list<u8>,
-        signature: list<u8>,
+        proofs: list<id-proof>,
     }
 
     verify-inception: func(incepiton: persisted-id-inception) -> result<id-state, string>;

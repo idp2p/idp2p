@@ -5,15 +5,14 @@ extern crate alloc;
 
 use alloc::string::{String, ToString};
 
-use exports::idp2p::id::verification::{Guest, PersistedIdEvent, PersistedIdInception};
+use exports::idp2p::id::verification::{Guest, IdState, PersistedIdEvent, PersistedIdInception};
 #[cfg(target_arch = "wasm32")]
 use lol_alloc::{FreeListAllocator, LockedAllocator};
 
-mod command;
 mod event;
-mod verification;
 
 pub const BINARY_CODE: u64 = 0x55;
+pub const VERSION: &'static str = "id@1.0.0"; 
 
 #[cfg(target_arch = "wasm32")]
 #[global_allocator]

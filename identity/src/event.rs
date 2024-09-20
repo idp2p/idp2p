@@ -1,15 +1,22 @@
+use alloc::{string::String, vec::Vec};
+use anyhow::bail;
 use cid::Cid;
 use serde::{Deserialize, Serialize};
 
-const VERSION: &'static str = "id@1.0.0"; 
+#[derive(Debug, Serialize, Deserialize)]
+pub struct IdMultiSig {
+    m: u8,
+    n: u8,
+}
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct IdInception {
     pub version: String,
-    pub next_signer_id: Cid,
-    pub next_recovery_id: Cid,
     pub timestamp: i64,
-    pub state_root: Cid,
+    pub m_of_n: IdMultiSig,
+    pub next_signers: Vec<Cid>, // Should match n
+    pub sdt_root: Cid,
+    pub key_events: Vec<IdKeyEventKind>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -17,21 +24,38 @@ pub struct IdEvent {
     pub version: String,
     pub timestamp: i64,
     pub previous: Cid,
-    pub payload: IdEventKind,
+    pub signers: Vec<Cid>,      // Should match m
+    pub next_signers: Vec<Cid>, // Should match n
+    pub sdt_root: Option<Cid>,
+    pub m_of_n: Option<IdMultiSig>,
+    pub key_events: Option<Vec<IdKeyEventKind>>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-#[serde(tag = "kind")]
-pub enum IdEventKind {
-    Mutation {
-        signer_pk: Vec<u8>,
-        next_signer_id: Cid,
-        state_root: Cid,
+pub enum IdKeyEventKind {
+    CreateAssertion {
+        id: Cid,
+        pk: Vec<u8>,
+        valid_from: i64,
+        valid_until: i64,
     },
-    Recovery {
-        recovery_pk: Vec<u8>,
-        next_signer_id: Cid,
-        next_recovery_id: Cid,
+    RevokeAssertion(Cid),
+    CreateAgreement {
+        id: Cid,
+        pk: Vec<u8>,
+        valid_from: i64,
+        valid_until: i64,
     },
+    RevokeAgreement(Cid),
+}
+
+
+impl IdMultiSig {
+    pub fn new(m: u8, n: u8) -> anyhow::Result<Self> {
+        if m > n {
+           bail!("");
+        }
+        Ok(Self { m, n })
+    }
 }
 
