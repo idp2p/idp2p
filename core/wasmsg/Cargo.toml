@@ -4,6 +4,7 @@ name = "idp2p-wasmsg"
 version = "0.1.0"
 
 [dependencies]
+regex = "1.10.2"
 sha2 = { workspace = true }
 serde = { workspace = true }
 serde_bytes = { version = "0.11.12", default-features = false, features=["alloc"] }

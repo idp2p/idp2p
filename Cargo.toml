@@ -18,7 +18,7 @@ idp2p-wasmsg = { version = "0.1.0", path = "core/wasmsg" }
 [workspace]
 edition = "2021"
 members = [
-    "common",
+    "utils",
     "core/wasmsg",
     "core/identity",
     "core/sdt",

@@ -1,5 +1,5 @@
 use std::collections::BTreeMap;
-use idp2p_common::digest;
+use idp2p_utils::digest;
 use serde::{Deserialize, Serialize};
 use crate::{error::SdtError, value::SdtValueKind};
 

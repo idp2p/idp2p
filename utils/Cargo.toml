@@ -1,6 +1,6 @@
 [package]
 edition = "2021"
-name = "idp2p-common"
+name = "idp2p-utils"
 version = "0.1.0"
 
 [dependencies]
