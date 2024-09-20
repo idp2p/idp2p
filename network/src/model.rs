@@ -5,10 +5,6 @@ use serde::{Deserialize, Serialize};
 pub enum IdGossipMessage {
     // When a peer wants to resolve identity
     Resolve,
-    // When a peer wants to provide identity
-    Provide,
-    // When a peer wants to withdraw identity
-    Withdraw,
     // When a id wants to notify with a did change
     Notify(Cid),
 }
