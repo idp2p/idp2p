@@ -1,5 +1,5 @@
 [package]
-name = "idp2p-wasmid"
+name = "idp2p-id"
 edition = "2021"
 description = "IDP2P WASMID"
 version = "0.1.0"
@@ -25,6 +25,6 @@ lol_alloc = { workspace = true }
 anyhow = { workspace = true }
 ed25519-dalek  = { workspace = true }
 wit-bindgen = { workspace = true }
-idp2p-core ={ path = "../core" }
+idp2p-utils ={ path = "../core/utils" }
 
 

@@ -1,22 +1,11 @@
-use libp2p::{
+fn main() {}
+/*use libp2p::{
     swarm::NetworkBehaviour,
     gossipsub::{Behaviour as GossipsubBehaviour, Event as GossipsubEvent},
     mdns::{Event as MdnsEvent, tokio::Behaviour as MdnsBehaviour},
     request_response::{cbor::Behaviour as CborBehaviour, Event as RequestResponseEvent},
 };
 use serde::{Deserialize, Serialize};
-
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub enum NodeRequest {
-    KeyEventBlock,
-    TimestampBlock{},
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub enum NodeResponse {
-    KeyEventBlock(Vec<u8>),
-    TimestampBlock(Vec<u8>),
-}
 
 #[derive(NetworkBehaviour)]
 #[behaviour(to_swarm = "Idp2pNodeEvent")]
@@ -85,4 +74,4 @@ impl Idp2pNodeBehaviour {
             _ => {}
         }
     }
-}
+}*/

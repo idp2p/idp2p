@@ -5,8 +5,8 @@ edition = "2021"
 [workspace]
 edition = "2021"
 members = [
-    "core",
-    "identity",
+    "core/utils",
+    "id",
 ]
 
 [profile.dev]
@@ -17,6 +17,7 @@ strip = "symbols"
 [dependencies]
 wasmtime = "21.0.1"
 wit-component = "0.209.1"
+libp2p = "0.53.2"
 
 [workspace.dependencies]
 rand = "0.8.5"

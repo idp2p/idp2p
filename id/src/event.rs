@@ -47,6 +47,12 @@ pub enum IdKeyEventKind {
         valid_until: i64,
     },
     RevokeAgreement(Cid),
+    CreateService {
+        id: String,
+        r#type: String,
+        service_endpoint: String
+    },
+    RevokeService(String),
 }
 
 

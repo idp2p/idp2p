@@ -1,5 +1,5 @@
 [package]
-name = "idp2p-core"
+name = "idp2p-utils"
 version = "0.1.0"
 edition = "2021"
 
