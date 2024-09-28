@@ -6,7 +6,7 @@ edition = "2021"
 edition = "2021"
 members = [
     "core/utils",
-    "id",
+    "core/id",
 ]
 
 [profile.dev]
@@ -23,6 +23,7 @@ libp2p = "0.53.2"
 rand = "0.8.5"
 lol_alloc = "0.4.1"
 hex = "0.4.3"
+semver = "1"
 regex = { version = "1.10.5", default-features = false }
 anyhow = { version = "1.0.86", default-features = false }
 serde = { version = "1.0.203", default-features = false, features = [

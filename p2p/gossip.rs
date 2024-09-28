@@ -26,10 +26,6 @@ pub struct IdGossipBehaviour {
     pub id_request: CborBehaviour<IdRequest, ()>
 }
 
-public class X {
-    private CborBehaviour<IdDocument, Void> id_resolve;
-}
-
 pub struct GossipMessageHandler<S: IdStore> {
     store: S,
 }

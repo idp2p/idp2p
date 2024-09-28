@@ -8,6 +8,6 @@ pub trait IdStore {
     fn remove(&self, id: Cid);
     fn is_provider(&self, id: Cid) -> bool;
     fn is_resolved(&self, id: Cid) -> bool;
-    fn add_message(&self, topic: Cid, message: IdDirectMessage);
     fn get_message(&self, topic: Cid);
+    fn put_message(&self, topic: Cid, message: IdDirectMessage);
 }

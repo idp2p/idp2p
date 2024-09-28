@@ -1,2 +1,0 @@
-mod gossip;
-mod message;
