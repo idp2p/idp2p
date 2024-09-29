@@ -13,19 +13,13 @@ pub struct IdVerificationMethod {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct IdService {
-    id: String,
-    service_endpoint: String,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
 pub enum IdActionKind {
     CreateAssertion(IdVerificationMethod),
     RevokeAssertion(Cid),
     CreateAgreement(IdVerificationMethod),
     RevokeAgreement(Cid),
-    CreateService(IdService),
-    RevokeService(String),
+    CreateMediator(Cid),
+    RevokeMediator(Cid),
 }
 
 impl IdVerificationMethod {
@@ -49,32 +43,12 @@ impl IdVerificationMethod {
     }
 }
 
-impl IdService {
-    pub fn new(id: String, service_endpoint: String) -> Result<Self> {
-        let service = Self {
-            id,
-            service_endpoint,
-        };
-        service.validate()?;
-        Ok(service)
-    }
-
-    pub fn validate(&self) -> Result<()> {
-        let regex_str = r"^/(dns4|ip4|ip6)/([a-zA-Z0-9\-\.]+|\d{1,3}(\.\d{1,3}){3}|[0-9a-fA-F:]+)/tcp/\d+/p2p/Qm[1-9A-HJ-NP-Za-km-z]{44}$";
-        let regex = regex::Regex::new(regex_str).map_err(anyhow::Error::msg)?;
-        if !regex.is_match(&self.id) {
-            bail!("The service ID must match the following regex: {}", regex);
-        }
-        Ok(())
-    }
-}
 
 impl IdActionKind {
     pub fn validate(&self) -> Result<()> {
         match self {
             IdActionKind::CreateAssertion(vm) => vm.validate()?,
             IdActionKind::CreateAgreement(vm) => vm.validate()?,
-            IdActionKind::CreateService(service) => service.validate()?,
             _ => {}
         }
         Ok(())
