@@ -1,9 +1,7 @@
-use cid::Cid;
+use cid:: Cid;
 use multihash::Multihash;
 
 use crate::hash::sha256_hash;
-
-const SHA2_256_CODE: u64 = 0x12;
 
 pub trait CidExt {
     fn ensure(&self, input: &[u8]) -> anyhow::Result<()>;

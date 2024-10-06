@@ -1,5 +1,5 @@
 [package]
-name = "idp2p-utils"
+name = "idp2p-common"
 version = "0.1.0"
 edition = "2021"
 
@@ -8,6 +8,6 @@ hex = { workspace = true }
 anyhow = { workspace = true }
 regex = { workspace = true }
 sha2 = { workspace = true }
-multihash = {workspace = true }
-cid = {workspace = true }
-ed25519-dalek = {workspace = true }
+cid = { workspace = true }
+multihash = { workspace = true }
+ed25519-dalek = { workspace = true }

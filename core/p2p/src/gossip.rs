@@ -9,12 +9,15 @@ pub struct IdGossipMessage {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum IdGossipMessageKind {
-    // Resolve identity, address is the request-response server
-    Resolve { address: String },
+    // Resolve identity
+    Resolve,
+    // Provide an identity document
+    Provide { doc: IdDocument },
     // Notify an identity event
-    Notify { event: IdEvent },
+    NotifyEvent { event: IdEvent },
+    // Notify message
+    NotifyMessage { id: Cid },
 }
-
 
 #[derive(NetworkBehaviour)]
 #[behaviour(to_swarm = "Idp2pNodeEvent")]
@@ -23,7 +26,7 @@ pub struct IdGossipBehaviour {
     pub id_gossipsub: GossipsubBehaviour,
     pub id_resolve: CborBehaviour<IdDocument, ()>,
     pub id_message: CborBehaviour<IdDirectMessage, ()>,
-    pub id_request: CborBehaviour<IdRequest, ()>
+    pub id_request: CborBehaviour<IdRequest, ()>,
 }
 
 pub struct GossipMessageHandler<S: IdStore> {
@@ -37,9 +40,11 @@ impl<S: IdStore> GossipMessageHandler<S> {
 
     pub fn handle(&self, topic: Cid, message: IdGossipMessage) {
         match message.payload {
-            IdGossipMessageKind::Resolve => if store.is_provided(topic) {
-                // call address endpoint with id doc 
-            },
+            IdGossipMessageKind::Resolve => {
+                if store.is_provided(topic) {
+                    // call address endpoint with id doc
+                }
+            }
             IdGossipMessageKind::Notify => {
                 // handle event
             }
@@ -56,7 +61,5 @@ impl<S: IdStore> ResolveHandler<S> {
         Self { store }
     }
 
-    pub fn handle(&self, ) {
-       
-    }
+    pub fn handle(&self) {}
 }
