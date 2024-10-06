@@ -19,16 +19,6 @@ pub enum IdGossipMessageKind {
     NotifyMessage { id: Cid },
 }
 
-#[derive(NetworkBehaviour)]
-#[behaviour(to_swarm = "Idp2pNodeEvent")]
-pub struct IdGossipBehaviour {
-    pub id_mdns: MdnsBehaviour,
-    pub id_gossipsub: GossipsubBehaviour,
-    pub id_resolve: CborBehaviour<IdDocument, ()>,
-    pub id_message: CborBehaviour<IdDirectMessage, ()>,
-    pub id_request: CborBehaviour<IdRequest, ()>,
-}
-
 pub struct GossipMessageHandler<S: IdStore> {
     store: S,
 }

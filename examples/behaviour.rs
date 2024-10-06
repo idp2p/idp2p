@@ -9,6 +9,16 @@ use serde::{Deserialize, Serialize};
 
 #[derive(NetworkBehaviour)]
 #[behaviour(to_swarm = "Idp2pNodeEvent")]
+pub struct IdGossipBehaviour {
+    pub id_mdns: MdnsBehaviour,
+    pub id_gossipsub: GossipsubBehaviour,
+    pub id_resolve: CborBehaviour<IdDocument, ()>,
+    pub id_message: CborBehaviour<IdDirectMessage, ()>,
+    pub id_request: CborBehaviour<IdRequest, ()>,
+}
+    
+#[derive(NetworkBehaviour)]
+#[behaviour(to_swarm = "Idp2pNodeEvent")]
 pub struct Idp2pNodeBehaviour {
     pub id_mdns: MdnsBehaviour,
     pub id_gossipsub: GossipsubBehaviour<m>,

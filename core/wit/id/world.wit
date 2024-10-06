@@ -1,0 +1,13 @@
+package idp2p:id@0.1.0;
+
+world idp2p-id {
+    import types;
+
+    use types.{cid, id-snapshot, persisted-id-event, persisted-id-inception};
+    
+    export types;
+    
+    export verify-inception: func(incepiton: persisted-id-inception) -> result<id-snapshot, string>;
+
+    export verify-event: func(snapshot: id-snapshot, event: persisted-id-event) -> result<id-snapshot, string>;
+}

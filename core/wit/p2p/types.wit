@@ -1,0 +1,35 @@
+interface types {
+    type cid = list<u8>;
+
+    record persisted-id-inception {
+        id: cid,
+        version: string,
+        payload: list<u8>,
+    }
+
+    record id-proof {
+        id: cid,
+        pk: list<u8>,
+        sig: list<u8>,
+    }
+
+    record persisted-id-event {
+        id: cid,
+        version: string,
+        payload: list<u8>,
+        proofs: list<id-proof>,
+    }
+
+    record id-document {
+        id: cid,
+        incepiton: persisted-id-inception,
+        events: list<persisted-id-event>,
+    }
+
+    variant p2p-event {
+        resolve,
+        provide(id-document),
+        notify-event(persisted-id-event),
+        notify-message(cid),
+    }
+}

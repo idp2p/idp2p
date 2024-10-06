@@ -1,6 +1,4 @@
-package idp2p:id@0.1.0;
-
-world idp2p-id {
+interface types {
     type cid = list<u8>;
 
     record id-snapshot {
@@ -33,7 +31,4 @@ world idp2p-id {
         proofs: list<id-proof>,
     }
 
-    export verify-inception: func(incepiton: persisted-id-inception) -> result<id-snapshot, string>;
-
-    export verify-event: func(snapshot: id-snapshot, event: persisted-id-event) -> result<id-snapshot, string>;
 }
