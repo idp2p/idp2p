@@ -1,5 +1,3 @@
-#![cfg_attr(not(test), no_std)]
-
 #[macro_use]
 extern crate alloc;
 
@@ -12,4 +10,3 @@ pub mod utils;
 pub mod signer;
 pub mod inception;
 pub mod event;
-pub mod verification;

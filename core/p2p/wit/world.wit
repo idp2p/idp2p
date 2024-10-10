@@ -1,0 +1,21 @@
+package idp2p:p2p@0.1.0;
+
+interface id-store {
+    type cid = list<u8>;
+    get: func(id: cid) -> list<u8>;
+    put: func(id: cid, value: list<u8>);
+    remove: func(id: cid);
+}
+
+world idp2p-p2p {
+    import id-store;
+
+    variant p2p-event {
+        resolve,
+        provide(id-document),
+        notify-event(persisted-id-event),
+        notify-message(cid),
+    }
+    
+    export handle: func() -> result<bool, string>;
+}

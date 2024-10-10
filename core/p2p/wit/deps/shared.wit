@@ -1,3 +1,5 @@
+package idp2p:shared@0.1.0;
+
 interface types {
     type cid = list<u8>;
 
@@ -24,12 +26,5 @@ interface types {
         id: cid,
         incepiton: persisted-id-inception,
         events: list<persisted-id-event>,
-    }
-
-    variant p2p-event {
-        resolve,
-        provide(id-document),
-        notify-event(persisted-id-event),
-        notify-message(cid),
     }
 }

@@ -4,7 +4,7 @@ edition = "2021"
 
 [workspace]
 edition = "2021"
-members = ["common", "core/crates/id", "core/crates/p2p"]
+members = ["common", "core/id"]
 
 [profile.dev]
 lto = true
@@ -32,10 +32,7 @@ serde_json = { version = "1", default-features = false }
 ed25519-dalek = { version = "2", default-features = false }
 sha2 = { version = "*", default-features = false }
 multihash = { version = "*", default-features = false, features = ["serde", "alloc"] }
-cid = { version = "0.11.1", default-features = false, features = [
-    "serde",
-    "scale-codec",
-] }
+cid = { version = "0.11.1", features = ["serde"] }
 chrono = { version = "0", default-features = false, features = [
     "alloc",
     "serde",

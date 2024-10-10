@@ -10,4 +10,7 @@ regex = { workspace = true }
 sha2 = { workspace = true }
 cid = { workspace = true }
 multihash = { workspace = true }
+serde = { workspace = true }
+chrono = { workspace = true }
+semver = { workspace = true }
 ed25519-dalek = { workspace = true }

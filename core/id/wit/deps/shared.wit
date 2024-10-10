@@ -1,16 +1,7 @@
+package idp2p:shared;
+
 interface types {
     type cid = list<u8>;
-
-    record id-snapshot {
-        id: cid,   
-        state: cid,                      
-        event-id: cid,
-        event-timestamp: string,
-        next-quorum: u8,
-        next-signers: list<cid>,       
-        used-signers: list<cid>,
-        used-states: list<cid>,
-    }
 
     record persisted-id-inception {
         id: cid,
@@ -31,4 +22,9 @@ interface types {
         proofs: list<id-proof>,
     }
 
+    record id-document {
+        id: cid,
+        incepiton: persisted-id-inception,
+        events: list<persisted-id-event>,
+    }
 }

@@ -1,13 +1,16 @@
 use alloc::vec::Vec;
 use anyhow::{bail, Result};
-use cid::{multihash::Multihash, Cid};
-use idp2p_utils::verifying::ED_CODE;
+use cid::Cid;
 use serde::{Deserialize, Serialize};
+
+use crate::cid::CidExt;
+mod ed25519;
+pub const ED_CODE: u64 = 0xed;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct IdSigner {
-    pub value: u8,
     pub id: Cid,
+    pub value: u8,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -24,12 +27,25 @@ impl IdSigner {
         Ok(signer)
     }
 
+    pub fn create(value: u8, code: u64, public: &[u8]) -> Result<Self> {
+        let id = Cid::create(code, public)?;
+        Ok(Self { id, value })
+    }
+
+    pub fn verify(&self, public: &[u8], content: &[u8], sig: &[u8]) -> Result<bool> {
+        match self.id.codec() {
+            ED_CODE => ed25519::verify(public, content, sig),
+            _ => bail!("invalid codec"),
+        }
+    }
+
     pub fn validate(&self) -> Result<()> {
         if self.value == 0 {
             bail!("The order of the signer must be greater than 0.");
         }
-        if self.id.codec() != ED_CODE {
-            bail!("The codec of the signer must be ed.");
+        match self.id.codec() {
+            ED_CODE => {}
+            _ => bail!("invalid codec"),
         }
         Ok(())
     }
@@ -61,15 +77,17 @@ impl IdNextSigners {
 
 #[cfg(test)]
 mod tests {
+    use crate::ED_CODE;
+
     use super::*;
     use anyhow::Result;
     use cid::Cid;
-    use idp2p_utils::verifying::ED_CODE;
+    use multihash::Multihash;
 
     #[test]
     fn test_id_signer_new_success() -> Result<()> {
         // Create a dummy multihash
-        let multihash = Multihash::<64>::wrap(0x12, b"test").unwrap();        // Create a Cid with codec ED_CODE
+        let multihash = Multihash::<64>::wrap(0x12, b"test").unwrap(); // Create a Cid with codec ED_CODE
         let cid = Cid::new_v1(ED_CODE, multihash);
         // Value greater than 0
         let value = 1;
@@ -83,7 +101,7 @@ mod tests {
 
     #[test]
     fn test_id_signer_new_zero_value() {
-        let multihash = Multihash::<64>::wrap(0x12, b"my digest").unwrap();        // Create a Cid with codec ED_CODE
+        let multihash = Multihash::<64>::wrap(0x12, b"my digest").unwrap(); // Create a Cid with codec ED_CODE
         let cid = Cid::new_v1(ED_CODE, multihash);
         // Value is 0, should fail
         let value = 0;
@@ -93,8 +111,8 @@ mod tests {
 
     #[test]
     fn test_id_signer_new_invalid_codec() {
-        let multihash = Multihash::<64>::wrap(0x12, b"my digest").unwrap();        // Create a Cid with codec ED_CODE
-        // Use an invalid codec (e.g., 0x71 for dag-cbor)
+        let multihash = Multihash::<64>::wrap(0x12, b"my digest").unwrap(); // Create a Cid with codec ED_CODE
+                                                                            // Use an invalid codec (e.g., 0x71 for dag-cbor)
         let invalid_codec = 0x71;
         let cid = Cid::new_v1(invalid_codec, multihash);
         let value = 1;
@@ -104,7 +122,7 @@ mod tests {
 
     #[test]
     fn test_id_next_signers_new_success() -> Result<()> {
-        let multihash = Multihash::<64>::wrap(0x12, b"my digest").unwrap();        // Create a Cid with codec ED_CODE
+        let multihash = Multihash::<64>::wrap(0x12, b"my digest").unwrap(); // Create a Cid with codec ED_CODE
         let cid = Cid::new_v1(ED_CODE, multihash);
         let signer = IdSigner::new(1, cid)?;
         let signers = vec![signer];
@@ -116,7 +134,7 @@ mod tests {
 
     #[test]
     fn test_id_next_signers_new_zero_quorum() {
-        let multihash = Multihash::<64>::wrap(0x12, b"my digest").unwrap();        // Create a Cid with codec ED_CODE
+        let multihash = Multihash::<64>::wrap(0x12, b"my digest").unwrap(); // Create a Cid with codec ED_CODE
         let cid = Cid::new_v1(ED_CODE, multihash);
         let signer = IdSigner::new(1, cid).unwrap();
         let signers = vec![signer];
@@ -128,7 +146,7 @@ mod tests {
 
     #[test]
     fn test_id_next_signers_new_quorum_exceeds_total() {
-        let multihash = Multihash::<64>::wrap(0x12, b"my digest").unwrap();        // Create a Cid with codec ED_CODE
+        let multihash = Multihash::<64>::wrap(0x12, b"my digest").unwrap(); // Create a Cid with codec ED_CODE
         let cid = Cid::new_v1(ED_CODE, multihash);
         let signer = IdSigner::new(1, cid).unwrap();
         let signers = vec![signer];
@@ -140,11 +158,11 @@ mod tests {
 
     #[test]
     fn test_id_next_signers_get_total_values() -> Result<()> {
-        let multihash1 = Multihash::<64>::wrap(0x12, b"signer1").unwrap();        // Create a Cid with codec ED_CODE
+        let multihash1 = Multihash::<64>::wrap(0x12, b"signer1").unwrap(); // Create a Cid with codec ED_CODE
         let cid1 = Cid::new_v1(ED_CODE, multihash1);
         let signer1 = IdSigner::new(2, cid1)?;
 
-        let multihash2 = Multihash::<64>::wrap(0x12, b"signer2").unwrap();        // Create a Cid with codec ED_CODE
+        let multihash2 = Multihash::<64>::wrap(0x12, b"signer2").unwrap(); // Create a Cid with codec ED_CODE
         let cid2 = Cid::new_v1(ED_CODE, multihash2);
         let signer2 = IdSigner::new(3, cid2)?;
 

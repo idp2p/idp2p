@@ -24,6 +24,5 @@ cid ={ workspace = true }
 lol_alloc = { workspace = true }
 anyhow = { workspace = true }
 wit-bindgen = { workspace = true }
-idp2p-common ={ path = "../../../common" }
 
 

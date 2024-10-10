@@ -29,9 +29,8 @@ impl IdInception {
 
 mod tests {
     use cid::{multihash::Multihash, Cid};
-    use idp2p_utils::verifying::ED_CODE;
 
-    use crate::signer::IdSigner;
+    use crate::{signer::IdSigner, ED_CODE};
 
     use super::*;
 
