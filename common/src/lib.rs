@@ -7,6 +7,5 @@ pub const CBOR_CODE: u64 = 0x51;
 
 pub mod cid;
 pub mod utils;
+pub mod cbor;
 pub mod signer;
-pub mod inception;
-pub mod event;

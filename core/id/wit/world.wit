@@ -3,13 +3,25 @@ package idp2p:id;
 world idp2p-id {
     use idp2p:shared/types.{cid, persisted-id-event, persisted-id-inception};
     
+    record id-signer {
+        id: cid,
+        value: u8
+    }
+
+    record id-config {
+        change-state-quorum: u16,
+        change-config-quorum: u16,
+        revoke-event-quorum: u16,
+        key-reuse: bool
+    }
+
     record id-snapshot {
         id: cid,   
+        config: id-config,
         state: cid,                      
         event-id: cid,
         event-timestamp: string,
-        next-quorum: u8,
-        next-signers: list<cid>,       
+        next-signers: list<id-signer>,       
         used-signers: list<cid>,
         used-states: list<cid>,
     }
@@ -18,3 +30,30 @@ world idp2p-id {
 
     export verify-event: func(snapshot: id-snapshot, event: persisted-id-event) -> result<id-snapshot, string>;
 }
+
+/*
+
+    record id-inception {
+        id: cid,
+        state: cid,
+        config: id-config,
+        timestamp: string,
+        next-signers: list<id-signer>,
+    }
+
+    record id-event {
+        id: cid,
+        previous: cid,
+        timestamp: string,
+        signers: list<cid>,
+        payload: id-event-payload,
+        next-signers: list<id-signer>,
+    }
+
+    variant id-event-payload {
+        change-state(cid),
+        change-config(id-config),
+        revoke-event
+    }
+
+*/

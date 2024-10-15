@@ -9,6 +9,7 @@ anyhow = { workspace = true }
 regex = { workspace = true }
 sha2 = { workspace = true }
 cid = { workspace = true }
+ciborium = { workspace = true }
 multihash = { workspace = true }
 serde = { workspace = true }
 chrono = { workspace = true }

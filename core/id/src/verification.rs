@@ -1,52 +1,57 @@
-use crate::{
-    event::{IdEvent, IdInception, IdActionKind::*},
-    exports::idp2p::id::verification::{IdState, PersistedIdEvent, PersistedIdInception},
-};
 use cid::Cid;
-use idp2p_core::{cid::CidExt, verifying::Ed25519PublicKey};
+use idp2p_common::{cid::CidExt, id::{event::IdEvent, inception::IdInception}};
 
-pub fn verify_inception(persisted_inception: PersistedIdInception) -> anyhow::Result<IdState> {
-    let inception = IdInception::from_bytes(&persisted_inception.payload)?;
-    let cid = Cid::from_bytes(persisted_inception.id.as_slice())?;
-    cid.ensure(persisted_inception.payload.as_slice())?;
-    let mut id_state = IdState {
-        id: persisted_inception.id.clone(),
-        event_id: persisted_inception.id.clone(),
-        signer: inception.signer,
-        recovery: inception.recovery,
-        state: None,
-        assertions: vec![],
-        authentications: vec![],
-        agreements: vec![],
-        used: vec![],
-    };
-    for a in inception.actions.iter() {
-        match a {
-            UpdateState(_) => todo!(),
-            AddAssertionKey(_) => todo!(),
-            RemoveAssertionKey(_) => todo!(),
-            AddAuthenticationKey(_) => todo!(),
-            RemoveAuthenticationKey(_) => todo!(),
-            AddAgreementKey(_) => todo!(),
-            RemoveAgreementKey(_) => todo!(),
-        }
+use crate::{IdSigner, IdSnapshot, PersistedIdEvent, PersistedIdInception};
+
+impl TryFrom<IdSigner> for idp2p_common::id::signer::IdSigner {
+    type Error = anyhow::Error;
+
+    fn try_from(signer: IdSigner) -> Result<Self, Self::Error> {
+        Ok(idp2p_common::id::signer::IdSigner {
+            id: Cid::from_bytes(&signer.id)?,
+            value: signer.value,
+        })
     }
-    Ok(IdState {
-        id: persisted_inception.id.clone(),
-        event_id: persisted_inception.id.clone(),
-        signer: inception.signer,
-        recovery: inception.recovery,
-        // find update state event and set state
-        state: inception.events.iter().filter(|e| matches!(e.payload, IdEventKind::UpdateState(_))).collect(),
-        assertions: todo!(),
-        authentications: todo!(),
-        agreements: todo!(),
-        used: todo!(),
-    })
 }
 
-pub fn verify_event(state: IdState, event: IdEvent) -> anyhow::Result<IdState> {
-    let payload = event.to_bytes()?;
+impl TryFrom<idp2p_common::id::signer::IdSigner> for IdSigner {
+    type Error = anyhow::Error;
+
+    fn try_from(signer: idp2p_common::id::signer::IdSigner) -> Result<Self, Self::Error> {
+        Ok(IdSigner {
+            id: signer.id.to_bytes(),
+            value: signer.value,
+        })
+    }
+}
+
+pub fn verify_inception(persisted_inception: PersistedIdInception) -> anyhow::Result<IdSnapshot> {
+    let inception = IdInception::from_bytes(&persisted_inception.payload)?;
+    let cid = Cid::from_bytes(persisted_inception.id.as_slice())?;
+    let i = "".parse::<i32>();
+    cid.ensure(persisted_inception.payload.as_slice())?;
+    let next_signers: anyhow::Result<Vec<IdSigner>> = inception
+        .next_signers
+        .into_iter()
+        .map(|x| x.try_into())
+        .collect();
+
+    let id_snapshot = IdSnapshot {
+        id: persisted_inception.id.clone(),
+        event_id: persisted_inception.id.clone(),
+        state: inception.state.to_bytes(),
+        event_timestamp: inception.timestamp.to_string(),
+        next_quorum: inception.config.quorum,
+        next_signers: next_signers?,
+        used_signers: vec![],
+        used_states: vec![],
+        key_reuse: inception.config.key_reuse,
+    };
+    Ok(id_snapshot)
+}
+
+pub fn verify_event(state: IdSnapshot, event: PersistedIdEvent) -> anyhow::Result<IdSnapshot> {
+    let event = IdEvent::from_bytes(&event.payload)?;
     let mut state = state;
     let event_id = Cid::from_bytes(&event.id)?;
     event_id.ensure(payload.as_slice())?;
