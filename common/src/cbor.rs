@@ -1,6 +1,6 @@
 pub fn encode<T: serde::Serialize>(value: &T) -> anyhow::Result<Vec<u8>> {
     let mut bytes = Vec::new();
-    ciborium::ser::into_writer(&value, &mut bytes)?;
+    ciborium::ser::into_writer(&value, &mut bytes).map_err(anyhow::Error::msg)?;
     Ok(bytes)
 }
 

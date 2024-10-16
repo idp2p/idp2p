@@ -6,7 +6,7 @@ use idp2p_common::{cid::CidExt, ED_CODE};
 impl Default for IdSigner {
     fn default() -> Self {
         Self {
-            id: vec![0;32],
+            id: Cid::default().to_bytes(),
             value: 1,
         }
     }

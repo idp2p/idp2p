@@ -1,10 +1,11 @@
 use anyhow::{bail, Result};
 use chrono::{DateTime, Utc};
 use cid::Cid;
+use idp2p_common::{cbor, cid::CidExt, signer::ed25519::verify_sig};
 use semver::Version;
 use serde::{Deserialize, Serialize};
 
-use crate::{IdConfig, IdSigner};
+use crate::{IdConfig, IdSigner, IdSnapshot, PersistedIdEvent};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct IdEvent {
@@ -24,15 +25,9 @@ pub enum IdEventPayload {
 }
 
 impl IdEvent {
-    pub fn new(
-        previous: Cid,
-        signers: Vec<Cid>,
-        next_signers: Vec<IdSigner>,
-        config: Option<IdConfig>,
-        state: Option<Cid>,
-    ) -> Result<Self> {
-        let ver = semver::Version::parse("version").map_err(anyhow::Error::msg)?;
-        todo!()
+    pub fn from_bytes(bytes: &[u8]) -> Result<Self> {
+        let event = cbor::decode(bytes)?;
+        Ok(event)
     }
 
     pub fn validate(&self) -> Result<()> {
@@ -49,6 +44,48 @@ impl IdEvent {
         Ok(())
     }
 }
+
+pub fn verify_event(snapshot: IdSnapshot, pevent: PersistedIdEvent) -> anyhow::Result<IdSnapshot> {
+    let event_id = Cid::from_bytes(&pevent.id)?;
+    event_id.ensure(pevent.payload.as_slice())?;
+    let mut signers: Vec<IdSigner> = vec![];
+    for proof in pevent.proofs {
+        let signer_id = Cid::from_bytes(&proof.id)?;
+        signer_id.ensure(&proof.pk)?;
+        if let Some(signer) = snapshot.next_signers.iter().find(|x| x.id == signer_id.to_bytes()){
+            verify_sig(&proof.pk, &pevent.payload, &proof.sig)?;
+            signers.push(signer.to_owned());
+        }else{
+            anyhow::bail!("invalid signer")
+        }
+    }
+
+    let event = IdEvent::from_bytes(&pevent.payload)?;
+    event.validate()?;
+    let mut snapshot = snapshot;
+
+    if event.previous != Cid::from_bytes(&snapshot.event_id)? {
+        anyhow::bail!("invalid previous")
+    }
+
+    // Check signer quorum
+    match event.payload {
+        IdEventPayload::ChangeState(state) => {
+            if snapshot.used_states.contains(&state.to_bytes()) {
+                anyhow::bail!("duplicated state")
+            }
+        },
+        IdEventPayload::ChangeConfig(id_config) => {
+            id_config.validate()?;
+            snapshot.config = id_config;
+        },
+        IdEventPayload::RevokeEvent => todo!(),
+    }
+    
+    snapshot.used_signers.push(vec![]);
+    Ok(snapshot)
+}
+
 
 mod tests {
     use cid::{multihash::Multihash, Cid};

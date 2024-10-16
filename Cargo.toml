@@ -15,6 +15,12 @@ strip = "symbols"
 wasmtime = "21"
 wit-component = "0"
 libp2p = "0"
+rand = { workspace = true }
+serde = { workspace = true }
+semver = { workspace = true }
+anyhow = { workspace = true }
+chrono = { workspace = true }
+ed25519-dalek = { workspace = true }
 
 [workspace.dependencies]
 rand = "0"

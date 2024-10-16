@@ -30,30 +30,3 @@ world idp2p-id {
 
     export verify-event: func(snapshot: id-snapshot, event: persisted-id-event) -> result<id-snapshot, string>;
 }
-
-/*
-
-    record id-inception {
-        id: cid,
-        state: cid,
-        config: id-config,
-        timestamp: string,
-        next-signers: list<id-signer>,
-    }
-
-    record id-event {
-        id: cid,
-        previous: cid,
-        timestamp: string,
-        signers: list<cid>,
-        payload: id-event-payload,
-        next-signers: list<id-signer>,
-    }
-
-    variant id-event-payload {
-        change-state(cid),
-        change-config(id-config),
-        revoke-event
-    }
-
-*/
