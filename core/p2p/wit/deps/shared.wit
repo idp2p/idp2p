@@ -9,7 +9,7 @@ interface types {
         payload: list<u8>,
     }
 
-    record id-proof {
+    record persisted-id-proof {
         id: cid,
         pk: list<u8>,
         sig: list<u8>,
@@ -22,7 +22,7 @@ interface types {
         proofs: list<id-proof>,
     }
 
-    record id-document {
+    record persisted-id-document {
         id: cid,
         incepiton: persisted-id-inception,
         events: list<persisted-id-event>,

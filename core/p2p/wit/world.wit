@@ -10,11 +10,15 @@ interface id-store {
 world idp2p-p2p {
     import id-store;
 
-    variant p2p-event {
+    record provide-payload {
+        peer-id: string,
+        id-document: option<persisted-id-document>
+    }
+
+    variant gossip-event {
         resolve,
-        provide(id-document),
-        notify-event(persisted-id-event),
-        notify-message(cid),
+        provide(provide-payload),
+        notify(persisted-id-event),
     }
     
     export handle: func() -> result<bool, string>;
