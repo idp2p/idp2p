@@ -9,21 +9,30 @@ world idp2p-id {
     }
 
     record id-config {
-        change-state-quorum: u16,
-        change-config-quorum: u16,
-        revoke-event-quorum: u16,
+        action-quorum: u16,
+        config-quorum: u16,
+        cancel-quorum: u16,
         key-reuse: bool
+    }
+
+    record verification-method {
+        id: cid,
+        pk: list<u8>,   
+        valid-from: string,
+        valid-until: string       
     }
 
     record id-snapshot {
         id: cid,   
         config: id-config,
-        state: cid,                      
         event-id: cid,
         event-timestamp: string,
-        next-signers: list<id-signer>,       
+        next-signers: list<id-signer>,   
+        authentication: list<verification-method>,
+        assertion-method: list<verification-method>,
+        key-agreement: list<verification-method>,
+        capability-delegation: list<cid>,    
         used-signers: list<cid>,
-        used-states: list<cid>,
     }
 
     export verify-inception: func(incepiton: persisted-id-inception) -> result<id-snapshot, string>;

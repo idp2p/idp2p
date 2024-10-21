@@ -15,6 +15,7 @@ bindgen!({
     additional_derives: [PartialEq, Eq, Hash, Clone, serde::Serialize, serde::Deserialize],
 });
 
+
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct IdInception {
     pub version: Version,
@@ -49,7 +50,7 @@ fn create_signer() -> (SigningKey, VerifyingKey) {
     (sk, pk)
 }
 
-fn create_inception() -> PersistedIdInception {
+fn create_inception() -> idp2p::shared::types::PersistedIdInception {
     let signer = create_signer();
     let signer2 = create_signer();
     let inception = IdInception {
@@ -57,13 +58,14 @@ fn create_inception() -> PersistedIdInception {
         state: Cid::default(),
         timestamp: Utc::now(),
         config: IdConfig{
-            change_state_quorum: 1,
-            change_config_quorum: 2,
-            revoke_event_quorum: 2,
+            action_quorum: 1,
+            config_quorum: 2,
+            cancel_quorum: 2,
             key_reuse: true,
         },
         next_signers: vec![]
     };
+    todo!()
     
 }
 
@@ -79,7 +81,7 @@ fn main() -> Result<()> {
     let signer = create_signer();
     let signer2 = create_signer();
    
-    let incepition_result = idp2p.call_verify_inception(&mut store, &inception_input).unwrap();
+    /*let incepition_result = idp2p.call_verify_inception(&mut store, &).unwrap();
     let incepition_result = incepition_result.unwrap();
 
     let id = Cid::try_from(incepition_result.inception.id.clone()).unwrap();
@@ -114,6 +116,6 @@ fn main() -> Result<()> {
     let result2 = wasmid
         .call_verify_event(&mut store, &result.unwrap(), &event_result.event)
         .unwrap();
-    println!("Event result: {}", result2.is_ok());
+    println!("Event result: {}", result2.is_ok());*/
     Ok(())
 }

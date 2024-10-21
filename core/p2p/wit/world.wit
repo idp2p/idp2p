@@ -1,24 +1,31 @@
-package idp2p:p2p@0.1.0;
+package idp2p:p2p;
 
 interface id-store {
-    type cid = list<u8>;
-    get: func(id: cid) -> list<u8>;
-    put: func(id: cid, value: list<u8>);
-    remove: func(id: cid);
+    get: func(id: list<u8>) -> list<u8>;
+    put: func(id: list<u8>, value: list<u8>);
+    remove: func(id: list<u8>);
+}
+
+interface id-verifier {
+    verify: func() -> result<bool, string>;
+    verify-event: func() -> result<bool, string>;
+    publish: func() -> result<bool, string>;
 }
 
 world idp2p-p2p {
-    import id-store;
+    use idp2p:shared/types.{persisted-id-document, persisted-id-event};
 
-    record provide-payload {
+    import id-store;
+    record id-provider {
         peer-id: string,
         id-document: option<persisted-id-document>
     }
 
     variant gossip-event {
         resolve,
-        provide(provide-payload),
-        notify(persisted-id-event),
+        provide(id-provider),
+        notify-event(persisted-id-event),
+        notify-message(list<u8>)
     }
     
     export handle: func() -> result<bool, string>;

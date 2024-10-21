@@ -1,7 +1,7 @@
 use anyhow::{bail, Result};
 use chrono::{DateTime, Utc};
 use cid::Cid;
-use idp2p_common::{cbor, cid::CidExt, signer::ed25519::verify_sig};
+use idp2p_common::{cbor, cid::CidExt, signer::ed25519::verify};
 use semver::Version;
 use serde::{Deserialize, Serialize};
 
@@ -19,9 +19,9 @@ pub struct IdEvent {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum IdEventPayload {
-    ChangeState(Cid),
-    ChangeConfig(IdConfig),
-    RevokeEvent
+    Action(Vec<IdAction>),
+    Config(IdConfig),
+    Cancel(Cid),
 }
 
 impl IdEvent {
@@ -53,7 +53,7 @@ pub fn verify_event(snapshot: IdSnapshot, pevent: PersistedIdEvent) -> anyhow::R
         let signer_id = Cid::from_bytes(&proof.id)?;
         signer_id.ensure(&proof.pk)?;
         if let Some(signer) = snapshot.next_signers.iter().find(|x| x.id == signer_id.to_bytes()){
-            verify_sig(&proof.pk, &pevent.payload, &proof.sig)?;
+            verify(&proof.pk, &pevent.payload, &proof.sig)?;
             signers.push(signer.to_owned());
         }else{
             anyhow::bail!("invalid signer")
@@ -74,6 +74,8 @@ pub fn verify_event(snapshot: IdSnapshot, pevent: PersistedIdEvent) -> anyhow::R
             if snapshot.used_states.contains(&state.to_bytes()) {
                 anyhow::bail!("duplicated state")
             }
+            snapshot.state = state.to_bytes();
+            snapshot.used_states.push(state.to_bytes());
         },
         IdEventPayload::ChangeConfig(id_config) => {
             id_config.validate()?;
@@ -81,8 +83,10 @@ pub fn verify_event(snapshot: IdSnapshot, pevent: PersistedIdEvent) -> anyhow::R
         },
         IdEventPayload::RevokeEvent => todo!(),
     }
-    
-    snapshot.used_signers.push(vec![]);
+    for signer in signers.iter() {
+        snapshot.used_signers.push(signer.id.clone());
+    }
+    snapshot.next_signers = event.next_signers;
     Ok(snapshot)
 }
 

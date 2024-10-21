@@ -1,4 +1,7 @@
-use crate::{IdConfig, IdSigner, IdSnapshot, PersistedIdInception, VERSION};
+use crate::{
+    action::IdActionKind, IdConfig, IdSigner, IdSnapshot, PersistedIdInception, VerificationMethod,
+    VERSION,
+};
 
 use anyhow::{bail, Result};
 use chrono::prelude::*;
@@ -10,10 +13,10 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct IdInception {
     pub version: Version,
-    pub state: Cid,
     pub config: IdConfig,
     pub timestamp: DateTime<Utc>,
     pub next_signers: Vec<IdSigner>,
+    pub actions: Vec<IdActionKind>,
 }
 
 impl IdInception {
@@ -28,7 +31,7 @@ impl IdInception {
         }
         let total_values: u16 = self.next_signers.iter().map(|x| x.value as u16).sum();
 
-        if total_values < self.config.change_config_quorum {
+        if total_values < self.config.config_quorum {
             bail!("The quorum must be less than or equal to the total values of signers.");
         }
         self.config.validate()?;
@@ -44,17 +47,41 @@ pub fn verify_inception(persisted_inception: PersistedIdInception) -> anyhow::Re
     let cid = Cid::from_bytes(persisted_inception.id.as_slice())?;
     cid.ensure(persisted_inception.payload.as_slice())?;
     inception.validate()?;
-    let signer_ids: Vec<Vec<u8>> = inception.next_signers.iter().map(|s| s.id.clone()).collect();
-    let id_snapshot = IdSnapshot {
+    let signer_ids: Vec<Vec<u8>> = inception
+        .next_signers
+        .iter()
+        .map(|s| s.id.clone())
+        .collect();
+    let mut id_snapshot = IdSnapshot {
         id: persisted_inception.id.clone(),
         event_id: persisted_inception.id.clone(),
         config: inception.config,
-        state: inception.state.to_bytes(),
         event_timestamp: inception.timestamp.to_string(),
         next_signers: inception.next_signers,
         used_signers: signer_ids,
-        used_states: vec![inception.state.to_bytes()],
+        authentication: vec![],
+        assertion_method: vec![],
+        key_agreement: vec![],
+        capability_delegation: vec![],
     };
+
+    for action in inception.actions {
+        action.validate()?;
+        match action {
+            IdActionKind::AddAssertionMethod(vm) => {
+                id_snapshot.assertion_method.push(vm);
+            }
+            IdActionKind::AddAuthentication(vm) => {
+                id_snapshot.authentication.push(vm);
+            }
+            IdActionKind::AddKeyAgreement(vm) => {
+                id_snapshot.key_agreement.push(vm);
+            }
+            _ => {
+                bail!("invalid action")
+            }
+        }
+    }
     Ok(id_snapshot)
 }
 
@@ -70,8 +97,8 @@ mod tests {
             version: ver,
             config: config,
             timestamp: Utc::now(),
-            state: state,
             next_signers: next_signers,
+            actions: vec![],
         };
         Ok(inception)
     }

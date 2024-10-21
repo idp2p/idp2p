@@ -80,7 +80,25 @@ impl Idp2pNodeBehaviour {
                 propagation_source,
                 message_id,
                 message,
-            } => if message.topic.as_str().len() == 0 {},
+            } => if message.topic.as_str().len() == 0 {
+                    match message.payload {
+                        IdGossipMessageKind::Resolve => {
+                            // if the node is provider for the identity
+                            // publish the identity document
+                        },
+                        IdGossipMessageKind::Provide { provider } => {
+                            // if the identity doesn't exist
+                            // save the identity
+                            // add it to the list of providers
+                        },
+                        IdGossipMessageKind::NotifyEvent { event } => {
+                            // verify event and update state
+                        },
+                        IdGossipMessageKind::NotifyMessage { message_id } => {
+                            // store message
+                        },
+                    }
+                 },
             _ => {}
         }
     }

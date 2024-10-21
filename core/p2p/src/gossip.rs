@@ -12,7 +12,7 @@ pub enum IdGossipMessageKind {
     // Resolve identity
     Resolve,
     // Provide an identity document
-    Provide { doc: IdDocument },
+    Provide { provider: PeerId, document: IdDocument },
     // Notify an identity event
     NotifyEvent { event: IdEvent },
     // Notify message
@@ -40,16 +40,4 @@ impl<S: IdStore> GossipMessageHandler<S> {
             }
         }
     }
-}
-
-pub struct ResolveHandler<S: IdStore> {
-    store: S,
-}
-
-impl<S: IdStore> ResolveHandler<S> {
-    pub fn new(store: S) -> Self {
-        Self { store }
-    }
-
-    pub fn handle(&self) {}
 }

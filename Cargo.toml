@@ -12,20 +12,33 @@ opt-level = "z"
 strip = "symbols"
 
 [dependencies]
-wasmtime = "21"
-wit-component = "0"
-libp2p = "0"
+wasmtime = { workspace = true }
+structopt = { workspace = true }
+wit-component = { workspace = true }
+libp2p = { workspace = true }
+dotenv =  { workspace = true }
+env_logger =  { workspace = true }
+tokio = { workspace = true }
 rand = { workspace = true }
 serde = { workspace = true }
 semver = { workspace = true }
 anyhow = { workspace = true }
 chrono = { workspace = true }
 ed25519-dalek = { workspace = true }
+idp2p-common = { path = "./common" }
 
 [workspace.dependencies]
+wasmtime = "21"
+wit-component = "0"
+dotenv = "0"
+log = "0"
+env_logger = "0"
 rand = "0"
 lol_alloc = "0"
 hex = "0"
+structopt = "0"
+libp2p = { version = "0", features = ["gossipsub"] }
+tokio = { version = "1", features = ["full"] }
 semver = {version = "1", default-features = false, features = ["serde"]}
 regex = { version = "1", default-features = false }
 anyhow = { version = "1", default-features = false }

@@ -1,4 +1,4 @@
-package idp2p:shared@0.1.0;
+package idp2p:shared;
 
 interface types {
     type cid = list<u8>;
@@ -19,7 +19,7 @@ interface types {
         id: cid,
         version: string,
         payload: list<u8>,
-        proofs: list<id-proof>,
+        proofs: list<persisted-id-proof>,
     }
 
     record persisted-id-document {
