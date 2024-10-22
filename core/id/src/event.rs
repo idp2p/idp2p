@@ -5,7 +5,15 @@ use idp2p_common::{cbor, cid::CidExt, signer::ed25519::verify};
 use semver::Version;
 use serde::{Deserialize, Serialize};
 
-use crate::{IdConfig, IdSigner, IdSnapshot, PersistedIdEvent};
+use crate::{action::IdActionKind, config::IdConfig, signer::{IdSigner, PersistedIdProof}, snapshot::IdSnapshot};
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PersistedIdEvent {
+    pub id: Cid,
+    pub version: Version,
+    pub payload: Vec<u8>,
+    pub proofs: Vec<PersistedIdProof>,
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct IdEvent {
@@ -19,7 +27,7 @@ pub struct IdEvent {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum IdEventPayload {
-    Action(Vec<IdAction>),
+    Action(Vec<IdActionKind>),
     Config(IdConfig),
     Cancel(Cid),
 }
@@ -46,7 +54,7 @@ impl IdEvent {
 }
 
 pub fn verify_event(snapshot: IdSnapshot, pevent: PersistedIdEvent) -> anyhow::Result<IdSnapshot> {
-    let event_id = Cid::from_bytes(&pevent.id)?;
+    /*let event_id = Cid::from_bytes(&pevent.id)?;
     event_id.ensure(pevent.payload.as_slice())?;
     let mut signers: Vec<IdSigner> = vec![];
     for proof in pevent.proofs {
@@ -87,7 +95,8 @@ pub fn verify_event(snapshot: IdSnapshot, pevent: PersistedIdEvent) -> anyhow::R
         snapshot.used_signers.push(signer.id.clone());
     }
     snapshot.next_signers = event.next_signers;
-    Ok(snapshot)
+    Ok(snapshot)*/
+    todo!()
 }
 
 
@@ -104,7 +113,7 @@ mod tests {
         // Value greater than 0
         let value = 1;
         // Attempt to create a new IdSigner
-        let signer = IdSigner{value, id: cid.to_bytes() };
+        let signer = IdSigner{value, id: cid };
         Ok(signer)
     }
 

@@ -1,5 +1,13 @@
-use crate::IdConfig;
 use anyhow::{bail, Result};
+use serde::{Deserialize, Serialize};
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct IdConfig {
+    pub action_quorum: u16,
+    pub config_quorum: u16,
+    pub cancel_quorum: u16,
+    pub key_reuse: bool,
+}
 
 impl Default for IdConfig {
     fn default() -> Self {

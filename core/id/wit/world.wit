@@ -1,41 +1,8 @@
 package idp2p:id;
 
 world idp2p-id {
-    use idp2p:shared/types.{cid, persisted-id-event, persisted-id-inception};
-    
-    record id-signer {
-        id: cid,
-        value: u8
-    }
 
-    record id-config {
-        action-quorum: u16,
-        config-quorum: u16,
-        cancel-quorum: u16,
-        key-reuse: bool
-    }
+    export verify-inception: func(inception: list<u8>) -> result<list<u8>, string>;
 
-    record verification-method {
-        id: cid,
-        pk: list<u8>,   
-        valid-from: string,
-        valid-until: string       
-    }
-
-    record id-snapshot {
-        id: cid,   
-        config: id-config,
-        event-id: cid,
-        event-timestamp: string,
-        next-signers: list<id-signer>,   
-        authentication: list<verification-method>,
-        assertion-method: list<verification-method>,
-        key-agreement: list<verification-method>,
-        capability-delegation: list<cid>,    
-        used-signers: list<cid>,
-    }
-
-    export verify-inception: func(incepiton: persisted-id-inception) -> result<id-snapshot, string>;
-
-    export verify-event: func(snapshot: id-snapshot, event: persisted-id-event) -> result<id-snapshot, string>;
+    export verify-event: func(snapshot: list<u8>, event: list<u8>) -> result<list<u8>, string>;
 }

@@ -1,7 +1,4 @@
-use crate::{
-    action::IdActionKind, IdConfig, IdSigner, IdSnapshot, PersistedIdInception, VerificationMethod,
-    VERSION,
-};
+use crate::{action::IdActionKind, config::IdConfig, signer::IdSigner, snapshot::IdSnapshot, VERSION};
 
 use anyhow::{bail, Result};
 use chrono::prelude::*;
@@ -17,6 +14,13 @@ pub struct IdInception {
     pub timestamp: DateTime<Utc>,
     pub next_signers: Vec<IdSigner>,
     pub actions: Vec<IdActionKind>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PersistedIdInception {
+    pub id: Vec<u8>,
+    pub version: Version,
+    pub payload: Vec<u8>,
 }
 
 impl IdInception {
@@ -42,12 +46,18 @@ impl IdInception {
     }
 }
 
+impl PersistedIdInception {
+    pub fn verify(&self) -> Result<IdSnapshot> {
+        todo!()
+    }
+}
+
 pub fn verify_inception(persisted_inception: PersistedIdInception) -> anyhow::Result<IdSnapshot> {
     let inception = IdInception::from_bytes(&persisted_inception.payload)?;
     let cid = Cid::from_bytes(persisted_inception.id.as_slice())?;
     cid.ensure(persisted_inception.payload.as_slice())?;
     inception.validate()?;
-    let signer_ids: Vec<Vec<u8>> = inception
+    let signer_ids: Vec<Cid> = inception
         .next_signers
         .iter()
         .map(|s| s.id.clone())
@@ -62,7 +72,7 @@ pub fn verify_inception(persisted_inception: PersistedIdInception) -> anyhow::Re
         authentication: vec![],
         assertion_method: vec![],
         key_agreement: vec![],
-        capability_delegation: vec![],
+        mediators: vec![],
     };
 
     for action in inception.actions {
@@ -111,7 +121,7 @@ mod tests {
         // Attempt to create a new IdSigner
         let signer = IdSigner {
             value,
-            id: cid.to_bytes(),
+            id: cid,
         };
         Ok(signer)
     }

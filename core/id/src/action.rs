@@ -1,8 +1,16 @@
+use chrono::{DateTime, Utc};
 use cid::Cid;
 use anyhow::{bail, Result};
 use idp2p_common::{cid::CidExt, ED_CODE};
 use serde::{Deserialize, Serialize};
-use crate::VerificationMethod;
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct VerificationMethod {
+    pub id: Vec<u8>,
+    pub pk: Vec<u8>,
+    pub valid_from: DateTime<Utc>,
+    pub valid_until: DateTime<Utc>,
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum IdActionKind {

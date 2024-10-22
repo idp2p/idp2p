@@ -6,27 +6,10 @@ interface id-store {
     remove: func(id: list<u8>);
 }
 
-interface id-verifier {
-    verify: func() -> result<bool, string>;
-    verify-event: func() -> result<bool, string>;
-    publish: func() -> result<bool, string>;
-}
-
 world idp2p-p2p {
-    use idp2p:shared/types.{persisted-id-document, persisted-id-event};
-
     import id-store;
-    record id-provider {
-        peer-id: string,
-        id-document: option<persisted-id-document>
+    import host: interface {
+        call-func: func(id: string, method: string, args: list<u8>) -> result<list<u8>, string>;
     }
-
-    variant gossip-event {
-        resolve,
-        provide(id-provider),
-        notify-event(persisted-id-event),
-        notify-message(list<u8>)
-    }
-    
-    export handle: func() -> result<bool, string>;
+    export handle-message: func(topic: string, message: list<u8>) -> result<list<u8>, string>;
 }

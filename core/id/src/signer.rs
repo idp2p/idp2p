@@ -1,12 +1,25 @@
-use crate::IdSigner;
 use anyhow::{bail, Result};
 use cid::Cid;
-use idp2p_common::{cid::CidExt, ED_CODE};
+use idp2p_common::ED_CODE;
+use serde::{Deserialize, Serialize};
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PersistedIdProof {
+    pub id: Cid,
+    pub pk: Vec<u8>,
+    pub sig: Vec<u8>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct IdSigner {
+    pub id: Cid,
+    pub value: u8,
+}
 
 impl Default for IdSigner {
     fn default() -> Self {
         Self {
-            id: Cid::default().to_bytes(),
+            id: Cid::default(),
             value: 1,
         }
     }
@@ -14,11 +27,10 @@ impl Default for IdSigner {
 
 impl IdSigner {
     pub fn validate(&self) -> Result<()> {
-        let cid = Cid::from_bytes(&self.id)?;
         if self.value == 0 {
             bail!("The order of the signer must be greater than 0.");
         }
-        match cid.codec() {
+        match self.id.codec() {
             ED_CODE => {}
             _ => bail!("invalid codec"),
         }
