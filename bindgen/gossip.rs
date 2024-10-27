@@ -12,9 +12,9 @@ pub enum IdGossipMessageKind {
     // Resolve identity
     Resolve,
     // Provide an identity document
-    Provide { provider: PeerId, document: IdDocument },
+    Provide { doc: Vec<u8> },
     // Notify an identity event
-    NotifyEvent { event: IdEvent },
+    NotifyEvent { event: Vec<u8> },
     // Notify message
     NotifyMessage { id: Cid },
 }

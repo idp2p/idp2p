@@ -1,31 +1,16 @@
 [package]
-name = "idp2p-id"
-edition = "2021"
-description = "IDP2P WASMID"
+name = "idp2p-core-id"
 version = "0.1.0"
-authors = ["adem caglin<adem.caglin@gmail.com>"]
-license = "Apache-2.0"
-repository = "https://github.com/idp2p/idp2p"
-readme = "README.md"
-keywords = ["idp2p", "wasm", "webassembly", "wasmid"]
-categories = ["webassembly"]
-
-[profile.dev]
-lto = true
-opt-level = "z"
-strip = "symbols"
-
-[lib]
-crate-type = ["cdylib"]
+edition = "2021"
 
 [dependencies]
-chrono = { workspace = true }
-semver = { workspace = true }
-serde = { workspace = true }
-cid ={ workspace = true }
-lol_alloc = { workspace = true }
+hex = { workspace = true }
 anyhow = { workspace = true }
-wit-bindgen = { workspace = true }
-idp2p-common ={ path = "../../common" }
-
-
+regex = { workspace = true }
+sha2 = { workspace = true }
+cid = { workspace = true }
+ciborium = { workspace = true }
+multihash = { workspace = true }
+serde = { workspace = true }
+chrono = { workspace = true }
+idp2p-common = { path = "../../common" }

@@ -1,0 +1,12 @@
+package idp2p:id;
+
+world idp2p-id {
+
+    variant idp2p-error {
+        other(string)
+    }
+
+    export verify-inception: func(inception: list<u8>) -> result<list<u8>, idp2p-error>;
+
+    export verify-event: func(snapshot: list<u8>, event: list<u8>) -> result<list<u8>, idp2p-error>;
+}

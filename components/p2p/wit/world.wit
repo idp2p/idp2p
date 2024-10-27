@@ -1,0 +1,27 @@
+package idp2p:p2p;
+
+interface id-verifier {
+    verify: func(doc: list<u8>) -> result<list<u8>, string>;
+    verify-event: func(snapshot: list<u8>, event: list<u8>) -> result<list<u8>, string>;
+}
+
+interface id-handler {    
+
+    record id-response {
+        publish: option<list<u8>>,
+        update: option<list<u8>>,
+    }
+
+    record id-request {
+        id: string,
+        message: list<u8>,
+        id-entry: option<list<u8>>,
+    }
+
+    handle-message: func(request: id-request) -> result<id-response, string>;
+}
+
+world idp2p-p2p {
+    import id-verifier;
+    export id-handler;
+}

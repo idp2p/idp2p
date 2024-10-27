@@ -4,13 +4,6 @@ use idp2p_common::ED_CODE;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct PersistedIdProof {
-    pub id: Cid,
-    pub pk: Vec<u8>,
-    pub sig: Vec<u8>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct IdSigner {
     pub id: Cid,
     pub value: u8,

@@ -1,16 +1,9 @@
-use chrono::{DateTime, Utc};
 use cid::Cid;
 use anyhow::{bail, Result};
 use idp2p_common::{cid::CidExt, ED_CODE};
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct VerificationMethod {
-    pub id: Vec<u8>,
-    pub pk: Vec<u8>,
-    pub valid_from: DateTime<Utc>,
-    pub valid_until: DateTime<Utc>,
-}
+use crate::VerificationMethod;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum IdActionKind {
@@ -22,6 +15,7 @@ pub enum IdActionKind {
     RemoveKeyAgreement(Cid),
     AddMediator(Cid),
     RemoveMediator(Cid),
+    UpdateState(Cid)
 }
 
 impl IdActionKind {
@@ -57,8 +51,3 @@ impl IdActionKind {
     }
 }
 
-impl VerificationMethod {
-    pub fn validate(&self) -> Result<()> {
-       todo!()
-    }
-}

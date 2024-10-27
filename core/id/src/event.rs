@@ -1,23 +1,20 @@
 use anyhow::{bail, Result};
 use chrono::{DateTime, Utc};
 use cid::Cid;
-use idp2p_common::{cbor, cid::CidExt, signer::ed25519::verify};
-use semver::Version;
+use idp2p_common::{cbor, cid::CidExt, verifying::ed25519::verify};
 use serde::{Deserialize, Serialize};
 
-use crate::{action::IdActionKind, config::IdConfig, signer::{IdSigner, PersistedIdProof}, snapshot::IdSnapshot};
+use crate::{action::IdActionKind, config::IdConfig, signer::IdSigner, IdSnapshot, PersistedIdProof};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PersistedIdEvent {
     pub id: Cid,
-    pub version: Version,
     pub payload: Vec<u8>,
     pub proofs: Vec<PersistedIdProof>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct IdEvent {
-    pub version: Version,
     pub timestamp: DateTime<Utc>,
     pub previous: Cid,
     pub signers: Vec<Cid>,

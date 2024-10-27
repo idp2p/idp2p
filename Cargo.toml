@@ -4,7 +4,7 @@ edition = "2021"
 
 [workspace]
 edition = "2021"
-members = ["common", "core/id"]
+members = ["common", "core/id", "components/id"]
 
 [profile.dev]
 lto = true

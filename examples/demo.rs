@@ -1,12 +1,12 @@
 use std::collections::HashMap;
 
-use idp2p_common::store::IdStore;
+use idp2p_common::{content::Content, store::Store};
 use structopt::StructOpt;
 use tokio::io::{self, AsyncBufReadExt, BufReader};
 
-bindgen!({
+/*bindgen!({
     path: "core/p2p/wit",
-});
+});*/
 
 #[derive(Debug, StructOpt)]
 #[structopt(name = "idp2p", about = "Usage of idp2p.")]
@@ -20,7 +20,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     dotenv::dotenv().ok();
     env_logger::init();
     let opt = Opt::from_args();
-    let id_store = idp2p_common::store::InMemoryIdStore::new();
+    let id_store = idp2p_common::store::InMemoryStore::new();
     let p2p_component: Vec<u8> = id_store.get("/wasm/p2p/1.0.0")?.unwrap();
     let peer_addr = format!("/ip4/127.0.0.1/tcp/{}", opt.port);
     let mut stdin = BufReader::new(io::stdin()).lines();
@@ -43,25 +43,31 @@ pub struct GossipMessage {
 }
 struct MyState;
 
-pub fn handle_gossip_event(event: GossipsubEvent) -> anyhow::Result<()>{
-    let id_store = idp2p_common::store::InMemoryIdStore::new();
+pub fn handle_gossip_event(event: GossipsubEvent) -> anyhow::Result<()> {
+    let id_store = idp2p_common::store::InMemoryStore::new();
     let engine = wasmtime::Engine::new(wasmtime::Config::new().wasm_component_model(true))?;
     let components: HashMap<String, Component> = HashMap::new();
     match event {
         GossipsubEvent::Message {
-            propagation_source,
-            message_id,
+            propagation_source: _,
+            message_id: _,
             message,
         } => {
-            if message.topic.as_str().len() == 0 {
-                let message: GossipMessage = decode(message.data.as_slice())?;
-                let p2p_component: Vec<u8> = id_store.get(format!("/components/{}", message.version).as_str())?.unwrap();
-                let component = wasmtime::component::Component::from_binary(&engine, &p2p_component)?;
-                let mut store = wasmtime::Store::new(&engine, MyState {});
-                //let linker = wasmtime::component::Linker::new(&engine);
-                //let (idp2p, _instance) = Idp2pP2p::instantiate(&mut store, &components.get("k").unwrap(), &linker)?;
-                
-            }   
+            // read 4 bytes from the message
+            // get id entry from the store
+            // get component from the store with the version
+            // call handle-message with the message and id entry
+            // get the response from the handle-message
+            // set the response in the store and/or publish it
+            // commit the store
+            let content = Content::from_bytes(message.data.as_slice())?;
+            let p2p_component: Vec<u8> = id_store
+                .get(format!("/components/{}", content.version).as_str())?
+                .unwrap();
+            let component = wasmtime::component::Component::from_binary(&engine, &p2p_component)?;
+            let mut store = wasmtime::Store::new(&engine, MyState {});
+            //let linker = wasmtime::component::Linker::new(&engine);
+            //let (idp2p, _instance) = Idp2pP2p::instantiate(&mut store, &components.get("k").unwrap(), &linker)?;
         }
         _ => {}
     }

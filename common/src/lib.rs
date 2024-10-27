@@ -8,5 +8,14 @@ pub const CBOR_CODE: u64 = 0x51;
 pub mod cid;
 pub mod utils;
 pub mod cbor;
-pub mod signer;
+pub mod verifying;
+pub mod content;
 pub mod store;
+
+pub struct Error(String);
+
+impl From<anyhow::Error> for Error {
+    fn from(value: anyhow::Error) -> Self {
+        todo!()
+    }
+}

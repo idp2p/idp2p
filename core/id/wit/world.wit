@@ -1,8 +1,0 @@
-package idp2p:id;
-
-world idp2p-id {
-
-    export verify-inception: func(inception: list<u8>) -> result<list<u8>, string>;
-
-    export verify-event: func(snapshot: list<u8>, event: list<u8>) -> result<list<u8>, string>;
-}
