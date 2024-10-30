@@ -1,3 +1,0 @@
-[build]
-target = "wasm32-unknown-unknown"                              # build for the target triple (ignored by `cargo install`)
-rustflags = ["-Ctarget-feature=+multivalue"]        # custom flags to pass to all compiler invocations

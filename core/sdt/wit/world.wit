@@ -1,7 +1,0 @@
-package idp2p:sdt@0.1.0;
-
-world sdt {
-     export verify-sdt: func(proof: string, root: string) -> result<bool, string>;
-    
-     export query-sdt: func(sdt: string, query: string) -> result<string, string>;
-}

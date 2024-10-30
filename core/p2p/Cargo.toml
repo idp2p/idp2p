@@ -1,10 +1,10 @@
 [package]
-name = "idp2p-id"
+name = "idp2p-p2p"
 version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-hex = { workspace = true }
+libp2p = { workspace = true }
 anyhow = { workspace = true }
 regex = { workspace = true }
 sha2 = { workspace = true }
@@ -14,3 +14,4 @@ multihash = { workspace = true }
 serde = { workspace = true }
 chrono = { workspace = true }
 idp2p-common = { path = "../../common" }
+idp2p-id = { path = "../id" }

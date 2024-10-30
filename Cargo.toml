@@ -4,7 +4,11 @@ edition = "2021"
 
 [workspace]
 edition = "2021"
-members = ["common", "core/id", "components/id"]
+members = [
+    "common",
+    "core/id",
+    "core/p2p",
+]
 
 [profile.dev]
 lto = true
@@ -16,8 +20,8 @@ wasmtime = { workspace = true }
 structopt = { workspace = true }
 wit-component = { workspace = true }
 libp2p = { workspace = true }
-dotenv =  { workspace = true }
-env_logger =  { workspace = true }
+dotenv = { workspace = true }
+env_logger = { workspace = true }
 tokio = { workspace = true }
 rand = { workspace = true }
 serde = { workspace = true }
@@ -39,7 +43,7 @@ hex = "0"
 structopt = "0"
 libp2p = { version = "0", features = ["gossipsub"] }
 tokio = { version = "1", features = ["full"] }
-semver = {version = "1", default-features = false, features = ["serde"]}
+semver = { version = "1", default-features = false, features = ["serde"] }
 regex = { version = "1", default-features = false }
 anyhow = { version = "1", default-features = false }
 serde = { version = "1", default-features = false, features = [
@@ -50,11 +54,14 @@ ciborium = { version = "0", default-features = false }
 serde_json = { version = "1", default-features = false }
 ed25519-dalek = { version = "2", default-features = false }
 sha2 = { version = "*", default-features = false }
-multihash = { version = "*", default-features = false, features = ["serde", "alloc"] }
+multihash = { version = "*", default-features = false, features = [
+    "serde",
+    "alloc",
+] }
 cid = { version = "0.11.1", features = ["serde"] }
 chrono = { version = "0", default-features = false, features = [
     "alloc",
     "serde",
-    "now"
+    "now",
 ] }
 wit-bindgen = { version = "0", default-features = false, features = ["macros"] }

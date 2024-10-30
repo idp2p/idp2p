@@ -19,13 +19,6 @@ pub struct IdInception {
     pub actions: Vec<IdActionKind>,
 }
 
-impl PersistedIdInception {
-    pub fn from_bytes(bytes: &[u8]) -> Result<Self> {
-        let inception = cbor::decode(bytes)?;
-        Ok(inception)
-    }
-}
-
 impl IdInception {
     pub fn from_bytes(bytes: &[u8]) -> Result<Self> {
         let inception = cbor::decode(bytes)?;
@@ -53,7 +46,12 @@ pub fn verify_inception_inner(inception: Vec<u8>) -> anyhow::Result<Vec<u8>> {
 }
 
 impl PersistedIdInception {
-    pub fn verify(&self) -> Result<Vec<u8>> {
+    pub fn from_bytes(bytes: &[u8]) -> Result<Self> {
+        let inception: PersistedIdInception = decode(bytes)?;
+        Ok(inception)    
+    }
+
+    pub fn verify(&self) -> Result<IdSnapshot> {
         let inception = IdInception::from_bytes(&self.payload)?;
         let cid = Cid::from_bytes(self.id.as_slice())?;
         cid.ensure(self.payload.as_slice())?;
@@ -93,7 +91,7 @@ impl PersistedIdInception {
                 }
             }
         }
-        Ok(id_snapshot.to_bytes()?)
+        Ok(id_snapshot)
     }
 }
 

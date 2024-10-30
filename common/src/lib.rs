@@ -11,6 +11,7 @@ pub mod cbor;
 pub mod verifying;
 pub mod content;
 pub mod store;
+pub mod wasm;
 
 pub struct Error(String);
 

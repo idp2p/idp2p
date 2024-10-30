@@ -1,0 +1,131 @@
+use std::{collections::HashMap, sync::{Arc, Mutex}};
+
+use idp2p_common::{content::Content, store::Store};
+use structopt::StructOpt;
+use tokio::io::{self, AsyncBufReadExt, BufReader};
+use wasmtime::{component, Store as WasmtimeStore};
+
+
+#[derive(Debug, StructOpt)]
+#[structopt(name = "idp2p", about = "Usage of idp2p.")]
+struct Opt {
+    #[structopt(short = "p", long = "port", default_value = "43727")]
+    port: u16,
+}
+
+type ComponentMap = Arc<Mutex<HashMap<String, Component>>>;
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    env_logger::init();
+    dotenv::dotenv().ok();
+    let opt = Opt::from_args();
+    let store = idp2p_common::store::InMemoryStore::new();
+    let engine = wasmtime::Engine::new(wasmtime::Config::new().wasm_component_model(true))?;
+    let p2p_components = ComponentMap::new(Mutex::new(HashMap::new()));
+    let id_components =  ComponentMap::new(Mutex::new(HashMap::new()));
+    let p2p_component_ids: Option<Vec<String>> = store.get("/p2p/components")?;
+    let id_component_ids: Option<Vec<String>> = store.get("/id/components")?;
+    if let Some(component_ids) = p2p_component_ids {
+        for component_id in component_ids {
+            let binary: Vec<u8> = store.get(format!("/p2p/components/{}", component_id).as_str())?.unwrap(); 
+            let component = wasmtime::component::Component::from_binary(&engine, &binary)?;
+            p2p_components.lock().unwrap().insert("k".to_owned(), component);
+        }
+    }
+    if let Some(component_ids) = id_component_ids {
+        for component_id in component_ids {
+            let binary: Vec<u8> = store.get(format!("/id/components/{}", component_id).as_str())?.unwrap(); 
+            let component = wasmtime::component::Component::from_binary(&engine, &binary)?;
+            id_components.lock().unwrap().insert("k".to_owned(), component);
+        }
+    }
+    let peer_addr = format!("/ip4/127.0.0.1/tcp/{}", opt.port);
+    let mut stdin = BufReader::new(io::stdin()).lines();
+    loop {
+        tokio::select! {
+            line = stdin.next_line() => {
+                let input = line?.unwrap();
+            }
+        }
+    }
+}
+use idp2p_common::cbor::decode;
+use libp2p::gossipsub::Event as GossipsubEvent;
+use serde::{Deserialize, Serialize};
+use wasmtime::component::{bindgen, Component};
+#[derive(Debug, Serialize, Deserialize)]
+pub struct GossipMessage {
+    pub version: String,
+    pub data: Vec<u8>,
+}
+
+struct IdInstance {
+    component: Idp2pId,
+}
+struct P2pHostComponent {
+    engine: wasmtime::Engine,
+    linker: wasmtime::component::Linker<()>,
+    components: HashMap<String, Component>,
+}
+
+// Implementation of the host interface defined in the wit file.
+impl id_verifier::Host for P2pHostComponent {
+    fn verify(&mut self, doc: Vec<u8>) -> Result<Vec<u8>, String> {
+        let component = self.components.get("k").unwrap();
+        let mut store = WasmtimeStore::new(&self.engine, ());
+        let (idp2p, instance) = Idp2pId::instantiate(&mut store, component, &self.linker).unwrap();
+
+        let r = idp2p
+            .call_verify_inception(&mut store, &doc)
+            .unwrap()
+            .unwrap();
+
+        todo!()
+    }
+
+    fn verify_event(&mut self, snapshot: Vec<u8>, event: Vec<u8>) -> Result<Vec<u8>, String> {
+        todo!()
+    }
+}
+
+struct IdState;
+
+pub fn handle_gossip_event(event: GossipsubEvent) -> anyhow::Result<()> {
+    let id_store = idp2p_common::store::InMemoryStore::new();
+    let engine = wasmtime::Engine::new(wasmtime::Config::new().wasm_component_model(true))?;
+    let components: HashMap<String, Component> = HashMap::new();
+    match event {
+        GossipsubEvent::Message {
+            propagation_source: _,
+            message_id: _,
+            message,
+        } => {
+            // read 4 bytes from the message
+            // get id entry from the store
+            // get component from the store with the version
+            // call handle-message with the message and id entry
+            // get the response from the handle-message
+            // set the response in the store and/or publish it
+            // commit the store
+            let content = Content::from_bytes(message.data.as_slice())?;
+            let p2p_component: Vec<u8> = id_store
+                .get(format!("/components/{}", content.version).as_str())?
+                .unwrap();
+            let component = wasmtime::component::Component::from_binary(&engine, &p2p_component)?;
+            let id_components: HashMap<String, Component> = HashMap::new();
+            let mut store = wasmtime::Store::new(&engine, IdState {});
+            let linker = wasmtime::component::Linker::new(&engine);
+            let (idp2p, instance) =
+                Idp2pP2p::instantiate(&mut store, &components.get("k").unwrap(), &linker)?;
+        }
+        _ => {}
+    }
+
+    Ok(())
+}
+// Generate bindings of the guest and host components.
+/*bindgen!({
+    path: "../identity",
+    additional_derives: [PartialEq, Eq, Hash, Clone, serde::Serialize, serde::Deserialize],
+});*/
