@@ -1,6 +1,6 @@
 use anyhow::{Ok, Result};
 use cid::Cid;
-use idp2p_common::{cbor::decode, store::Store};
+use idp2p_common::{cbor::decode, store::KvStore};
 use idp2p_id::{event::PersistedIdEvent, PersistedId};
 use serde::{Deserialize, Serialize};
 
@@ -20,7 +20,7 @@ pub enum IdGossipMessageKind {
 use libp2p::gossipsub::Behaviour;
 
 impl IdGossipMessageKind {
-    pub fn handle<S: Store>(&self, gossipsub: &Behaviour, store: &S) -> Result<()> {
+    pub fn handle<S: KvStore>(&self, gossipsub: &Behaviour, store: &S) -> Result<()> {
         Ok(())
     }
 }
