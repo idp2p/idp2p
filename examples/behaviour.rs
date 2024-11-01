@@ -20,6 +20,7 @@ fn create_router(app_state: Arc<AppState>) -> Router {
         .route("/", get(root_handler))
         .with_state(app_state)
 }
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 struct FileRequest(String);
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -44,10 +45,10 @@ async fn main() -> Result<(), Box<dyn Error>> {
             noise::Config::new,
             yamux::Config::default,
         )?
-        .with_behaviour(|key| Behaviour {
+        .with_behaviour(|_key| Behaviour {
             request_response: request_response::cbor::Behaviour::new(
                 [(
-                    StreamProtocol::new("/file-exchange/1"),
+                    StreamProtocol::new("/idp2p/1"),
                     ProtocolSupport::Full,
                 )],
                 request_response::Config::default(),
@@ -59,7 +60,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     swarm.listen_on("/ip4/0.0.0.0/tcp/43727".parse().unwrap())?;
     let mut stdin = tokio::io::BufReader::new(tokio::io::stdin()).lines();
     let akv = kv.clone();
-    let axum_server = task::spawn(async move {
+    let _ = task::spawn(async move {
         let app = create_router(Arc::new(AppState { kv: akv }));
         let listener = tokio::net::TcpListener::bind("0.0.0.0:8000").await.unwrap();
 
