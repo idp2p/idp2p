@@ -10,7 +10,6 @@ pub mod utils;
 pub mod cbor;
 pub mod verifying;
 pub mod content;
-pub mod store;
 
 pub struct Error(String);
 

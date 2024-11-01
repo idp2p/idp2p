@@ -27,26 +27,18 @@ pub struct PersistedId {
     pub events: Vec<PersistedIdEvent>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct VerificationMethod {
-    pub id: Vec<u8>,
-    pub pk: Vec<u8>,
-    pub valid_from: DateTime<Utc>,
-    pub valid_until: DateTime<Utc>,
-}
+
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct IdSnapshot {
     pub id: Vec<u8>,
+    pub state: Cid,
     pub config: IdConfig,
     pub event_id: Vec<u8>,
     pub event_timestamp: String,
     pub next_signers: Vec<IdSigner>,
     pub used_signers: Vec<Cid>,
-    pub mediators: Vec<Cid>,    
-    pub authentication: Vec<VerificationMethod>,
-    pub assertion_method: Vec<VerificationMethod>,
-    pub key_agreement: Vec<VerificationMethod>,
+    pub mediators: Vec<String>
 }
 
 impl IdSnapshot {
@@ -54,10 +46,4 @@ impl IdSnapshot {
         todo!()
     }
     
-}
-
-impl VerificationMethod {
-    pub fn validate(&self) -> Result<()> {
-       todo!()
-    }
 }

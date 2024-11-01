@@ -1,10 +1,13 @@
+use std::{collections::HashMap, sync::Arc};
+
 use anyhow::{Ok, Result};
 use cid::Cid;
-use idp2p_common::{cbor::decode, store::KvStore};
+use idp2p_common::{cbor::decode, content::Content};
 use idp2p_id::{event::PersistedIdEvent, PersistedId};
 use serde::{Deserialize, Serialize};
-
-use crate::entry::IdEntry;
+use libp2p::{gossipsub::Event as GossipsubEvent, swarm::NetworkBehaviour};
+use wasmtime::{Engine, Module};
+use crate::{entry::IdEntry, store::KvStore};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum IdGossipMessageKind {
@@ -17,6 +20,75 @@ pub enum IdGossipMessageKind {
     // Notify message
     NotifyMessage { id: Cid, providers: Vec<String> },
 }
+
+pub struct GossipMessageHandler {
+    engine: Engine,
+    modules: HashMap<String, Module>,
+    kv_store: Arc<dyn KvStore>,
+}
+
+type Gossip = libp2p::gossipsub::Behaviour;
+
+impl GossipMessageHandler {
+    pub fn handle(&self, event: GossipsubEvent, behaviour: &mut Gossip) -> anyhow::Result<()>{
+        match event {
+            GossipsubEvent::Message {
+                propagation_source: _,
+                message_id: _,
+                message,
+            } => {
+                let content = Content::from_bytes(message.data.as_slice())?;
+                let msg: IdGossipMessageKind = decode(&content.payload)?;
+                let id_key = format!("/identities/{}", message.topic.as_str());
+                if let Some(id_entry) = self.kv_store.get(&id_key)?{
+                    let id_entry: IdEntry = decode(&id_entry)?;
+                    match &msg {
+                        IdGossipMessageKind::Resolve => {
+                            if id_entry.provided {
+                                behaviour.publish(message.topic, b"data")?;
+                            }
+                        },
+                        IdGossipMessageKind::NotifyEvent { event } => {},
+                        IdGossipMessageKind::NotifyMessage { id, providers } => {},
+                        _ => {}
+                    }
+                }else {
+                    match &msg {
+                        IdGossipMessageKind::Provide {id} => {
+                             //id_verifier::verify_inception(version, payload)
+                        }
+                        _ => {
+                           
+                        }
+                    }
+                }
+                // read 4 bytes from the message
+                // get id entry from the store
+                // get module from the hashmap with the version
+                // call handle-message with the message and id entry
+                // get the response from the handle-message
+                // set the response in the store and/or publish it
+                // commit the store
+                
+                
+                /*let id_component: Vec<u8> = id_store
+                    .get(format!("/components/{}", content.version).as_str())?
+                    .unwrap();
+                let component = wasmtime::component::Component::from_binary(&engine, &p2p_component)?;
+                let id_components: HashMap<String, Component> = HashMap::new();
+                let mut store = wasmtime::Store::new(&engine, IdState {});
+                let linker = wasmtime::component::Linker::new(&engine);
+                let (idp2p, instance) =
+                    Idp2pP2p::instantiate(&mut store, &components.get("k").unwrap(), &linker)?;*/
+            }
+            _ => {}
+        }
+       Ok(())
+    }
+}
+// kv store
+// modules
+// 
 use libp2p::gossipsub::Behaviour;
 
 impl IdGossipMessageKind {

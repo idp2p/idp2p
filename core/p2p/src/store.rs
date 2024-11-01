@@ -2,7 +2,7 @@ use std::{collections::HashMap, sync::Mutex};
 
 use serde::{de::DeserializeOwned, Serialize};
 use anyhow::Result;
-use crate::cbor::{decode, encode};
+use idp2p_common::cbor::{decode, encode};
 
 pub trait KvStore: Send + Sync  {
     fn get(&self, key: &str) -> Result<Option<Vec<u8>>>;

@@ -1,0 +1,4 @@
+- /identities/{cid}
+- /messages/{cid}
+- /modules/id/{cid}
+- /permissions/{cid}

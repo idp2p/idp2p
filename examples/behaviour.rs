@@ -1,6 +1,6 @@
 use axum::{extract::State, routing::get, Router};
 use dotenv::dotenv;
-use idp2p_common::store::KvStore;
+use idp2p_p2p::store::KvStore;
 use libp2p::{
     noise, ping,
     request_response::{self, ProtocolSupport},
@@ -36,7 +36,7 @@ struct Behaviour {
 async fn main() -> Result<(), Box<dyn Error>> {
     dotenv().ok();
     env_logger::init();
-    let kv = Arc::new(idp2p_common::store::InMemoryKvStore::new());
+    let kv = Arc::new(idp2p_p2p::store::InMemoryKvStore::new());
     kv.put("key", b"abc").unwrap();
     let mut swarm = libp2p::SwarmBuilder::with_new_identity()
         .with_tokio()

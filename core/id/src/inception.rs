@@ -14,9 +14,10 @@ pub struct PersistedIdInception {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct IdInception {
     pub config: IdConfig,
+    pub state: Cid,
     pub timestamp: DateTime<Utc>,
     pub next_signers: Vec<IdSigner>,
-    pub actions: Vec<IdActionKind>,
+    pub mediators: Vec<String>,
 }
 
 impl IdInception {
@@ -61,36 +62,18 @@ impl PersistedIdInception {
             .iter()
             .map(|s| s.id.clone())
             .collect();
-        let mut id_snapshot = IdSnapshot {
+        let id_snapshot = IdSnapshot {
             id: self.id.clone(),
+            state: inception.state, 
             event_id: self.id.clone(),
             config: inception.config,
             event_timestamp: inception.timestamp.to_string(),
             next_signers: inception.next_signers,
             used_signers: signer_ids,
-            authentication: vec![],
-            assertion_method: vec![],
-            key_agreement: vec![],
-            mediators: vec![],
+            mediators: inception.mediators,
         };
 
-        for action in inception.actions {
-            action.validate()?;
-            match action {
-                IdActionKind::AddAssertionMethod(vm) => {
-                    id_snapshot.assertion_method.push(vm);
-                }
-                IdActionKind::AddAuthentication(vm) => {
-                    id_snapshot.authentication.push(vm);
-                }
-                IdActionKind::AddKeyAgreement(vm) => {
-                    id_snapshot.key_agreement.push(vm);
-                }
-                _ => {
-                    bail!("invalid action")
-                }
-            }
-        }
+       
         Ok(id_snapshot)
     }
 }
@@ -104,9 +87,10 @@ mod tests {
     fn new(config: IdConfig, state: Cid, next_signers: Vec<IdSigner>) -> Result<IdInception> {
         let inception = IdInception {
             config: config,
+            state: state,
             timestamp: Utc::now(),
             next_signers: next_signers,
-            actions: vec![],
+            mediators: vec![],
         };
         Ok(inception)
     }
