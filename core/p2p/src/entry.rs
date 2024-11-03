@@ -5,5 +5,6 @@ use serde::{Deserialize, Serialize};
 pub struct IdEntry {
     pub provided: bool,
     pub snapshot: IdSnapshot,
-    pub microledger: PersistedId,
+    pub identity: PersistedId,
+    pub subscribers: Vec<String>,
 }
