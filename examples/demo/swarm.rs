@@ -1,4 +1,26 @@
-pub fn create_swarm() {
+use libp2p::{
+    mdns, noise, ping,gossipsub,
+    request_response::{self, ProtocolSupport},
+    swarm::{behaviour, NetworkBehaviour},
+    tcp, yamux, Multiaddr, StreamProtocol,
+};
+use serde::{Deserialize, Serialize};
+use std::{error::Error, hash::{DefaultHasher, Hash, Hasher}, sync::Arc, time::Duration};
+
+type RequestResponseBehaviour = request_response::cbor::Behaviour<FileRequest, FileResponse>;
+type GossipsubBehaviour = libp2p::gossipsub::Behaviour;
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+struct FileRequest(String);
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub(crate) struct FileResponse(Vec<u8>);
+
+#[derive(NetworkBehaviour)]
+struct Idp2pBehaviour {
+    request_response: RequestResponseBehaviour,
+    gossipsub: GossipsubBehaviour,
+    mdns: mdns::tokio::Behaviour,
+}
+pub fn create_swarm(port: u16) -> Result<(), Box<dyn Error>>{
     let mut swarm = libp2p::SwarmBuilder::with_new_identity()
         .with_tokio()
         .with_tcp(
@@ -44,4 +66,5 @@ pub fn create_swarm() {
         .build();
 
     swarm.listen_on("/ip4/0.0.0.0/tcp/43727".parse().unwrap())?;
+    Ok(())
 }
