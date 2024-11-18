@@ -5,9 +5,15 @@ use cid::Cid;
 use idp2p_common::{cbor::decode, content::Content};
 use idp2p_id::{event::PersistedIdEvent, PersistedId};
 use serde::{Deserialize, Serialize};
-use libp2p::{gossipsub::Event as GossipsubEvent, swarm::NetworkBehaviour};
+use libp2p::gossipsub::{self, Event as GossipsubEvent};
+use tokio::sync::oneshot;
 use wasmtime::{Engine, Module};
 use crate::{entry::IdEntry, store::KvStore};
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct IdMessageRequest(String);
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct IdMessageResponse(Vec<u8>);
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum IdGossipMessageKind {
@@ -21,16 +27,15 @@ pub enum IdGossipMessageKind {
     NotifyMessage { id: Cid, providers: Vec<String> },
 }
 
-pub struct GossipMessageHandler {
+pub struct IdMessageHandler {
     engine: Engine,
-    modules: HashMap<String, Module>,
     kv_store: Arc<dyn KvStore>,
+    modules: HashMap<String, Module>,    
+    event_sender: oneshot::Sender<String>
 }
 
-type Gossip = libp2p::gossipsub::Behaviour;
-
-impl GossipMessageHandler {
-    pub fn handle(&self, event: GossipsubEvent, behaviour: &mut Gossip) -> anyhow::Result<()>{
+impl IdMessageHandler {
+    pub fn handle(&self, event: GossipsubEvent) -> anyhow::Result<()>{
         match event {
             GossipsubEvent::Message {
                 propagation_source: _,
@@ -45,7 +50,7 @@ impl GossipMessageHandler {
                     match &msg {
                         IdGossipMessageKind::Resolve => {
                             if id_entry.provided {
-                                behaviour.publish(message.topic, b"data")?;
+                                //behaviour.publish(message.topic, b"data")?;
                             }
                         },
                         IdGossipMessageKind::NotifyEvent { event } => {},
