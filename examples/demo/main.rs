@@ -1,10 +1,12 @@
 use behaviour::{create_swarm, Idp2pBehaviourEvent};
 use dotenv::dotenv;
 use futures::StreamExt;
-use idp2p_p2p::store::KvStore;
+use futures::channel::oneshot;
+
+use idp2p_p2p::{message::IdMessageHandler, store::{InMemoryKvStore, KvStore}};
 use libp2p::swarm::SwarmEvent;
 use std::{error::Error, sync::Arc};
-use tokio::{io::AsyncBufReadExt, select, task};
+use tokio::{io::AsyncBufReadExt, select};
 
 mod behaviour;
 mod http;
@@ -13,17 +15,22 @@ mod http;
 async fn main() -> Result<(), Box<dyn Error>> {
     dotenv().ok();
     env_logger::init();
-    let kv = Arc::new(idp2p_p2p::store::InMemoryKvStore::new());
-    let kv_clone = kv.clone();
-    let _ = task::spawn(async move {
-        http::create_app(kv_clone, 8000).await;
-    });
+
+    let kv = Arc::new(InMemoryKvStore::new());
+    let (sender, _) = ::channel();
+    let handler = IdMessageHandler::new(kv.clone(), sender)?;
+
+    /*task::spawn(async move {
+        http::create_app(kv.clone(), 8000).await;
+    });*/
+
     let mut swarm = create_swarm(43727)?;
     let mut stdin = tokio::io::BufReader::new(tokio::io::stdin()).lines();
+
     loop {
         select! {
             Ok(Some(line)) = stdin.next_line() => {
-                kv.clone().put("key", line.as_bytes()).unwrap();
+                kv.put("key", line.as_bytes()).unwrap();
                 println!("Publish error: {line:?}");
             }
             event = swarm.select_next_some() => match event {
@@ -41,15 +48,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
                     }
                 },
                 SwarmEvent::Behaviour(Idp2pBehaviourEvent::Gossipsub(event)) => {
-                      match event {
-                        libp2p::gossipsub::Event::Message  {
-                            propagation_source: _,
-                            message_id: _,
-                            message,
-                        } => {
-                        }
-                        _ => {}
-                      }
+                     handler.handle(event).await?;
                 },
                 SwarmEvent::NewListenAddr { address, .. } => {
                     println!("Local node is listening on {address}");

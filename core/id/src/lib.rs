@@ -1,6 +1,5 @@
 use cid::Cid;
 use anyhow::Result;
-use chrono::{DateTime, Utc};
 use config::IdConfig;
 use event::PersistedIdEvent;
 use inception::PersistedIdInception;
@@ -28,7 +27,6 @@ pub struct PersistedId {
 }
 
 
-
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct IdSnapshot {
     pub id: Vec<u8>,
@@ -39,6 +37,13 @@ pub struct IdSnapshot {
     pub next_signers: Vec<IdSigner>,
     pub used_signers: Vec<Cid>,
     pub mediators: Vec<String>
+}
+
+impl PersistedId {
+    pub fn to_bytes(&self) -> Result<Vec<u8>> {
+        todo!()
+    }
+    
 }
 
 impl IdSnapshot {
