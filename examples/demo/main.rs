@@ -12,6 +12,7 @@ use std::{error::Error, sync::Arc};
 use tokio::{io::AsyncBufReadExt, select};
 
 mod behaviour;
+mod utils;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
@@ -48,6 +49,9 @@ async fn main() -> Result<(), Box<dyn Error>> {
                 SwarmEvent::Behaviour(Idp2pBehaviourEvent::Gossipsub(event)) => {
                      handler.handle_gossip_message(event).await?;
                 },
+                SwarmEvent::Behaviour(Idp2pBehaviourEvent::RequestResponse(event)) => {
+                    todo!()
+                }
                 SwarmEvent::NewListenAddr { address, .. } => {
                     println!("Local node is listening on {address}");
                 },

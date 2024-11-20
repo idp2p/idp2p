@@ -16,6 +16,7 @@ opt-level = "z"
 strip = "symbols"
 
 [dependencies]
+cid ={ workspace = true }
 wasmtime = { workspace = true }
 structopt = { workspace = true }
 libp2p = { workspace = true }

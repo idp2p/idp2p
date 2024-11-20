@@ -29,10 +29,10 @@ pub struct PersistedId {
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct IdSnapshot {
-    pub id: Vec<u8>,
+    pub id: Cid,
     pub state: Cid,
     pub config: IdConfig,
-    pub event_id: Vec<u8>,
+    pub event_id: Cid,
     pub event_timestamp: String,
     pub next_signers: Vec<IdSigner>,
     pub used_signers: Vec<Cid>,

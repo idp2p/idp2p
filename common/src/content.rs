@@ -11,10 +11,15 @@ impl Content {
     }
 
     pub fn to_bytes(&self) -> Vec<u8> {
-        todo!()
+        let mut bytes = Vec::with_capacity(self.payload.len() + 8);
+        bytes.extend_from_slice(self.version.to_le_bytes().as_slice());
+        bytes.extend_from_slice(self.payload.as_slice());
+        bytes
     }
 
     pub fn from_bytes(bytes: &[u8]) -> Result<Self> {
-        todo!()
+        let version = u64::from_le_bytes(bytes[0..8].try_into()?);
+        let payload = bytes[8..].to_vec();
+        Ok(Self { version, payload })
     }
 }

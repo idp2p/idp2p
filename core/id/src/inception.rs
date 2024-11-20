@@ -1,13 +1,13 @@
 use crate::{config::IdConfig, signer::IdSigner, IdSnapshot};
-use anyhow::{bail, Result};
+use anyhow::{bail,  Result};
 use chrono::prelude::*;
 use cid::Cid;
-use idp2p_common::{cbor::{self, decode, encode}, cid::CidExt};
+use idp2p_common::{cbor::{self, decode, encode}, cid::CidExt, ED_CODE};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PersistedIdInception {
-    pub id: Vec<u8>,
+    pub id: Cid,
     pub payload: Vec<u8>,
 }
 
@@ -21,6 +21,26 @@ pub struct IdInception {
 }
 
 impl IdInception {
+    pub fn from_signer(signer: &[u8], mediator: &str) -> Result<Self> {
+        let config = IdConfig::default();
+        let state = cid::Cid::default();
+        let signer = IdSigner{
+            id: Cid::create(ED_CODE, signer)?,
+            value: 1  
+        };
+        let next_signers = vec![signer];
+
+        let inception = IdInception {
+            config,
+            state,
+            timestamp: Utc::now(),
+            next_signers,
+            mediators: vec![mediator.to_string()]
+        };
+        
+        Ok(inception)
+    }
+
     pub fn from_bytes(bytes: &[u8]) -> Result<Self> {
         let inception = cbor::decode(bytes)?;
         Ok(inception)
@@ -54,8 +74,7 @@ impl PersistedIdInception {
 
     pub fn verify(&self) -> Result<IdSnapshot> {
         let inception = IdInception::from_bytes(&self.payload)?;
-        let cid = Cid::from_bytes(self.id.as_slice())?;
-        cid.ensure(self.payload.as_slice())?;
+        self.id.ensure(self.payload.as_slice())?;
         inception.validate()?;
         let signer_ids: Vec<Cid> = inception
             .next_signers
