@@ -1,15 +1,17 @@
 use behaviour::{create_swarm, Idp2pBehaviourEvent};
 use dotenv::dotenv;
+use futures::channel::mpsc::*;
 use futures::StreamExt;
-use futures::channel::oneshot;
 
-use idp2p_p2p::{message::IdMessageHandler, store::{InMemoryKvStore, KvStore}};
+use idp2p_p2p::{
+    message::IdMessageHandler,
+    store::{InMemoryKvStore, KvStore},
+};
 use libp2p::swarm::SwarmEvent;
 use std::{error::Error, sync::Arc};
 use tokio::{io::AsyncBufReadExt, select};
 
 mod behaviour;
-mod http;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
@@ -17,12 +19,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
     env_logger::init();
 
     let kv = Arc::new(InMemoryKvStore::new());
-    let (sender, _) = ::channel();
-    let handler = IdMessageHandler::new(kv.clone(), sender)?;
-
-    /*task::spawn(async move {
-        http::create_app(kv.clone(), 8000).await;
-    });*/
+    let (sender, _) = channel(100);
+    let mut handler = IdMessageHandler::new(kv.clone(), sender)?;
 
     let mut swarm = create_swarm(43727)?;
     let mut stdin = tokio::io::BufReader::new(tokio::io::stdin()).lines();
@@ -48,7 +46,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
                     }
                 },
                 SwarmEvent::Behaviour(Idp2pBehaviourEvent::Gossipsub(event)) => {
-                     handler.handle(event).await?;
+                     handler.handle_gossip_message(event).await?;
                 },
                 SwarmEvent::NewListenAddr { address, .. } => {
                     println!("Local node is listening on {address}");
