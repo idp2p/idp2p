@@ -4,7 +4,7 @@ use cid::Cid;
 use idp2p_common::{cbor, cid::CidExt, verifying::ed25519::verify};
 use serde::{Deserialize, Serialize};
 
-use crate::{action::IdActionKind, config::IdConfig, signer::IdSigner, IdSnapshot, PersistedIdProof};
+use crate::{action::IdActionKind, config::IdConfig, signer::IdSigner, IdView, PersistedIdProof};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PersistedIdEvent {
@@ -50,7 +50,7 @@ impl IdEvent {
     }
 }
 
-pub fn verify_event(snapshot: IdSnapshot, pevent: PersistedIdEvent) -> anyhow::Result<IdSnapshot> {
+pub fn verify_event(view: IdView, pevent: PersistedIdEvent) -> anyhow::Result<IdView> {
     /*let event_id = Cid::from_bytes(&pevent.id)?;
     event_id.ensure(pevent.payload.as_slice())?;
     let mut signers: Vec<IdSigner> = vec![];

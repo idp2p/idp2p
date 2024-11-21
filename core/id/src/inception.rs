@@ -1,4 +1,4 @@
-use crate::{config::IdConfig, signer::IdSigner, IdSnapshot};
+use crate::{config::IdConfig, signer::IdSigner, IdView};
 use anyhow::{bail,  Result};
 use chrono::prelude::*;
 use cid::Cid;
@@ -72,7 +72,7 @@ impl PersistedIdInception {
         Ok(inception)    
     }
 
-    pub fn verify(&self) -> Result<IdSnapshot> {
+    pub fn verify(&self) -> Result<IdView> {
         let inception = IdInception::from_bytes(&self.payload)?;
         self.id.ensure(self.payload.as_slice())?;
         inception.validate()?;
@@ -81,7 +81,7 @@ impl PersistedIdInception {
             .iter()
             .map(|s| s.id.clone())
             .collect();
-        let id_snapshot = IdSnapshot {
+        let id_snapshot = IdView {
             id: self.id.clone(),
             state: inception.state, 
             event_id: self.id.clone(),

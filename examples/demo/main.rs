@@ -8,29 +8,49 @@ use idp2p_p2p::{
     store::{InMemoryKvStore, KvStore},
 };
 use libp2p::swarm::SwarmEvent;
+use structopt::StructOpt;
 use std::{error::Error, sync::Arc};
 use tokio::{io::AsyncBufReadExt, select};
 
 mod behaviour;
 mod utils;
 
+#[derive(Debug, StructOpt)]
+#[structopt(name = "idp2p", about = "Usage of idp2p.")]
+struct Opt {
+    #[structopt(short = "p", long = "port", default_value = "43727")]
+    port: u16,
+}
+
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
     dotenv().ok();
     env_logger::init();
+    let opt = Opt::from_args();
 
     let kv = Arc::new(InMemoryKvStore::new());
     let (sender, _) = channel(100);
     let mut handler = IdMessageHandler::new(kv.clone(), sender)?;
 
-    let mut swarm = create_swarm(43727)?;
+    let mut swarm = create_swarm(opt.port)?;
     let mut stdin = tokio::io::BufReader::new(tokio::io::stdin()).lines();
 
     loop {
         select! {
             Ok(Some(line)) = stdin.next_line() => {
-                kv.put("key", line.as_bytes()).unwrap();
-                println!("Publish error: {line:?}");
+                let input: Vec<&str> = line.split(" ").collect();
+                match input[0]{
+                    "resolve" => {
+                        println!("Resolve {}", input[1]);
+                    },
+                    "upgrade" => {
+                        println!("Upgrade");
+                    },
+                    "send_message" => {
+                        println!("Send message to {} with {}", input[1], input[2]);
+                    }
+                    _ => println!("Unknown command")
+                }
             }
             event = swarm.select_next_some() => match event {
 

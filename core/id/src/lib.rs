@@ -28,7 +28,7 @@ pub struct PersistedId {
 
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
-pub struct IdSnapshot {
+pub struct IdView {
     pub id: Cid,
     pub state: Cid,
     pub config: IdConfig,
@@ -46,7 +46,7 @@ impl PersistedId {
     
 }
 
-impl IdSnapshot {
+impl IdView {
     pub fn to_bytes(&self) -> Result<Vec<u8>> {
         todo!()
     }
