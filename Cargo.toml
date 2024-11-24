@@ -31,6 +31,7 @@ chrono = { workspace = true }
 ed25519-dalek = { workspace = true }
 axum = { workspace = true }
 futures ={ workspace = true }
+log ={ workspace = true }
 utoipa = { workspace = true }
 utoipa-axum = { workspace = true }
 utoipa-swagger-ui = { workspace = true }

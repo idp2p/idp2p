@@ -4,6 +4,8 @@
 
 A self-describing identity protocol on top of libp2p. 
 
+cargo run --example demo -- -p 43728
+
 ## FAQ
 
 **Question:** Why idp2p?

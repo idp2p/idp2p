@@ -34,7 +34,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     let mut swarm = create_swarm(opt.port)?;
     let mut stdin = tokio::io::BufReader::new(tokio::io::stdin()).lines();
-
+    let id = utils::generate_id(swarm.local_peer_id())?;
+    println!("Id {}", id.id.to_string());
     loop {
         select! {
             Ok(Some(line)) = stdin.next_line() => {

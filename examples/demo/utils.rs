@@ -9,7 +9,7 @@ use idp2p_id::{
 use libp2p::PeerId;
 use rand::rngs::OsRng;
 
-pub fn generate_id(mediator: PeerId) -> Result<PersistedId> {
+pub fn generate_id(mediator: &PeerId) -> Result<PersistedId> {
     let mut csprng = OsRng;
     let signing_key: SigningKey = SigningKey::generate(&mut csprng);
     let inception = IdInception::from_signer(&signing_key.to_bytes(), &mediator.to_string())?;
