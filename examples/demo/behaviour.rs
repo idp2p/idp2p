@@ -13,6 +13,13 @@ pub(crate) struct Idp2pBehaviour {
     pub(crate) mdns: mdns::tokio::Behaviour,
 }
 
+pub struct IdMessageHandler<S: KvStore> {
+    engine: Engine,
+    kv_store: Arc<S>,
+    swarm: Swarm<Idp2pBehaviour>,
+    components: HashMap<String, Module>,
+}
+
 pub fn create_swarm(port: u16) -> Result<Swarm<Idp2pBehaviour>, Box<dyn Error>> {
     let mut swarm = libp2p::SwarmBuilder::with_new_identity()
         .with_tokio()

@@ -31,7 +31,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let kv = Arc::new(InMemoryKvStore::new());
     let (sender, _) = channel(100);
     let mut handler = IdMessageHandler::new(kv.clone(), sender)?;
-
+    
     let mut swarm = create_swarm(opt.port)?;
     let mut stdin = tokio::io::BufReader::new(tokio::io::stdin()).lines();
     let id = utils::generate_id(swarm.local_peer_id())?;

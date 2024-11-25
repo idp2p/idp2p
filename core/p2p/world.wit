@@ -1,34 +1,37 @@
 package idp2p:p2p;
 
 interface id-query {
-    get-id: func(id: list<u8>) -> result<list<u8>, string>;
-    verify-inception: func(inception: list<u8>) -> result<list<u8>, string>;
-    verify-event: func(view: list<u8>, event: list<u8>) -> result<list<u8>, string>;
+    get: func(id: string) -> result<option<list<u8>>, string>;
+    verify-inception: func(version: u64, inception: list<u8>) -> result<list<u8>, string>;
+    verify-event: func(version: u64, view: list<u8>, event: list<u8>) -> result<list<u8>, string>;
 }
 
 interface id-handler {    
 
-    record id-get-message {
-
+    record id-request-command {
+        peer: string,
+        payload: list<u8>
     }
 
-    record id-provide-id {
-        
+    record id-publish-command {
+        topic: string,
+        payload: list<u8>
     }
 
-    record id-provide-message {
-        
+    record id-put-command {
+        key: string,
+        value: list<u8>
     }
 
-    variant id-handler-event {
-        get-message(id-get-message),
-        provide-id(id-provide-id),
-        provide-message(id-provide-message),
+    variant id-handler-command {
+        put(id-put-command),
+        request(id-request-command),
+        publish(id-publish-command),
     }
 
-    handle-gossip-message: func(msg: list<u8>) -> result<list<id-handler-event>, string>;
+    handle-gossip-message: func(msg: list<u8>) -> result<list<id-handler-command>, string>;
 
-    handle-req-res-message: func(msg: list<u8>) -> result<list<id-handler-event>, string>;
+    handle-req-res-message: func(msg: list<u8>) -> result<list<id-handler-command>, string>;
 }
 
 world idp2p-p2p {
