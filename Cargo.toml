@@ -63,6 +63,7 @@ serde = { version = "1", default-features = false, features = [
     "derive",
     "alloc",
 ] }
+wit-bindgen = { version = "0", default-features = false, features = ["macros"] }
 ciborium = { version = "0", default-features = false }
 serde_json = { version = "1", default-features = false }
 ed25519-dalek = { version = "2", default-features = false }
