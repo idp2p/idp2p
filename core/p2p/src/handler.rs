@@ -1,10 +1,10 @@
 use cid::Cid;
+use idp2p_id::model::{event::PersistedIdEvent, id::PersistedId};
 
 use crate::{
-    entry::IdEntry, exports::idp2p::p2p::id_handler::IdPublishCommand, idp2p::p2p::id_query::*,
+    entry::IdEntry, exports::idp2p::p2p::id_handler::IdPublishEvent, idp2p::p2p::id_query::*
 };
 use idp2p_common::{cbor::decode, content::Content};
-use idp2p_id::{event::PersistedIdEvent, PersistedId};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -25,7 +25,7 @@ pub enum IdGossipMessageKind {
     NotifyMessage { id: Cid, providers: Vec<String> },
 }
 
-pub fn handle_gossip_message(topic: &str, msg: &[u8]) -> anyhow::Result<Vec<IdPublishCommand>> {
+pub fn handle_gossip_message(topic: &str, msg: &[u8]) -> anyhow::Result<Vec<IdPublishEvent>> {
     let content = Content::from_bytes(msg)?;
     let msg: IdGossipMessageKind = decode(&content.payload)?;
     let id_key = format!("/identities/{}", topic);
@@ -35,7 +35,7 @@ pub fn handle_gossip_message(topic: &str, msg: &[u8]) -> anyhow::Result<Vec<IdPu
         match msg {
             IdGossipMessageKind::Resolve => {
                 if id_entry.provided {
-                    commands.push(IdPublishCommand {
+                    commands.push(IdPublishEvent {
                         topic: topic.to_string(),
                         payload: vec![],
                     });

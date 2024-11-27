@@ -69,7 +69,7 @@ impl IdMessageHandler {
         self.swarm
             .behaviour_mut()
             .gossipsub
-            .publish(IdentTopic::new(id), b"data");
+            .publish(IdentTopic::new(id), b"data").unwrap();
     }
 
     async fn handle_event(&mut self, event: SwarmEvent<Idp2pBehaviourEvent>) -> anyhow::Result<()> {
