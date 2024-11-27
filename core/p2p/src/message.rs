@@ -3,7 +3,7 @@ use cid::Cid;
 use futures::prelude::*;
 use futures::channel::mpsc::Sender;
 use idp2p_common::{cbor::decode, content::Content};
-use idp2p_id::{event::PersistedIdEvent, PersistedId};
+use idp2p_id::model::{event::PersistedIdEvent, id::PersistedId};
 use libp2p::gossipsub::Event as GossipsubEvent;
 use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, sync::Arc};

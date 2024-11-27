@@ -10,11 +10,3 @@ pub mod utils;
 pub mod cbor;
 pub mod verifying;
 pub mod content;
-
-pub struct Error(String);
-
-impl From<anyhow::Error> for Error {
-    fn from(value: anyhow::Error) -> Self {
-        todo!()
-    }
-}

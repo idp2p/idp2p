@@ -12,8 +12,9 @@ pub enum IdActionKind {
 impl IdActionKind {
     pub fn validate(&self) -> Result<()> {
         match self {
-            _ => {}
+            IdActionKind::AddMediator(peer) => todo!(),
+            IdActionKind::RemoveMediator(peer) => todo!(),
+            _ => todo!(),
         }
-        Ok(())
     }
 }

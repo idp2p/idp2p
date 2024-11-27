@@ -1,6 +1,12 @@
 use anyhow::Result;
 use futures::{channel::mpsc::*, StreamExt};
-use libp2p::{gossipsub::{IdentTopic, Topic}, request_response, swarm::SwarmEvent, Swarm};
+use idp2p_common::content::Content;
+use libp2p::{
+    gossipsub::{IdentTopic, Topic},
+    request_response,
+    swarm::SwarmEvent,
+    Swarm,
+};
 use std::{
     collections::HashMap,
     error::Error,
@@ -60,17 +66,23 @@ impl IdMessageHandler {
     }
 
     pub fn resolve(&mut self, id: &str) {
-        self.swarm.behaviour_mut().gossipsub.publish(IdentTopic::new(id), b"data");
+        self.swarm
+            .behaviour_mut()
+            .gossipsub
+            .publish(IdentTopic::new(id), b"data");
     }
 
-    async fn handle_event(&mut self, event: SwarmEvent<Idp2pBehaviourEvent>) {
+    async fn handle_event(&mut self, event: SwarmEvent<Idp2pBehaviourEvent>) -> anyhow::Result<()> {
         match event {
             SwarmEvent::Behaviour(Idp2pBehaviourEvent::Mdns(libp2p::mdns::Event::Discovered(
                 list,
             ))) => {
                 for (peer_id, _multiaddr) in list {
                     println!("mDNS discovered a new peer: {peer_id}");
-                    self.swarm.behaviour_mut().gossipsub.add_explicit_peer(&peer_id);
+                    self.swarm
+                        .behaviour_mut()
+                        .gossipsub
+                        .add_explicit_peer(&peer_id);
                 }
             }
             SwarmEvent::Behaviour(Idp2pBehaviourEvent::Mdns(libp2p::mdns::Event::Expired(
@@ -85,21 +97,30 @@ impl IdMessageHandler {
                 }
             }
             SwarmEvent::Behaviour(Idp2pBehaviourEvent::Gossipsub(event)) => {
+                match event {
+                    libp2p::gossipsub::Event::Message {
+                        propagation_source: _,
+                        message_id: _,
+                        message,
+                    } => {
+                        let content = Content::from_bytes(message.data.as_slice())?;
+                        
+                    }
+                    _=> {}
+                }
                 //handler.handle_gossip_message(event).await?;
             }
-            SwarmEvent::Behaviour(Idp2pBehaviourEvent::RequestResponse(request_response::Event::Message { message, .. })) => {
+            SwarmEvent::Behaviour(Idp2pBehaviourEvent::RequestResponse(
+                request_response::Event::Message { message, .. },
+            )) => {
                 match message {
                     request_response::Message::Request {
                         request, channel, ..
-                    } => {
-                        
-                    }
+                    } => {}
                     request_response::Message::Response {
                         request_id,
                         response,
-                    } => {
-                        
-                    }
+                    } => {}
                 }
                 todo!()
             }
@@ -108,13 +129,14 @@ impl IdMessageHandler {
             }
             _ => {}
         }
+        Ok(())
     }
 
-    pub(crate) async fn run(mut self) {
+    pub(crate) async fn run(mut self) -> anyhow::Result<()>{
         loop {
             tokio::select! {
-                event = self.swarm.select_next_some() => self.handle_event(event).await,
-                
+                event = self.swarm.select_next_some() => self.handle_event(event).await?,
+
             }
         }
     }

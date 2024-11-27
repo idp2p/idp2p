@@ -2,10 +2,7 @@ use anyhow::Result;
 use cid::Cid;
 use ed25519_dalek::SigningKey;
 use idp2p_common::{cbor, cid::CidExt};
-use idp2p_id::{
-    inception::{IdInception, PersistedIdInception},
-    PersistedId,
-};
+use idp2p_id::{inception::IdInception, model::{id::PersistedId, inception::PersistedIdInception}};
 use libp2p::PeerId;
 use rand::rngs::OsRng;
 

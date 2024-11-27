@@ -1,54 +1,25 @@
-use cid::Cid;
-use anyhow::Result;
-use config::IdConfig;
-use event::PersistedIdEvent;
-use inception::PersistedIdInception;
-use serde::{Deserialize, Serialize};
-use signer::IdSigner;
-
 pub mod action;
 pub mod config;
 pub mod event;
 pub mod inception;
+pub mod model;
 pub mod signer;
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct PersistedIdProof {
-    pub id: Cid,
-    pub pk: Vec<u8>,
-    pub sig: Vec<u8>,
-}
+wit_bindgen::generate!({
+    world: "idp2p-id",
+    additional_derives: [PartialEq, Eq, Hash, Clone, serde::Serialize, serde::Deserialize]
+});
 
-#[derive(Serialize, Deserialize, Clone, Debug)]
-pub struct PersistedId {
-    pub id: Cid,
-    pub incepiton: PersistedIdInception,
-    pub events: Vec<PersistedIdEvent>,
-}
+struct GuestComponent;
 
+export!(GuestComponent);
 
-#[derive(Serialize, Deserialize, Clone, Debug)]
-pub struct IdView {
-    pub id: Cid,
-    pub state: Cid,
-    pub config: IdConfig,
-    pub event_id: Cid,
-    pub event_timestamp: String,
-    pub next_signers: Vec<IdSigner>,
-    pub used_signers: Vec<Cid>,
-    pub mediators: Vec<String>
-}
-
-impl PersistedId {
-    pub fn to_bytes(&self) -> Result<Vec<u8>> {
+impl Guest for GuestComponent {
+    fn verify_inception(inception: Vec<u8>) -> Result<Vec<u8>, IdVerifierError> {
         todo!()
     }
-    
-}
 
-impl IdView {
-    pub fn to_bytes(&self) -> Result<Vec<u8>> {
+    fn verify_event(view: Vec<u8>, event: Vec<u8>) -> Result<Vec<u8>, IdVerifierError> {
         todo!()
     }
-    
 }

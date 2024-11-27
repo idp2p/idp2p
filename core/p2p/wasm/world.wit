@@ -8,30 +8,30 @@ interface id-query {
 
 interface id-handler {    
 
-    record id-request-command {
+    record id-request-event {
         peer: string,
         payload: list<u8>
     }
 
-    record id-publish-command {
+    record id-publish-event {
         topic: string,
         payload: list<u8>
     }
 
-    record id-put-command {
+    record id-put-event {
         key: string,
         value: list<u8>
     }
 
-    variant id-handler-command {
-        put(id-put-command),
-        request(id-request-command),
-        publish(id-publish-command),
+    variant id-handler-event {
+        put(id-put-event),
+        request(id-request-event),
+        publish(id-publish-event),
     }
 
-    handle-gossip-message: func(msg: list<u8>) -> result<list<id-handler-command>, string>;
+    handle-gossipsub-message: func(msg: list<u8>) -> result<list<id-handler-event>, string>;
 
-    handle-req-res-message: func(msg: list<u8>) -> result<list<id-handler-command>, string>;
+    handle-request-response-message: func(msg: list<u8>) -> result<list<id-handler-event>, string>;
 }
 
 world idp2p-p2p {
