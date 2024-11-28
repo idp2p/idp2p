@@ -7,7 +7,7 @@ use libp2p::{
     swarm::SwarmEvent,
     Swarm,
 };
-use store::InMemoryKvStore;
+
 use std::{
     collections::HashMap,
     error::Error,
@@ -16,12 +16,14 @@ use std::{
 use wasmtime::{component::Component, Engine};
 
 use crate::{
-    network::{create_swarm, Idp2pBehaviour, Idp2pBehaviourEvent},
-    utils,
+    network::{create_swarm, Idp2pBehaviour, Idp2pBehaviourEvent}, store::InMemoryKvStore, utils
 };
 
-mod store;
-mod wasm;
+pub struct IdWasmHandler {
+    engine: Engine,
+    id_components: HashMap<String, Component>,
+    p2p_components: HashMap<String, Component>,
+}
 
 pub struct IdMessageHandler {
     store: Arc<InMemoryKvStore>,

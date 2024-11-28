@@ -1,3 +1,4 @@
+use futures::channel::mpsc;
 use libp2p::{
     gossipsub::{self, Behaviour as GossipsubBehaviour},
     identity::Keypair,
@@ -7,10 +8,10 @@ use libp2p::{
     tcp, yamux, StreamProtocol, Swarm,
 };
 use std::{
-    error::Error,
-    hash::{DefaultHasher, Hash, Hasher},
-    time::Duration,
+    error::Error, hash::{DefaultHasher, Hash, Hasher}, sync::Arc, time::Duration
 };
+
+use crate::store::InMemoryKvStore;
 
 #[derive(NetworkBehaviour)]
 pub(crate) struct Idp2pBehaviour {
@@ -74,4 +75,15 @@ pub fn create_swarm(port: u16) -> Result<Swarm<Idp2pBehaviour>, Box<dyn Error>> 
 
     swarm.listen_on(format!("/ip4/0.0.0.0/tcp/{port}").parse().unwrap())?;
     Ok(swarm)
+}
+
+pub(crate) struct IdNetworkEventLoop {
+    swarm: Swarm<Idp2pBehaviour>,
+    store: Arc<InMemoryKvStore>,
+    event_receiver: mpsc::Receiver<IdNetworkEvent>,
+    event_sender: mpsc::Sender<IdNetworkEvent>
+}
+
+pub(crate) enum IdNetworkEvent {
+    
 }

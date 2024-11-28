@@ -1,14 +1,15 @@
 
+use app::App;
 use dotenv::dotenv;
 
-use handler::IdMessageHandler;
+
 use structopt::StructOpt;
-use std::{error::Error, sync::Arc};
-use tokio::{io::AsyncBufReadExt, select};
 
 mod network;
 mod utils;
 mod handler;
+mod store;
+mod app;
 
 #[derive(Debug, StructOpt)]
 #[structopt(name = "idp2p", about = "Usage of idp2p.")]
@@ -18,11 +19,23 @@ struct Opt {
 }
 
 #[tokio::main]
-async fn main() -> Result<(), Box<dyn Error>> {
+async fn main() -> anyhow::Result<()> { 
     dotenv().ok();
+    color_eyre::install().map_err(anyhow::Error::msg)?;
     env_logger::init();
     let opt = Opt::from_args();
-    let mut handler = Arc::new(IdMessageHandler::new(opt.port)?);
+    // create store instance
+    // create command channel
+    // create message handler
+    // create network swarm
+    // create gui app and start
+    let terminal = ratatui::init();
+    let app_result = App::new().run(terminal);
+    ratatui::restore();
+    app_result
+
+
+    /*let mut handler = Arc::new(IdMessageHandler::new(opt.port)?);
 
     let mut stdin = tokio::io::BufReader::new(tokio::io::stdin()).lines();
 
@@ -45,5 +58,5 @@ async fn main() -> Result<(), Box<dyn Error>> {
             }
             
         }
-    }
+    }*/
 }
