@@ -21,7 +21,6 @@ wasmtime = { workspace = true }
 structopt = { workspace = true }
 libp2p = { workspace = true }
 dotenv = { workspace = true }
-env_logger = { workspace = true }
 tokio = { workspace = true }
 rand = { workspace = true }
 serde = { workspace = true }
@@ -30,7 +29,8 @@ anyhow = { workspace = true }
 chrono = { workspace = true }
 ed25519-dalek = { workspace = true }
 futures ={ workspace = true }
-log ={ workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true, features = ["env-filter"] }
 idp2p-common = { path = "./common" }
 idp2p-id = { path = "./core/id" }
 idp2p-p2p = { path = "./core/p2p" }
@@ -42,8 +42,8 @@ ratatui = { version = "0", features = ["all-widgets"]}
 wasmtime = "21"
 wit-component = "0"
 dotenv = "0"
-log = "0"
-env_logger = "0"
+tracing = "0"
+tracing-subscriber = "0"
 rand = "0"
 lol_alloc = "0"
 hex = "0"

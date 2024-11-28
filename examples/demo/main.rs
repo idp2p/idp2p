@@ -1,12 +1,12 @@
 use std::sync::Arc;
 
 use app::App;
-use dotenv::dotenv;
 
-use futures::channel::mpsc;
+use futures::{channel::mpsc, SinkExt};
 use network::IdNetworkEventLoop;
 use store::InMemoryKvStore;
 use structopt::StructOpt;
+use tracing_subscriber::EnvFilter;
 
 mod app;
 mod event;
@@ -24,45 +24,51 @@ struct Opt {
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    dotenv().ok();
-    color_eyre::install().map_err(anyhow::Error::msg)?;
-    env_logger::init();
     let opt = Opt::from_args();
+    color_eyre::install().map_err(anyhow::Error::msg)?;
+    let _ = tracing_subscriber::fmt()
+        .with_env_filter(EnvFilter::from_default_env())
+        .try_init();
     let store = Arc::new(InMemoryKvStore::new());
     let (network_event_sender, network_event_receiver) = mpsc::channel(0);
     let (wasm_event_sender, wasm_event_receiver) = mpsc::channel(0);
-    let network =
+    let mut network =
         IdNetworkEventLoop::new(opt.port, store, wasm_event_sender, network_event_receiver)?;
+    tokio::spawn(network.run());
     // create message handler
     // create network swarm
     // create gui app and start
-    let terminal = ratatui::init();
+    /*let terminal = ratatui::init();
     let app_result = App::new().run(terminal);
     ratatui::restore();
-    app_result
+    app_result*/
 
-    /*let mut handler = Arc::new(IdMessageHandler::new(opt.port)?);
+    /*let mut handler = Arc::new(IdMessageHandler::new(opt.port)?);*/
 
-    let mut stdin = tokio::io::BufReader::new(tokio::io::stdin()).lines();
+    let mut stdin = tokio::io::AsyncBufReadExt::lines(tokio::io::BufReader::new(tokio::io::stdin()));
 
     loop {
-        select! {
+        tokio::select! {
             Ok(Some(line)) = stdin.next_line() => {
                 let input: Vec<&str> = line.split(" ").collect();
                 match input[0]{
                     "resolve" => {
-                        Arc::get_mut(&mut handler).unwrap().resolve(input[1]);
+                        println!("Resolve {}", input[1]);
+                        //network_event_sender.send(item);
+                        // publish resolve message
                     },
-                    "upgrade" => {
-                        println!("Upgrade");
+                    "mutate" => {
+                        println!("Mutate");
+                        // publish mutate message
                     },
                     "send_message" => {
                         println!("Send message to {} with {}", input[1], input[2]);
+                        // publish message
                     }
                     _ => println!("Unknown command")
                 }
             }
 
         }
-    }*/
+    }
 }

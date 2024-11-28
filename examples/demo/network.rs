@@ -1,14 +1,14 @@
-use futures::channel::mpsc;
+use futures::{channel::mpsc, StreamExt};
+use idp2p_common::content::Content;
 use libp2p::{
-    gossipsub::{self, Behaviour as GossipsubBehaviour},
+    gossipsub::{self, Behaviour as GossipsubBehaviour, IdentTopic},
     identity::Keypair,
     mdns, noise,
-    request_response::{cbor::Behaviour as ReqResBehaviour, ProtocolSupport},
-    swarm::NetworkBehaviour,
+    request_response::{self, cbor::Behaviour as ReqResBehaviour, ProtocolSupport},
+    swarm::{NetworkBehaviour, SwarmEvent},
     tcp, yamux, StreamProtocol, Swarm,
 };
 use std::{
-    error::Error,
     hash::{DefaultHasher, Hash, Hasher},
     sync::Arc,
     time::Duration,
@@ -104,5 +104,84 @@ impl<S: KvStore> IdNetworkEventLoop<S> {
             wasm_event_sender,
             network_event_receiver,
         })
+    }
+
+    pub fn resolve(&mut self, id: &str) {
+        self.swarm
+            .behaviour_mut()
+            .gossipsub
+            .publish(IdentTopic::new(id), b"data").unwrap();
+    }
+    
+    pub(crate) async fn run(mut self) {
+        loop {
+            tokio::select! {
+                event = self.swarm.select_next_some() => self.handle_event(event).await,
+                nevent = self.network_event_receiver.next() => match nevent {
+                    Some(c) => println!("Network event:"),
+                    // Command channel closed, thus shutting down the network event loop.
+                    None=>  return,
+                },
+            }
+        }
+    }
+
+    async fn handle_event(&mut self, event: SwarmEvent<Idp2pBehaviourEvent>) {
+        match event {
+            SwarmEvent::Behaviour(Idp2pBehaviourEvent::Mdns(libp2p::mdns::Event::Discovered(
+                list,
+            ))) => {
+                for (peer_id, _multiaddr) in list {
+                    println!("mDNS discovered a new peer: {peer_id}");
+                    self.swarm
+                        .behaviour_mut()
+                        .gossipsub
+                        .add_explicit_peer(&peer_id);
+                }
+            }
+            SwarmEvent::Behaviour(Idp2pBehaviourEvent::Mdns(libp2p::mdns::Event::Expired(
+                list,
+            ))) => {
+                for (peer_id, _multiaddr) in list {
+                    println!("mDNS discover peer has expired: {peer_id}");
+                    self.swarm
+                        .behaviour_mut()
+                        .gossipsub
+                        .remove_explicit_peer(&peer_id);
+                }
+            }
+            SwarmEvent::Behaviour(Idp2pBehaviourEvent::Gossipsub(event)) => {
+                match event {
+                    libp2p::gossipsub::Event::Message {
+                        propagation_source: _,
+                        message_id: _,
+                        message,
+                    } => {
+                        let content = Content::from_bytes(message.data.as_slice()).unwrap();
+                        //handler.handle_gossip_message(event).await?;
+                    }
+                    _=> {}
+                }
+     
+            }
+            SwarmEvent::Behaviour(Idp2pBehaviourEvent::RequestResponse(
+                request_response::Event::Message { message, .. },
+            )) => {
+                match message {
+                    request_response::Message::Request {
+                        request, channel, ..
+                    } => {}
+                    request_response::Message::Response {
+                        request_id,
+                        response,
+                    } => {}
+                }
+                todo!()
+            }
+            SwarmEvent::NewListenAddr { address, .. } => {
+                eprintln!("Local node is listening on {address}");
+            }
+            _ => {}
+        }
     }
 }
