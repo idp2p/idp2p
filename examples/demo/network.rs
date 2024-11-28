@@ -8,10 +8,16 @@ use libp2p::{
     tcp, yamux, StreamProtocol, Swarm,
 };
 use std::{
-    error::Error, hash::{DefaultHasher, Hash, Hasher}, sync::Arc, time::Duration
+    error::Error,
+    hash::{DefaultHasher, Hash, Hasher},
+    sync::Arc,
+    time::Duration,
 };
 
-use crate::store::InMemoryKvStore;
+use crate::{
+    event::{IdNetworkEvent, IdWasmEvent},
+    store::KvStore,
+};
 
 #[derive(NetworkBehaviour)]
 pub(crate) struct Idp2pBehaviour {
@@ -51,7 +57,7 @@ pub fn create_reqres() -> ReqResBehaviour<Vec<u8>, ()> {
     )
 }
 
-pub fn create_swarm(port: u16) -> Result<Swarm<Idp2pBehaviour>, Box<dyn Error>> {
+pub fn create_swarm(port: u16) -> anyhow::Result<Swarm<Idp2pBehaviour>> {
     let mut swarm = libp2p::SwarmBuilder::with_new_identity()
         .with_tokio()
         .with_tcp(
@@ -77,13 +83,26 @@ pub fn create_swarm(port: u16) -> Result<Swarm<Idp2pBehaviour>, Box<dyn Error>> 
     Ok(swarm)
 }
 
-pub(crate) struct IdNetworkEventLoop {
+pub(crate) struct IdNetworkEventLoop<S: KvStore> {
+    store: Arc<S>,
     swarm: Swarm<Idp2pBehaviour>,
-    store: Arc<InMemoryKvStore>,
-    event_receiver: mpsc::Receiver<IdNetworkEvent>,
-    event_sender: mpsc::Sender<IdNetworkEvent>
+    wasm_event_sender: mpsc::Sender<IdWasmEvent>,
+    network_event_receiver: mpsc::Receiver<IdNetworkEvent>,
 }
 
-pub(crate) enum IdNetworkEvent {
-    
+impl<S: KvStore> IdNetworkEventLoop<S> {
+    pub fn new(
+        port: u16,
+        store: Arc<S>,
+        wasm_event_sender: mpsc::Sender<IdWasmEvent>,
+        network_event_receiver: mpsc::Receiver<IdNetworkEvent>,
+    ) -> anyhow::Result<Self> {
+        let swarm = create_swarm(port)?;
+        Ok(Self {
+            store,
+            swarm,
+            wasm_event_sender,
+            network_event_receiver,
+        })
+    }
 }
