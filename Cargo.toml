@@ -29,12 +29,8 @@ semver = { workspace = true }
 anyhow = { workspace = true }
 chrono = { workspace = true }
 ed25519-dalek = { workspace = true }
-axum = { workspace = true }
 futures ={ workspace = true }
 log ={ workspace = true }
-utoipa = { workspace = true }
-utoipa-axum = { workspace = true }
-utoipa-swagger-ui = { workspace = true }
 idp2p-common = { path = "./common" }
 idp2p-id = { path = "./core/id" }
 idp2p-p2p = { path = "./core/p2p" }
@@ -50,10 +46,6 @@ rand = "0"
 lol_alloc = "0"
 hex = "0"
 structopt = "0"
-axum = { version = "0", features = ["http2"] }
-utoipa-axum = "0.1"
-utoipa = { version = "5", features = ["axum_extras"] }
-utoipa-swagger-ui = { version = "8", features = ["axum"] }
 libp2p = { version = "0.54.1", features = ["full"] }
 tokio = { version = "1", features = ["full"] }
 semver = { version = "1", default-features = false, features = ["serde"] }

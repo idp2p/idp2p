@@ -3,10 +3,10 @@ use dotenv::dotenv;
 
 use handler::IdMessageHandler;
 use structopt::StructOpt;
-use std::error::Error;
+use std::{error::Error, sync::Arc};
 use tokio::{io::AsyncBufReadExt, select};
 
-mod behaviour;
+mod network;
 mod utils;
 mod handler;
 
@@ -22,7 +22,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     dotenv().ok();
     env_logger::init();
     let opt = Opt::from_args();
-    let mut handler = IdMessageHandler::new(opt.port)?;
+    let mut handler = Arc::new(IdMessageHandler::new(opt.port)?);
 
     let mut stdin = tokio::io::BufReader::new(tokio::io::stdin()).lines();
 
@@ -32,7 +32,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
                 let input: Vec<&str> = line.split(" ").collect();
                 match input[0]{
                     "resolve" => {
-                        handler.resolve(input[1]);
+                        Arc::get_mut(&mut handler).unwrap().resolve(input[1]);
                     },
                     "upgrade" => {
                         println!("Upgrade");

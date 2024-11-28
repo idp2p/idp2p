@@ -7,6 +7,7 @@ use libp2p::{
     swarm::SwarmEvent,
     Swarm,
 };
+use store::InMemoryKvStore;
 use std::{
     collections::HashMap,
     error::Error,
@@ -15,42 +16,16 @@ use std::{
 use wasmtime::{component::Component, Engine};
 
 use crate::{
-    behaviour::{create_swarm, Idp2pBehaviour, Idp2pBehaviourEvent},
+    network::{create_swarm, Idp2pBehaviour, Idp2pBehaviourEvent},
     utils,
 };
 
-pub struct InMemoryKvStore {
-    pub state: Mutex<HashMap<String, Vec<u8>>>,
-}
-
-impl InMemoryKvStore {
-    fn new() -> Self {
-        Self {
-            state: Mutex::new(HashMap::new()),
-        }
-    }
-
-    fn get(&self, key: &str) -> Result<Option<Vec<u8>>> {
-        let state = self.state.lock().unwrap();
-        if let Some(value) = state.get(key) {
-            return Ok(Some(value.to_vec()));
-        }
-        Ok(None)
-    }
-
-    fn put(&self, key: &str, value: &[u8]) -> Result<()> {
-        let mut state = self.state.lock().unwrap();
-        state.insert(key.to_owned(), value.to_vec());
-        Ok(())
-    }
-}
+mod store;
+mod wasm;
 
 pub struct IdMessageHandler {
-    engine: Engine,
-    kv_store: Arc<InMemoryKvStore>,
+    store: Arc<InMemoryKvStore>,
     swarm: Swarm<Idp2pBehaviour>,
-    id_components: HashMap<String, Component>,
-    p2p_components: HashMap<String, Component>,
 }
 
 impl IdMessageHandler {
@@ -104,11 +79,11 @@ impl IdMessageHandler {
                         message,
                     } => {
                         let content = Content::from_bytes(message.data.as_slice())?;
-                        
+                        //handler.handle_gossip_message(event).await?;
                     }
                     _=> {}
                 }
-                //handler.handle_gossip_message(event).await?;
+     
             }
             SwarmEvent::Behaviour(Idp2pBehaviourEvent::RequestResponse(
                 request_response::Event::Message { message, .. },
