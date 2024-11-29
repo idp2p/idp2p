@@ -1,4 +1,4 @@
-use futures::{channel::mpsc, StreamExt};
+use futures::{channel::mpsc, SinkExt, StreamExt};
 use idp2p_common::content::Content;
 use libp2p::{
     gossipsub::{self, Behaviour as GossipsubBehaviour, IdentTopic},
@@ -15,7 +15,7 @@ use std::{
 };
 
 use crate::{
-    event::{IdNetworkEvent, IdWasmEvent},
+    command::{IdNetworkCommand, IdHandlerCommand},
     store::KvStore,
 };
 
@@ -86,23 +86,23 @@ pub fn create_swarm(port: u16) -> anyhow::Result<Swarm<Idp2pBehaviour>> {
 pub(crate) struct IdNetworkEventLoop<S: KvStore> {
     store: Arc<S>,
     swarm: Swarm<Idp2pBehaviour>,
-    wasm_event_sender: mpsc::Sender<IdWasmEvent>,
-    network_event_receiver: mpsc::Receiver<IdNetworkEvent>,
+    handler_cmd_sender: mpsc::Sender<IdHandlerCommand>,
+    network_cmd_receiver: mpsc::Receiver<IdNetworkCommand>,
 }
 
 impl<S: KvStore> IdNetworkEventLoop<S> {
     pub fn new(
         port: u16,
         store: Arc<S>,
-        wasm_event_sender: mpsc::Sender<IdWasmEvent>,
-        network_event_receiver: mpsc::Receiver<IdNetworkEvent>,
+        handler_cmd_sender: mpsc::Sender<IdHandlerCommand>,
+        network_cmd_receiver: mpsc::Receiver<IdNetworkCommand>,
     ) -> anyhow::Result<Self> {
         let swarm = create_swarm(port)?;
         Ok(Self {
             store,
             swarm,
-            wasm_event_sender,
-            network_event_receiver,
+            handler_cmd_sender,
+            network_cmd_receiver,
         })
     }
 
@@ -116,18 +116,57 @@ impl<S: KvStore> IdNetworkEventLoop<S> {
     pub(crate) async fn run(mut self) {
         loop {
             tokio::select! {
-                event = self.swarm.select_next_some() => self.handle_event(event).await,
-                nevent = self.network_event_receiver.next() => match nevent {
-                    Some(c) => println!("Network event:"),
+                event = self.swarm.select_next_some() => self.handle_event(event).await.unwrap(),
+                cmd = self.network_cmd_receiver.next() => match cmd {
+                    Some(cmd) => self.handle_command(cmd).await.unwrap(),
                     // Command channel closed, thus shutting down the network event loop.
-                    None=>  return,
+                    None =>  return,
                 },
             }
         }
     }
+    
+    async fn handle_command(&mut self, cmd: IdNetworkCommand) -> anyhow::Result<()> {
+        match cmd {
+            IdNetworkCommand::Publish { topic, payload } => todo!(),
+            IdNetworkCommand::Request { peer, message_id } => todo!(),
+            IdNetworkCommand::Respond { message_id, payload } => todo!(),
+        }
+    }
 
-    async fn handle_event(&mut self, event: SwarmEvent<Idp2pBehaviourEvent>) {
+    async fn handle_event(&mut self, event: SwarmEvent<Idp2pBehaviourEvent>) -> anyhow::Result<()>{
         match event {
+            SwarmEvent::Behaviour(Idp2pBehaviourEvent::Gossipsub(event)) => {
+                match event {
+                    libp2p::gossipsub::Event::Message {
+                        propagation_source: _,
+                        message_id: _,
+                        message,
+                    } => {
+                        self.handler_cmd_sender.send(IdHandlerCommand::HandleGossipMessage(message.data)).await?;
+                    }
+                    _=> {}
+                }
+     
+            }
+            SwarmEvent::Behaviour(Idp2pBehaviourEvent::RequestResponse(
+                request_response::Event::Message { message, .. },
+            )) => {
+                match message {
+                    request_response::Message::Request {
+                        request, channel, ..
+                    } => {
+                        // decide 
+                    }
+                    request_response::Message::Response {
+                        request_id,
+                        response,
+                    } => {}
+                }
+            }
+            SwarmEvent::NewListenAddr { address, .. } => {
+                eprintln!("Local node is listening on {address}");
+            }
             SwarmEvent::Behaviour(Idp2pBehaviourEvent::Mdns(libp2p::mdns::Event::Discovered(
                 list,
             ))) => {
@@ -150,38 +189,9 @@ impl<S: KvStore> IdNetworkEventLoop<S> {
                         .remove_explicit_peer(&peer_id);
                 }
             }
-            SwarmEvent::Behaviour(Idp2pBehaviourEvent::Gossipsub(event)) => {
-                match event {
-                    libp2p::gossipsub::Event::Message {
-                        propagation_source: _,
-                        message_id: _,
-                        message,
-                    } => {
-                        let content = Content::from_bytes(message.data.as_slice()).unwrap();
-                        //handler.handle_gossip_message(event).await?;
-                    }
-                    _=> {}
-                }
-     
-            }
-            SwarmEvent::Behaviour(Idp2pBehaviourEvent::RequestResponse(
-                request_response::Event::Message { message, .. },
-            )) => {
-                match message {
-                    request_response::Message::Request {
-                        request, channel, ..
-                    } => {}
-                    request_response::Message::Response {
-                        request_id,
-                        response,
-                    } => {}
-                }
-                todo!()
-            }
-            SwarmEvent::NewListenAddr { address, .. } => {
-                eprintln!("Local node is listening on {address}");
-            }
+            
             _ => {}
         }
+        Ok(())
     }
 }
