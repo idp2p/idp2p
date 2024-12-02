@@ -1,5 +1,4 @@
 use futures::{channel::mpsc, SinkExt, StreamExt};
-use idp2p_common::content::Content;
 use libp2p::{
     gossipsub::{self, Behaviour as GossipsubBehaviour, IdentTopic},
     identity::Keypair,
@@ -119,7 +118,6 @@ impl<S: KvStore> IdNetworkEventLoop<S> {
                 event = self.swarm.select_next_some() => self.handle_event(event).await.unwrap(),
                 cmd = self.network_cmd_receiver.next() => match cmd {
                     Some(cmd) => self.handle_command(cmd).await.unwrap(),
-                    // Command channel closed, thus shutting down the network event loop.
                     None =>  return,
                 },
             }

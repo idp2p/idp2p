@@ -26,12 +26,17 @@ interface id-handler {
     variant id-handler-event {
         put(id-put-event),
         request(id-request-event),
+        response(list<u8>),
         publish(id-publish-event),
     }
 
-    handle-gossipsub-message: func(msg: list<u8>) -> result<list<id-handler-event>, string>;
+    variant id-message-kind {
+        gossip,
+        request,
+        response
+    }
 
-    handle-request-response-message: func(msg: list<u8>) -> result<list<id-handler-event>, string>;
+    handle-message: func(kind: id-message-kind, msg: list<u8>) -> result<list<id-handler-event>, string>;
 }
 
 world idp2p-p2p {

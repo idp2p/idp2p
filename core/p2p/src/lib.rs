@@ -1,4 +1,4 @@
-use exports::idp2p::p2p::id_handler::{Guest, IdHandlerEvent};
+use exports::idp2p::p2p::id_handler::{Guest, IdHandlerEvent, IdMessageKind};
 
 pub mod entry;
 pub mod handler;
@@ -13,11 +13,7 @@ struct GuestComponent;
 export!(GuestComponent);
 
 impl Guest for GuestComponent {
-    fn handle_gossipsub_message(msg: Vec<u8>,) -> Result<Vec<IdHandlerEvent>, String> {
-        todo!()
-    }
-
-    fn handle_request_response_message(msg: Vec<u8>,) -> Result<Vec<IdHandlerEvent>, String> {
-        todo!()
+    fn handle_message(_kind: IdMessageKind, _msg: Vec<u8>,) -> Result<Vec<IdHandlerEvent>, String> {
+        Ok(vec![])
     }
 }

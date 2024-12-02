@@ -9,4 +9,4 @@ pub mod cid;
 pub mod utils;
 pub mod cbor;
 pub mod verifying;
-pub mod content;
+pub mod message;

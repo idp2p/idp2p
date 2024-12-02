@@ -4,7 +4,7 @@ use idp2p_id::model::{event::PersistedIdEvent, id::PersistedId};
 use crate::{
     entry::IdEntry, exports::idp2p::p2p::id_handler::IdPublishEvent, idp2p::p2p::id_query::*
 };
-use idp2p_common::{cbor::decode, content::Content};
+use idp2p_common::cbor::decode;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -26,8 +26,7 @@ pub enum IdGossipMessageKind {
 }
 
 pub fn handle_gossip_message(topic: &str, msg: &[u8]) -> anyhow::Result<Vec<IdPublishEvent>> {
-    let content = Content::from_bytes(msg)?;
-    let msg: IdGossipMessageKind = decode(&content.payload)?;
+    let msg: IdGossipMessageKind = decode(&msg)?;
     let id_key = format!("/identities/{}", topic);
     let mut commands = Vec::new();
     if let Some(id_entry) = get(&id_key).map_err(anyhow::Error::msg)? {

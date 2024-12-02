@@ -1,10 +1,15 @@
-use anyhow::Result;
+use anyhow::{Ok, Result};
+use exports::idp2p::p2p::id_handler::IdMessageKind;
 use futures::{channel::mpsc, StreamExt};
 use idp2p::p2p::id_query;
-use std::{collections::HashMap, sync::Arc};
+use idp2p_common::message::IdMessage;
+use std::{
+    collections::HashMap,
+    sync::{Arc, Mutex},
+};
 use wasmtime::{
-    component::{bindgen, Component},
-    Engine,
+    component::{bindgen, Component, Linker},
+    Config, Engine,
 };
 
 use crate::{
@@ -16,31 +21,75 @@ bindgen!({
     additional_derives: [PartialEq, Eq, Hash, Clone, serde::Serialize, serde::Deserialize],
 });
 
-#[derive(Clone)]
-pub struct IdMessageHandler<S: KvStore> {
-    store: Arc<S>,
+struct IdMessageHandlerHost<S: KvStore> {
+    kv: Arc<S>,
     engine: Engine,
-    id_components: HashMap<String, Component>,
-    network_cmd_sender: mpsc::Sender<IdNetworkCommand>,
+    id_linker: Linker<()>,
+    id_components: Arc<Mutex<HashMap<String, Component>>>,
+}
+
+struct IdMessageHandlerState<S: KvStore> {
+    host: IdMessageHandlerHost<S>,
 }
 
 pub struct IdMessageEventLoop<S: KvStore> {
-    store: Arc<S>,
+    kv: Arc<S>,
     engine: Engine,
-    p2p_components: HashMap<String, Component>,
+    id_linker: Linker<()>,
+    p2p_linker: Linker<IdMessageHandlerState<S>>,
+    id_components: Arc<Mutex<HashMap<String, Component>>>,
+    p2p_components: Arc<Mutex<HashMap<String, Component>>>,
+    network_cmd_sender: mpsc::Sender<IdNetworkCommand>,
     handler_cmd_receiver: mpsc::Receiver<IdHandlerCommand>,
 }
 
 impl<S: KvStore> IdMessageEventLoop<S> {
     pub fn new(
-        store: Arc<S>,
+        kv: Arc<S>,
+        id_components: Arc<Mutex<HashMap<String, Component>>>,
+        p2p_components: Arc<Mutex<HashMap<String, Component>>>,
+        network_cmd_sender: mpsc::Sender<IdNetworkCommand>,
         handler_cmd_receiver: mpsc::Receiver<IdHandlerCommand>,
     ) -> Result<Self> {
-        todo!()
+        let engine = Engine::new(Config::new().wasm_component_model(true))?;
+        let id_linker = Linker::new(&engine);
+        let mut p2p_linker = Linker::new(&engine);
+        id_query::add_to_linker(&mut p2p_linker, |state: &mut IdMessageHandlerState<S>| {
+            &mut state.host
+        })?;
+
+        let handler = Self {
+            kv,
+            engine,
+            id_linker,
+            p2p_linker,
+            id_components,
+            p2p_components,
+            network_cmd_sender,
+            handler_cmd_receiver,
+        };
+        Ok(handler)
     }
 
-    async fn handle_command(&mut self, cmd: IdHandlerCommand) -> Result<()> {
-        let mut store = wasmtime::Store::new(&self.engine, String::new());
+    async fn handle_command(&mut self, msg: &[u8]) -> Result<()> {
+        let message = IdMessage::from_bytes(msg)?;
+        let component = self
+            .id_components
+            .lock()
+            .unwrap()
+            .get(&message.version.to_string())
+            .unwrap().clone();
+        let host = IdMessageHandlerHost {
+            kv: self.kv.clone(),
+            engine: self.engine.clone(),
+            id_linker: self.id_linker.clone(),
+            id_components: self.id_components.clone(),
+        };
+        let mut store = wasmtime::Store::new(&self.engine, IdMessageHandlerState { host });
+        let (idp2p, _) = Idp2pP2p::instantiate(&mut store, &component, &self.p2p_linker)?;
+        let _ = idp2p
+            .interface0
+            .call_handle_message(store, IdMessageKind::Gossip, b"")?;
         Ok(())
     }
 
@@ -48,8 +97,7 @@ impl<S: KvStore> IdMessageEventLoop<S> {
         loop {
             tokio::select! {
                 cmd = self.handler_cmd_receiver.next() => match cmd {
-                    Some(cmd) => self.handle_command(cmd).await.unwrap(),
-                    // Command channel closed, thus shutting down the network event loop.
+                    Some(cmd) => todo!(),//self.handle_command(cmd).await.unwrap(),
                     None =>  return,
                 },
             }
@@ -57,9 +105,8 @@ impl<S: KvStore> IdMessageEventLoop<S> {
     }
 }
 
-impl<S: KvStore> id_query::Host for IdMessageHandler<S> {
+impl<S: KvStore> id_query::Host for IdMessageHandlerHost<S> {
     fn get(&mut self, id: String) -> Result<Option<Vec<u8>>, String> {
-        
         todo!()
     }
 

@@ -1,0 +1,10 @@
+[package]
+name = "idp2p-id-wasm"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+anyhow = { workspace = true }
+serde = { workspace = true }
+idp2p-common = { path = "../../../common" }
+idp2p-id = { path = "../../id" }

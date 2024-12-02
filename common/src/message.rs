@@ -1,11 +1,11 @@
 use anyhow::Result;
 
-pub struct Content {
+pub struct IdMessage {
     pub version: u64,
     pub payload: Vec<u8>,
 }
 
-impl Content {
+impl IdMessage {
     pub fn new(version: u64, payload: Vec<u8>) -> Self {
         Self { version, payload }
     }

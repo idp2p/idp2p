@@ -3,7 +3,6 @@ use std::sync::Arc;
 use app::App;
 
 use futures::{channel::mpsc, SinkExt};
-use handler::IdMessageHandler;
 use network::IdNetworkEventLoop;
 use store::InMemoryKvStore;
 use structopt::StructOpt;
