@@ -1,0 +1,29 @@
+world message-handler {
+    /// This type tells the host how to handle the input 
+    record handle {
+        /// The id of module
+        id: string,
+        /// The version of the module
+        version: string,
+        /// The method of module
+        method: string,
+        /// Encodedc args 
+        payload: list<u8>
+    }
+
+    /// This type enumerates the different kinds of errors that may occur from host
+    variant host-error {
+        /// This error indicates that a `field-name` or `field-value` was
+    }
+
+    variant handler-error {
+
+    }
+    
+    import host: interface {
+        call-fn: func(input: handle) -> result<list<u8>, host-error>,
+        send-event: func(event: handle) -> result<_, host-error>
+    }
+
+    export handle: func(input: list<u8>) -> result<_, handler-error>;
+}
