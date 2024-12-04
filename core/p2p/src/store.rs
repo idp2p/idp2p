@@ -17,6 +17,7 @@ impl InMemoryKvStore {
         }
     }
 }
+
 impl KvStore for InMemoryKvStore {
     fn get(&self, key: &str) -> Result<Option<Vec<u8>>> {
         let state = self.state.lock().unwrap();

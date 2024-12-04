@@ -1,4 +1,5 @@
 use futures::{channel::mpsc, SinkExt, StreamExt};
+use idp2p_p2p::{handler::{IdHandlerCommand, IdHandlerEvent}, store::KvStore};
 use libp2p::{
     gossipsub::{self, Behaviour as GossipsubBehaviour, IdentTopic},
     identity::Keypair,
@@ -11,11 +12,6 @@ use std::{
     hash::{DefaultHasher, Hash, Hasher},
     sync::Arc,
     time::Duration,
-};
-
-use crate::{
-    command::{IdNetworkCommand, IdHandlerCommand},
-    store::KvStore,
 };
 
 #[derive(NetworkBehaviour)]
@@ -85,23 +81,23 @@ pub fn create_swarm(port: u16) -> anyhow::Result<Swarm<Idp2pBehaviour>> {
 pub(crate) struct IdNetworkEventLoop<S: KvStore> {
     store: Arc<S>,
     swarm: Swarm<Idp2pBehaviour>,
-    handler_cmd_sender: mpsc::Sender<IdHandlerCommand>,
-    network_cmd_receiver: mpsc::Receiver<IdNetworkCommand>,
+    cmd_sender: mpsc::Sender<IdHandlerCommand>,
+    event_receiver: mpsc::Receiver<IdHandlerEvent>,
 }
 
 impl<S: KvStore> IdNetworkEventLoop<S> {
     pub fn new(
         port: u16,
         store: Arc<S>,
-        handler_cmd_sender: mpsc::Sender<IdHandlerCommand>,
-        network_cmd_receiver: mpsc::Receiver<IdNetworkCommand>,
+        cmd_sender: mpsc::Sender<IdHandlerCommand>,
+        event_receiver: mpsc::Receiver<IdHandlerEvent>,
     ) -> anyhow::Result<Self> {
         let swarm = create_swarm(port)?;
         Ok(Self {
             store,
             swarm,
-            handler_cmd_sender,
-            network_cmd_receiver,
+            cmd_sender,
+            event_receiver,
         })
     }
 
@@ -115,24 +111,25 @@ impl<S: KvStore> IdNetworkEventLoop<S> {
     pub(crate) async fn run(mut self) {
         loop {
             tokio::select! {
-                event = self.swarm.select_next_some() => self.handle_event(event).await.unwrap(),
-                cmd = self.network_cmd_receiver.next() => match cmd {
-                    Some(cmd) => self.handle_command(cmd).await.unwrap(),
+                event = self.swarm.select_next_some() => self.handle_network_event(event).await.unwrap(),
+                hevent = self.event_receiver.next() => match hevent {
+                    Some(hevent) => self.handle_message_event(hevent).await.unwrap(),
                     None =>  return,
                 },
             }
         }
     }
     
-    async fn handle_command(&mut self, cmd: IdNetworkCommand) -> anyhow::Result<()> {
-        match cmd {
-            IdNetworkCommand::Publish { topic, payload } => todo!(),
-            IdNetworkCommand::Request { peer, message_id } => todo!(),
-            IdNetworkCommand::Respond { message_id, payload } => todo!(),
+    async fn handle_message_event(&mut self, event: IdHandlerEvent) -> anyhow::Result<()> {
+        match event {
+            IdHandlerEvent::Publish { topic, payload } => todo!(),
+            IdHandlerEvent::Request { peer, message_id } => todo!(),
+            IdHandlerEvent::Respond { message_id, payload } => todo!(),
+            IdHandlerEvent::Set { key, value } => todo!()
         }
     }
 
-    async fn handle_event(&mut self, event: SwarmEvent<Idp2pBehaviourEvent>) -> anyhow::Result<()>{
+    async fn handle_network_event(&mut self, event: SwarmEvent<Idp2pBehaviourEvent>) -> anyhow::Result<()>{
         match event {
             SwarmEvent::Behaviour(Idp2pBehaviourEvent::Gossipsub(event)) => {
                 match event {
@@ -141,7 +138,7 @@ impl<S: KvStore> IdNetworkEventLoop<S> {
                         message_id: _,
                         message,
                     } => {
-                        self.handler_cmd_sender.send(IdHandlerCommand::HandleGossipMessage(message.data)).await?;
+                        self.cmd_sender.send(IdHandlerCommand::HandleGossipMessage(message.data)).await?;
                     }
                     _=> {}
                 }

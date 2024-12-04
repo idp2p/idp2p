@@ -3,16 +3,13 @@ use std::sync::Arc;
 use app::App;
 
 use futures::{channel::mpsc, SinkExt};
+use idp2p_p2p::store::InMemoryKvStore;
 use network::IdNetworkEventLoop;
-use store::InMemoryKvStore;
 use structopt::StructOpt;
 use tracing_subscriber::EnvFilter;
 
 mod app;
-mod command;
-mod handler;
 mod network;
-mod store;
 mod utils;
 
 #[derive(Debug, StructOpt)]
@@ -26,9 +23,9 @@ struct Opt {
 async fn main() -> anyhow::Result<()> {
     let opt = Opt::from_args();
     color_eyre::install().map_err(anyhow::Error::msg)?;
-    let _ = tracing_subscriber::fmt()
+    tracing_subscriber::fmt()
         .with_env_filter(EnvFilter::from_default_env())
-        .try_init();
+        .try_init().unwrap();
     let store = Arc::new(InMemoryKvStore::new());
     let (network_cmd_sender, network_cmd_receiver) = mpsc::channel(0);
     let (handler_cmd_sender, handler_cmd_receiver) = mpsc::channel(0);
