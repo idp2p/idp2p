@@ -5,6 +5,7 @@ edition = "2021"
 
 [dependencies]
 hex = { workspace = true }
+wit-bindgen = { workspace = true }
 anyhow = { workspace = true }
 regex = { workspace = true }
 sha2 = { workspace = true }

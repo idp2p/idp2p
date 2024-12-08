@@ -1,5 +1,5 @@
 use futures::{channel::mpsc, SinkExt, StreamExt};
-use idp2p_p2p::{handler::{IdHandlerCommand, IdHandlerEvent}, store::KvStore};
+use idp2p_p2p::{handler::{IdHandlerMessage, IdHandlerEvent}, store::KvStore};
 use libp2p::{
     gossipsub::{self, Behaviour as GossipsubBehaviour, IdentTopic},
     identity::Keypair,
@@ -81,7 +81,7 @@ pub fn create_swarm(port: u16) -> anyhow::Result<Swarm<Idp2pBehaviour>> {
 pub(crate) struct IdNetworkEventLoop<S: KvStore> {
     store: Arc<S>,
     swarm: Swarm<Idp2pBehaviour>,
-    cmd_sender: mpsc::Sender<IdHandlerCommand>,
+    cmd_sender: mpsc::Sender<IdHandlerMessage>,
     event_receiver: mpsc::Receiver<IdHandlerEvent>,
 }
 
@@ -89,7 +89,7 @@ impl<S: KvStore> IdNetworkEventLoop<S> {
     pub fn new(
         port: u16,
         store: Arc<S>,
-        cmd_sender: mpsc::Sender<IdHandlerCommand>,
+        cmd_sender: mpsc::Sender<IdHandlerMessage>,
         event_receiver: mpsc::Receiver<IdHandlerEvent>,
     ) -> anyhow::Result<Self> {
         let swarm = create_swarm(port)?;
@@ -138,7 +138,7 @@ impl<S: KvStore> IdNetworkEventLoop<S> {
                         message_id: _,
                         message,
                     } => {
-                        self.cmd_sender.send(IdHandlerCommand::HandleGossipMessage(message.data)).await?;
+                        self.cmd_sender.send(IdHandlerMessage::GossipMessage(message.data)).await?;
                     }
                     _=> {}
                 }

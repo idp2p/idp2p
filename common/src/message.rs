@@ -1,4 +1,4 @@
-use anyhow::Result;
+use crate::error::IdCommonError;
 
 pub struct IdMessage {
     pub version: u64,
@@ -17,8 +17,12 @@ impl IdMessage {
         bytes
     }
 
-    pub fn from_bytes(bytes: &[u8]) -> Result<Self> {
-        let version = u64::from_le_bytes(bytes[0..8].try_into()?);
+    pub fn from_bytes(bytes: &[u8]) -> Result<Self, IdCommonError> {
+        let version = u64::from_le_bytes(
+            bytes[0..8]
+                .try_into()
+                .map_err(|e| IdCommonError::EncodeError)?,
+        );
         let payload = bytes[8..].to_vec();
         Ok(Self { version, payload })
     }

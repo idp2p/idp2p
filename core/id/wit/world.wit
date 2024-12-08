@@ -1,0 +1,62 @@
+package idp2p:id;
+
+world idp2p-id {
+    type cid = list<u8>;
+
+    variant id-error-code {
+        other,
+        invalid-cid,
+        invalid-signature,
+    }
+
+    record id-error {
+        code: id-error-code,
+        message: string,
+    }
+
+    variant id-multisig {
+        one-of-one,
+        one-of-two,
+        two-of-tree,
+        three-of-five,
+    }
+
+    record persisted-id-proof {
+        id: cid,
+        pk: list<u8>,
+        sig: list<u8>,
+    }
+
+    record persisted-id-inception {
+        id: cid,
+        payload: list<u8>,
+    }
+
+    record persisted-id-event {
+        id: cid,
+        payload: list<u8>,
+        proofs: list<persisted-id-proof>,
+    }
+
+    record persisted-id {
+        id: cid,
+        incepiton: persisted-id-inception,
+        events: list<persisted-id-event>,
+    }
+
+    record id-view {
+        id: cid,   
+        multisig: id-multisig,
+        state: cid,
+        event-id: cid,
+        event-timestamp: string,
+        // cid codec should be 0x72(libp2p-key) or 0xed 
+        mediators: list<cid>,
+        // cid codec should be 0xed 
+        next-signers: list<cid>,  
+    }
+
+    export verify-inception: func(incepiton: persisted-id-inception) -> result<id-view, id-error>;
+
+    export verify-event: func(view: id-view, event: persisted-id-event) -> result<id-view, id-error>;
+}

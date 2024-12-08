@@ -9,9 +9,11 @@ use std::{
     collections::HashMap,
     sync::{Arc, Mutex},
 };
-use wasmtime::{Config, Engine, Instance, Linker, Module, Store};
+use wasmtime::{component::{bindgen, Component}, Config, Engine, Instance, Linker, Store};
 
 use crate::store::KvStore;
+
+bindgen!("idp2p-id" in "../id/wit/world.wit");
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum IdMessageRequest {
@@ -31,10 +33,10 @@ pub enum IdGossipMessageKind {
     NotifyMessage { id: Cid, providers: Vec<String> },
 }
 
-pub enum IdHandlerCommand {
-    HandleGossipMessage(Vec<u8>),
-    HandleRequest(Vec<u8>),
-    HandleResponse(Vec<u8>),
+pub enum IdHandlerMessage {
+    GossipMessage(Vec<u8>),
+    Request(Vec<u8>),
+    Response(Vec<u8>),
 }
 
 pub enum IdHandlerEvent {
@@ -59,9 +61,9 @@ pub enum IdHandlerEvent {
 pub struct IdMessageHandler<S: KvStore> {
     kv: Arc<S>,
     engine: Engine,
-    modules: Arc<Mutex<HashMap<String, Module>>>,
+    id_compoents: Arc<Mutex<HashMap<String, Component>>>,
     event_sender: mpsc::Sender<IdHandlerEvent>,
-    cmd_receiver: mpsc::Receiver<IdHandlerCommand>,
+    cmd_receiver: mpsc::Receiver<IdHandlerMessage>,
 }
 
 
@@ -69,14 +71,14 @@ impl<S: KvStore> IdMessageHandler<S> {
     pub fn new(
         kv: Arc<S>,
         event_sender: mpsc::Sender<IdHandlerEvent>,
-        cmd_receiver: mpsc::Receiver<IdHandlerCommand>,
+        cmd_receiver: mpsc::Receiver<IdHandlerMessage>,
     ) -> Result<Self> {
-        let engine = Engine::new(&Config::new())?;
+        let engine = Engine::new(Config::new().wasm_component_model(true))?;
 
         let handler = Self {
             kv,
             engine,
-            modules: todo!(),
+            id_compoents: todo!(),
             event_sender,
             cmd_receiver,
             
@@ -87,14 +89,15 @@ impl<S: KvStore> IdMessageHandler<S> {
     pub async fn handle(&mut self, msg: &[u8]) -> Result<()> {
         let message = IdMessage::from_bytes(msg)?;
         let mut store = Store::new(&self.engine, ());
-        let module = self
-            .modules
+        let component = self
+            .id_compoents
             .lock()
             .unwrap()
             .get(&message.version.to_string())
             .unwrap()
             .clone();
-        let instance = Instance::new(&mut store, &module, &[])?;
+        let (id, _) = Idp2pId::instantiate(&mut store, &component, &[])?;
+        id.verify_event(&message)?;
         let memory = instance
             .get_memory(&mut store, "memory")
             .ok_or_else(|| anyhow::anyhow!(""))?;
@@ -112,7 +115,7 @@ impl<S: KvStore> IdMessageHandler<S> {
         Ok(())
     }
 
-    pub(crate) async fn run(mut self) {
+    pub async fn run(mut self) {
         loop {
             tokio::select! {
                 cmd = self.cmd_receiver.next() => match cmd {
