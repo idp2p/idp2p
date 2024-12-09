@@ -1,10 +1,10 @@
 use chrono::prelude::*;
 use cid::Cid;
-use idp2p_common::{cbor, cid::CidExt, ED_CODE};
+use idp2p_common::{cid::CidExt, ED_CODE};
 use serde::{Deserialize, Serialize};
 use std::str::FromStr;
 
-use crate::{IdError, IdErrorCode, IdMultisig};
+use crate::IdMultisig;
 
 /// IdInception
 ///
@@ -36,31 +36,6 @@ impl IdInception {
 
         Ok(inception)
     }
-
-    pub fn from_bytes(bytes: &[u8]) -> Result<Self, IdError> {
-        let inception = cbor::decode(bytes)?;
-        Ok(inception)
-    }
-
-    pub fn validate(&self) -> Result<(), IdError> {
-        let total_signers: u16 = self.next_signers.len() as u16;
-        if total_signers !=  self.multisig.total_signers() {
-            return  Err(IdError{
-                code: IdErrorCode::Other,
-                message: format!("The number of signers must be {}.", self.multisig.total_signers()),
-            });
-        }
-        for signer in &self.next_signers {
-            if signer.codec() != ED_CODE {
-                return  Err(IdError{
-                    code: IdErrorCode::Other,
-                    message: format!("The signer codec must be {}.", ED_CODE),
-                });
-            }
-        }
-            
-        Ok(())
-    }
 }
 
 mod tests {
@@ -69,7 +44,6 @@ mod tests {
     #[test]
     fn incept_test() -> anyhow::Result<()> {
         let inception = IdInception::generate(b"signer", &Cid::default().to_string())?;
-        inception.validate()?;
         assert_eq!(inception.next_signers.len(), 1);
         Ok(())
     }

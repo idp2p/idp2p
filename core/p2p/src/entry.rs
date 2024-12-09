@@ -1,4 +1,4 @@
-use idp2p_id::model::{id::PersistedId, view::IdView};
+use idp2p_id::{IdView, PersistedId};
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Debug, Clone)]

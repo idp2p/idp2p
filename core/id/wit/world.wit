@@ -3,15 +3,25 @@ package idp2p:id;
 world idp2p-id {
     type cid = list<u8>;
 
-    variant id-error-code {
-        other,
-        invalid-cid,
-        invalid-signature,
+    variant id-inception-error {
+        invalid-id,
+        invalid-payload, 
+        payload-and-id-not-match(string),
+        total-next-signers-not-match(u16),  // total signers
+        invalid-next-signer-codec(cid),   // the signer
+        other(string),
     }
 
-    record id-error {
-        code: id-error-code,
-        message: string,
+    variant id-event-error {
+        invalid-id,
+        invalid-payload, 
+        payload-and-id-not-match(string),
+        lack-of-min-signers(u16),    // min signers
+        signer-and-id-not-match(cid),
+        previous-not-match(cid),
+        signature(cid),
+        invalid-next-signer-codec(cid),   // the signer
+        other(string),
     }
 
     variant id-multisig {
@@ -38,12 +48,6 @@ world idp2p-id {
         proofs: list<persisted-id-proof>,
     }
 
-    record persisted-id {
-        id: cid,
-        incepiton: persisted-id-inception,
-        events: list<persisted-id-event>,
-    }
-
     record id-view {
         id: cid,   
         multisig: id-multisig,
@@ -56,7 +60,7 @@ world idp2p-id {
         next-signers: list<cid>,  
     }
 
-    export verify-inception: func(incepiton: persisted-id-inception) -> result<id-view, id-error>;
+    export verify-inception: func(incepiton: persisted-id-inception) -> result<id-view, id-inception-error>;
 
-    export verify-event: func(view: id-view, event: persisted-id-event) -> result<id-view, id-error>;
+    export verify-event: func(view: id-view, event: persisted-id-event) -> result<id-view, id-event-error>;
 }

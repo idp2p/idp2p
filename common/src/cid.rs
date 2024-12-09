@@ -14,18 +14,18 @@ impl CidExt for Cid {
         match self.hash().code() {
             SHA2_256_CODE => {
                 let input_digest = sha256_hash(input)?;
-                if self.hash().digest() == input_digest.as_slice() {
-                    return Ok(());
+                if self.hash().digest() != input_digest.as_slice() {
+                    anyhow::bail!(
+                        "Invalid cid {:?} != {:?} payload: {:?}",
+                        input_digest.as_slice(),
+                        self.hash().digest(),
+                        input
+                    );
                 }
-                anyhow::bail!(
-                    "invalid cid {:?} != {:?} payload: {:?}",
-                    input_digest.as_slice(),
-                    self.hash().digest(),
-                    input
-                );
             }
-            _ => anyhow::bail!("invalid alg"),
+            _ => anyhow::bail!("Invalid alg"),
         }
+        Ok(())
     }
 
     fn create(code: u64, input: &[u8]) -> anyhow::Result<Self> {
