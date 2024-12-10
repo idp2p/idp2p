@@ -1,5 +1,6 @@
-use idp2p_id::{IdView, PersistedId};
 use serde::{Deserialize, Serialize};
+
+use crate::handler::{IdView, PersistedId};
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct IdEntry {

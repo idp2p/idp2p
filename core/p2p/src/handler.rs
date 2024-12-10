@@ -1,19 +1,32 @@
-use cid::Cid;
 use anyhow::Result;
 use futures::{channel::mpsc, StreamExt};
-use idp2p_common::{cbor::decode, message::IdMessage};
-use idp2p_id::model::{event::PersistedIdEvent, id::PersistedId};
+use idp2p_common::message::IdMessage;
+
 use libp2p::{gossipsub::TopicHash, PeerId};
 use serde::{Deserialize, Serialize};
 use std::{
     collections::HashMap,
     sync::{Arc, Mutex},
 };
-use wasmtime::{component::{bindgen, Component}, Config, Engine, Instance, Linker, Store};
+use wasmtime::{
+    component::{bindgen, Component, Linker},
+    Config, Engine, Store,
+};
 
 use crate::store::KvStore;
 
-bindgen!("idp2p-id" in "../id/wit/world.wit");
+bindgen!({
+    world:"idp2p-id",
+    path:  "../id/wit/world.wit",
+    additional_derives: [PartialEq, Eq, Hash, Clone, serde::Serialize, serde::Deserialize],
+});
+
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone)]
+pub struct PersistedId {
+    pub id: Vec<u8>,
+    pub inception: PersistedIdInception,
+    pub events: Vec<PersistedIdEvent>,
+}
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum IdMessageRequest {
@@ -66,7 +79,6 @@ pub struct IdMessageHandler<S: KvStore> {
     cmd_receiver: mpsc::Receiver<IdHandlerMessage>,
 }
 
-
 impl<S: KvStore> IdMessageHandler<S> {
     pub fn new(
         kv: Arc<S>,
@@ -81,7 +93,6 @@ impl<S: KvStore> IdMessageHandler<S> {
             id_compoents: todo!(),
             event_sender,
             cmd_receiver,
-            
         };
         Ok(handler)
     }
@@ -96,8 +107,9 @@ impl<S: KvStore> IdMessageHandler<S> {
             .get(&message.version.to_string())
             .unwrap()
             .clone();
-        let (id, _) = Idp2pId::instantiate(&mut store, &component, &[])?;
-        id.verify_event(&message)?;
+        let (id, _) = Idp2pId::instantiate(&mut store, &component, &Linker::new(&self.engine))?;
+
+        /*id.verify_event(&message)?;
         let memory = instance
             .get_memory(&mut store, "memory")
             .ok_or_else(|| anyhow::anyhow!(""))?;
@@ -111,7 +123,7 @@ impl<S: KvStore> IdMessageHandler<S> {
             .unwrap();
         let func = instance.get_typed_func::<(i32, i32), (i32, i32)>(&mut store, "handle")?;
         let result = func.call(&mut store, (input_bytes_ptr, input_bytes_len))?;
-        de_alloc_func.call(&mut store, result.0)?;
+        de_alloc_func.call(&mut store, result.0)?;*/
         Ok(())
     }
 

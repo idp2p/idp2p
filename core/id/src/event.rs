@@ -2,18 +2,24 @@ use chrono::{DateTime, Utc};
 use cid::Cid;
 use serde::{Deserialize, Serialize};
 
+use crate::IdConfig;
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub enum IdActionKind {
+pub enum IdMediatorActionKind {
     AddMediator(Cid),
-    RemoveMediator(Cid),
-    UpdateState(Cid),
+    RemoveMediator(Cid)
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct IdAction {
+    pub state: Option<Cid>,
+    pub mediators: Vec<IdMediatorActionKind>
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum IdEventPayload {
-    Action(Vec<IdActionKind>),
-    CancelEvent(Cid),
-    UpgradeId(Cid),
+    Action(IdAction),
+    Recovery(Option<IdConfig>),
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

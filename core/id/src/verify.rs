@@ -2,8 +2,9 @@ use cid::Cid;
 use idp2p_common::{cbor, cid::CidExt, verifying::ed25519::verify, ED_CODE};
 
 use crate::{
-    event::IdActionKind::*, event::IdEvent, event::IdEventPayload::*, inception::IdInception,
-    IdEventError, IdInceptionError, IdView, PersistedIdEvent, PersistedIdInception,
+    event::IdEvent, event::IdEventPayload::*, event::IdMediatorActionKind::*,
+    inception::IdInception, IdEventError, IdInceptionError, IdView, PersistedIdEvent,
+    PersistedIdInception,
 };
 
 pub fn verify_inception(pid: PersistedIdInception) -> Result<IdView, IdInceptionError> {
@@ -13,7 +14,7 @@ pub fn verify_inception(pid: PersistedIdInception) -> Result<IdView, IdInception
     let inception: IdInception =
         cbor::decode(&pid.payload).map_err(|_| IdInceptionError::InvalidPayload)?;
     let total_signers: u16 = inception.next_signers.len() as u16;
-    if total_signers != inception.multisig.total_signers() {
+    if total_signers != inception.config.multisig.total_signers() {
         return Err(IdInceptionError::TotalNextSignersNotMatch(total_signers));
     }
     for signer in &inception.next_signers {
@@ -21,19 +22,21 @@ pub fn verify_inception(pid: PersistedIdInception) -> Result<IdView, IdInception
             return Err(IdInceptionError::InvalidNextSignerCodec(signer.to_bytes()));
         }
     }
-
+    let all_signers: Vec<Vec<u8>> = inception
+        .next_signers
+        .iter()
+        .map(|s| s.to_bytes())
+        .collect();
     let id_view = IdView {
         id: pid.id.clone(),
-        multisig: inception.multisig,
+        config: inception.config,
         state: inception.state.to_bytes(),
         event_id: pid.id.clone(),
         event_timestamp: inception.timestamp.to_string(),
         mediators: inception.mediators.iter().map(|s| s.to_bytes()).collect(),
-        next_signers: inception
-            .next_signers
-            .iter()
-            .map(|s| s.to_bytes())
-            .collect(),
+        next_signers: all_signers.clone(),
+        all_signers: all_signers,
+        all_states: vec![inception.state.to_bytes()],
     };
 
     Ok(id_view)
@@ -65,44 +68,27 @@ pub fn verify_event(view: IdView, pevent: PersistedIdEvent) -> Result<IdView, Id
     }
     let mut view = view;
     match event.payload {
-        Action(actions) => {
-            for action in actions {
-                match action {
+        Action(action) => {
+            if let Some(cid) = action.state {
+                view.state = cid.to_bytes();
+                view.all_states.push(cid.to_bytes());
+            }
+            for med in action.mediators {
+                match med {
                     AddMediator(cid) => view.mediators.push(cid.to_bytes()),
                     RemoveMediator(cid) => view.mediators.retain(|x| *x != cid.to_bytes()),
-                    UpdateState(cid) => view.state = cid.to_bytes(),
                 }
             }
         }
-        CancelEvent(event_id) => {
-
-        }
-        UpgradeId(id) => {
-
-        }
-    }
-   
-    view.next_signers = event.next_signers.iter().map(|x| x.to_bytes()).collect();
-    /*
-
-    // Check signer quorum
-    match event.payload {
-        IdEventPayload::ChangeState(state) => {
-            if snapshot.used_states.contains(&state.to_bytes()) {
-                anyhow::bail!("duplicated state")
+        Recovery(config) => {
+            if let Some(config) = config {
+                view.config = config;
             }
-            snapshot.state = state.to_bytes();
-            snapshot.used_states.push(state.to_bytes());
         }
-        IdEventPayload::ChangeConfig(id_config) => {
-            id_config.validate()?;
-            snapshot.config = id_config;
-        }
-        IdEventPayload::RevokeEvent => todo!(),
     }
-    for signer in signers.iter() {
-        snapshot.used_signers.push(signer.id.clone());
-    }
-    snapshot.next_signers = event.next_signers;*/
+    view.event_id = event_id.to_bytes();
+    view.event_timestamp = event.timestamp.to_string();
+    view.next_signers = event.next_signers.iter().map(|x| x.to_bytes()).collect();
+
     Ok(view)
 }

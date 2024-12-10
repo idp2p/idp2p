@@ -7,13 +7,6 @@ wit_bindgen::generate!({
     additional_derives: [PartialEq, Eq, Hash, Clone, serde::Serialize, serde::Deserialize],
 });
 
-#[derive(serde::Serialize, serde::Deserialize, Debug, Clone)]
-pub struct PersistedId {
-   pub id: Vec<u8>,
-   pub inception: PersistedIdInception,
-   pub events: Vec<PersistedIdEvent> 
-}
-
 impl IdMultisig {
     pub fn total_signers(&self) -> u16 {
         match self {
@@ -40,12 +33,10 @@ export!(GuestComponent);
 
 impl Guest for GuestComponent {
     fn verify_inception(inception: PersistedIdInception) -> Result<IdView, IdInceptionError> {
-        //verify_inception(inception).map_err(|e| e.to_string())
-        todo!()
+        verify::verify_inception(inception)
     }
 
     fn verify_event(view: IdView, event: PersistedIdEvent) -> Result<IdView, IdEventError> {
-        todo!()
-        //verify_event(snapshot, event).map_err(|e| e.to_string())
+        verify::verify_event(view, event)
     }
 }

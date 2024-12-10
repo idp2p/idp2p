@@ -4,7 +4,7 @@ use idp2p_common::{cid::CidExt, ED_CODE};
 use serde::{Deserialize, Serialize};
 use std::str::FromStr;
 
-use crate::IdMultisig;
+use crate::{IdConfig, IdMultisig};
 
 /// IdInception
 ///
@@ -12,7 +12,7 @@ use crate::IdMultisig;
 ///
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct IdInception {
-    pub multisig: IdMultisig,
+    pub config: IdConfig,
     pub state: Cid,
     pub timestamp: DateTime<Utc>,
     pub next_signers: Vec<Cid>,
@@ -27,7 +27,10 @@ impl IdInception {
         let next_signers = vec![signer];
 
         let inception = IdInception {
-            multisig: IdMultisig::OneOfOne,
+            config: IdConfig {
+               multisig:  IdMultisig::OneOfOne,
+               recovery_duration: 60*60*24
+            },
             state,
             timestamp: Utc::now(),
             next_signers,

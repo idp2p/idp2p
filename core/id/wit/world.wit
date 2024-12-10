@@ -31,6 +31,11 @@ world idp2p-id {
         three-of-five,
     }
 
+    record id-config {
+        multisig: id-multisig,
+        recovery-duration: u32
+    }
+
     record persisted-id-proof {
         id: cid,
         pk: list<u8>,
@@ -49,15 +54,24 @@ world idp2p-id {
     }
 
     record id-view {
-        id: cid,   
-        multisig: id-multisig,
+        // Identifier 
+        id: cid,
+        // Multi signature method   
+        config: id-config,
+        // State of the identity
         state: cid,
+        // Last event id
         event-id: cid,
+        // Last event time
         event-timestamp: string,
-        // cid codec should be 0x72(libp2p-key) or 0xed 
+        // CID codec should be 0x72(libp2p-key) or 0xed 
         mediators: list<cid>,
-        // cid codec should be 0xed 
+        // CID codec should be 0xed 
         next-signers: list<cid>,  
+        // All signers
+        all-signers: list<cid>,
+        // All signers
+        all-states: list<cid>,
     }
 
     export verify-inception: func(incepiton: persisted-id-inception) -> result<id-view, id-inception-error>;
