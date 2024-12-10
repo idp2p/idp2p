@@ -2,7 +2,7 @@ use cid::Cid;
 use idp2p_common::{cbor, cid::CidExt, verifying::ed25519::verify, ED_CODE};
 
 use crate::{
-    event::IdEvent, event::IdEventPayload::*, event::IdMediatorActionKind::*,
+    event::IdEvent, event::IdEventPayload::*, event::IdMediatorAction::*,
     inception::IdInception, IdEventError, IdInceptionError, IdView, PersistedIdEvent,
     PersistedIdInception,
 };
@@ -75,8 +75,8 @@ pub fn verify_event(view: IdView, pevent: PersistedIdEvent) -> Result<IdView, Id
             }
             for med in action.mediators {
                 match med {
-                    AddMediator(cid) => view.mediators.push(cid.to_bytes()),
-                    RemoveMediator(cid) => view.mediators.retain(|x| *x != cid.to_bytes()),
+                    Add(cid) => view.mediators.push(cid.to_bytes()),
+                    Remove(cid) => view.mediators.retain(|x| *x != cid.to_bytes()),
                 }
             }
         }

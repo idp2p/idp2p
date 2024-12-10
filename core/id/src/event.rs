@@ -5,15 +5,15 @@ use serde::{Deserialize, Serialize};
 use crate::IdConfig;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub enum IdMediatorActionKind {
-    AddMediator(Cid),
-    RemoveMediator(Cid)
+pub enum IdMediatorAction {
+    Add(Cid),
+    Remove(Cid)
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct IdAction {
     pub state: Option<Cid>,
-    pub mediators: Vec<IdMediatorActionKind>
+    pub mediators: Vec<IdMediatorAction>
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

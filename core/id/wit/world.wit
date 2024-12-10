@@ -74,6 +74,30 @@ world idp2p-id {
         all-states: list<cid>,
     }
 
+    /*variant id-mediator-action {
+        add(cid),
+        remove(cid),
+    }
+
+    record create-id-input {
+        config: id-config,
+        next-signers: list<cid>,
+        mediators: list<cid>,
+    }
+
+    record mutate-id-input {
+        previous: cid,
+        next-signers: list<cid>,
+        state: option<cid>,
+        mediators: list<id-mediator-action>,
+    }
+
+    record recover-id-input {
+        previous: cid,
+        next-signers: list<id-public-key>,
+        config: option<id-config>
+    }*/
+
     export verify-inception: func(incepiton: persisted-id-inception) -> result<id-view, id-inception-error>;
 
     export verify-event: func(view: id-view, event: persisted-id-event) -> result<id-view, id-event-error>;
