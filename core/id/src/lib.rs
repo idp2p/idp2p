@@ -1,5 +1,4 @@
-pub mod event;
-pub mod inception;
+pub mod internal;
 pub mod verify;
 
 wit_bindgen::generate!({

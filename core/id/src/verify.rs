@@ -2,8 +2,8 @@ use cid::Cid;
 use idp2p_common::{cbor, cid::CidExt, verifying::ed25519::verify, ED_CODE};
 
 use crate::{
-    event::IdEvent, event::IdEventPayload::*, event::IdMediatorAction::*,
-    inception::IdInception, IdEventError, IdInceptionError, IdView, PersistedIdEvent,
+    internal::IdEvent, internal::IdEventPayload::*, internal::IdMediatorAction::*,
+    internal::IdInception, IdEventError, IdInceptionError, IdView, PersistedIdEvent,
     PersistedIdInception,
 };
 

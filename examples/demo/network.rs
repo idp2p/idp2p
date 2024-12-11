@@ -1,5 +1,8 @@
 use futures::{channel::mpsc, SinkExt, StreamExt};
-use idp2p_p2p::{handler::{IdHandlerMessage, IdHandlerEvent}, store::KvStore};
+use idp2p_p2p::{
+    handler::{IdHandlerEvent, IdHandlerMessage},
+    store::KvStore,
+};
 use libp2p::{
     gossipsub::{self, Behaviour as GossipsubBehaviour, IdentTopic},
     identity::Keypair,
@@ -105,9 +108,10 @@ impl<S: KvStore> IdNetworkEventLoop<S> {
         self.swarm
             .behaviour_mut()
             .gossipsub
-            .publish(IdentTopic::new(id), b"data").unwrap();
+            .publish(IdentTopic::new(id), b"data")
+            .unwrap();
     }
-    
+
     pub(crate) async fn run(mut self) {
         loop {
             tokio::select! {
@@ -119,31 +123,39 @@ impl<S: KvStore> IdNetworkEventLoop<S> {
             }
         }
     }
-    
+
     async fn handle_message_event(&mut self, event: IdHandlerEvent) -> anyhow::Result<()> {
         match event {
             IdHandlerEvent::Publish { topic, payload } => todo!(),
             IdHandlerEvent::Request { peer, message_id } => todo!(),
-            IdHandlerEvent::Respond { message_id, payload } => todo!(),
-            IdHandlerEvent::Set { key, value } => todo!()
+            IdHandlerEvent::Respond {
+                message_id,
+                payload,
+            } => todo!(),
+            IdHandlerEvent::Set { key, value } => todo!(),
         }
     }
 
-    async fn handle_network_event(&mut self, event: SwarmEvent<Idp2pBehaviourEvent>) -> anyhow::Result<()>{
+    async fn handle_network_event(
+        &mut self,
+        event: SwarmEvent<Idp2pBehaviourEvent>,
+    ) -> anyhow::Result<()> {
         match event {
-            SwarmEvent::Behaviour(Idp2pBehaviourEvent::Gossipsub(event)) => {
-                match event {
-                    libp2p::gossipsub::Event::Message {
-                        propagation_source: _,
-                        message_id: _,
-                        message,
-                    } => {
-                        self.cmd_sender.send(IdHandlerMessage::GossipMessage(message.data)).await?;
-                    }
-                    _=> {}
+            SwarmEvent::Behaviour(Idp2pBehaviourEvent::Gossipsub(event)) => match event {
+                libp2p::gossipsub::Event::Message {
+                    propagation_source: _,
+                    message_id: _,
+                    message,
+                } => {
+                    self.cmd_sender
+                        .send(IdHandlerMessage::Gossipsub {
+                            topic: message.topic,
+                            payload: message.data,
+                        })
+                        .await?;
                 }
-     
-            }
+                _ => {}
+            },
             SwarmEvent::Behaviour(Idp2pBehaviourEvent::RequestResponse(
                 request_response::Event::Message { message, .. },
             )) => {
@@ -151,7 +163,7 @@ impl<S: KvStore> IdNetworkEventLoop<S> {
                     request_response::Message::Request {
                         request, channel, ..
                     } => {
-                        // decide 
+                        // decide
                     }
                     request_response::Message::Response {
                         request_id,
@@ -184,7 +196,7 @@ impl<S: KvStore> IdNetworkEventLoop<S> {
                         .remove_explicit_peer(&peer_id);
                 }
             }
-            
+
             _ => {}
         }
         Ok(())

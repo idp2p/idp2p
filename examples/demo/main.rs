@@ -1,7 +1,5 @@
 use std::sync::Arc;
 
-use app::App;
-
 use futures::{channel::mpsc, SinkExt};
 use idp2p_p2p::store::InMemoryKvStore;
 use network::IdNetworkEventLoop;

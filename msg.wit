@@ -1,6 +1,6 @@
 world message-handler {
     /// This type tells the host how to handle the input 
-    record handle {
+    record host-input {
         /// The id of module
         id: string,
         /// The version of the module
@@ -13,17 +13,97 @@ world message-handler {
 
     /// This type enumerates the different kinds of errors that may occur from host
     variant host-error {
-        /// This error indicates that a `field-name` or `field-value` was
+        other(string),
     }
 
     variant handler-error {
-
+        other(string),
     }
     
     import host: interface {
-        call-fn: func(input: handle) -> result<list<u8>, host-error>,
-        send-event: func(event: handle) -> result<_, host-error>
+        call-fn: func(input: host-input) -> result<list<u8>, host-error>,
+        send-event: func(event: host-input) -> result<_, host-error>
     }
 
     export handle: func(input: list<u8>) -> result<_, handler-error>;
+}
+
+// Function provider should implement this
+world function-caller {
+    export call: func(input: list<u8>) -> result<list<u8>, call-error>;
+}
+
+// Event handler should implement this
+world event-handler {
+    export handle: func(input: list<u8>) -> result<_, call-error>;
+}
+
+/*
+message_handlers: this 
+event_handlers
+function_handlers
+*/
+
+world id{
+    variant id-mediator-action {
+        add(cid),
+        remove(cid),
+    }
+
+    record create-id-input {
+        config: id-config,
+        next-signers: list<cid>,
+        mediators: list<cid>,
+    }
+
+    record mutate-id-input {
+        previous: cid,
+        next-signers: list<cid>,
+        state: option<cid>,
+        mediators: list<id-mediator-action>,
+    }
+
+    record recover-id-input {
+        previous: cid,
+        next-signers: list<id-public-key>,
+        config: option<id-config>
+    }
+
+    record persisted-id-proof {
+        id: cid,
+        pk: list<u8>,
+        sig: list<u8>,
+    }
+
+    record id-inception {
+
+    }
+
+    record id-event {
+        
+    }
+
+    record persisted-id-inception {
+        id: cid,
+        payload: id-inception,
+    }
+
+    record persisted-id-event {
+        id: cid,
+        payload: id-event,
+        proofs: list<persisted-id-proof>,
+    }
+
+    record persisted-id {
+        id: cid,
+        version: u64,
+        incepiton: persisted-id-inception,
+        events: list<tuple<u64, persisted-id-event>>
+    }
+
+    export incept: func() -> result<persisted-id, id-inception-error>;
+
+    export mutate: func() -> result<id-view, id-inception-error>;
+
+    export recover: func() -> result<id-view, id-inception-error>;
 }

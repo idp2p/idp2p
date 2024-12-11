@@ -1,8 +1,21 @@
-use chrono::{DateTime, Utc};
+use chrono::prelude::*;
 use cid::Cid;
 use serde::{Deserialize, Serialize};
 
 use crate::IdConfig;
+
+/// IdInception
+///
+/// The inception of the identity protocol.
+///
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct IdInception {
+    pub config: IdConfig,
+    pub state: Cid,
+    pub timestamp: DateTime<Utc>,
+    pub next_signers: Vec<Cid>,
+    pub mediators: Vec<Cid>,
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum IdMediatorAction {
@@ -30,5 +43,4 @@ pub struct IdEvent {
     pub payload: IdEventPayload,
     pub next_signers: Vec<Cid>,
 }
-
 

@@ -33,7 +33,7 @@ world idp2p-id {
 
     record id-config {
         multisig: id-multisig,
-        recovery-duration: u32
+        key-reuse: bool
     }
 
     record persisted-id-proof {
@@ -73,30 +73,6 @@ world idp2p-id {
         // All signers
         all-states: list<cid>,
     }
-
-    /*variant id-mediator-action {
-        add(cid),
-        remove(cid),
-    }
-
-    record create-id-input {
-        config: id-config,
-        next-signers: list<cid>,
-        mediators: list<cid>,
-    }
-
-    record mutate-id-input {
-        previous: cid,
-        next-signers: list<cid>,
-        state: option<cid>,
-        mediators: list<id-mediator-action>,
-    }
-
-    record recover-id-input {
-        previous: cid,
-        next-signers: list<id-public-key>,
-        config: option<id-config>
-    }*/
 
     export verify-inception: func(incepiton: persisted-id-inception) -> result<id-view, id-inception-error>;
 
