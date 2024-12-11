@@ -105,11 +105,11 @@ impl<S: KvStore> IdMessageHandler<S> {
         let message: IdGossipMessageKind = cbor::decode(msg)?;
         let id_key = format!("/identities/{}", topic);
         if let Some(id_entry) = self.kv.get(&id_key).map_err(anyhow::Error::msg)? {
-            let id_entry: IdEntry = cbor::decode(&id_entry)?;
+            let mut id_entry: IdEntry = cbor::decode(&id_entry)?;
 
             match message {
                 Resolve => {
-                    if id_entry.provided {
+                    if id_entry.is_provided {
                         let _ = self.event_sender.send(IdHandlerEvent::Publish {
                             topic: topic.to_owned(),
                             payload: id_entry.identity.id,
@@ -117,10 +117,14 @@ impl<S: KvStore> IdMessageHandler<S> {
                     }
                 }
                 NotifyEvent { version, event } => {
-                    let view =  self.verify_event(version, &id_entry.view, &event)?;
-                    println!("{:?}", view);
+                    let view = self.verify_event(version, &id_entry.view, &event)?;
+                    id_entry.view = view;
+                    self.kv.put("key", &cbor::encode(&id_entry)?)?;
                 }
-                NotifyMessage { id: _, providers: _ } => {
+                NotifyMessage {
+                    id: _,
+                    providers: _,
+                } => {
                     //
                 }
                 _ => {}
@@ -133,10 +137,11 @@ impl<S: KvStore> IdMessageHandler<S> {
                         view = self.verify_event(version, &view, &event)?;
                     }
                     let entry = IdEntry {
-                        provided: false,
-                        view,
                         identity: id,
+                        view: view,
+                        is_provided: false,
                         subscribers: vec![],
+                        messages: HashMap::new(),
                     };
                     self.kv.put("key", &cbor::encode(&entry)?)?;
                 }
@@ -144,6 +149,15 @@ impl<S: KvStore> IdMessageHandler<S> {
             }
         }
 
+        Ok(())
+    }
+
+    pub async fn handle_request(
+        &mut self,
+        peer: PeerId,
+        message_id: String,
+        msg: &[u8],
+    ) -> Result<()> {
         Ok(())
     }
 

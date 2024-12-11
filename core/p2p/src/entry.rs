@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 
+use cid::Cid;
 use serde::{Deserialize, Serialize};
 
 use crate::{IdView, PersistedIdEvent, PersistedIdInception};
@@ -18,8 +19,9 @@ pub struct PersistedId {
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct IdEntry {
-    pub provided: bool,
     pub view: IdView,
     pub identity: PersistedId,
+    pub is_provided: bool,
     pub subscribers: Vec<String>,
+    pub messages: HashMap<Cid, Vec<u8>>,
 }
