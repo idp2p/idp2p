@@ -1,12 +1,11 @@
 use anyhow::Result;
-use cid::Cid;
 use futures::{channel::mpsc, SinkExt, StreamExt};
 use idp2p_common::cbor;
 
 use libp2p::{gossipsub::TopicHash, PeerId};
-use serde::{Deserialize, Serialize};
 use std::{
     collections::HashMap,
+    str::FromStr,
     sync::{Arc, Mutex},
 };
 use wasmtime::{
@@ -15,44 +14,19 @@ use wasmtime::{
 };
 
 use crate::{
-    entry::{IdEntry, PersistedId},
+    message::IdGossipMessageKind,
+    model::{IdEntry, IdKind, IdTopic},
     store::KvStore,
     IdView, Idp2pId, PersistedIdEvent, PersistedIdInception,
 };
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub enum IdMessageRequest {
-    Get(String),
-    Provide(Vec<u8>),
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub enum IdGossipMessageKind {
-    // Resolve identity
-    Resolve,
-    // Provide an identity document
-    Provide {
-        id: PersistedId,
-    },
-    // Notify an identity event
-    NotifyEvent {
-        version: u64,
-        event: PersistedIdEvent,
-    },
-    // Notify message
-    NotifyMessage {
-        id: Cid,
-        providers: Vec<String>,
-    },
-}
-
-pub enum IdHandlerMessage {
+pub enum IdHandlerInboundEvent {
     Gossipsub { topic: TopicHash, payload: Vec<u8> },
     Request(Vec<u8>),
     Response(Vec<u8>),
 }
 
-pub enum IdHandlerEvent {
+pub enum IdHandlerOutboundEvent {
     Publish {
         topic: TopicHash,
         payload: Vec<u8>,
@@ -75,15 +49,15 @@ pub struct IdMessageHandler<S: KvStore> {
     kv: Arc<S>,
     engine: Engine,
     id_components: Arc<Mutex<HashMap<u64, Component>>>,
-    event_sender: mpsc::Sender<IdHandlerEvent>,
-    msg_receiver: mpsc::Receiver<IdHandlerMessage>,
+    event_sender: mpsc::Sender<IdHandlerOutboundEvent>,
+    event_receiver: mpsc::Receiver<IdHandlerInboundEvent>,
 }
 
 impl<S: KvStore> IdMessageHandler<S> {
     pub fn new(
         kv: Arc<S>,
-        event_sender: mpsc::Sender<IdHandlerEvent>,
-        msg_receiver: mpsc::Receiver<IdHandlerMessage>,
+        event_sender: mpsc::Sender<IdHandlerOutboundEvent>,
+        event_receiver: mpsc::Receiver<IdHandlerInboundEvent>,
     ) -> Result<Self> {
         let engine = Engine::new(Config::new().wasm_component_model(true))?;
 
@@ -95,73 +69,105 @@ impl<S: KvStore> IdMessageHandler<S> {
             engine,
             id_components,
             event_sender,
-            msg_receiver,
+            event_receiver,
         };
         Ok(handler)
     }
 
     pub async fn handle_gossip_message(&mut self, topic: &TopicHash, msg: &[u8]) -> Result<()> {
         use IdGossipMessageKind::*;
+        let topic_key = format!("/topics/{}", topic);
+        let id_topic: Vec<u8> = self
+            .kv
+            .get(&topic_key)
+            .map_err(anyhow::Error::msg)?
+            .ok_or(anyhow::anyhow!("No topic found"))?;
+        let id_topic: IdTopic = cbor::decode(&id_topic)?;
         let message: IdGossipMessageKind = cbor::decode(msg)?;
-        let id_key = format!("/identities/{}", topic);
-        if let Some(id_entry) = self.kv.get(&id_key).map_err(anyhow::Error::msg)? {
-            let id_entry: IdEntry = cbor::decode(&id_entry)?;
-
-            match message {
-                Resolve => {
-                    if id_entry.provided {
-                        let _ = self.event_sender.send(IdHandlerEvent::Publish {
-                            topic: topic.to_owned(),
-                            payload: id_entry.identity.id,
-                        });
+        match id_topic {
+            IdTopic::Client => {
+                let mut id_entry = self.get_id(topic.as_str())?;
+                match message {
+                    Resolve => {
+                        self.event_sender
+                            .send(IdHandlerOutboundEvent::Publish {
+                                topic: topic.to_owned(),
+                                payload: id_entry.identity.id,
+                            })
+                            .await?;
                     }
-                }
-                NotifyEvent { version, event } => {
-                    let view =  self.verify_event(version, &id_entry.view, &event)?;
-                    println!("{:?}", view);
-                }
-                NotifyMessage { id: _, providers: _ } => {
-                    //
-                }
-                _ => {}
-            }
-        } else {
-            match message {
-                Provide { id } => {
-                    let mut view = self.verify_inception(id.version, &id.inception)?;
-                    for (version, event) in id.events.clone() {
-                        view = self.verify_event(version, &view, &event)?;
+                    NotifyEvent { version, event } => {
+                        let view = self.verify_event(version, &id_entry.view, &event)?;
+                        id_entry.view = view;
+                        self.kv.put("key", &cbor::encode(&id_entry)?)?;
                     }
-                    let entry = IdEntry {
-                        provided: false,
-                        view,
-                        identity: id,
-                        subscribers: vec![],
-                    };
-                    self.kv.put("key", &cbor::encode(&entry)?)?;
+                    NotifyMessage { id, providers } => {           
+                        self.event_sender
+                            .send(IdHandlerOutboundEvent::Request {
+                                peer: PeerId::from_str(&providers.get(0).unwrap())?,
+                                message_id: id.to_string(),
+                            })
+                            .await?;
+                    }
+                    _ => {}
                 }
-                _ => {}
             }
+            IdTopic::Subscription => {
+                let mut id_entry = self.get_id(topic.as_str())?;
+                match message {
+                    NotifyEvent { version, event } => {
+                        let view = self.verify_event(version, &id_entry.view, &event)?;
+                        id_entry.view = view;
+                        self.kv.put("key", &cbor::encode(&id_entry)?)?;
+                    }
+                    Provide { id } => {
+                        let mut view = self.verify_inception(id.version, &id.inception)?;
+                        for (version, event) in id.events.clone() {
+                            view = self.verify_event(version, &view, &event)?;
+                        }
+                        let entry = IdEntry {
+                            view,
+                            identity: id,
+                            kind: IdKind::Subscriber,
+                        };
+                        self.kv.put("key", &cbor::encode(&entry)?)?;
+                    }
+                    _ => {}
+                }
+            }
+            IdTopic::Custom => {}
         }
 
         Ok(())
     }
 
     pub async fn run(mut self) {
+        use IdHandlerInboundEvent::*;
         loop {
             tokio::select! {
-                msg = self.msg_receiver.next() => match msg {
+                msg = self.event_receiver.next() => match msg {
                     Some(msg) => {
                         match msg {
-                            IdHandlerMessage::Gossipsub { topic, payload } => todo!(),
-                            IdHandlerMessage::Request(vec) => todo!(),
-                            IdHandlerMessage::Response(vec) => todo!(),
+                            Gossipsub { topic, payload } => todo!(),
+                            Request(vec) => todo!(),
+                            Response(vec) => todo!(),
                         }
                     },
                     None =>  return,
                 },
             }
         }
+    }
+
+    fn get_id(&self, id: &str) -> Result<IdEntry> {
+        let id_key = format!("/identities/{}", id);
+        let id_entry: Vec<u8> = self
+            .kv
+            .get(&id_key)
+            .map_err(anyhow::Error::msg)?
+            .ok_or(anyhow::anyhow!("No topic found"))?;
+        let id_entry: IdEntry = cbor::decode(&id_entry)?;
+        Ok(id_entry)
     }
 
     fn get_component(&self, version: u64) -> Result<(Idp2pId, Store<()>)> {
@@ -195,6 +201,45 @@ impl<S: KvStore> IdMessageHandler<S> {
     }
 }
 
+/*let id_key = format!("/identities/{}", topic);
+if let Some(id_entry) = self.kv.get(&id_key).map_err(anyhow::Error::msg)? {
+    let id_entry: IdEntry = cbor::decode(&id_entry)?;
+
+    match message {
+        Resolve => {
+            //if id_entry.provided {
+            let _ = self.event_sender.send(IdHandlerEvent::Publish {
+                topic: topic.to_owned(),
+                payload: id_entry.identity.id,
+            });
+            //}
+        }
+        NotifyEvent { version, event } => {
+            let view = self.verify_event(version, &id_entry.view, &event)?;
+            println!("{:?}", view);
+        }
+        NotifyMessage(msg) => {
+            //
+        }
+        _ => {}
+    }
+} else {
+    match message {
+        Provide { id } => {
+            let mut view = self.verify_inception(id.version, &id.inception)?;
+            for (version, event) in id.events.clone() {
+                view = self.verify_event(version, &view, &event)?;
+            }
+            let entry = IdEntry {
+                view,
+                identity: id,
+                subscribers: vec![],
+            };
+            self.kv.put("key", &cbor::encode(&entry)?)?;
+        }
+        _ => {}
+    }
+}*/
 /*
 
         /*id.verify_event(&message)?;

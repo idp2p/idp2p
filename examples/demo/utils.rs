@@ -6,7 +6,7 @@ use cid::Cid;
 use ed25519_dalek::SigningKey;
 use idp2p_common::{cbor, cid::CidExt, ED_CODE};
 use idp2p_id::{internal::IdInception, IdConfig, IdMultisig};
-use idp2p_p2p::{entry::PersistedId, PersistedIdInception};
+use idp2p_p2p::{model::PersistedId, PersistedIdInception};
 use libp2p::PeerId;
 use rand::rngs::OsRng;
 

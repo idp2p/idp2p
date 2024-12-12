@@ -1,6 +1,7 @@
 use wasmtime::component::bindgen;
 
-pub mod entry;
+pub mod message;
+pub mod model;
 pub mod handler;
 pub mod store;
 

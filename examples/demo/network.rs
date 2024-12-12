@@ -1,6 +1,6 @@
 use futures::{channel::mpsc, SinkExt, StreamExt};
 use idp2p_p2p::{
-    handler::{IdHandlerEvent, IdHandlerMessage},
+    handler::{IdHandlerInboundEvent, IdHandlerOutboundEvent},
     store::KvStore,
 };
 use libp2p::{
@@ -84,22 +84,22 @@ pub fn create_swarm(port: u16) -> anyhow::Result<Swarm<Idp2pBehaviour>> {
 pub(crate) struct IdNetworkEventLoop<S: KvStore> {
     store: Arc<S>,
     swarm: Swarm<Idp2pBehaviour>,
-    cmd_sender: mpsc::Sender<IdHandlerMessage>,
-    event_receiver: mpsc::Receiver<IdHandlerEvent>,
+    event_sender: mpsc::Sender<IdHandlerInboundEvent>,
+    event_receiver: mpsc::Receiver<IdHandlerOutboundEvent>,
 }
 
 impl<S: KvStore> IdNetworkEventLoop<S> {
     pub fn new(
         port: u16,
         store: Arc<S>,
-        cmd_sender: mpsc::Sender<IdHandlerMessage>,
-        event_receiver: mpsc::Receiver<IdHandlerEvent>,
+        event_sender: mpsc::Sender<IdHandlerInboundEvent>,
+        event_receiver: mpsc::Receiver<IdHandlerOutboundEvent>,
     ) -> anyhow::Result<Self> {
         let swarm = create_swarm(port)?;
         Ok(Self {
             store,
             swarm,
-            cmd_sender,
+            event_sender,
             event_receiver,
         })
     }
@@ -116,23 +116,24 @@ impl<S: KvStore> IdNetworkEventLoop<S> {
         loop {
             tokio::select! {
                 event = self.swarm.select_next_some() => self.handle_network_event(event).await.unwrap(),
-                hevent = self.event_receiver.next() => match hevent {
-                    Some(hevent) => self.handle_message_event(hevent).await.unwrap(),
+                out_event = self.event_receiver.next() => match out_event {
+                    Some(out_event) => self.handle_out_event(out_event).await.unwrap(),
                     None =>  return,
                 },
             }
         }
     }
 
-    async fn handle_message_event(&mut self, event: IdHandlerEvent) -> anyhow::Result<()> {
+    async fn handle_out_event(&mut self, event: IdHandlerOutboundEvent) -> anyhow::Result<()> {
+        use IdHandlerOutboundEvent::*;
         match event {
-            IdHandlerEvent::Publish { topic, payload } => todo!(),
-            IdHandlerEvent::Request { peer, message_id } => todo!(),
-            IdHandlerEvent::Respond {
+            Publish { topic, payload } => todo!(),
+            Request { peer, message_id } => todo!(),
+            Respond {
                 message_id,
                 payload,
             } => todo!(),
-            IdHandlerEvent::Set { key, value } => todo!(),
+            Set { key, value } => todo!(),
         }
     }
 
@@ -147,8 +148,8 @@ impl<S: KvStore> IdNetworkEventLoop<S> {
                     message_id: _,
                     message,
                 } => {
-                    self.cmd_sender
-                        .send(IdHandlerMessage::Gossipsub {
+                    self.event_sender
+                        .send(IdHandlerInboundEvent::Gossipsub {
                             topic: message.topic,
                             payload: message.data,
                         })

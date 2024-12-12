@@ -4,7 +4,14 @@ use serde::{Deserialize, Serialize};
 
 use crate::{IdView, PersistedIdEvent, PersistedIdInception};
 
-#[derive(serde::Serialize, serde::Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub enum IdTopic {
+    Client,
+    Subscription,
+    Custom
+} 
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct PersistedId {
     // Identity id
     pub id: Vec<u8>,
@@ -18,8 +25,13 @@ pub struct PersistedId {
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct IdEntry {
-    pub provided: bool,
     pub view: IdView,
     pub identity: PersistedId,
-    pub subscribers: Vec<String>,
+    pub kind: IdKind,
 }
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub enum IdKind {
+    Client,
+    Subscriber
+} 
