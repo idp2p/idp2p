@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 
+use cid::Cid;
 use serde::{Deserialize, Serialize};
 
 use crate::{IdView, PersistedIdEvent, PersistedIdInception};

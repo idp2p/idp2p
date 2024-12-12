@@ -141,6 +141,15 @@ impl<S: KvStore> IdMessageHandler<S> {
         Ok(())
     }
 
+    pub async fn handle_request(
+        &mut self,
+        peer: PeerId,
+        message_id: String,
+        msg: &[u8],
+    ) -> Result<()> {
+        Ok(())
+    }
+
     pub async fn run(mut self) {
         use IdHandlerInboundEvent::*;
         loop {
