@@ -1,4 +1,5 @@
 use anyhow::Result;
+use cid::Cid;
 use futures::{channel::mpsc, SinkExt, StreamExt};
 use idp2p_common::cbor;
 
@@ -14,15 +15,15 @@ use wasmtime::{
 };
 
 use crate::{
-    message::IdGossipMessageKind,
-    model::{IdEntry, IdKind, IdTopic},
+    message::{self, IdGossipMessageKind},
+    model::{IdEntry, IdKind, IdMessage, IdTopic},
     store::KvStore,
     IdView, Idp2pId, PersistedIdEvent, PersistedIdInception,
 };
 
 pub enum IdHandlerInboundEvent {
     Gossipsub { topic: TopicHash, payload: Vec<u8> },
-    Request(Vec<u8>),
+    Request { peer: PeerId, message_id: Cid },
     Response(Vec<u8>),
 }
 
@@ -74,7 +75,7 @@ impl<S: KvStore> IdMessageHandler<S> {
         Ok(handler)
     }
 
-    pub async fn handle_gossip_message(&mut self, topic: &TopicHash, msg: &[u8]) -> Result<()> {
+    async fn handle_gossip_message(&mut self, topic: &TopicHash, msg: &[u8]) -> Result<()> {
         use IdGossipMessageKind::*;
         let topic_key = format!("/topics/{}", topic);
         let id_topic: Vec<u8> = self
@@ -86,7 +87,7 @@ impl<S: KvStore> IdMessageHandler<S> {
         let message: IdGossipMessageKind = cbor::decode(msg)?;
         match id_topic {
             IdTopic::Client => {
-                let mut id_entry = self.get_id(topic.as_str())?;
+                let (mut id_entry, id_key) = self.get_id(topic.as_str())?;
                 match message {
                     Resolve => {
                         self.event_sender
@@ -99,9 +100,9 @@ impl<S: KvStore> IdMessageHandler<S> {
                     NotifyEvent { version, event } => {
                         let view = self.verify_event(version, &id_entry.view, &event)?;
                         id_entry.view = view;
-                        self.kv.put("key", &cbor::encode(&id_entry)?)?;
+                        self.kv.put(&id_key, &cbor::encode(&id_entry)?)?;
                     }
-                    NotifyMessage { id, providers } => {           
+                    NotifyMessage { id, providers } => {
                         self.event_sender
                             .send(IdHandlerOutboundEvent::Request {
                                 peer: PeerId::from_str(&providers.get(0).unwrap())?,
@@ -113,12 +114,12 @@ impl<S: KvStore> IdMessageHandler<S> {
                 }
             }
             IdTopic::Subscription => {
-                let mut id_entry = self.get_id(topic.as_str())?;
+                let (mut id_entry, id_key) = self.get_id(topic.as_str())?;
                 match message {
                     NotifyEvent { version, event } => {
                         let view = self.verify_event(version, &id_entry.view, &event)?;
                         id_entry.view = view;
-                        self.kv.put("key", &cbor::encode(&id_entry)?)?;
+                        self.kv.put(&id_key, &cbor::encode(&id_entry)?)?;
                     }
                     Provide { id } => {
                         let mut view = self.verify_inception(id.version, &id.inception)?;
@@ -130,7 +131,7 @@ impl<S: KvStore> IdMessageHandler<S> {
                             identity: id,
                             kind: IdKind::Subscriber,
                         };
-                        self.kv.put("key", &cbor::encode(&entry)?)?;
+                        self.kv.put(&id_key, &cbor::encode(&entry)?)?;
                     }
                     _ => {}
                 }
@@ -141,12 +142,23 @@ impl<S: KvStore> IdMessageHandler<S> {
         Ok(())
     }
 
-    pub async fn handle_request(
-        &mut self,
-        peer: PeerId,
-        message_id: String,
-        msg: &[u8],
-    ) -> Result<()> {
+    async fn handle_request(&mut self, peer: PeerId, message_id: Cid) -> Result<()> {
+        let message_id = format!("/messages/{}", message_id);
+        let message: Vec<u8> = self
+            .kv
+            .get(&message_id)
+            .map_err(anyhow::Error::msg)?
+            .ok_or(anyhow::anyhow!("No message found"))?;
+        let message: IdMessage = cbor::decode(&message)?;
+        let (id, _) = self.get_id(&message.to.to_string())?;
+        if id.view.mediators.contains(&peer.to_bytes()) {
+            self.event_sender
+                .send(IdHandlerOutboundEvent::Respond {
+                    message_id,
+                    payload: message.payload,
+                })
+                .await?;
+        }
         Ok(())
     }
 
@@ -157,9 +169,13 @@ impl<S: KvStore> IdMessageHandler<S> {
                 msg = self.event_receiver.next() => match msg {
                     Some(msg) => {
                         match msg {
-                            Gossipsub { topic, payload } => todo!(),
-                            Request(vec) => todo!(),
-                            Response(vec) => todo!(),
+                            Gossipsub { topic, payload } => {
+                                self.handle_gossip_message(&topic, &payload).await.expect("Failed to handle gossip message");
+                            },
+                            Request { peer, message_id } => {
+                                self.handle_request(peer, message_id).await.expect("Failed to handle request");
+                            },
+                            Response(msg) => todo!(),
                         }
                     },
                     None =>  return,
@@ -168,7 +184,7 @@ impl<S: KvStore> IdMessageHandler<S> {
         }
     }
 
-    fn get_id(&self, id: &str) -> Result<IdEntry> {
+    fn get_id(&self, id: &str) -> Result<(IdEntry, String)> {
         let id_key = format!("/identities/{}", id);
         let id_entry: Vec<u8> = self
             .kv
@@ -176,7 +192,7 @@ impl<S: KvStore> IdMessageHandler<S> {
             .map_err(anyhow::Error::msg)?
             .ok_or(anyhow::anyhow!("No topic found"))?;
         let id_entry: IdEntry = cbor::decode(&id_entry)?;
-        Ok(id_entry)
+        Ok((id_entry, id_key))
     }
 
     fn get_component(&self, version: u64) -> Result<(Idp2pId, Store<()>)> {
