@@ -149,7 +149,7 @@ impl<S: KvStore> IdNetworkEventLoop<S> {
                     message,
                 } => {
                     self.event_sender
-                        .send(IdHandlerInboundEvent::Gossipsub {
+                        .send(IdHandlerInboundEvent::GossipMessage {
                             topic: message.topic,
                             payload: message.data,
                         })

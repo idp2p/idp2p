@@ -37,9 +37,10 @@ pub enum IdKind {
     Subscriber
 } 
 
+
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct IdMessage {
     pub from: Cid,
-    pub to: Cid,
+    pub to: Vec<Cid>,
     pub payload: Vec<u8>,
 }
