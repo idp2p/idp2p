@@ -1,10 +1,10 @@
 use futures::{channel::mpsc, SinkExt, StreamExt};
+use idp2p_common::cbor;
 use idp2p_p2p::{
-    handler::{IdHandlerInboundEvent, IdHandlerOutboundEvent},
-    store::KvStore,
+    handler::{IdHandlerInboundEvent, IdHandlerOutboundEvent}, message::IdGossipMessageKind, store::KvStore
 };
 use libp2p::{
-    gossipsub::{self, Behaviour as GossipsubBehaviour, IdentTopic},
+    gossipsub::{self, Behaviour as GossipsubBehaviour},
     identity::Keypair,
     mdns, noise,
     request_response::{self, cbor::Behaviour as ReqResBehaviour, ProtocolSupport},
@@ -16,6 +16,8 @@ use std::{
     sync::Arc,
     time::Duration,
 };
+
+use crate::app::IdAppEvent;
 
 #[derive(NetworkBehaviour)]
 pub(crate) struct Idp2pBehaviour {
@@ -77,39 +79,31 @@ pub fn create_swarm(port: u16) -> anyhow::Result<Swarm<Idp2pBehaviour>> {
         .with_swarm_config(|c| c.with_idle_connection_timeout(Duration::from_secs(60)))
         .build();
 
-    swarm.listen_on(format!("/ip4/0.0.0.0/tcp/{port}").parse().unwrap())?;
+    swarm.listen_on(format!("/ip4/127.0.0.1/tcp/{port}").parse().unwrap())?;
     Ok(swarm)
 }
 
-pub(crate) struct IdNetworkEventLoop<S: KvStore> {
-    store: Arc<S>,
+pub(crate) struct IdNetworkEventLoop {
     swarm: Swarm<Idp2pBehaviour>,
+    app_event_sender: mpsc::Sender<IdAppEvent>,
     event_sender: mpsc::Sender<IdHandlerInboundEvent>,
     event_receiver: mpsc::Receiver<IdHandlerOutboundEvent>,
 }
 
-impl<S: KvStore> IdNetworkEventLoop<S> {
+impl IdNetworkEventLoop {
     pub fn new(
         port: u16,
-        store: Arc<S>,
+        app_event_sender: mpsc::Sender<IdAppEvent>,
         event_sender: mpsc::Sender<IdHandlerInboundEvent>,
         event_receiver: mpsc::Receiver<IdHandlerOutboundEvent>,
     ) -> anyhow::Result<Self> {
         let swarm = create_swarm(port)?;
         Ok(Self {
-            store,
             swarm,
+            app_event_sender,
             event_sender,
             event_receiver,
         })
-    }
-
-    pub fn resolve(&mut self, id: &str) {
-        self.swarm
-            .behaviour_mut()
-            .gossipsub
-            .publish(IdentTopic::new(id), b"data")
-            .unwrap();
     }
 
     pub(crate) async fn run(mut self) {
@@ -127,14 +121,30 @@ impl<S: KvStore> IdNetworkEventLoop<S> {
     async fn handle_out_event(&mut self, event: IdHandlerOutboundEvent) -> anyhow::Result<()> {
         use IdHandlerOutboundEvent::*;
         match event {
-            Publish { topic, payload } => todo!(),
-            Request { peer, message_id } => todo!(),
-            Respond {
+            RequiredPublish { topic, payload } => {
+                self.swarm
+                    .behaviour_mut()
+                    .gossipsub
+                    .publish(topic, payload)
+                    .unwrap();
+            },
+            RequiredRequest { peer, message_id } => {
+                self.swarm
+                    .behaviour_mut()
+                    .request_response
+                    .send_request(&peer, message_id.as_bytes().to_vec());
+            },
+            RequiredResponse {
                 message_id,
                 payload,
-            } => todo!(),
-            Set { key, value } => todo!(),
+            } => {
+                /*self.swarm
+                    .behaviour_mut()
+                    .request_response
+                    .send_response();*/
+            },
         }
+        Ok(())
     }
 
     async fn handle_network_event(
@@ -148,10 +158,11 @@ impl<S: KvStore> IdNetworkEventLoop<S> {
                     message_id: _,
                     message,
                 } => {
+                    let payload: IdGossipMessageKind = cbor::decode(&message.data)?;
                     self.event_sender
                         .send(IdHandlerInboundEvent::Gossipsub {
                             topic: message.topic,
-                            payload: message.data,
+                            payload: payload,
                         })
                         .await?;
                 }
@@ -173,13 +184,18 @@ impl<S: KvStore> IdNetworkEventLoop<S> {
                 }
             }
             SwarmEvent::NewListenAddr { address, .. } => {
-                eprintln!("Local node is listening on {address}");
+                // sleep for a second to avoid a race condition with the
+                tokio::time::sleep(Duration::from_secs(1)).await;
+                self.app_event_sender
+                    .send(IdAppEvent::ListenOn(address.to_string()))
+                    .await
+                    .unwrap();
             }
             SwarmEvent::Behaviour(Idp2pBehaviourEvent::Mdns(libp2p::mdns::Event::Discovered(
                 list,
             ))) => {
                 for (peer_id, _multiaddr) in list {
-                    println!("mDNS discovered a new peer: {peer_id}");
+                    //println!("mDNS discovered a new peer: {peer_id}");
                     self.swarm
                         .behaviour_mut()
                         .gossipsub
@@ -190,7 +206,7 @@ impl<S: KvStore> IdNetworkEventLoop<S> {
                 list,
             ))) => {
                 for (peer_id, _multiaddr) in list {
-                    println!("mDNS discover peer has expired: {peer_id}");
+                    //println!("mDNS discover peer has expired: {peer_id}");
                     self.swarm
                         .behaviour_mut()
                         .gossipsub

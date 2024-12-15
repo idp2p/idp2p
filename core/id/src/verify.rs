@@ -2,8 +2,8 @@ use cid::Cid;
 use idp2p_common::{cbor, cid::CidExt, verifying::ed25519::verify, ED_CODE};
 
 use crate::{
-    internal::IdEvent, internal::IdEventPayload::*, internal::IdMediatorAction::*,
-    internal::IdInception, IdEventError, IdInceptionError, IdView, PersistedIdEvent,
+    internal::IdEvent, internal::IdEventPayload::*, internal::IdInception,
+    internal::IdMediatorAction::*, IdEventError, IdInceptionError, IdView, PersistedIdEvent,
     PersistedIdInception,
 };
 
@@ -43,12 +43,14 @@ pub fn verify_inception(pid: PersistedIdInception) -> Result<IdView, IdInception
 }
 
 pub fn verify_event(view: IdView, pevent: PersistedIdEvent) -> Result<IdView, IdEventError> {
-    let event_id = Cid::from_bytes(&pevent.id).map_err(|_| IdEventError::InvalidId)?;
+    let event_id = Cid::from_bytes(&pevent.id).map_err(|_| IdEventError::InvalidEventId)?;
     event_id
         .ensure(pevent.payload.as_slice())
         .map_err(|e| IdEventError::PayloadAndIdNotMatch(e.to_string()))?;
     let event: IdEvent = cbor::decode(&pevent.payload).map_err(|_| IdEventError::InvalidPayload)?;
-    if event.previous != Cid::from_bytes(&view.event_id).map_err(|_| IdEventError::InvalidId)? {
+    if event.previous
+        != Cid::from_bytes(&view.event_id).map_err(|_| IdEventError::InvalidEventId)?
+    {
         return Err(IdEventError::PreviousNotMatch(event.previous.to_bytes()));
     }
     for proof in pevent.proofs {
@@ -62,9 +64,9 @@ pub fn verify_event(view: IdView, pevent: PersistedIdEvent) -> Result<IdView, Id
             .iter()
             .any(|x| x.to_vec() == signer_id.to_bytes())
         {
-            return Err(IdEventError::InvalidId);
+            return Err(IdEventError::InvalidNextSigner(signer_id.to_bytes()));
         }
-        verify(&proof.pk, &pevent.payload, &proof.sig).map_err(|e| IdEventError::InvalidId)?;
+        verify(&proof.pk, &pevent.payload, &proof.sig).map_err(|_| IdEventError::InvalidSignature)?;
     }
     let mut view = view;
     match event.payload {
