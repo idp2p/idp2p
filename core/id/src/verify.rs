@@ -66,7 +66,8 @@ pub fn verify_event(view: IdView, pevent: PersistedIdEvent) -> Result<IdView, Id
         {
             return Err(IdEventError::InvalidNextSigner(signer_id.to_bytes()));
         }
-        verify(&proof.pk, &pevent.payload, &proof.sig).map_err(|_| IdEventError::InvalidSignature)?;
+        verify(&proof.pk, &pevent.payload, &proof.sig)
+            .map_err(|_| IdEventError::InvalidSignature(signer_id.to_bytes()))?;
     }
     let mut view = view;
     match event.payload {

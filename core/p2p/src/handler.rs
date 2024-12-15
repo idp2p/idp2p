@@ -1,6 +1,5 @@
 use anyhow::Result;
 use cid::Cid;
-use futures::{channel::mpsc, SinkExt, StreamExt};
 use idp2p_common::cbor;
 
 use libp2p::{gossipsub::TopicHash, PeerId};
@@ -21,46 +20,27 @@ use crate::{
     IdView, Idp2pId, PersistedIdEvent, PersistedIdInception,
 };
 
-pub enum IdHandlerInboundEvent {
-    Gossipsub {
-        topic: TopicHash,
-        payload: IdGossipMessageKind,
-    },
-    Request {
-        peer: PeerId,
-        message_id: Cid,
-    },
-    Response(Vec<u8>),
-}
-
-pub enum IdHandlerOutboundEvent {
-    RequiredPublish {
-        topic: TopicHash,
-        payload: Vec<u8>,
-    },
-    RequiredRequest {
-        peer: PeerId,
-        message_id: String,
-    },
-    RequiredResponse {
-        message_id: String,
-        payload: Vec<u8>,
-    },
-}
-
 pub struct IdMessageHandler<S: KvStore> {
     kv: Arc<S>,
     engine: Engine,
     id_components: Arc<Mutex<HashMap<u64, Component>>>,
-    event_sender: mpsc::Sender<IdHandlerOutboundEvent>,
-    event_receiver: mpsc::Receiver<IdHandlerInboundEvent>,
+}
+
+pub enum IdHandlerGossipCommand {
+    Publish {
+        topic: TopicHash,
+        payload: Vec<u8>,
+    },
+    Request {
+        peer: PeerId,
+        message_id: String,
+    },
+    None
 }
 
 impl<S: KvStore> IdMessageHandler<S> {
     pub fn new(
-        kv: Arc<S>,
-        event_sender: mpsc::Sender<IdHandlerOutboundEvent>,
-        event_receiver: mpsc::Receiver<IdHandlerInboundEvent>,
+        kv: Arc<S>
     ) -> Result<Self> {
         let engine = Engine::new(Config::new().wasm_component_model(true))?;
 
@@ -70,18 +50,16 @@ impl<S: KvStore> IdMessageHandler<S> {
         let handler = Self {
             kv,
             engine,
-            id_components,
-            event_sender,
-            event_receiver,
+            id_components
         };
         Ok(handler)
     }
 
-    async fn handle_gossip_message(
-        &mut self,
+    pub async fn handle_gossip_message(
+        &self,
         topic: &TopicHash,
         msg: &IdGossipMessageKind,
-    ) -> Result<()> {
+    ) -> Result<IdHandlerGossipCommand> {
         use IdGossipMessageKind::*;
         let topic_key = format!("/topics/{}", topic);
         let id_topic: Vec<u8> = self
@@ -95,12 +73,10 @@ impl<S: KvStore> IdMessageHandler<S> {
                 let (mut id_entry, id_key) = self.get_id(topic.as_str())?;
                 match msg {
                     Resolve => {
-                        self.event_sender
-                            .send(IdHandlerOutboundEvent::RequiredPublish {
+                        return Ok(IdHandlerGossipCommand::Publish {
                                 topic: topic.to_owned(),
                                 payload: id_entry.identity.id,
-                            })
-                            .await?;
+                            });
                     }
                     NotifyEvent { version, event } => {
                         let view = self.verify_event(*version, &id_entry.view, &event)?;
@@ -108,12 +84,10 @@ impl<S: KvStore> IdMessageHandler<S> {
                         self.kv.put(&id_key, &cbor::encode(&id_entry)?)?;
                     }
                     NotifyMessage { id, providers } => {
-                        self.event_sender
-                            .send(IdHandlerOutboundEvent::RequiredRequest {
+                        return Ok(IdHandlerGossipCommand::Request {
                                 peer: PeerId::from_str(&providers.get(0).unwrap())?,
                                 message_id: id.to_string(),
-                            })
-                            .await?;
+                            });
                     }
                     _ => {}
                 }
@@ -144,10 +118,10 @@ impl<S: KvStore> IdMessageHandler<S> {
             IdTopic::Custom => {}
         }
 
-        Ok(())
+        Ok(IdHandlerGossipCommand::None)
     }
 
-    async fn handle_request_message(&mut self, peer: PeerId, message_id: Cid) -> Result<()> {
+    pub async fn handle_request_message(&self, peer: PeerId, message_id: Cid) -> Result<Vec<u8>> {
         let message_id = format!("/messages/{}", message_id);
         let message: Vec<u8> = self
             .kv
@@ -159,45 +133,22 @@ impl<S: KvStore> IdMessageHandler<S> {
             let (id, _) = self.get_id(&to.to_string())?;
 
             if id.view.mediators.contains(&peer.to_bytes()) {
-                self.event_sender
-                    .send(IdHandlerOutboundEvent::Respond {
-                        message_id: message_id.clone(),
-                        payload: message.payload.clone(),
-                    })
-                    .await?;
+                return Ok(message.payload.clone());
             }
         }
 
-        Ok(())
+        anyhow::bail!("Unauthorized message");
     }
 
-    async fn handle_response_message(&mut self, message_id: Cid, msg: Vec<u8>) -> Result<()> {
+    pub async fn handle_response_message(&self, from: Cid, message_id: Cid, payload: Vec<u8>) -> Result<()> {
+        let msg = IdMessage{
+            from,
+            to: vec![],
+            payload
+        };
+        let msg = cbor::encode(&msg)?;
         self.kv.put(&format!("/messages/{}", message_id), &msg)?;
         Ok(())
-    }
-
-    pub async fn run(mut self) {
-        use IdHandlerInboundEvent::*;
-        loop {
-            tokio::select! {
-                msg = self.event_receiver.next() => match msg {
-                    Some(msg) => {
-                        match msg {
-                            GossipMessage { topic, payload } => {
-                                self.handle_gossip_message(&topic, &payload).await.expect("Failed to handle gossip message");
-                            },
-                            RequestMessage { peer, message_id } => {
-                                self.handle_request_message(peer, message_id).await.expect("Failed to handle request");
-                            },
-                            ResponseMessage { message_id, payload } => {
-                                self.handle_response_message(message_id, payload).await.expect("Failed to handle request");
-                            },
-                        }
-                    },
-                    None =>  return,
-                },
-            }
-        }
     }
 
     fn get_id(&self, id: &str) -> Result<(IdEntry, String)> {

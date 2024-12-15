@@ -1,7 +1,6 @@
 use futures::channel::mpsc;
-use idp2p_p2p::handler::IdHandlerInboundEvent;
+use futures::SinkExt;
 use layout::Flex;
-/// This example is taken from https://raw.githubusercontent.com/fdehau/tui-rs/master/examples/user_input.rs
 use ratatui::prelude::*;
 use ratatui::widgets::Clear;
 use ratatui::{
@@ -16,7 +15,7 @@ use std::{error::Error, io};
 use tui_input::backend::crossterm::EventHandler;
 use tui_input::Input;
 
-pub(crate) enum IdAppEvent {
+pub(crate) enum IdAppInEvent {
     ListenOn(String),
     Resolved {
         id: String,
@@ -24,6 +23,10 @@ pub(crate) enum IdAppEvent {
         name: String,
     },
     GotMessage(String),
+}
+
+pub(crate) enum IdAppOutEvent {
+    SendMessage(String),
 }
 
 enum InputMode {
@@ -42,36 +45,43 @@ struct App {
     messages: Vec<String>,
     // Show help popup
     show_help_popup: bool,
+    // Event sender
+    event_sender: mpsc::Sender<IdAppOutEvent>,
     // Event receiver
-    event_receiver: mpsc::Receiver<IdAppEvent>,
+    event_receiver: mpsc::Receiver<IdAppInEvent>,
 }
 
 impl App {
-    fn new(name: String, event_receiver: mpsc::Receiver<IdAppEvent>) -> Self {
+    fn new(
+        name: String,
+        event_sender: mpsc::Sender<IdAppOutEvent>,
+        event_receiver: mpsc::Receiver<IdAppInEvent>,
+    ) -> Self {
         Self {
             name: name,
             input: Input::default(),
             input_mode: InputMode::Normal,
             messages: Vec::new(),
             show_help_popup: false,
+            event_sender: event_sender,
             event_receiver: event_receiver,
         }
     }
 
-    fn handle_event(&mut self, event: IdAppEvent) {
+    fn handle_event(&mut self, event: IdAppInEvent) {
         match event {
-            IdAppEvent::ListenOn(addr) => {
+            IdAppInEvent::ListenOn(addr) => {
                 self.name = format!("Listening on {} as {}", addr, self.name);
-            },
-            IdAppEvent::Resolved { id, peer, name } => todo!(),
-            IdAppEvent::GotMessage(_) => todo!(),
+            }
+            IdAppInEvent::Resolved { id, peer, name } => todo!(),
+            IdAppInEvent::GotMessage(_) => todo!(),
         }
     }
 }
 pub(crate) async fn run(
     name: String,
-    handler_event_sender: mpsc::Sender<IdHandlerInboundEvent>,
-    app_event_receiver: mpsc::Receiver<IdAppEvent>,
+    event_sender: mpsc::Sender<IdAppOutEvent>,
+    event_receiver: mpsc::Receiver<IdAppInEvent>,
 ) -> Result<(), Box<dyn Error>> {
     // setup terminal
     enable_raw_mode()?;
@@ -81,9 +91,9 @@ pub(crate) async fn run(
     let mut terminal = Terminal::new(backend)?;
 
     // create app and run it
-    let app = App::new(name, app_event_receiver);
+    let app = App::new(name, event_sender, event_receiver);
 
-    let res = run_app(&mut terminal, app);
+    let res = run_app(&mut terminal, app).await;
 
     // restore terminal
     disable_raw_mode()?;
@@ -101,7 +111,7 @@ pub(crate) async fn run(
     Ok(())
 }
 
-fn run_app<B: Backend>(terminal: &mut Terminal<B>, mut app: App) -> io::Result<()> {
+async fn run_app<B: Backend>(terminal: &mut Terminal<B>, mut app: App) -> io::Result<()> {
     loop {
         terminal.draw(|f| ui(f, &app))?;
         while let Ok(Some(event)) = app.event_receiver.try_next() {
@@ -123,6 +133,10 @@ fn run_app<B: Backend>(terminal: &mut Terminal<B>, mut app: App) -> io::Result<(
                     KeyCode::Enter => {
                         if !app.input.value().is_empty() {
                             app.messages.push(app.input.value().into());
+                            app.event_sender
+                                .send(IdAppOutEvent::SendMessage(app.input.value().into()))
+                                .await
+                                .unwrap();
                         }
                         app.input.reset();
                     }
@@ -145,7 +159,11 @@ fn ui(f: &mut Frame, app: &App) {
         let area = popup_area(area, 60, 20);
 
         let popup = Paragraph::new("Unsupported key pressed. Press any key to continue.")
-            .style(Style::default().fg(Color::Blue).add_modifier(Modifier::BOLD))
+            .style(
+                Style::default()
+                    .fg(Color::Blue)
+                    .add_modifier(Modifier::BOLD),
+            )
             .block(Block::default().borders(Borders::ALL).title("Help"));
         f.render_widget(Clear, area); // Clear background beneath the popup
         f.render_widget(popup, area);
@@ -234,7 +252,6 @@ fn ui(f: &mut Frame, app: &App) {
     let messages =
         List::new(messages).block(Block::default().borders(Borders::ALL).title("Messages"));
     f.render_widget(messages, chunks[3]);
-    
 }
 
 fn popup_area(area: Rect, percent_x: u16, percent_y: u16) -> Rect {
