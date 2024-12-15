@@ -147,7 +147,7 @@ impl<S: KvStore> IdMessageHandler<S> {
         Ok(())
     }
 
-    async fn handle_request(&mut self, peer: PeerId, message_id: Cid) -> Result<()> {
+    async fn handle_request_message(&mut self, peer: PeerId, message_id: Cid) -> Result<()> {
         let message_id = format!("/messages/{}", message_id);
         let message: Vec<u8> = self
             .kv
@@ -155,15 +155,24 @@ impl<S: KvStore> IdMessageHandler<S> {
             .map_err(anyhow::Error::msg)?
             .ok_or(anyhow::anyhow!("No message found"))?;
         let message: IdMessage = cbor::decode(&message)?;
-        let (id, _) = self.get_id(&message.to.to_string())?;
-        if id.view.mediators.contains(&peer.to_bytes()) {
-            self.event_sender
-                .send(IdHandlerOutboundEvent::RequiredResponse {
-                    message_id,
-                    payload: message.payload,
-                })
-                .await?;
+        for to in message.to {
+            let (id, _) = self.get_id(&to.to_string())?;
+
+            if id.view.mediators.contains(&peer.to_bytes()) {
+                self.event_sender
+                    .send(IdHandlerOutboundEvent::Respond {
+                        message_id: message_id.clone(),
+                        payload: message.payload.clone(),
+                    })
+                    .await?;
+            }
         }
+
+        Ok(())
+    }
+
+    async fn handle_response_message(&mut self, message_id: Cid, msg: Vec<u8>) -> Result<()> {
+        self.kv.put(&format!("/messages/{}", message_id), &msg)?;
         Ok(())
     }
 
@@ -174,13 +183,15 @@ impl<S: KvStore> IdMessageHandler<S> {
                 msg = self.event_receiver.next() => match msg {
                     Some(msg) => {
                         match msg {
-                            Gossipsub { topic, payload } => {
+                            GossipMessage { topic, payload } => {
                                 self.handle_gossip_message(&topic, &payload).await.expect("Failed to handle gossip message");
                             },
-                            Request { peer, message_id } => {
-                                self.handle_request(peer, message_id).await.expect("Failed to handle request");
+                            RequestMessage { peer, message_id } => {
+                                self.handle_request_message(peer, message_id).await.expect("Failed to handle request");
                             },
-                            Response(msg) => todo!(),
+                            ResponseMessage { message_id, payload } => {
+                                self.handle_response_message(message_id, payload).await.expect("Failed to handle request");
+                            },
                         }
                     },
                     None =>  return,

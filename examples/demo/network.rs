@@ -160,7 +160,7 @@ impl IdNetworkEventLoop {
                 } => {
                     let payload: IdGossipMessageKind = cbor::decode(&message.data)?;
                     self.event_sender
-                        .send(IdHandlerInboundEvent::Gossipsub {
+                        .send(IdHandlerInboundEvent::GossipMessage {
                             topic: message.topic,
                             payload: payload,
                         })
