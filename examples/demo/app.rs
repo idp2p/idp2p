@@ -1,5 +1,7 @@
 use futures::channel::mpsc;
 use futures::SinkExt;
+use idp2p_common::cbor;
+use idp2p_p2p::store::{InMemoryKvStore, KvStore};
 use layout::Flex;
 use ratatui::prelude::*;
 use ratatui::widgets::Clear;
@@ -11,12 +13,13 @@ use ratatui::{
     },
     widgets::{Block, Borders, List, ListItem, Paragraph},
 };
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc};
 use std::{error::Error, io};
 use tui_input::backend::crossterm::EventHandler;
 use tui_input::Input;
 
-use crate::IdUsers;
+use crate::IdUser;
+
 
 pub(crate) enum IdAppInEvent {
     ListenOn(String),
@@ -39,8 +42,8 @@ enum InputMode {
 
 /// App holds the state of the application
 struct App {
-    current: String,
-    users: Arc<Mutex<IdUsers>>,
+    current_user: String,
+    store: Arc<InMemoryKvStore>,
     /// Current value of the input box
     input: Input,
     /// Current input mode
@@ -57,13 +60,14 @@ struct App {
 
 impl App {
     fn new(
-        users: Arc<Mutex<IdUsers>>,
+        current_user: String,
+        store: Arc<InMemoryKvStore>,
         event_sender: mpsc::Sender<IdAppOutEvent>,
         event_receiver: mpsc::Receiver<IdAppInEvent>,
     ) -> Self {
         Self {
-            current: users.clone().lock().unwrap().current.clone(),
-            users: users,
+            current_user: current_user,
+            store: store,
             input: Input::default(),
             input_mode: InputMode::Normal,
             messages: Vec::new(),
@@ -76,15 +80,21 @@ impl App {
     fn handle_event(&mut self, event: IdAppInEvent) {
         match event {
             IdAppInEvent::ListenOn(addr) => {
-                println!("Listening on {} as {}", addr, self.users.lock().unwrap().current);
+                println!("Listening on {} as {}", addr, self.current_user);
             }
             IdAppInEvent::Resolved { id, peer, name } => todo!(),
             IdAppInEvent::GotMessage(_) => todo!(),
         }
     }
+
+    pub fn get_user(&self, username: &str) -> IdUser {
+        let user = self.store.get(&format!("/users/{}", username)).unwrap().unwrap();
+        cbor::decode(&user).unwrap()
+    }
 }
 pub(crate) async fn run(
-    users: Arc<Mutex<IdUsers>>,
+    current_user: String,
+    store: Arc<InMemoryKvStore>,
     event_sender: mpsc::Sender<IdAppOutEvent>,
     event_receiver: mpsc::Receiver<IdAppInEvent>,
 ) -> Result<(), Box<dyn Error>> {
@@ -96,7 +106,7 @@ pub(crate) async fn run(
     let mut terminal = Terminal::new(backend)?;
 
     // create app and run it
-    let app = App::new(users, event_sender, event_receiver);
+    let app = App::new(current_user, store, event_sender, event_receiver);
 
     let res = run_app(&mut terminal, app).await;
 
@@ -189,7 +199,7 @@ fn ui(f: &mut Frame, app: &App) {
 
     // Render header
     let header = Paragraph::new(Span::styled(
-        &app.current,
+        &app.current_user,
         Style::default()
             .fg(Color::Cyan)
             .add_modifier(Modifier::BOLD),
@@ -219,10 +229,9 @@ fn ui(f: &mut Frame, app: &App) {
             Style::default(),
         ),
     };
-    let users = app.users.lock().unwrap().users.clone();
-    let alice = format!("Alice - {:?}", app.users.lock().unwrap().users.clone().get("alice").unwrap().id);
-    let bob = format!("Bob - {:?}", app.users.lock().unwrap().users.clone().get("bob").unwrap().id);
-    let dog = format!("Dog - {:?}", app.users.lock().unwrap().users.clone().get("dog").unwrap().id);
+    let alice = format!("Alice - {:?}", app.get_user("alice").id);
+    let bob = format!("Bob - {:?}", app.get_user("bob").id);
+    let dog = format!("Dog - {:?}", app.get_user("dog").id);
 
     //println!("{:?}", app.users.lock().unwrap().users);
     let text = Text::from(format!("{alice}\n{bob}\n{dog}\n{msg:?}")).style(style);
