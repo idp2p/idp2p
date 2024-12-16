@@ -7,22 +7,35 @@ use idp2p_p2p::{
     store::KvStore,
 };
 use libp2p::{
-    gossipsub::{self, Behaviour as GossipsubBehaviour}, identity::Keypair, mdns, noise, request_response::{self, cbor::Behaviour as ReqResBehaviour, ProtocolSupport}, swarm::{NetworkBehaviour, SwarmEvent}, tcp, yamux, PeerId, StreamProtocol, Swarm
+    gossipsub::{self, Behaviour as GossipsubBehaviour},
+    identity::Keypair,
+    mdns, noise,
+    request_response::{self, cbor::Behaviour as ReqResBehaviour, ProtocolSupport},
+    swarm::{NetworkBehaviour, SwarmEvent},
+    tcp, yamux, PeerId, StreamProtocol, Swarm,
 };
 use serde::{Deserialize, Serialize};
 use std::{
-    hash::{DefaultHasher, Hash, Hasher}, str::FromStr, sync::{Arc, Mutex}, time::Duration
+    hash::{DefaultHasher, Hash, Hasher},
+    str::FromStr,
+    sync::{Arc, Mutex},
+    time::Duration,
 };
 
-use crate::{app::{IdAppInEvent, IdAppOutEvent}, IdDemo};
+use crate::{
+    app::{IdAppInEvent, IdAppOutEvent},
+    IdUsers,
+};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum IdRequestKind {
+    Get,
     Message(Cid),
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum IdResponseKind {
+    GetResult { username: String, id: Cid },
     Message(String),
 }
 
@@ -91,7 +104,7 @@ pub fn create_swarm(port: u16) -> anyhow::Result<Swarm<Idp2pBehaviour>> {
 }
 
 pub(crate) struct IdNetworkEventLoop<S: KvStore> {
-    demo: Arc<Mutex<IdDemo>>,
+    users: Arc<Mutex<IdUsers>>,
     swarm: Swarm<Idp2pBehaviour>,
     event_sender: mpsc::Sender<IdAppInEvent>,
     event_receiver: mpsc::Receiver<IdAppOutEvent>,
@@ -100,19 +113,22 @@ pub(crate) struct IdNetworkEventLoop<S: KvStore> {
 
 impl<S: KvStore> IdNetworkEventLoop<S> {
     pub fn new(
-        demo: Arc<Mutex<IdDemo>>,
+        users: Arc<Mutex<IdUsers>>,
         event_sender: mpsc::Sender<IdAppInEvent>,
         event_receiver: mpsc::Receiver<IdAppOutEvent>,
         id_handler: Arc<IdMessageHandler<S>>,
     ) -> anyhow::Result<(PeerId, Self)> {
-        let swarm = create_swarm(demo.lock().unwrap().get_current_user().port)?;
-        Ok((swarm.local_peer_id().to_owned(), Self {
-            demo,
-            swarm,
-            event_sender,
-            event_receiver,
-            id_handler,
-        }))
+        let swarm = create_swarm(users.lock().unwrap().get_current_user().port)?;
+        Ok((
+            swarm.local_peer_id().to_owned(),
+            Self {
+                users,
+                swarm,
+                event_sender,
+                event_receiver,
+                id_handler,
+            },
+        ))
     }
 
     pub(crate) async fn run(mut self) {
@@ -132,7 +148,7 @@ impl<S: KvStore> IdNetworkEventLoop<S> {
         match event {
             SendMessage(message) => {
                 println!("Sending message: {}", message);
-            },
+            }
         }
         Ok(())
     }
@@ -176,30 +192,53 @@ impl<S: KvStore> IdNetworkEventLoop<S> {
             },
             SwarmEvent::Behaviour(Idp2pBehaviourEvent::RequestResponse(
                 request_response::Event::Message { peer, message },
-            )) => match message {
-                request_response::Message::Request {
-                    request, channel, ..
-                } => match request {
-                    IdRequestKind::Message(cid) => {
-                        let message = self.id_handler.handle_request_message(peer, cid).await?;
-                        let message = cbor::decode(&message)?;
-                        self.swarm
-                            .behaviour_mut()
-                            .request_response
-                            .send_response(channel, message).unwrap();
-                    }
-                },
-                request_response::Message::Response { response, .. } => match response {
-                    IdResponseKind::Message(msg) => {
-                        self.event_sender
-                            .send(IdAppInEvent::GotMessage(msg))
-                            .await?;
-                    }
-                },
-            },
+            )) => {
+              
+                match message {
+                    request_response::Message::Request {
+                        request, channel, ..
+                    } => match request {
+                        IdRequestKind::Message(cid) => {
+                            let message = self.id_handler.handle_request_message(peer, cid).await?;
+                            let message = cbor::decode(&message)?;
+                            self.swarm
+                                .behaviour_mut()
+                                .request_response
+                                .send_response(channel, message)
+                                .unwrap();
+                        }
+                        IdRequestKind::Get => {
+                            let users = self.users.lock().unwrap();
+                            self.swarm
+                                .behaviour_mut()
+                                .request_response
+                                .send_response(
+                                    channel,
+                                    IdResponseKind::GetResult {
+                                        username: users.current.clone(),
+                                        id: users.get_current_user().id.unwrap().to_owned(),
+                                    },
+                                )
+                                .unwrap();
+                        }
+                    },
+                    request_response::Message::Response { response, .. } => match response {
+                        IdResponseKind::Message(msg) => {
+                            self.event_sender
+                                .send(IdAppInEvent::GotMessage(msg))
+                                .await?;
+                        }
+                        IdResponseKind::GetResult { username, id } => {
+                            let mut users = self.users.lock().unwrap();
+                            users.set_id(&username, id);
+                            println!("{:?}", users.users);
+                        }
+                    },
+                }
+            }
             SwarmEvent::NewListenAddr { address, .. } => {
                 // sleep for a second to avoid a race condition with the
-                tokio::time::sleep(Duration::from_secs(1)).await;
+                //tokio::time::sleep(Duration::from_secs(1)).await;
                 self.event_sender
                     .send(IdAppInEvent::ListenOn(address.to_string()))
                     .await
@@ -209,10 +248,16 @@ impl<S: KvStore> IdNetworkEventLoop<S> {
                 list,
             ))) => {
                 for (peer_id, _multiaddr) in list {
+                    println!("Discovered {:?}", peer_id);
                     self.swarm
                         .behaviour_mut()
                         .gossipsub
                         .add_explicit_peer(&peer_id);
+                    let request_id =self.swarm
+                        .behaviour_mut()
+                        .request_response
+                        .send_request(&peer_id, IdRequestKind::Get);
+                    println!("{:?}", request_id);
                 }
             }
             SwarmEvent::Behaviour(Idp2pBehaviourEvent::Mdns(libp2p::mdns::Event::Expired(

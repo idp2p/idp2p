@@ -132,7 +132,7 @@ impl<S: KvStore> IdMessageHandler<S> {
         for to in message.to {
             let (id, _) = self.get_id(&to.to_string())?;
 
-            if id.view.mediators.contains(&peer.to_bytes()) {
+            if id.view.mediators.contains(&peer.to_string()) {
                 return Ok(message.payload.clone());
             }
         }

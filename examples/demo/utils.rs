@@ -29,7 +29,6 @@ pub fn generate_id(mediator: &PeerId) -> Result<PersistedId> {
 }
 
 pub fn generate(signer: &[u8], mediator: &str) -> anyhow::Result<IdInception> {
-    let mediator = Cid::from_str(mediator).map_err(anyhow::Error::msg)?;
     let state = cid::Cid::default();
     let signer = Cid::create(ED_CODE, signer)?;
     let next_signers = vec![signer];
@@ -42,7 +41,7 @@ pub fn generate(signer: &[u8], mediator: &str) -> anyhow::Result<IdInception> {
         state,
         timestamp: Utc::now(),
         next_signers,
-        mediators: vec![mediator],
+        mediators: vec![mediator.to_owned()],
     };
 
     Ok(inception)

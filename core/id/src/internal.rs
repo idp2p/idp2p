@@ -14,13 +14,13 @@ pub struct IdInception {
     pub state: Cid,
     pub timestamp: DateTime<Utc>,
     pub next_signers: Vec<Cid>,
-    pub mediators: Vec<Cid>,
+    pub mediators: Vec<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum IdMediatorAction {
-    Add(Cid),
-    Remove(Cid)
+    Add(String),
+    Remove(String)
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

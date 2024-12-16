@@ -67,7 +67,7 @@ world idp2p-id {
         // Last event time
         event-timestamp: string,
         // CID codec should be 0x72(libp2p-key) or 0xed 
-        mediators: list<cid>,
+        mediators: list<string>,
         // CID codec should be 0xed 
         next-signers: list<cid>,  
         // All signers

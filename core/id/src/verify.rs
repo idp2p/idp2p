@@ -33,7 +33,7 @@ pub fn verify_inception(pid: PersistedIdInception) -> Result<IdView, IdInception
         state: inception.state.to_bytes(),
         event_id: pid.id.clone(),
         event_timestamp: inception.timestamp.to_string(),
-        mediators: inception.mediators.iter().map(|s| s.to_bytes()).collect(),
+        mediators: inception.mediators,
         next_signers: all_signers.clone(),
         all_signers: all_signers,
         all_states: vec![inception.state.to_bytes()],
@@ -78,8 +78,8 @@ pub fn verify_event(view: IdView, pevent: PersistedIdEvent) -> Result<IdView, Id
             }
             for med in action.mediators {
                 match med {
-                    Add(cid) => view.mediators.push(cid.to_bytes()),
-                    Remove(cid) => view.mediators.retain(|x| *x != cid.to_bytes()),
+                    Add(peer_id) => view.mediators.push(peer_id),
+                    Remove(peer_id) => view.mediators.retain(|x| *x != peer_id),
                 }
             }
         }

@@ -19,7 +19,7 @@ struct Opt {
     name: String
 }
 
-pub struct IdDemo {
+pub struct IdUsers {
   pub users: HashMap<String, IdUser>,
   pub current: String   
 }
@@ -31,8 +31,8 @@ pub struct IdUser {
     id: Option<Cid>,
 }
 
-impl IdDemo {
-    pub fn new(current: String) -> IdDemo {
+impl IdUsers {
+    pub fn new(current: String) -> Self {
         let alice = IdUser { name: "Alice".to_string(), port: 43727, id: None };
         let bob = IdUser { name: "Bob".to_string(), port: 43728, id: None };
         let dog = IdUser { name: "Dog".to_string(), port: 43729, id: None };
@@ -41,7 +41,7 @@ impl IdDemo {
         users.insert("alice".to_string(), alice);
         users.insert("bob".to_string(), bob);
         users.insert("dog".to_string(), dog);
-        IdDemo {
+        Self {
             users: users,
             current: current,
         }
@@ -51,10 +51,9 @@ impl IdDemo {
         self.users.get(&self.current).unwrap()
     }
 
-    pub fn set_id(&mut self, user: &str, id: &[u8]) {
-        let id = Some(Cid::from_bytes(id).unwrap());
+    pub fn set_id(&mut self, user: &str, id: Cid) {
         let mut user = self.users.get_mut(user).unwrap().clone();
-        user.id = id;
+        user.id = Some(id);
         self.users.insert(user.name.clone(), user);
     }
 }
@@ -67,20 +66,23 @@ async fn main() -> anyhow::Result<()> {
         .with_env_filter(EnvFilter::from_default_env())
         .try_init()
         .unwrap();
-    let demo = Arc::new(Mutex::new(IdDemo::new(opt.name.clone()))); 
+    let users = Arc::new(Mutex::new(IdUsers::new(opt.name.clone()))); 
     let store = Arc::new(InMemoryKvStore::new());
     let (app_in_event_sender, app_in_event_receiver) = mpsc::channel(0);
     let (app_out_event_sender, app_out_event_receiver) = mpsc::channel(0);
     let id_handler = Arc::new(IdMessageHandler::new(store.clone())?);
     let (peer, network) = IdNetworkEventLoop::new(
-        demo.clone(),
+        users.clone(),
         app_in_event_sender.clone(),
         app_out_event_receiver,
         id_handler.clone()
     )?;
     let id = utils::generate_id(&peer)?;
-    demo.lock().unwrap().set_id(&opt.name, &id.id);
+    users.lock().unwrap().set_id(&opt.name, Cid::from_bytes(&id.id).unwrap());
     tokio::spawn(network.run());
-    app::run(opt.name, app_out_event_sender, app_in_event_receiver).await.unwrap();
+    loop {
+        
+    }
+    //app::run(users.clone(), app_out_event_sender, app_in_event_receiver).await.unwrap();
     Ok(())
 }

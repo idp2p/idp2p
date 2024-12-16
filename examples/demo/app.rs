@@ -11,9 +11,12 @@ use ratatui::{
     },
     widgets::{Block, Borders, List, ListItem, Paragraph},
 };
+use std::sync::{Arc, Mutex};
 use std::{error::Error, io};
 use tui_input::backend::crossterm::EventHandler;
 use tui_input::Input;
+
+use crate::IdUsers;
 
 pub(crate) enum IdAppInEvent {
     ListenOn(String),
@@ -36,7 +39,8 @@ enum InputMode {
 
 /// App holds the state of the application
 struct App {
-    name: String,
+    current: String,
+    users: Arc<Mutex<IdUsers>>,
     /// Current value of the input box
     input: Input,
     /// Current input mode
@@ -53,12 +57,13 @@ struct App {
 
 impl App {
     fn new(
-        name: String,
+        users: Arc<Mutex<IdUsers>>,
         event_sender: mpsc::Sender<IdAppOutEvent>,
         event_receiver: mpsc::Receiver<IdAppInEvent>,
     ) -> Self {
         Self {
-            name: name,
+            current: users.clone().lock().unwrap().current.clone(),
+            users: users,
             input: Input::default(),
             input_mode: InputMode::Normal,
             messages: Vec::new(),
@@ -71,7 +76,7 @@ impl App {
     fn handle_event(&mut self, event: IdAppInEvent) {
         match event {
             IdAppInEvent::ListenOn(addr) => {
-                self.name = format!("Listening on {} as {}", addr, self.name);
+                println!("Listening on {} as {}", addr, self.users.lock().unwrap().current);
             }
             IdAppInEvent::Resolved { id, peer, name } => todo!(),
             IdAppInEvent::GotMessage(_) => todo!(),
@@ -79,7 +84,7 @@ impl App {
     }
 }
 pub(crate) async fn run(
-    name: String,
+    users: Arc<Mutex<IdUsers>>,
     event_sender: mpsc::Sender<IdAppOutEvent>,
     event_receiver: mpsc::Receiver<IdAppInEvent>,
 ) -> Result<(), Box<dyn Error>> {
@@ -91,7 +96,7 @@ pub(crate) async fn run(
     let mut terminal = Terminal::new(backend)?;
 
     // create app and run it
-    let app = App::new(name, event_sender, event_receiver);
+    let app = App::new(users, event_sender, event_receiver);
 
     let res = run_app(&mut terminal, app).await;
 
@@ -154,7 +159,6 @@ async fn run_app<B: Backend>(terminal: &mut Terminal<B>, mut app: App) -> io::Re
 
 fn ui(f: &mut Frame, app: &App) {
     let area = f.area();
-
     if app.show_help_popup {
         let area = popup_area(area, 60, 20);
 
@@ -185,7 +189,7 @@ fn ui(f: &mut Frame, app: &App) {
 
     // Render header
     let header = Paragraph::new(Span::styled(
-        &app.name,
+        &app.current,
         Style::default()
             .fg(Color::Cyan)
             .add_modifier(Modifier::BOLD),
@@ -215,7 +219,14 @@ fn ui(f: &mut Frame, app: &App) {
             Style::default(),
         ),
     };
-    let text = Text::from(Line::from(msg)).style(style);
+    let users = app.users.lock().unwrap().users.clone();
+    let alice = format!("Alice - {:?}", app.users.lock().unwrap().users.clone().get("alice").unwrap().id);
+    let bob = format!("Bob - {:?}", app.users.lock().unwrap().users.clone().get("bob").unwrap().id);
+    let dog = format!("Dog - {:?}", app.users.lock().unwrap().users.clone().get("dog").unwrap().id);
+
+    //println!("{:?}", app.users.lock().unwrap().users);
+    let text = Text::from(format!("{alice}\n{bob}\n{dog}\n{msg:?}")).style(style);
+
     let help_message = Paragraph::new(text);
     f.render_widget(help_message, chunks[1]);
 
@@ -238,7 +249,7 @@ fn ui(f: &mut Frame, app: &App) {
             chunks[2].y + 1,
         ));
     }
-
+    
     // Render messages
     let messages: Vec<ListItem> = app
         .messages

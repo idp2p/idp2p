@@ -1,1 +1,3 @@
-cargo run --example demo -- -p 43728
+cargo run --example demo -- -i alice
+cargo run --example demo -- -i bob
+cargo run --example demo -- -i dog
