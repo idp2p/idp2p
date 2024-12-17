@@ -1,8 +1,8 @@
+use crate::store::InMemoryKvStore;
 use cid::Cid;
 use futures::channel::mpsc;
 use futures::SinkExt;
 use idp2p_common::cbor;
-use idp2p_p2p::store::{InMemoryKvStore, KvStore};
 use layout::Flex;
 use ratatui::prelude::*;
 use ratatui::widgets::Clear;
@@ -87,15 +87,6 @@ impl App {
             IdAppInEvent::GotMessage(_) => todo!(),
         }
     }
-
-    pub fn get_user(&self, username: &str) -> IdUser {
-        let user = self
-            .store
-            .get(&format!("/users/{}", username))
-            .unwrap()
-            .unwrap();
-        cbor::decode(&user).unwrap()
-    }
 }
 pub(crate) async fn run(
     current_user: String,
@@ -141,9 +132,9 @@ async fn run_app<B: Backend>(terminal: &mut Terminal<B>, mut app: App) -> io::Re
             match app.input_mode {
                 InputMode::Normal => match key.code {
                     KeyCode::Char('e') => {
-                        let alice = app.get_user("alice");
-                        let bob = app.get_user("bob");
-                        let dog = app.get_user("dog");
+                        let alice = app.store.get_user("alice").await.unwrap().unwrap();
+                        let bob = app.store.get_user("bob").await.unwrap().unwrap();
+                        let dog = app.store.get_user("dog").await.unwrap().unwrap();
 
                         if app.current_user != "alice" && alice.id.is_some() {
                             app.event_sender

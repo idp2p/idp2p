@@ -8,13 +8,14 @@ use futures::channel::mpsc;
 use idp2p_common::{cbor, cid::CidExt};
 use idp2p_p2p::{
     handler::IdMessageHandler,
-    store::{InMemoryKvStore, KvStore},
 };
 use network::IdNetworkEventLoop;
 use serde::{Deserialize, Serialize};
+use store::InMemoryKvStore;
 use structopt::StructOpt;
 use tracing_subscriber::EnvFilter;
 
+mod store;
 mod app;
 mod network;
 mod utils;
@@ -64,9 +65,9 @@ async fn main() -> anyhow::Result<()> {
         name: "Dog".to_string(),
         id: None,
     };
-    store.put("/users/alice", &alice.to_bytes())?;
-    store.put("/users/bob", &bob.to_bytes())?;
-    store.put("/users/dog", &dog.to_bytes())?;
+    store.set_user("alice", &alice).await?;
+    store.set_user("bob", &bob).await?;
+    store.set_user("dog", &dog).await?;
     let (app_in_event_sender, app_in_event_receiver) = mpsc::channel(0);
     let (app_out_event_sender, app_out_event_receiver) = mpsc::channel(0);
     let id_handler = Arc::new(IdMessageHandler::new(store.clone())?);
@@ -78,11 +79,10 @@ async fn main() -> anyhow::Result<()> {
         id_handler.clone(),
     )?;
     let id = utils::generate_id(&peer)?;
-    let user_key = format!("/users/{}", &opt.name);
-    let user = store.get(&user_key).unwrap().unwrap();
+    let user = store.get_user(&opt.name).await.unwrap().unwrap();
     let mut user: IdUser = cbor::decode(&user).unwrap();
     user.id = Some(Cid::from_bytes(&id.id).unwrap()); 
-    store.put(&user_key, &user.to_bytes()).unwrap();
+    store.set_user(&opt.name, &user).await.unwrap();
     tokio::spawn(network.run());
     app::run(opt.name.clone(), store.clone(), app_out_event_sender, app_in_event_receiver)
         .await

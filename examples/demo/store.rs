@@ -2,14 +2,10 @@ use std::{collections::HashMap, sync::Mutex};
 
 use anyhow::Result;
 use idp2p_common::cbor;
+use idp2p_p2p::model::IdEntry;
 use serde::{de::DeserializeOwned, Serialize};
 
-#[trait_variant::make(Send)]
-pub trait KvStore {
-    async fn get<T: DeserializeOwned>(&self, key: &str) -> Result<Option<T>>;
-    async fn set<T: Serialize + Send + Sync>(&self, key: &str, value: &T) -> Result<()>;
-    async fn exists(&self, key: &str) -> Result<bool>;
-}
+use crate::IdUser;
 
 pub struct InMemoryKvStore {
     state: Mutex<HashMap<String, Vec<u8>>>,
@@ -21,9 +17,7 @@ impl InMemoryKvStore {
             state: Mutex::new(HashMap::new()),
         }
     }
-}
 
-impl KvStore for InMemoryKvStore {
     async fn exists(&self, key: &str) -> Result<bool> {
         let state = self.state.lock().unwrap();
         Ok(state.contains_key(key))
@@ -42,4 +36,28 @@ impl KvStore for InMemoryKvStore {
         }
         Ok(None)
     }
+
+    pub async fn get_id(&self, id: &str) -> Result<Option<IdEntry>> {
+        let id_key = format!("/identities/{}", id);
+        let id = self.get(&id_key).await?;
+        Ok(id)
+    }
+
+    pub async fn set_id(&self, id: &str, entry: &IdEntry) -> Result<()> {
+        let id_key = format!("/identities/{}", id);
+        self.set(&id_key, entry).await?;
+        Ok(())
+    }
+
+    pub async fn get_user(&self, username: &str) -> Result<Option<IdUser>> {
+        let user_key = format!("/users/{}", username);
+        let user = self.get(&user_key).await?;
+        Ok(user)
+    }
+
+    pub async fn set_user(&self, username: &str, user: &IdUser) -> Result<()> {
+        let user_key = format!("/users/{}", username);
+        self.set(&user_key, user).await?;
+        Ok(())
+    }  
 }

@@ -1,9 +1,8 @@
+use crate::{IdView, PersistedIdEvent, PersistedIdInception};
 use anyhow::Result;
 use cid::Cid;
 use serde::{Deserialize, Serialize};
-use std::{collections::HashMap, sync::Arc};
-
-use crate::{store::KvStore, IdView, PersistedIdEvent, PersistedIdInception};
+use std::collections::HashMap;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct PersistedId {
@@ -21,6 +20,7 @@ pub struct PersistedId {
 pub struct IdEntry {
     pub view: IdView,
     pub identity: PersistedId,
+    pub is_client: bool,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -30,25 +30,25 @@ pub struct IdMessage {
     pub payload: Vec<u8>,
 }
 
-pub struct IdStore<S: KvStore> {
-    kv: Arc<S>,
+#[trait_variant::make(Send)]
+pub trait IdVerifier {
+    async fn verify_inception(
+        &self,
+        version: u64,
+        inception: &PersistedIdInception,
+    ) -> Result<IdView>;
+    async fn verify_event(
+        &self,
+        version: u64,
+        view: &IdView,
+        event: &PersistedIdEvent,
+    ) -> Result<IdView>;
 }
 
-impl<S: KvStore> IdStore<S> {
-    pub fn new(kv: Arc<S>) -> Self {
-        Self { kv }
-    }
-
-    pub async fn get(&self, id: &str) -> Result<Option<IdEntry>> {
-        let id_key = format!("/identities/{}", id);
-        let id = self.kv.get(&id_key).await?;
-        Ok(id)
-    }
-
-    pub async fn set(&self, id: &str, entry: &IdEntry) -> Result<()> {
-        let id_key = format!("/identities/{}", id);
-        self.kv.set(&id_key, entry).await?;
-        Ok(())
-    } 
-
+#[trait_variant::make(Send)]
+pub trait IdStore {
+    async fn get_id(&self, id: &Cid) -> Result<Option<IdEntry>>;
+    async fn get_msg(&self, id: &Cid) -> Result<Option<IdMessage>>;
+    async fn set_id(&self, id: &Cid, value: &IdEntry) -> Result<()>;
+    async fn set_msg(&self, id: &Cid, value: &IdMessage) -> Result<()>;
 }

@@ -1,35 +1,21 @@
 use anyhow::Result;
 use cid::Cid;
-use futures::{
-    channel::mpsc::{self, Sender},
-    SinkExt,
-};
+use futures::{channel::mpsc::Sender, SinkExt};
 use idp2p_common::cbor;
 
 use libp2p::{gossipsub::TopicHash, PeerId};
-use std::{
-    collections::HashMap,
-    str::FromStr,
-    sync::{Arc, Mutex},
-};
-use wasmtime::{
-    component::{Component, Linker},
-    Config, Engine, Store,
-};
+use std::{str::FromStr, sync::Arc};
 
 use crate::{
     message::IdGossipMessageKind,
-    model::{IdEntry, IdMessage, IdStore},
-    store::KvStore,
+    model::{IdEntry, IdMessage, IdStore, IdVerifier},
     topic::IdTopic,
-    IdView, Idp2pId, PersistedIdEvent, PersistedIdInception,
 };
 
-pub struct IdMessageHandler<S: KvStore> {
-    kv: Arc<S>,
-    engine: Engine,
+pub struct IdMessageHandler<S: IdStore, V: IdVerifier> {
+    store: Arc<S>,
+    verifier: Arc<V>,
     sender: Sender<IdMessageHandlerCommand>,
-    id_components: Arc<Mutex<HashMap<u64, Component>>>,
 }
 
 pub enum IdMessageHandlerCommand {
@@ -37,18 +23,16 @@ pub enum IdMessageHandlerCommand {
     Request { peer: PeerId, message_id: String },
 }
 
-impl<S: KvStore> IdMessageHandler<S> {
-    pub fn new(kv: Arc<S>, sender: Sender<IdMessageHandlerCommand>) -> Result<Self> {
-        let engine = Engine::new(Config::new().wasm_component_model(true))?;
-
-        let components = HashMap::new();
-
-        let id_components = Arc::new(Mutex::new(components));
+impl<S: IdStore, V: IdVerifier> IdMessageHandler<S, V> {
+    pub fn new(
+        store: Arc<S>,
+        verifier: Arc<V>,
+        sender: Sender<IdMessageHandlerCommand>,
+    ) -> Result<Self> {
         let handler = Self {
-            kv,
-            engine,
+            store,
+            verifier,
             sender,
-            id_components,
         };
         Ok(handler)
     }
@@ -59,70 +43,75 @@ impl<S: KvStore> IdMessageHandler<S> {
         payload: &[u8],
     ) -> Result<Option<Vec<u8>>> {
         use IdGossipMessageKind::*;
-        let topic_str = topic.to_string();
-        let payload = cbor::decode(payload)?;
-        let id_store = IdStore::new(self.kv.clone());
-        match payload {
-            Resolve => {
-                let id_entry = id_store
-                    .get(&topic_str)
+        let id_topic = IdTopic::from_str(topic.as_str())?;
+        match id_topic {
+            IdTopic::Id(id) => {
+                let mut id_entry = self
+                    .store
+                    .get_id(&id)
                     .await?
                     .ok_or(anyhow::anyhow!("Client not found"))?;
-
-                let cmd = IdMessageHandlerCommand::Publish {
-                    topic: topic.to_owned(),
-                    payload: id_entry.identity.id,
-                };
-
-                self.sender.send(cmd).await?;
-                return Ok(None);
-            }
-            NotifyEvent { version, event } => {
-                let mut id_entry = id_store
-                    .get(&topic_str)
-                    .await?
-                    .ok_or(anyhow::anyhow!("Subscription not found"))?;
-                let view = self.verify_event(version, &id_entry.view, &event)?;
-                id_entry.view = view;
-                id_store.set(&topic_str, &id_entry).await?;
-                return Ok(None);
-            }
-            Provide { id } => {
-                let mut view = self.verify_inception(id.version, &id.inception)?;
-                for (version, event) in id.events.clone() {
-                    view = self.verify_event(version, &view, &event)?;
+                let payload = cbor::decode(payload)?;
+                match payload {
+                    Resolve => {
+                        let cmd = IdMessageHandlerCommand::Publish {
+                            topic: topic.to_owned(),
+                            payload: id_entry.identity.id,
+                        };
+                        self.sender.send(cmd).await?;
+                        return Ok(None);
+                    }
+                    NotifyEvent { version, event } => {
+                        let view = self
+                            .verifier
+                            .verify_event(version, &id_entry.view, &event)
+                            .await?;
+                        id_entry.view = view;
+                        self.store.set_id(&id, &id_entry).await?;
+                        return Ok(None);
+                    }
+                    Provide { id: pid } => {
+                        let mut view = self
+                            .verifier
+                            .verify_inception(pid.version, &pid.inception)
+                            .await?;
+                        for (version, event) in pid.events.clone() {
+                            view = self.verifier.verify_event(version, &view, &event).await?;
+                        }
+                        let entry = IdEntry {
+                            view,
+                            identity: pid.clone(),
+                            is_client: false,
+                        };
+                        self.store.set_id(&id, &entry).await?;
+                        return Ok(None);
+                    }
+                    NotifyMessage { id, providers } => {
+                        let cmd = IdMessageHandlerCommand::Request {
+                            peer: PeerId::from_str(&providers.get(0).unwrap())?,
+                            message_id: id.to_string(),
+                        };
+                        self.sender.send(cmd).await?;
+                        return Ok(None);
+                    }
+                    Other(payload) => {
+                        return Ok(Some(payload));
+                    }
                 }
-                let entry = IdEntry {
-                    view,
-                    identity: id.clone()
-                };
-                id_store.set(&topic_str, &entry).await?;
-                return Ok(None);
             }
-            NotifyMessage { id, providers } => {
-                let cmd = IdMessageHandlerCommand::Request {
-                    peer: PeerId::from_str(&providers.get(0).unwrap())?,
-                    message_id: id.to_string(),
-                };
-                self.sender.send(cmd).await?;
-                return Ok(None);
-            },
-            Other(payload) => {
-                return Ok(Some(payload));
-            }
+            IdTopic::Other(_) => todo!(),
         }
     }
 
     pub async fn handle_request_message(&self, peer: PeerId, message_id: Cid) -> Result<Vec<u8>> {
-        let message_id = format!("/messages/{}", message_id);
-        let message: Vec<u8> = self
-            .kv
-            .get(&message_id)
+        let message = self
+            .store
+            .get_msg(&message_id)
+            .await
             .map_err(anyhow::Error::msg)?
             .ok_or(anyhow::anyhow!("No message found"))?;
-        let message: IdMessage = cbor::decode(&message)?;
         for to in message.to {
-            let (id, _) = self.get_id(&to.to_string())?;
+            let id = self.store.get_id(&to).await?.ok_or(anyhow::anyhow!(""))?;
 
             if id.view.mediators.contains(&peer.to_string()) {
                 return Ok(message.payload.clone());
@@ -143,39 +132,7 @@ impl<S: KvStore> IdMessageHandler<S> {
             to: vec![],
             payload,
         };
-        let msg = cbor::encode(&msg)?;
-        self.kv.put(&format!("/messages/{}", message_id), &msg)?;
+        self.store.set_msg(&message_id, &msg).await?;
         Ok(())
-    }
-
-
-    fn get_component(&self, version: u64) -> Result<(Idp2pId, Store<()>)> {
-        let mut store = Store::new(&self.engine, ());
-        let component = self
-            .id_components
-            .lock()
-            .unwrap()
-            .get(&version)
-            .unwrap()
-            .clone();
-        let (id, _) = Idp2pId::instantiate(&mut store, &component, &Linker::new(&self.engine))?;
-        Ok((id, store))
-    }
-
-    fn verify_inception(&self, version: u64, inception: &PersistedIdInception) -> Result<IdView> {
-        let (verifier, mut store) = self.get_component(version)?;
-        let view = verifier.call_verify_inception(&mut store, inception)??;
-        Ok(view)
-    }
-
-    fn verify_event(
-        &self,
-        version: u64,
-        view: &IdView,
-        event: &PersistedIdEvent,
-    ) -> Result<IdView> {
-        let (verifier, mut store) = self.get_component(version)?;
-        let view = verifier.call_verify_event(&mut store, view, event)??;
-        Ok(view)
     }
 }

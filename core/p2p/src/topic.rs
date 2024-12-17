@@ -5,8 +5,7 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub enum IdTopic {
-    Client(Cid),
-    Subscription(Cid),
+    Id(Cid),
     Other(String)
 } 
 
