@@ -1,5 +1,9 @@
 use anyhow::Result;
 use cid::Cid;
+use futures::{
+    channel::mpsc::{self, Sender},
+    SinkExt,
+};
 use idp2p_common::cbor;
 
 use libp2p::{gossipsub::TopicHash, PeerId};
@@ -15,110 +19,98 @@ use wasmtime::{
 
 use crate::{
     message::IdGossipMessageKind,
-    model::{IdEntry, IdKind, IdMessage, IdTopic},
+    model::{IdEntry, IdMessage, IdStore},
     store::KvStore,
+    topic::IdTopic,
     IdView, Idp2pId, PersistedIdEvent, PersistedIdInception,
 };
 
 pub struct IdMessageHandler<S: KvStore> {
     kv: Arc<S>,
     engine: Engine,
+    sender: Sender<IdMessageHandlerCommand>,
     id_components: Arc<Mutex<HashMap<u64, Component>>>,
 }
 
-pub enum IdHandlerGossipCommand {
-    Publish {
-        topic: TopicHash,
-        payload: Vec<u8>,
-    },
-    Request {
-        peer: PeerId,
-        message_id: String,
-    },
-    None
+pub enum IdMessageHandlerCommand {
+    Publish { topic: TopicHash, payload: Vec<u8> },
+    Request { peer: PeerId, message_id: String },
 }
 
 impl<S: KvStore> IdMessageHandler<S> {
-    pub fn new(
-        kv: Arc<S>
-    ) -> Result<Self> {
+    pub fn new(kv: Arc<S>, sender: Sender<IdMessageHandlerCommand>) -> Result<Self> {
         let engine = Engine::new(Config::new().wasm_component_model(true))?;
 
         let components = HashMap::new();
-        // Load components from store
+
         let id_components = Arc::new(Mutex::new(components));
         let handler = Self {
             kv,
             engine,
-            id_components
+            sender,
+            id_components,
         };
         Ok(handler)
     }
 
     pub async fn handle_gossip_message(
-        &self,
+        &mut self,
         topic: &TopicHash,
-        msg: &IdGossipMessageKind,
-    ) -> Result<IdHandlerGossipCommand> {
+        payload: &[u8],
+    ) -> Result<Option<Vec<u8>>> {
         use IdGossipMessageKind::*;
-        let topic_key = format!("/topics/{}", topic);
-        let id_topic: Vec<u8> = self
-            .kv
-            .get(&topic_key)
-            .map_err(anyhow::Error::msg)?
-            .ok_or(anyhow::anyhow!("No topic found"))?;
-        let id_topic: IdTopic = cbor::decode(&id_topic)?;
-        match id_topic {
-            IdTopic::Client => {
-                let (mut id_entry, id_key) = self.get_id(topic.as_str())?;
-                match msg {
-                    Resolve => {
-                        return Ok(IdHandlerGossipCommand::Publish {
-                                topic: topic.to_owned(),
-                                payload: id_entry.identity.id,
-                            });
-                    }
-                    NotifyEvent { version, event } => {
-                        let view = self.verify_event(*version, &id_entry.view, &event)?;
-                        id_entry.view = view;
-                        self.kv.put(&id_key, &cbor::encode(&id_entry)?)?;
-                    }
-                    NotifyMessage { id, providers } => {
-                        return Ok(IdHandlerGossipCommand::Request {
-                                peer: PeerId::from_str(&providers.get(0).unwrap())?,
-                                message_id: id.to_string(),
-                            });
-                    }
-                    _ => {}
-                }
-            }
-            IdTopic::Subscription => {
-                let (mut id_entry, id_key) = self.get_id(topic.as_str())?;
-                match msg {
-                    NotifyEvent { version, event } => {
-                        let view = self.verify_event(*version, &id_entry.view, &event)?;
-                        id_entry.view = view;
-                        self.kv.put(&id_key, &cbor::encode(&id_entry)?)?;
-                    }
-                    Provide { id } => {
-                        let mut view = self.verify_inception(id.version, &id.inception)?;
-                        for (version, event) in id.events.clone() {
-                            view = self.verify_event(version, &view, &event)?;
-                        }
-                        let entry = IdEntry {
-                            view,
-                            identity: id.clone(),
-                            kind: IdKind::Subscriber,
-                        };
-                        self.kv.put(&id_key, &cbor::encode(&entry)?)?;
-                    }
-                    _ => {}
-                }
-            }
-            IdTopic::Custom => {}
-        }
+        let topic_str = topic.to_string();
+        let payload = cbor::decode(payload)?;
+        let id_store = IdStore::new(self.kv.clone());
+        match payload {
+            Resolve => {
+                let id_entry = id_store
+                    .get(&topic_str)
+                    .await?
+                    .ok_or(anyhow::anyhow!("Client not found"))?;
 
-        Ok(IdHandlerGossipCommand::None)
+                let cmd = IdMessageHandlerCommand::Publish {
+                    topic: topic.to_owned(),
+                    payload: id_entry.identity.id,
+                };
+
+                self.sender.send(cmd).await?;
+                return Ok(None);
+            }
+            NotifyEvent { version, event } => {
+                let mut id_entry = id_store
+                    .get(&topic_str)
+                    .await?
+                    .ok_or(anyhow::anyhow!("Subscription not found"))?;
+                let view = self.verify_event(version, &id_entry.view, &event)?;
+                id_entry.view = view;
+                id_store.set(&topic_str, &id_entry).await?;
+                return Ok(None);
+            }
+            Provide { id } => {
+                let mut view = self.verify_inception(id.version, &id.inception)?;
+                for (version, event) in id.events.clone() {
+                    view = self.verify_event(version, &view, &event)?;
+                }
+                let entry = IdEntry {
+                    view,
+                    identity: id.clone()
+                };
+                id_store.set(&topic_str, &entry).await?;
+                return Ok(None);
+            }
+            NotifyMessage { id, providers } => {
+                let cmd = IdMessageHandlerCommand::Request {
+                    peer: PeerId::from_str(&providers.get(0).unwrap())?,
+                    message_id: id.to_string(),
+                };
+                self.sender.send(cmd).await?;
+                return Ok(None);
+            },
+            Other(payload) => {
+                return Ok(Some(payload));
+            }
+        }
     }
 
     pub async fn handle_request_message(&self, peer: PeerId, message_id: Cid) -> Result<Vec<u8>> {
@@ -140,27 +132,22 @@ impl<S: KvStore> IdMessageHandler<S> {
         anyhow::bail!("Unauthorized message");
     }
 
-    pub async fn handle_response_message(&self, from: Cid, message_id: Cid, payload: Vec<u8>) -> Result<()> {
-        let msg = IdMessage{
+    pub async fn handle_response_message(
+        &self,
+        from: Cid,
+        message_id: Cid,
+        payload: Vec<u8>,
+    ) -> Result<()> {
+        let msg = IdMessage {
             from,
             to: vec![],
-            payload
+            payload,
         };
         let msg = cbor::encode(&msg)?;
         self.kv.put(&format!("/messages/{}", message_id), &msg)?;
         Ok(())
     }
 
-    fn get_id(&self, id: &str) -> Result<(IdEntry, String)> {
-        let id_key = format!("/identities/{}", id);
-        let id_entry: Vec<u8> = self
-            .kv
-            .get(&id_key)
-            .map_err(anyhow::Error::msg)?
-            .ok_or(anyhow::anyhow!("No topic found"))?;
-        let id_entry: IdEntry = cbor::decode(&id_entry)?;
-        Ok((id_entry, id_key))
-    }
 
     fn get_component(&self, version: u64) -> Result<(Idp2pId, Store<()>)> {
         let mut store = Store::new(&self.engine, ());

@@ -69,3 +69,4 @@ chrono = { version = "0", default-features = false, features = [
     "now",
 ] }
 futures = "0"
+trait-variant="0"

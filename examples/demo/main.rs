@@ -26,11 +26,6 @@ struct Opt {
     name: String,
 }
 
-pub struct IdUsers {
-    pub users: HashMap<String, IdUser>,
-    pub current: String,
-}
-
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct IdUser {
     name: String,

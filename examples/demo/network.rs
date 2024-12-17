@@ -7,7 +7,7 @@ use idp2p_p2p::{
     store::KvStore,
 };
 use libp2p::{
-    gossipsub::{self, Behaviour as GossipsubBehaviour},
+    gossipsub::{self, Behaviour as GossipsubBehaviour, IdentTopic},
     identity::Keypair,
     mdns, noise,
     request_response::{self, cbor::Behaviour as ReqResBehaviour, ProtocolSupport},
@@ -18,23 +18,24 @@ use serde::{Deserialize, Serialize};
 use std::{
     hash::{DefaultHasher, Hash, Hasher},
     str::FromStr,
-    sync::{Arc, Mutex},
+    sync::Arc,
     time::Duration,
 };
 
 use crate::{
-    app::{IdAppInEvent, IdAppOutEvent}, IdUser, IdUsers
+    app::{IdAppInEvent, IdAppOutEvent},
+    IdUser,
 };
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum IdRequestKind {
-    Get,
+    Meet,
     Message(Cid),
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum IdResponseKind {
-    GetResult { username: String, id: Cid },
+    MeetResult { username: String, id: Cid },
     Message(String),
 }
 
@@ -65,7 +66,7 @@ impl<S: KvStore> IdNetworkEventLoop<S> {
         let port = match current_user.as_str() {
             "alice" => 43727,
             "bob" => 43728,
-            "charlie" => 43729,
+            "dog" => 43729,
             _ => panic!("Unknown user"),
         };
         let swarm = create_swarm(port)?;
@@ -83,7 +84,11 @@ impl<S: KvStore> IdNetworkEventLoop<S> {
     }
 
     pub fn get_user(&self, username: &str) -> IdUser {
-        let user = self.store.get(&format!("/users/{}", username)).unwrap().unwrap();
+        let user = self
+            .store
+            .get(&format!("/users/{}", username))
+            .unwrap()
+            .unwrap();
         cbor::decode(&user).unwrap()
     }
 
@@ -105,6 +110,10 @@ impl<S: KvStore> IdNetworkEventLoop<S> {
             SendMessage(message) => {
                 println!("Sending message: {}", message);
             }
+            Connect(cid) => {
+                //IdGossipMessageKind::Resolve;
+                //self.swarm.behaviour_mut().gossipsub.publish(topic, data)
+            },
         }
         Ok(())
     }
@@ -161,15 +170,14 @@ impl<S: KvStore> IdNetworkEventLoop<S> {
                             .send_response(channel, message)
                             .unwrap();
                     }
-                    IdRequestKind::Get => {
-                        eprintln!("Get request");
+                    IdRequestKind::Meet => {
                         let user_id = self.get_user(&self.current_user).id.unwrap().clone();
                         self.swarm
                             .behaviour_mut()
                             .request_response
                             .send_response(
                                 channel,
-                                IdResponseKind::GetResult {
+                                IdResponseKind::MeetResult {
                                     username: self.current_user.clone(),
                                     id: user_id,
                                 },
@@ -183,18 +191,25 @@ impl<S: KvStore> IdNetworkEventLoop<S> {
                             .send(IdAppInEvent::GotMessage(msg))
                             .await?;
                     }
-                    IdResponseKind::GetResult { username, id } => {
-                        let user = self.store.get( &format!("/users/{}", username)).unwrap().unwrap();
+                    IdResponseKind::MeetResult { username, id } => {
+                        let user = self
+                            .store
+                            .get(&format!("/users/{}", username))
+                            .unwrap()
+                            .unwrap();
                         let mut user = IdUser::from_bytes(&user);
                         user.id = Some(id);
-                        self.store.put(&format!("/users/{}", username), &user.to_bytes()).unwrap();
-                        println!("Get result {}", username);
+                        self.store
+                            .put(&format!("/users/{}", username), &user.to_bytes())
+                            .unwrap();
+                        self.swarm
+                            .behaviour_mut()
+                            .gossipsub
+                            .subscribe(&IdentTopic::new(id.to_string()))?;
                     }
                 },
             },
             SwarmEvent::NewListenAddr { address, .. } => {
-                // sleep for a second to avoid a race condition with the
-                //tokio::time::sleep(Duration::from_secs(1)).await;
                 self.event_sender
                     .send(IdAppInEvent::ListenOn(address.to_string()))
                     .await
@@ -222,11 +237,11 @@ impl<S: KvStore> IdNetworkEventLoop<S> {
             }
 
             SwarmEvent::ConnectionEstablished { peer_id, .. } => {
-                let request_id = self
+                let _ = self
                     .swarm
                     .behaviour_mut()
                     .request_response
-                    .send_request(&peer_id, IdRequestKind::Get);
+                    .send_request(&peer_id, IdRequestKind::Meet);
             }
             _ => {}
         }

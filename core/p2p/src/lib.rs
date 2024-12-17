@@ -4,6 +4,7 @@ pub mod message;
 pub mod model;
 pub mod handler;
 pub mod store;
+pub mod topic;
 
 bindgen!({
     world:"idp2p-id",

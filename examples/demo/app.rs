@@ -1,3 +1,4 @@
+use cid::Cid;
 use futures::channel::mpsc;
 use futures::SinkExt;
 use idp2p_common::cbor;
@@ -13,13 +14,12 @@ use ratatui::{
     },
     widgets::{Block, Borders, List, ListItem, Paragraph},
 };
-use std::sync::{Arc};
+use std::sync::Arc;
 use std::{error::Error, io};
 use tui_input::backend::crossterm::EventHandler;
 use tui_input::Input;
 
 use crate::IdUser;
-
 
 pub(crate) enum IdAppInEvent {
     ListenOn(String),
@@ -32,6 +32,7 @@ pub(crate) enum IdAppInEvent {
 }
 
 pub(crate) enum IdAppOutEvent {
+    Connect(Cid),
     SendMessage(String),
 }
 
@@ -88,7 +89,11 @@ impl App {
     }
 
     pub fn get_user(&self, username: &str) -> IdUser {
-        let user = self.store.get(&format!("/users/{}", username)).unwrap().unwrap();
+        let user = self
+            .store
+            .get(&format!("/users/{}", username))
+            .unwrap()
+            .unwrap();
         cbor::decode(&user).unwrap()
     }
 }
@@ -136,6 +141,29 @@ async fn run_app<B: Backend>(terminal: &mut Terminal<B>, mut app: App) -> io::Re
             match app.input_mode {
                 InputMode::Normal => match key.code {
                     KeyCode::Char('e') => {
+                        let alice = app.get_user("alice");
+                        let bob = app.get_user("bob");
+                        let dog = app.get_user("dog");
+
+                        if app.current_user != "alice" && alice.id.is_some() {
+                            app.event_sender
+                                .send(IdAppOutEvent::Connect(alice.id.unwrap()))
+                                .await
+                                .unwrap();
+                        }
+                        if app.current_user != "bob" && bob.id.is_some() {
+                            app.event_sender
+                                .send(IdAppOutEvent::Connect(bob.id.unwrap()))
+                                .await
+                                .unwrap();
+                        }
+                        if app.current_user != "dog" && dog.id.is_some() {
+                            app.event_sender
+                                .send(IdAppOutEvent::Connect(dog.id.unwrap()))
+                                .await
+                                .unwrap();
+                        }
+
                         app.input_mode = InputMode::Editing;
                         app.show_help_popup = false;
                     }
@@ -197,12 +225,11 @@ fn ui(f: &mut Frame, app: &App) {
         )
         .split(f.area());
 
+    let title = app.current_user.to_uppercase();
     // Render header
     let header = Paragraph::new(Span::styled(
-        &app.current_user,
-        Style::default()
-            .fg(Color::Cyan)
-            .add_modifier(Modifier::BOLD),
+        &title,
+        Style::default().fg(Color::Red).add_modifier(Modifier::BOLD),
     ));
     f.render_widget(header, chunks[0]);
 
@@ -258,7 +285,7 @@ fn ui(f: &mut Frame, app: &App) {
             chunks[2].y + 1,
         ));
     }
-    
+
     // Render messages
     let messages: Vec<ListItem> = app
         .messages

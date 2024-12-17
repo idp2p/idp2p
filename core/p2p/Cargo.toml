@@ -16,5 +16,6 @@ chrono = { workspace = true }
 wasmtime = { workspace = true }
 tokio ={ workspace = true}
 futures = { workspace = true }
+trait-variant = { workspace = true}
 idp2p-common = { path = "../../common" }
 idp2p-id = { path = "../id" }
