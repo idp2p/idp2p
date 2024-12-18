@@ -44,6 +44,7 @@ enum InputMode {
 /// App holds the state of the application
 struct App {
     current_user: String,
+    users: Vec<String>,
     store: Arc<InMemoryKvStore>,
     /// Current value of the input box
     input: Input,
@@ -68,6 +69,7 @@ impl App {
     ) -> Self {
         Self {
             current_user: current_user,
+            users: vec![],
             store: store,
             input: Input::default(),
             input_mode: InputMode::Normal,
@@ -125,6 +127,19 @@ pub(crate) async fn run(
 async fn run_app<B: Backend>(terminal: &mut Terminal<B>, mut app: App) -> io::Result<()> {
     loop {
         terminal.draw(|f| ui(f, &app))?;
+        let alice = format!(
+            "Alice - {:?}",
+            app.store.get_user("alice").await.unwrap().unwrap().id
+        );
+        let bob = format!(
+            "Bob - {:?}",
+            app.store.get_user("bob").await.unwrap().unwrap().id
+        );
+        let dog = format!(
+            "Dog - {:?}",
+            app.store.get_user("dog").await.unwrap().unwrap().id
+        );
+        app.users = vec![alice, bob, dog];
         while let Ok(Some(event)) = app.event_receiver.try_next() {
             app.handle_event(event);
         }
@@ -247,12 +262,14 @@ fn ui(f: &mut Frame, app: &App) {
             Style::default(),
         ),
     };
-    let alice = format!("Alice - {:?}", app.get_user("alice").id);
-    let bob = format!("Bob - {:?}", app.get_user("bob").id);
-    let dog = format!("Dog - {:?}", app.get_user("dog").id);
 
-    //println!("{:?}", app.users.lock().unwrap().users);
-    let text = Text::from(format!("{alice}\n{bob}\n{dog}\n{msg:?}")).style(style);
+    let text = Text::from(format!(
+        "{:?}\n{:?}\n{:?}\n{msg:?}",
+        app.users.get(0),
+        app.users.get(1),
+        app.users.get(2)
+    ))
+    .style(style);
 
     let help_message = Paragraph::new(text);
     f.render_widget(help_message, chunks[1]);

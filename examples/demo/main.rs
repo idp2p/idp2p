@@ -1,23 +1,20 @@
-use std::{
-    collections::HashMap,
-    sync::{Arc, Mutex},
-};
+use std::{collections::HashMap, sync::Arc};
 
 use cid::Cid;
-use futures::channel::mpsc;
+use futures::{channel::mpsc, lock::Mutex};
 use idp2p_common::{cbor, cid::CidExt};
-use idp2p_p2p::{
-    handler::IdMessageHandler,
-};
+use idp2p_p2p::{handler::IdMessageHandler, verifier::IdVerifierImpl};
+use impls::InMemoryIdStore;
 use network::IdNetworkEventLoop;
 use serde::{Deserialize, Serialize};
 use store::InMemoryKvStore;
 use structopt::StructOpt;
 use tracing_subscriber::EnvFilter;
 
-mod store;
 mod app;
+mod impls;
 mod network;
+mod store;
 mod utils;
 
 #[derive(Debug, StructOpt)]
@@ -68,9 +65,16 @@ async fn main() -> anyhow::Result<()> {
     store.set_user("alice", &alice).await?;
     store.set_user("bob", &bob).await?;
     store.set_user("dog", &dog).await?;
+    let (handler_cmd_sender, handler_cmd_receiver) = mpsc::channel(0);
     let (app_in_event_sender, app_in_event_receiver) = mpsc::channel(0);
     let (app_out_event_sender, app_out_event_receiver) = mpsc::channel(0);
-    let id_handler = Arc::new(IdMessageHandler::new(store.clone())?);
+    let vimpl = IdVerifierImpl::new(HashMap::new())?;
+    let id_store = Arc::new(InMemoryIdStore(store.clone()));
+    let mut id_handler = Arc::new(Mutex::new(IdMessageHandler::new(
+        id_store.clone(),
+        Arc::new(vimpl),
+        handler_cmd_sender.clone(),
+    )?));
     let (peer, network) = IdNetworkEventLoop::new(
         opt.name.clone(),
         store.clone(),
@@ -79,13 +83,17 @@ async fn main() -> anyhow::Result<()> {
         id_handler.clone(),
     )?;
     let id = utils::generate_id(&peer)?;
-    let user = store.get_user(&opt.name).await.unwrap().unwrap();
-    let mut user: IdUser = cbor::decode(&user).unwrap();
-    user.id = Some(Cid::from_bytes(&id.id).unwrap()); 
+    let mut user = store.get_user(&opt.name).await.unwrap().unwrap();
+    user.id = Some(Cid::from_bytes(&id.id).unwrap());
     store.set_user(&opt.name, &user).await.unwrap();
     tokio::spawn(network.run());
-    app::run(opt.name.clone(), store.clone(), app_out_event_sender, app_in_event_receiver)
-        .await
-        .unwrap();
+    app::run(
+        opt.name.clone(),
+        store.clone(),
+        app_out_event_sender,
+        app_in_event_receiver,
+    )
+    .await
+    .unwrap();
     Ok(())
 }
