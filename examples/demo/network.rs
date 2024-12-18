@@ -1,5 +1,5 @@
 use cid::Cid;
-use futures::{channel::mpsc, lock::Mutex, SinkExt, StreamExt};
+use futures::{channel::mpsc, SinkExt, StreamExt};
 use idp2p_common::cbor;
 use idp2p_p2p::{
     handler::IdMessageHandler,
@@ -44,22 +44,22 @@ pub(crate) struct Idp2pBehaviour {
     pub(crate) mdns: mdns::tokio::Behaviour,
 }
 
-pub(crate) struct IdNetworkEventLoop<S: IdStore + Send, V: IdVerifier + Send> {
+pub(crate) struct IdNetworkEventLoop<S: IdStore, V: IdVerifier> {
     current_user: String,
     store: Arc<InMemoryKvStore>,
     swarm: Swarm<Idp2pBehaviour>,
     event_sender: mpsc::Sender<IdAppInEvent>,
     event_receiver: mpsc::Receiver<IdAppOutEvent>,
-    id_handler: Arc<Mutex<IdMessageHandler<S, V>>>,
+    id_handler: IdMessageHandler<S, V>,
 }
 
-impl<S: IdStore + Send, V: IdVerifier + Send> IdNetworkEventLoop<S, V> {
+impl<S: IdStore, V: IdVerifier> IdNetworkEventLoop<S, V> {
     pub fn new(
         current_user: String,
         store: Arc<InMemoryKvStore>,
         event_sender: mpsc::Sender<IdAppInEvent>,
         event_receiver: mpsc::Receiver<IdAppOutEvent>,
-        id_handler: Arc<Mutex<IdMessageHandler<S, V>>>,
+        id_handler: IdMessageHandler<S, V>,
     ) -> anyhow::Result<(PeerId, Self)> {
         let port = match current_user.as_str() {
             "alice" => 43727,
@@ -119,8 +119,6 @@ impl<S: IdStore + Send, V: IdVerifier + Send> IdNetworkEventLoop<S, V> {
                     message,
                 } => {
                     self.id_handler
-                        .lock()
-                        .await
                         .handle_gossip_message(&message.topic, &message.data)
                         .await?;
                 }
@@ -135,8 +133,6 @@ impl<S: IdStore + Send, V: IdVerifier + Send> IdNetworkEventLoop<S, V> {
                     IdRequestKind::Message(cid) => {
                         let message = self
                             .id_handler
-                            .lock()
-                            .await
                             .handle_request_message(peer, cid)
                             .await?;
                         let message = cbor::decode(&message)?;

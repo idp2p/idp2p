@@ -16,20 +16,22 @@ pub struct IdVerifierImpl {
 impl IdVerifierImpl {
     pub fn new(components: HashMap<u64, Vec<u8>>) -> Result<Self> {
         let engine = Engine::new(Config::new().wasm_component_model(true))?;
-        let mut id_components: HashMap<u64, Component> = HashMap::new();
-        for (version, bytes) in components {
-            id_components.insert(version, convert_to_component(&bytes));
-        }
-        let handler = Self {
+        let id_components: HashMap<u64, Component> = HashMap::new();
+
+        let mut handler = Self {
             engine,
             id_components,
         };
+        for (version, bytes) in components {
+            handler.add_component(version, &bytes);
+        }
         Ok(handler)
     }
 
     pub fn add_component(&mut self, version: u64, bytes: &[u8]) {
-        self.id_components
-            .insert(version, convert_to_component(&bytes));
+        let component =
+            Component::from_binary(&self.engine, &convert_to_component(&bytes)).unwrap();
+        self.id_components.insert(version, component);
     }
 
     fn get_component(&self, version: u64) -> Result<(Idp2pId, Store<()>)> {
@@ -62,6 +64,10 @@ impl IdVerifier for IdVerifierImpl {
     }
 }
 
-fn convert_to_component(bytes: &[u8]) -> Component {
-    todo!()
+fn convert_to_component(bytes: &[u8]) -> Vec<u8> {
+    wit_component::ComponentEncoder::default()
+        .module(&bytes)
+        .unwrap()
+        .encode()
+        .unwrap()
 }

@@ -2,7 +2,6 @@ use crate::store::InMemoryKvStore;
 use cid::Cid;
 use futures::channel::mpsc;
 use futures::SinkExt;
-use idp2p_common::cbor;
 use layout::Flex;
 use ratatui::prelude::*;
 use ratatui::widgets::Clear;
@@ -18,8 +17,6 @@ use std::sync::Arc;
 use std::{error::Error, io};
 use tui_input::backend::crossterm::EventHandler;
 use tui_input::Input;
-
-use crate::IdUser;
 
 pub(crate) enum IdAppInEvent {
     ListenOn(String),
@@ -43,8 +40,11 @@ enum InputMode {
 
 /// App holds the state of the application
 struct App {
+    /// Current user
     current_user: String,
+    /// List of users
     users: Vec<String>,
+    /// Store
     store: Arc<InMemoryKvStore>,
     /// Current value of the input box
     input: Input,
@@ -83,7 +83,7 @@ impl App {
     fn handle_event(&mut self, event: IdAppInEvent) {
         match event {
             IdAppInEvent::ListenOn(addr) => {
-                println!("Listening on {} as {}", addr, self.current_user);
+                //println!("Listening on {} as {}", addr, self.current_user);
             }
             IdAppInEvent::Resolved { id, peer, name } => todo!(),
             IdAppInEvent::GotMessage(_) => todo!(),
@@ -127,19 +127,21 @@ pub(crate) async fn run(
 async fn run_app<B: Backend>(terminal: &mut Terminal<B>, mut app: App) -> io::Result<()> {
     loop {
         terminal.draw(|f| ui(f, &app))?;
-        let alice = format!(
-            "Alice - {:?}",
-            app.store.get_user("alice").await.unwrap().unwrap().id
-        );
-        let bob = format!(
-            "Bob - {:?}",
-            app.store.get_user("bob").await.unwrap().unwrap().id
-        );
-        let dog = format!(
-            "Dog - {:?}",
-            app.store.get_user("dog").await.unwrap().unwrap().id
-        );
-        app.users = vec![alice, bob, dog];
+        let alice = app.store.get_user("alice").await.unwrap().unwrap();
+        let bob = app.store.get_user("bob").await.unwrap().unwrap();
+        let dog = app.store.get_user("dog").await.unwrap().unwrap();
+        let mut users = vec![];
+        if let Some(id) = alice.id {
+            users.push(format!("Alice - {}", id));
+        }
+        if let Some(id) = bob.id {
+            users.push(format!("Bob - {}", id));
+        }
+        if let Some(id) = dog.id {
+            users.push(format!("Dog - {}", id));
+        }
+        app.users = users;
+
         while let Ok(Some(event)) = app.event_receiver.try_next() {
             app.handle_event(event);
         }
@@ -262,14 +264,11 @@ fn ui(f: &mut Frame, app: &App) {
             Style::default(),
         ),
     };
-
-    let text = Text::from(format!(
-        "{:?}\n{:?}\n{:?}\n{msg:?}",
-        app.users.get(0),
-        app.users.get(1),
-        app.users.get(2)
-    ))
-    .style(style);
+    let mut text = "".to_owned();
+    for user in app.users.iter() {
+        text.push_str(format!("{}\n", user).as_str());
+    }
+    let text = Text::from(text).style(style);
 
     let help_message = Paragraph::new(text);
     f.render_widget(help_message, chunks[1]);
