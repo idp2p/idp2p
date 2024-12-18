@@ -4,15 +4,13 @@ use cid::Cid;
 use futures::{channel::mpsc, lock::Mutex};
 use idp2p_common::{cbor, cid::CidExt};
 use idp2p_p2p::{handler::IdMessageHandler, verifier::IdVerifierImpl};
-use impls::InMemoryIdStore;
 use network::IdNetworkEventLoop;
 use serde::{Deserialize, Serialize};
-use store::InMemoryKvStore;
+use store::{InMemoryIdStore, InMemoryKvStore};
 use structopt::StructOpt;
 use tracing_subscriber::EnvFilter;
 
 mod app;
-mod impls;
 mod network;
 mod store;
 mod utils;
@@ -70,7 +68,7 @@ async fn main() -> anyhow::Result<()> {
     let (app_out_event_sender, app_out_event_receiver) = mpsc::channel(0);
     let vimpl = IdVerifierImpl::new(HashMap::new())?;
     let id_store = Arc::new(InMemoryIdStore(store.clone()));
-    let mut id_handler = Arc::new(Mutex::new(IdMessageHandler::new(
+    let id_handler = Arc::new(Mutex::new(IdMessageHandler::new(
         id_store.clone(),
         Arc::new(vimpl),
         handler_cmd_sender.clone(),
