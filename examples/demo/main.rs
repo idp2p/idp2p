@@ -25,7 +25,7 @@ struct Opt {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct IdUser {
     name: String,
-    id: Option<Cid>,
+    id: Option<String>,
 }
 
 #[tokio::main]
@@ -69,9 +69,9 @@ async fn main() -> anyhow::Result<()> {
         network_cmd_receiver,
         id_handler,
     )?;
-    let id = utils::generate_id(&peer)?;
+    let (id, pid) = utils::generate_id(&peer)?;
     let mut user = store.get_user(&opt.name).await.unwrap().unwrap();
-    user.id = Some(Cid::from_bytes(&id.id).unwrap());
+    user.id = Some(id);
     store.set_user(&opt.name, &user).await.unwrap();
     tokio::spawn(network.run());
 

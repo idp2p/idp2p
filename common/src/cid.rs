@@ -1,4 +1,4 @@
-use cid:: Cid;
+use cid::Cid;
 use multihash::Multihash;
 
 use crate::{utils::sha256_hash, SHA2_256_CODE};
@@ -7,6 +7,7 @@ pub trait CidExt {
     fn ensure(&self, input: &[u8]) -> anyhow::Result<()>;
     fn create(code: u64, input: &[u8]) -> anyhow::Result<Cid>;
     fn from_bytes(bytes: &[u8]) -> anyhow::Result<Cid>;
+    fn to_id_string(&self) -> String;
 }
 
 impl CidExt for Cid {
@@ -36,5 +37,9 @@ impl CidExt for Cid {
 
     fn from_bytes(bytes: &[u8]) -> anyhow::Result<Cid> {
         Ok(Cid::try_from(bytes).map_err(anyhow::Error::msg)?)
+    }
+
+    fn to_id_string(&self) -> String {
+        format!("idp2p://{}", self.to_string())
     }
 }

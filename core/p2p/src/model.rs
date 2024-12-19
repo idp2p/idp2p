@@ -1,6 +1,5 @@
 use crate::{IdView, PersistedIdEvent, PersistedIdInception};
 use anyhow::Result;
-use cid::Cid;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
@@ -25,8 +24,8 @@ pub struct IdEntry {
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct IdMessage {
-    pub from: Cid,
-    pub to: Vec<Cid>,
+    pub from: String,
+    pub to: Vec<String>,
     pub payload: Vec<u8>,
 }
 
@@ -47,8 +46,8 @@ pub trait IdVerifier {
 
 #[trait_variant::make(Send)]
 pub trait IdStore {
-    async fn get_id(&self, id: &Cid) -> Result<Option<IdEntry>>;
-    async fn get_msg(&self, id: &Cid) -> Result<Option<IdMessage>>;
-    async fn set_id(&self, id: &Cid, value: &IdEntry) -> Result<()>;
-    async fn set_msg(&self, id: &Cid, value: &IdMessage) -> Result<()>;
+    async fn get_id(&self, id: &str) -> Result<Option<IdEntry>>;
+    async fn get_msg(&self, id: &str) -> Result<Option<IdMessage>>;
+    async fn set_id(&self, id: &str, value: &IdEntry) -> Result<()>;
+    async fn set_msg(&self, id: &str, value: &IdMessage) -> Result<()>;
 }

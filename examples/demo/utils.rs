@@ -10,7 +10,7 @@ use idp2p_p2p::{model::PersistedId, PersistedIdInception};
 use libp2p::PeerId;
 use rand::rngs::OsRng;
 
-pub fn generate_id(mediator: &PeerId) -> Result<PersistedId> {
+pub fn generate_id(mediator: &PeerId) -> Result<(String, PersistedId)> {
     let mut csprng = OsRng;
     let signing_key: SigningKey = SigningKey::generate(&mut csprng);
     let inception = generate(&signing_key.to_bytes(), &mediator.to_string())?;
@@ -25,7 +25,8 @@ pub fn generate_id(mediator: &PeerId) -> Result<PersistedId> {
         },
         events: HashMap::new(),
     };
-    Ok(persisted_id)
+    let id = cid.to_string();
+    Ok((id, persisted_id))
 }
 
 pub fn generate(signer: &[u8], mediator: &str) -> anyhow::Result<IdInception> {

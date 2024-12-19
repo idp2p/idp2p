@@ -57,7 +57,7 @@ world idp2p-id {
 
     record id-view {
         // Identifier 
-        id: cid,
+        id: string,
         // Multi signature method   
         config: id-config,
         // State of the identity
@@ -75,8 +75,8 @@ world idp2p-id {
         // All signers
         all-states: list<cid>,
     }
-
+    
     export verify-inception: func(incepiton: persisted-id-inception) -> result<id-view, id-inception-error>;
 
-    export verify-event: func(view: id-view, event: persisted-id-event) -> result<id-view, id-event-error>;
+    export verify-event: func(view: id-view, event: persisted-id-event) -> result<id-view, id-event-error>;    
 }

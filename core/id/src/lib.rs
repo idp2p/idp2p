@@ -1,3 +1,5 @@
+use idp2p_common::cid::CidExt;
+
 pub mod internal;
 pub mod verify;
 

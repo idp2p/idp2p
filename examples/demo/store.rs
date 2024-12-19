@@ -49,25 +49,25 @@ impl InMemoryKvStore {
 pub struct InMemoryIdStore(pub Arc<InMemoryKvStore>);
 
 impl IdStore for InMemoryIdStore {
-    async fn get_id(&self, id: &Cid) -> Result<Option<IdEntry>> {
+    async fn get_id(&self, id: &str) -> Result<Option<IdEntry>> {
         let id_key = format!("/identities/{}", id);
         let id = self.0.get(&id_key).await?;
         Ok(id)
     }
 
-    async fn get_msg(&self, id: &Cid) -> Result<Option<IdMessage>> {
+    async fn get_msg(&self, id: &str) -> Result<Option<IdMessage>> {
         let msg_key = format!("/messages/{}", id);
         let msg = self.0.get(&msg_key).await?;
         Ok(msg)
     }
 
-    async fn set_id(&self, id: &Cid, entry: &IdEntry) -> Result<()> {
+    async fn set_id(&self, id: &str, entry: &IdEntry) -> Result<()> {
         let id_key = format!("/identities/{}", id);
         self.0.set(&id_key, entry).await?;
         Ok(())
     }
 
-    async fn set_msg(&self, id: &Cid, msg: &IdMessage) -> Result<()> {
+    async fn set_msg(&self, id: &str, msg: &IdMessage) -> Result<()> {
         let msg_key = format!("/messages/{}", id);
         self.0.set(&msg_key, msg).await?;
         Ok(())

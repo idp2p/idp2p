@@ -134,13 +134,13 @@ async fn run_app<B: Backend>(terminal: &mut Terminal<B>, mut app: App) -> io::Re
         let bob = app.store.get_user("bob").await.unwrap().unwrap();
         let dog = app.store.get_user("dog").await.unwrap().unwrap();
         let mut users = vec![];
-        if let Some(id) = alice.id {
+        if let Some(id) = alice.id.clone() {
             users.push(format!("Alice - {}", id));
         }
-        if let Some(id) = bob.id {
+        if let Some(id) = bob.id.clone() {
             users.push(format!("Bob - {}", id));
         }
-        if let Some(id) = dog.id {
+        if let Some(id) = dog.id.clone() {
             users.push(format!("Dog - {}", id));
         }
         app.users = users;
@@ -157,7 +157,7 @@ async fn run_app<B: Backend>(terminal: &mut Terminal<B>, mut app: App) -> io::Re
                         let dog = app.store.get_user("dog").await.unwrap().unwrap();
 
                         if app.current_user != "alice" {
-                            if let Some(id) = alice.id  {
+                            if let Some(id) = alice.id.clone()  {
                                 let topic = IdentTopic::new(id.to_string());
                                 app.network_cmd_sender
                                 .send(IdNetworkCommand::Publish { topic, payload: IdGossipMessageKind::Resolve })
@@ -167,7 +167,7 @@ async fn run_app<B: Backend>(terminal: &mut Terminal<B>, mut app: App) -> io::Re
                         
                         }
                         if app.current_user != "bob" {
-                            if let Some(id) = bob.id  {
+                            if let Some(id) = bob.id.clone()  {
                                 let topic = IdentTopic::new(id.to_string());
                                 app.network_cmd_sender
                                 .send(IdNetworkCommand::Publish { topic, payload: IdGossipMessageKind::Resolve })
@@ -197,8 +197,8 @@ async fn run_app<B: Backend>(terminal: &mut Terminal<B>, mut app: App) -> io::Re
                     KeyCode::Enter => {
                         if !app.input.value().is_empty() {
                             let topic =match app.current_user.as_str() {
-                               "alice" => bob.id.unwrap().to_string(),
-                               "bob" => alice.id.unwrap().to_string(),
+                               "alice" => bob.id.clone().unwrap(),
+                               "bob" => alice.id.clone().unwrap(),
                                _ => panic!("")
                             };
                             let topic = IdentTopic::new(topic);

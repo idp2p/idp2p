@@ -27,8 +27,9 @@ pub fn verify_inception(pid: PersistedIdInception) -> Result<IdView, IdInception
         .iter()
         .map(|s| s.to_bytes())
         .collect();
+    let id_str = format!("/p2p/id/{}", id.to_string());
     let id_view = IdView {
-        id: pid.id.clone(),
+        id: id_str,
         config: inception.config,
         state: inception.state.to_bytes(),
         event_id: pid.id.clone(),

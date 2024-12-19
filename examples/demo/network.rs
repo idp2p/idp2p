@@ -31,7 +31,7 @@ pub enum IdRequestKind {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum IdResponseKind {
-    MeetResult { username: String, id: Cid },
+    MeetResult { username: String, id: String },
     Message(IdMessageHandlerResponseKind),
 }
 
@@ -187,12 +187,12 @@ impl<S: IdStore, V: IdVerifier> IdNetworkEventLoop<S, V> {
                     }
                     IdResponseKind::MeetResult { username, id } => {
                         let mut user = self.store.get_user(&username).await.unwrap().unwrap();
-                        user.id = Some(id);
+                        user.id = Some(id.clone());
                         self.store.set_user(&username, &user).await.unwrap();
                         self.swarm
                             .behaviour_mut()
                             .gossipsub
-                            .subscribe(&IdentTopic::new(id.to_string()))?;
+                            .subscribe(&IdentTopic::new(id))?;
                     }
                 },
             },

@@ -1,5 +1,4 @@
 use anyhow::{Ok, Result};
-use cid::Cid;
 use futures::{channel::mpsc::Sender, SinkExt};
 use idp2p_common::cbor;
 
@@ -9,7 +8,6 @@ use std::{str::FromStr, sync::Arc};
 use crate::{
     message::{IdGossipMessageKind, IdMessageHandlerRequestKind, IdMessageHandlerResponseKind},
     model::{IdEntry, IdMessage, IdStore, IdVerifier},
-    topic::IdTopic,
 };
 
 pub struct IdMessageHandler<S: IdStore, V: IdVerifier> {
@@ -43,12 +41,12 @@ impl<S: IdStore, V: IdVerifier> IdMessageHandler<S, V> {
         payload: &[u8],
     ) -> Result<Option<Vec<u8>>> {
         use IdGossipMessageKind::*;
-        let id_topic = IdTopic::from_str(topic.as_str())?;
-        match id_topic {
-            IdTopic::Id(id) => {
-                let mut id_entry = self
+        match topic.as_str() {
+            s if s.starts_with("/p2p/id/") => {
+                let id = s.strip_prefix("/p2p/id/").unwrap();
+                let mut id_entry: IdEntry = self
                     .store
-                    .get_id(&id)
+                    .get_id(id)
                     .await?
                     .ok_or(anyhow::anyhow!("Client not found"))?;
                 let payload = cbor::decode(payload)?;
@@ -99,7 +97,11 @@ impl<S: IdStore, V: IdVerifier> IdMessageHandler<S, V> {
                     }
                 }
             }
-            IdTopic::Other(_) => todo!(),
+            s if s.starts_with("/p2p/id/") => {
+                let id = s.strip_prefix("/p2p/id/").unwrap();
+                todo!()
+            }
+            _ => return todo!(),
         }
     }
 
@@ -132,12 +134,12 @@ impl<S: IdStore, V: IdVerifier> IdMessageHandler<S, V> {
 
     pub async fn handle_response_message(
         &self,
-        from: Cid,
-        message_id: Cid,
+        from: &str,
+        message_id: &str,
         payload: Vec<u8>,
     ) -> Result<()> {
         let msg = IdMessage {
-            from,
+            from: from.to_string(),
             to: vec![],
             payload,
         };

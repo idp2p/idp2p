@@ -3,7 +3,6 @@ use wasmtime::component::bindgen;
 pub mod message;
 pub mod model;
 pub mod handler;
-pub mod topic;
 pub mod verifier;
 
 bindgen!({

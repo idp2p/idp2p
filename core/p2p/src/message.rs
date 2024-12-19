@@ -3,7 +3,6 @@ use serde::{Deserialize, Serialize};
 
 use crate::{model::PersistedId, PersistedIdEvent};
 
-
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum IdGossipMessageKind {
     // Resolve identity
@@ -18,20 +17,19 @@ pub enum IdGossipMessageKind {
         event: PersistedIdEvent,
     },
     // Notify message(this means you have a message)
-    NotifyMessage{
-        id: Cid,
+    NotifyMessage {
+        id: String,
         providers: Vec<String>,
     },
-    Other(Vec<u8>)
+    Other(Vec<u8>),
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum IdMessageHandlerRequestKind {
-    MessageRequest(Cid),
+    MessageRequest(String),
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum IdMessageHandlerResponseKind {
     MessageResponse(Vec<u8>),
 }
-
