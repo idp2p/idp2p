@@ -1,8 +1,11 @@
+use crate::network::IdNetworkCommand;
 use crate::store::InMemoryKvStore;
-use cid::Cid;
 use futures::channel::mpsc;
 use futures::SinkExt;
+use idp2p_p2p::message::IdGossipMessageKind;
 use layout::Flex;
+use libp2p::gossipsub::IdentTopic;
+use libp2p::PeerId;
 use ratatui::prelude::*;
 use ratatui::widgets::Clear;
 use ratatui::{
@@ -18,7 +21,7 @@ use std::{error::Error, io};
 use tui_input::backend::crossterm::EventHandler;
 use tui_input::Input;
 
-pub(crate) enum IdAppInEvent {
+pub(crate) enum IdAppEvent {
     ListenOn(String),
     Resolved {
         id: String,
@@ -26,11 +29,6 @@ pub(crate) enum IdAppInEvent {
         name: String,
     },
     GotMessage(String),
-}
-
-pub(crate) enum IdAppOutEvent {
-    Connect(Cid),
-    SendMessage(String),
 }
 
 enum InputMode {
@@ -42,6 +40,8 @@ enum InputMode {
 struct App {
     /// Current user
     current_user: String,
+    /// Current peer
+    current_peer: PeerId,
     /// List of users
     users: Vec<String>,
     /// Store
@@ -55,46 +55,49 @@ struct App {
     // Show help popup
     show_help_popup: bool,
     // Event sender
-    event_sender: mpsc::Sender<IdAppOutEvent>,
+    network_cmd_sender: mpsc::Sender<IdNetworkCommand>,
     // Event receiver
-    event_receiver: mpsc::Receiver<IdAppInEvent>,
+    event_receiver: mpsc::Receiver<IdAppEvent>,
 }
 
 impl App {
     fn new(
         current_user: String,
+        current_peer: PeerId,
         store: Arc<InMemoryKvStore>,
-        event_sender: mpsc::Sender<IdAppOutEvent>,
-        event_receiver: mpsc::Receiver<IdAppInEvent>,
+        network_cmd_sender: mpsc::Sender<IdNetworkCommand>,
+        event_receiver: mpsc::Receiver<IdAppEvent>,
     ) -> Self {
         Self {
-            current_user: current_user,
+            current_user,
+            current_peer,
             users: vec![],
             store: store,
             input: Input::default(),
             input_mode: InputMode::Normal,
             messages: Vec::new(),
             show_help_popup: false,
-            event_sender: event_sender,
+            network_cmd_sender: network_cmd_sender,
             event_receiver: event_receiver,
         }
     }
 
-    fn handle_event(&mut self, event: IdAppInEvent) {
+    fn handle_event(&mut self, event: IdAppEvent) {
         match event {
-            IdAppInEvent::ListenOn(addr) => {
+            IdAppEvent::ListenOn(addr) => {
                 //println!("Listening on {} as {}", addr, self.current_user);
             }
-            IdAppInEvent::Resolved { id, peer, name } => todo!(),
-            IdAppInEvent::GotMessage(_) => todo!(),
+            IdAppEvent::Resolved { id, peer, name } => todo!(),
+            IdAppEvent::GotMessage(_) => todo!(),
         }
     }
 }
 pub(crate) async fn run(
     current_user: String,
+    current_peer: PeerId,
     store: Arc<InMemoryKvStore>,
-    event_sender: mpsc::Sender<IdAppOutEvent>,
-    event_receiver: mpsc::Receiver<IdAppInEvent>,
+    network_cmd_sender: mpsc::Sender<IdNetworkCommand>,
+    event_receiver: mpsc::Receiver<IdAppEvent>,
 ) -> Result<(), Box<dyn Error>> {
     // setup terminal
     enable_raw_mode()?;
@@ -102,9 +105,9 @@ pub(crate) async fn run(
     execute!(stdout, EnterAlternateScreen, EnableMouseCapture)?;
     let backend = CrosstermBackend::new(stdout);
     let mut terminal = Terminal::new(backend)?;
-
+  
     // create app and run it
-    let app = App::new(current_user, store, event_sender, event_receiver);
+    let app = App::new(current_user, current_peer, store, network_cmd_sender, event_receiver);
 
     let res = run_app(&mut terminal, app).await;
 
@@ -153,23 +156,33 @@ async fn run_app<B: Backend>(terminal: &mut Terminal<B>, mut app: App) -> io::Re
                         let bob = app.store.get_user("bob").await.unwrap().unwrap();
                         let dog = app.store.get_user("dog").await.unwrap().unwrap();
 
-                        if app.current_user != "alice" && alice.id.is_some() {
-                            app.event_sender
-                                .send(IdAppOutEvent::Connect(alice.id.unwrap()))
+                        if app.current_user != "alice" {
+                            if let Some(id) = alice.id  {
+                                let topic = IdentTopic::new(id.to_string());
+                                app.network_cmd_sender
+                                .send(IdNetworkCommand::Publish { topic, payload: IdGossipMessageKind::Resolve })
                                 .await
                                 .unwrap();
+                            }
+                        
                         }
-                        if app.current_user != "bob" && bob.id.is_some() {
-                            app.event_sender
-                                .send(IdAppOutEvent::Connect(bob.id.unwrap()))
+                        if app.current_user != "bob" {
+                            if let Some(id) = bob.id  {
+                                let topic = IdentTopic::new(id.to_string());
+                                app.network_cmd_sender
+                                .send(IdNetworkCommand::Publish { topic, payload: IdGossipMessageKind::Resolve })
                                 .await
                                 .unwrap();
+                            }
                         }
-                        if app.current_user != "dog" && dog.id.is_some() {
-                            app.event_sender
-                                .send(IdAppOutEvent::Connect(dog.id.unwrap()))
+                        if app.current_user != "dog"  {
+                            if let Some(id) = dog.id  {
+                                let topic = IdentTopic::new(id.to_string());
+                                app.network_cmd_sender
+                                .send(IdNetworkCommand::Publish { topic, payload: IdGossipMessageKind::Resolve })
                                 .await
                                 .unwrap();
+                            }
                         }
 
                         app.input_mode = InputMode::Editing;
@@ -183,9 +196,17 @@ async fn run_app<B: Backend>(terminal: &mut Terminal<B>, mut app: App) -> io::Re
                 InputMode::Editing => match key.code {
                     KeyCode::Enter => {
                         if !app.input.value().is_empty() {
-                            app.messages.push(app.input.value().into());
-                            app.event_sender
-                                .send(IdAppOutEvent::SendMessage(app.input.value().into()))
+                            let topic =match app.current_user.as_str() {
+                               "alice" => bob.id.unwrap().to_string(),
+                               "bob" => alice.id.unwrap().to_string(),
+                               _ => panic!("")
+                            };
+                            let topic = IdentTopic::new(topic);
+                            app.network_cmd_sender
+                                .send(IdNetworkCommand::Publish{
+                                    topic,
+                                    payload: IdGossipMessageKind::NotifyMessage { id: alice.id.unwrap(), providers: vec![app.current_peer.to_string()] }
+                                })
                                 .await
                                 .unwrap();
                         }

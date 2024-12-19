@@ -26,14 +26,12 @@ pub enum IdGossipMessageKind {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub enum IdRequestKind {
-    Message(Cid),
-    Other(Vec<u8>)
+pub enum IdMessageHandlerRequestKind {
+    MessageRequest(Cid),
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub enum IdResponseKind {
-    Message(Vec<u8>),
-    Other(Vec<u8>)
+pub enum IdMessageHandlerResponseKind {
+    MessageResponse(Vec<u8>),
 }
 

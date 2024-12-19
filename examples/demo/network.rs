@@ -3,6 +3,7 @@ use futures::{channel::mpsc, SinkExt, StreamExt};
 use idp2p_common::cbor;
 use idp2p_p2p::{
     handler::IdMessageHandler,
+    message::{IdGossipMessageKind, IdMessageHandlerRequestKind, IdMessageHandlerResponseKind},
     model::{IdStore, IdVerifier},
 };
 use libp2p::{
@@ -20,21 +21,29 @@ use std::{
     time::Duration,
 };
 
-use crate::{
-    app::{IdAppInEvent, IdAppOutEvent},
-    store::InMemoryKvStore,
-};
+use crate::{app::IdAppEvent, store::InMemoryKvStore};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum IdRequestKind {
     Meet,
-    Message(Cid),
+    Message(IdMessageHandlerRequestKind),
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum IdResponseKind {
     MeetResult { username: String, id: Cid },
-    Message(String),
+    Message(IdMessageHandlerResponseKind),
+}
+
+pub(crate) enum IdNetworkCommand {
+    SendRequest {
+        peer: PeerId,
+        req: IdRequestKind,
+    },
+    Publish {
+        topic: IdentTopic,
+        payload: IdGossipMessageKind,
+    },
 }
 
 #[derive(NetworkBehaviour)]
@@ -48,8 +57,8 @@ pub(crate) struct IdNetworkEventLoop<S: IdStore, V: IdVerifier> {
     current_user: String,
     store: Arc<InMemoryKvStore>,
     swarm: Swarm<Idp2pBehaviour>,
-    event_sender: mpsc::Sender<IdAppInEvent>,
-    event_receiver: mpsc::Receiver<IdAppOutEvent>,
+    event_sender: mpsc::Sender<IdAppEvent>,
+    cmd_receiver: mpsc::Receiver<IdNetworkCommand>,
     id_handler: IdMessageHandler<S, V>,
 }
 
@@ -57,8 +66,8 @@ impl<S: IdStore, V: IdVerifier> IdNetworkEventLoop<S, V> {
     pub fn new(
         current_user: String,
         store: Arc<InMemoryKvStore>,
-        event_sender: mpsc::Sender<IdAppInEvent>,
-        event_receiver: mpsc::Receiver<IdAppOutEvent>,
+        event_sender: mpsc::Sender<IdAppEvent>,
+        cmd_receiver: mpsc::Receiver<IdNetworkCommand>,
         id_handler: IdMessageHandler<S, V>,
     ) -> anyhow::Result<(PeerId, Self)> {
         let port = match current_user.as_str() {
@@ -75,7 +84,7 @@ impl<S: IdStore, V: IdVerifier> IdNetworkEventLoop<S, V> {
                 store,
                 swarm,
                 event_sender,
-                event_receiver,
+                cmd_receiver,
                 id_handler,
             },
         ))
@@ -85,23 +94,27 @@ impl<S: IdStore, V: IdVerifier> IdNetworkEventLoop<S, V> {
         loop {
             tokio::select! {
                 event = self.swarm.select_next_some() => self.handle_network_event(event).await.unwrap(),
-                app_event = self.event_receiver.next() => match app_event {
-                    Some(app_event) => self.handle_app_event(app_event).await.unwrap(),
+                cmd = self.cmd_receiver.next() => match cmd {
+                    Some(cmd) => self.handle_command(cmd).await.unwrap(),
                     None =>  return,
-                },
+                }
             }
         }
     }
 
-    async fn handle_app_event(&mut self, event: IdAppOutEvent) -> anyhow::Result<()> {
-        use IdAppOutEvent::*;
-        match event {
-            SendMessage(message) => {
-                println!("Sending message s: {}", message);
+    async fn handle_command(&mut self, cmd: IdNetworkCommand) -> anyhow::Result<()> {
+        use IdNetworkCommand::*;
+        match cmd {
+            SendRequest { peer, req } => {
+                let _ = self
+                    .swarm
+                    .behaviour_mut()
+                    .request_response
+                    .send_request(&peer, req);
             }
-            Connect(cid) => {
-                //IdGossipMessageKind::Resolve;
-                //self.swarm.behaviour_mut().gossipsub.publish(topic, data)
+            Publish { topic, payload } => {
+                let data = cbor::encode(&payload)?;
+                self.swarm.behaviour_mut().gossipsub.publish(topic, data)?;
             }
         }
         Ok(())
@@ -118,9 +131,13 @@ impl<S: IdStore, V: IdVerifier> IdNetworkEventLoop<S, V> {
                     message_id: _,
                     message,
                 } => {
-                    self.id_handler
+                    let result = self
+                        .id_handler
                         .handle_gossip_message(&message.topic, &message.data)
                         .await?;
+                    if let Some(payload) = result {
+                        println!("Custom message {:?}", payload);
+                    }
                 }
                 _ => {}
             },
@@ -130,12 +147,9 @@ impl<S: IdStore, V: IdVerifier> IdNetworkEventLoop<S, V> {
                 request_response::Message::Request {
                     request, channel, ..
                 } => match request {
-                    IdRequestKind::Message(cid) => {
-                        let message = self
-                            .id_handler
-                            .handle_request_message(peer, cid)
-                            .await?;
-                        let message = cbor::decode(&message)?;
+                    IdRequestKind::Message(req) => {
+                        let message = self.id_handler.handle_request_message(peer, req).await?;
+                        let message = IdResponseKind::Message(message);
                         self.swarm
                             .behaviour_mut()
                             .request_response
@@ -167,9 +181,9 @@ impl<S: IdStore, V: IdVerifier> IdNetworkEventLoop<S, V> {
                 },
                 request_response::Message::Response { response, .. } => match response {
                     IdResponseKind::Message(msg) => {
-                        self.event_sender
-                            .send(IdAppInEvent::GotMessage(msg))
-                            .await?;
+                        /*self.event_sender
+                        .send(IdAppInEvent::GotMessage(msg))
+                        .await?;*/
                     }
                     IdResponseKind::MeetResult { username, id } => {
                         let mut user = self.store.get_user(&username).await.unwrap().unwrap();
@@ -184,7 +198,7 @@ impl<S: IdStore, V: IdVerifier> IdNetworkEventLoop<S, V> {
             },
             SwarmEvent::NewListenAddr { address, .. } => {
                 self.event_sender
-                    .send(IdAppInEvent::ListenOn(address.to_string()))
+                    .send(IdAppEvent::ListenOn(address.to_string()))
                     .await
                     .unwrap();
             }

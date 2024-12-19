@@ -1,7 +1,7 @@
 use std::{collections::HashMap, sync::Arc};
 
 use cid::Cid;
-use futures::channel::mpsc;
+use futures::{channel::mpsc, StreamExt};
 use idp2p_common::cid::CidExt;
 use idp2p_p2p::{handler::IdMessageHandler, verifier::IdVerifierImpl};
 use network::IdNetworkEventLoop;
@@ -52,21 +52,21 @@ async fn main() -> anyhow::Result<()> {
     store.set_user("alice", &alice).await?;
     store.set_user("bob", &bob).await?;
     store.set_user("dog", &dog).await?;
-    let (handler_cmd_sender, _handler_cmd_receiver) = mpsc::channel(0);
-    let (app_in_event_sender, app_in_event_receiver) = mpsc::channel(0);
-    let (app_out_event_sender, app_out_event_receiver) = mpsc::channel(0);
-    let vimpl = IdVerifierImpl::new(HashMap::new())?;
+    let (handler_cmd_sender, handler_cmd_receiver) = mpsc::channel(0);
+    let (app_event_sender, app_event_receiver) = mpsc::channel(0);
+    let (network_cmd_sender, network_cmd_receiver) = mpsc::channel(0);
+    let verifier = Arc::new(IdVerifierImpl::new(HashMap::new())?);
     let id_store = Arc::new(InMemoryIdStore(store.clone()));
     let id_handler = IdMessageHandler::new(
         id_store.clone(),
-        Arc::new(vimpl),
+        verifier.clone(),
         handler_cmd_sender.clone(),
     )?;
     let (peer, network) = IdNetworkEventLoop::new(
         opt.name.clone(),
         store.clone(),
-        app_in_event_sender.clone(),
-        app_out_event_receiver,
+        app_event_sender.clone(),
+        network_cmd_receiver,
         id_handler,
     )?;
     let id = utils::generate_id(&peer)?;
@@ -74,11 +74,23 @@ async fn main() -> anyhow::Result<()> {
     user.id = Some(Cid::from_bytes(&id.id).unwrap());
     store.set_user(&opt.name, &user).await.unwrap();
     tokio::spawn(network.run());
+
+    tokio::spawn({
+        let mut handler_cmd_receiver = handler_cmd_receiver;
+        async move {
+            loop {
+                tokio::select! {
+                    handler_cmd = handler_cmd_receiver.next() => todo!(),
+                }
+            }
+        }
+    });
     app::run(
         opt.name.clone(),
+        peer,
         store.clone(),
-        app_out_event_sender,
-        app_in_event_receiver,
+        network_cmd_sender,
+        app_event_receiver,
     )
     .await
     .unwrap();

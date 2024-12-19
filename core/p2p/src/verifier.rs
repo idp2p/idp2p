@@ -1,5 +1,5 @@
 use anyhow::Result;
-use std::collections::HashMap;
+use std::{collections::HashMap, sync::Mutex};
 
 use wasmtime::{
     component::{Component, Linker},
@@ -10,7 +10,7 @@ use crate::{model::IdVerifier, IdView, Idp2pId, PersistedIdEvent, PersistedIdInc
 
 pub struct IdVerifierImpl {
     engine: Engine,
-    id_components: HashMap<u64, Component>,
+    id_components: Mutex<HashMap<u64, Component>>,
 }
 
 impl IdVerifierImpl {
@@ -20,7 +20,7 @@ impl IdVerifierImpl {
 
         let mut handler = Self {
             engine,
-            id_components,
+            id_components: Mutex::new(id_components),
         };
         for (version, bytes) in components {
             handler.add_component(version, &bytes);
@@ -31,12 +31,12 @@ impl IdVerifierImpl {
     pub fn add_component(&mut self, version: u64, bytes: &[u8]) {
         let component =
             Component::from_binary(&self.engine, &convert_to_component(&bytes)).unwrap();
-        self.id_components.insert(version, component);
+        self.id_components.lock().unwrap().insert(version, component);
     }
 
     fn get_component(&self, version: u64) -> Result<(Idp2pId, Store<()>)> {
         let mut store = Store::new(&self.engine, ());
-        let component = self.id_components.get(&version).unwrap().clone();
+        let component = self.id_components.lock().unwrap().get(&version).unwrap().clone();
         let (id, _) = Idp2pId::instantiate(&mut store, &component, &Linker::new(&self.engine))?;
         Ok((id, store))
     }

@@ -1,4 +1,4 @@
-use anyhow::Result;
+use anyhow::{Ok, Result};
 use cid::Cid;
 use futures::{channel::mpsc::Sender, SinkExt};
 use idp2p_common::cbor;
@@ -7,7 +7,7 @@ use libp2p::{gossipsub::TopicHash, PeerId};
 use std::{str::FromStr, sync::Arc};
 
 use crate::{
-    message::IdGossipMessageKind,
+    message::{IdGossipMessageKind, IdMessageHandlerRequestKind, IdMessageHandlerResponseKind},
     model::{IdEntry, IdMessage, IdStore, IdVerifier},
     topic::IdTopic,
 };
@@ -103,18 +103,27 @@ impl<S: IdStore, V: IdVerifier> IdMessageHandler<S, V> {
         }
     }
 
-    pub async fn handle_request_message(&self, peer: PeerId, message_id: Cid) -> Result<Vec<u8>> {
-        let message = self
-            .store
-            .get_msg(&message_id)
-            .await
-            .map_err(anyhow::Error::msg)?
-            .ok_or(anyhow::anyhow!("No message found"))?;
-        for to in message.to {
-            let id = self.store.get_id(&to).await?.ok_or(anyhow::anyhow!(""))?;
+    pub async fn handle_request_message(
+        &self,
+        peer: PeerId,
+        req: IdMessageHandlerRequestKind,
+    ) -> Result<IdMessageHandlerResponseKind> {
+        match req {
+            IdMessageHandlerRequestKind::MessageRequest(message_id) => {
+                let message = self
+                    .store
+                    .get_msg(&message_id)
+                    .await
+                    .map_err(anyhow::Error::msg)?
+                    .ok_or(anyhow::anyhow!("No message found"))?;
 
-            if id.view.mediators.contains(&peer.to_string()) {
-                return Ok(message.payload.clone());
+                for to in message.to {
+                    let id = self.store.get_id(&to).await?.ok_or(anyhow::anyhow!("Invalid id"))?;
+
+                    if id.view.mediators.contains(&peer.to_string()) {
+                        return Ok(IdMessageHandlerResponseKind::MessageResponse(message.payload));
+                    }
+                }
             }
         }
 

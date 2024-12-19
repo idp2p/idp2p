@@ -2,7 +2,6 @@ use crate::{IdView, PersistedIdEvent, PersistedIdInception};
 use anyhow::Result;
 use cid::Cid;
 use serde::{Deserialize, Serialize};
-use wasmtime::component::Component;
 use std::collections::HashMap;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -50,7 +49,6 @@ pub trait IdVerifier {
 pub trait IdStore {
     async fn get_id(&self, id: &Cid) -> Result<Option<IdEntry>>;
     async fn get_msg(&self, id: &Cid) -> Result<Option<IdMessage>>;
-    async fn get_verifiers() -> Result<Vec<Component>>;
     async fn set_id(&self, id: &Cid, value: &IdEntry) -> Result<()>;
     async fn set_msg(&self, id: &Cid, value: &IdMessage) -> Result<()>;
 }
