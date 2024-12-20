@@ -1,12 +1,14 @@
-use std::{collections::HashMap, sync::{Arc, Mutex}};
+use std::{
+    collections::HashMap,
+    sync::{Arc, Mutex},
+};
 
 use anyhow::Result;
-use cid::Cid;
 use idp2p_common::cbor;
 use idp2p_p2p::model::{IdEntry, IdMessage, IdStore};
 use serde::{de::DeserializeOwned, Serialize};
 
-use crate::IdUser;
+use crate::user::IdUser;
 
 pub struct InMemoryKvStore {
     state: Mutex<HashMap<String, Vec<u8>>>,
@@ -43,7 +45,13 @@ impl InMemoryKvStore {
         let user_key = format!("/users/{}", username);
         self.set(&user_key, user).await?;
         Ok(())
-    }  
+    }
+
+    pub async fn get_current_user(&self) -> Result<IdUser> {
+        let username: String = self.get("/current-user").await?.unwrap();
+
+        Ok(self.get_user(&username).await?.unwrap())
+    }
 }
 
 pub struct InMemoryIdStore(pub Arc<InMemoryKvStore>);

@@ -9,23 +9,19 @@ use serde::{Deserialize, Serialize};
 use store::{InMemoryIdStore, InMemoryKvStore};
 use structopt::StructOpt;
 use tracing_subscriber::EnvFilter;
+use user::init_users;
 
 mod app;
 mod network;
 mod store;
 mod utils;
+mod user;
 
 #[derive(Debug, StructOpt)]
 #[structopt(name = "idp2p", about = "Usage of idp2p.")]
 struct Opt {
     #[structopt(short = "i", long = "id")]
     name: String,
-}
-
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct IdUser {
-    name: String,
-    id: Option<String>,
 }
 
 #[tokio::main]
@@ -37,21 +33,7 @@ async fn main() -> anyhow::Result<()> {
         .try_init()
         .unwrap();
     let store = Arc::new(InMemoryKvStore::new());
-    let alice = IdUser {
-        name: "Alice".to_string(),
-        id: None,
-    };
-    let bob = IdUser {
-        name: "Bob".to_string(),
-        id: None,
-    };
-    let dog = IdUser {
-        name: "Dog".to_string(),
-        id: None,
-    };
-    store.set_user("alice", &alice).await?;
-    store.set_user("bob", &bob).await?;
-    store.set_user("dog", &dog).await?;
+    
     let (handler_cmd_sender, handler_cmd_receiver) = mpsc::channel(0);
     let (app_event_sender, app_event_receiver) = mpsc::channel(0);
     let (network_cmd_sender, network_cmd_receiver) = mpsc::channel(0);
@@ -70,11 +52,8 @@ async fn main() -> anyhow::Result<()> {
         id_handler,
     )?;
     let (id, pid) = utils::generate_id(&peer)?;
-    let mut user = store.get_user(&opt.name).await.unwrap().unwrap();
-    user.id = Some(id);
-    store.set_user(&opt.name, &user).await.unwrap();
     tokio::spawn(network.run());
-
+    init_users(&opt.name, &id, store.clone()).await?;
     tokio::spawn({
         let mut handler_cmd_receiver = handler_cmd_receiver;
         async move {

@@ -336,3 +336,109 @@ fn popup_area(area: Rect, percent_x: u16, percent_y: u16) -> Rect {
     let [area] = horizontal.areas(area);
     area
 }
+
+fn draw(f: &mut Frame, app: &App) {
+    let area = f.area();
+    if app.show_help_popup {
+        let area = popup_area(area, 60, 20);
+
+        let popup = Paragraph::new("Unsupported key pressed. Press any key to continue.")
+            .style(
+                Style::default()
+                    .fg(Color::Blue)
+                    .add_modifier(Modifier::BOLD),
+            )
+            .block(Block::default().borders(Borders::ALL).title("Help"));
+        f.render_widget(Clear, area); // Clear background beneath the popup
+        f.render_widget(popup, area);
+        return;
+    }
+    let chunks = Layout::default()
+        .direction(Direction::Vertical)
+        .margin(2)
+        .constraints(
+            [
+                Constraint::Length(2), // Space for header
+                Constraint::Length(3), // Space for help message
+                Constraint::Length(3), // Space for input
+                Constraint::Min(1),    // Remaining space for messages
+            ]
+            .as_ref(),
+        )
+        .split(f.area());
+
+    let title = app.current_user.to_uppercase();
+    // Render header
+    let header = Paragraph::new(Span::styled(
+        &title,
+        Style::default().fg(Color::Green).add_modifier(Modifier::BOLD),
+    ));
+    f.render_widget(header, chunks[0]);
+
+    // Render help message
+    let (msg, style) = match app.input_mode {
+        InputMode::Normal => (
+            vec![
+                Span::raw("Press "),
+                Span::styled("q", Style::default().add_modifier(Modifier::BOLD)),
+                Span::raw(" to exit, "),
+                Span::styled("e", Style::default().add_modifier(Modifier::BOLD)),
+                Span::raw(" to start editing."),
+            ],
+            Style::default().add_modifier(Modifier::RAPID_BLINK),
+        ),
+        InputMode::Editing => (
+            vec![
+                Span::raw("Press "),
+                Span::styled("Esc", Style::default().add_modifier(Modifier::BOLD)),
+                Span::raw(" to stop editing, "),
+                Span::styled("Enter", Style::default().add_modifier(Modifier::BOLD)),
+                Span::raw(" to record the message"),
+            ],
+            Style::default(),
+        ),
+    };
+    let mut text = "".to_owned();
+    for user in app.users.iter() {
+        text.push_str(format!("{}\n", user).as_str());
+    }
+    let text = Text::from(text).style(style);
+
+    let help_message = Paragraph::new(text);
+    f.render_widget(help_message, chunks[1]);
+
+    // Render input box
+    let width = chunks[1].width.max(3) - 3; // Keep 2 for borders and 1 for cursor
+    let scroll = app.input.visual_scroll(width as usize);
+    let input = Paragraph::new(app.input.value())
+        .style(match app.input_mode {
+            InputMode::Normal => Style::default(),
+            InputMode::Editing => Style::default().fg(Color::Yellow),
+        })
+        .scroll((0, scroll as u16))
+        .block(Block::default().borders(Borders::ALL).title("Input"));
+    f.render_widget(input, chunks[2]);
+
+    // Set cursor position when editing
+    if let InputMode::Editing = app.input_mode {
+        f.set_cursor_position((
+            chunks[2].x + ((app.input.visual_cursor()).max(scroll) - scroll) as u16 + 1,
+            chunks[2].y + 1,
+        ));
+    }
+
+    // Render messages
+    let messages: Vec<ListItem> = app
+        .messages
+        .iter()
+        .enumerate()
+        .map(|(i, m)| {
+            let content = vec![Line::from(Span::raw(format!("{}: {}", i, m)))];
+            ListItem::new(content)
+        })
+        .collect();
+    let messages =
+        List::new(messages).block(Block::default().borders(Borders::ALL).title("Messages"));
+    f.render_widget(messages, chunks[3]);
+}
+
