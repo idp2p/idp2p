@@ -10,33 +10,33 @@ use crate::{model::IdVerifier, IdView, Idp2pId, PersistedIdEvent, PersistedIdInc
 
 pub struct IdVerifierImpl {
     engine: Engine,
-    id_components: Mutex<HashMap<u64, Component>>,
+    id_components: Mutex<HashMap<String, Component>>,
 }
 
 impl IdVerifierImpl {
-    pub fn new(components: HashMap<u64, Vec<u8>>) -> Result<Self> {
+    pub fn new(components: HashMap<String, Vec<u8>>) -> Result<Self> {
         let engine = Engine::new(Config::new().wasm_component_model(true))?;
-        let id_components: HashMap<u64, Component> = HashMap::new();
+        let id_components: HashMap<String, Component> = HashMap::new();
 
         let mut handler = Self {
             engine,
             id_components: Mutex::new(id_components),
         };
         for (version, bytes) in components {
-            handler.add_component(version, &bytes);
+            handler.add_component(&version, &bytes);
         }
         Ok(handler)
     }
 
-    pub fn add_component(&mut self, version: u64, bytes: &[u8]) {
+    pub fn add_component(&mut self, version: &str, bytes: &[u8]) {
         let component =
             Component::from_binary(&self.engine, &convert_to_component(&bytes)).unwrap();
-        self.id_components.lock().unwrap().insert(version, component);
+        self.id_components.lock().unwrap().insert(version.to_string(), component);
     }
 
-    fn get_component(&self, version: u64) -> Result<(Idp2pId, Store<()>)> {
+    fn get_component(&self, version: &str) -> Result<(Idp2pId, Store<()>)> {
         let mut store = Store::new(&self.engine, ());
-        let component = self.id_components.lock().unwrap().get(&version).unwrap().clone();
+        let component = self.id_components.lock().unwrap().get(version).unwrap().clone();
         let (id, _) = Idp2pId::instantiate(&mut store, &component, &Linker::new(&self.engine))?;
         Ok((id, store))
     }
@@ -45,7 +45,7 @@ impl IdVerifierImpl {
 impl IdVerifier for IdVerifierImpl {
     async fn verify_inception(
         &self,
-        version: u64,
+        version: &str,
         inception: &PersistedIdInception,
     ) -> Result<IdView> {
         let (verifier, mut store) = self.get_component(version)?;
@@ -54,7 +54,7 @@ impl IdVerifier for IdVerifierImpl {
     }
     async fn verify_event(
         &self,
-        version: u64,
+        version: &str,
         view: &IdView,
         event: &PersistedIdEvent,
     ) -> Result<IdView> {

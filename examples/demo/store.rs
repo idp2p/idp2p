@@ -8,7 +8,7 @@ use idp2p_common::cbor;
 use idp2p_p2p::model::{IdEntry, IdMessage, IdStore};
 use serde::{de::DeserializeOwned, Serialize};
 
-use crate::user::IdUser;
+use crate::user::UserState;
 
 pub struct InMemoryKvStore {
     state: Mutex<HashMap<String, Vec<u8>>>,
@@ -35,22 +35,13 @@ impl InMemoryKvStore {
         Ok(None)
     }
 
-    pub async fn get_user(&self, username: &str) -> Result<Option<IdUser>> {
-        let user_key = format!("/users/{}", username);
-        let user = self.get(&user_key).await?;
+    pub async fn get_current_user(&self) -> Result<UserState> {
+        let user: UserState = self.get("/user").await?.unwrap();
         Ok(user)
     }
 
-    pub async fn set_user(&self, username: &str, user: &IdUser) -> Result<()> {
-        let user_key = format!("/users/{}", username);
-        self.set(&user_key, user).await?;
-        Ok(())
-    }
-
-    pub async fn get_current_user(&self) -> Result<IdUser> {
-        let username: String = self.get("/current-user").await?.unwrap();
-
-        Ok(self.get_user(&username).await?.unwrap())
+    pub async fn set_user(&self, user: &UserState) -> Result<()> {
+        self.set("/user", user).await
     }
 }
 

@@ -1,15 +1,12 @@
 use std::{collections::HashMap, sync::Arc};
 
-use cid::Cid;
 use futures::{channel::mpsc, StreamExt};
-use idp2p_common::cid::CidExt;
 use idp2p_p2p::{handler::IdMessageHandler, verifier::IdVerifierImpl};
 use network::IdNetworkEventLoop;
-use serde::{Deserialize, Serialize};
 use store::{InMemoryIdStore, InMemoryKvStore};
 use structopt::StructOpt;
 use tracing_subscriber::EnvFilter;
-use user::init_users;
+use user::UserState;
 
 mod app;
 mod network;
@@ -44,8 +41,14 @@ async fn main() -> anyhow::Result<()> {
         verifier.clone(),
         handler_cmd_sender.clone(),
     )?;
+    let port: u16 = match opt.name.as_str() {
+        "alice" => 43727,
+        "bob" => 43728,
+        "dog" => 43729,
+        _ => panic!("Unknown user"),
+    };
     let (peer, network) = IdNetworkEventLoop::new(
-        opt.name.clone(),
+        port,
         store.clone(),
         app_event_sender.clone(),
         network_cmd_receiver,
@@ -53,7 +56,7 @@ async fn main() -> anyhow::Result<()> {
     )?;
     let (id, pid) = utils::generate_id(&peer)?;
     tokio::spawn(network.run());
-    init_users(&opt.name, &id, store.clone()).await?;
+    let user = UserState::new(&opt.name, &id, &peer.to_string());
     tokio::spawn({
         let mut handler_cmd_receiver = handler_cmd_receiver;
         async move {

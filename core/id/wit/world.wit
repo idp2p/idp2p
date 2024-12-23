@@ -1,14 +1,12 @@
 package idp2p:id;
 
 world idp2p-id {
-    type cid = list<u8>;
-
     variant id-inception-error {
         invalid-id,
         invalid-payload, 
         payload-and-id-not-match(string),
-        total-next-signers-not-match(u16),  // total signers
-        invalid-next-signer-codec(cid),   // the signer
+        total-next-signers-not-match(u8),  // total signers
+        invalid-next-signer-codec(string),   // the signer
         other(string),
     }
 
@@ -17,40 +15,44 @@ world idp2p-id {
         invalid-event-id,
         invalid-payload, 
         payload-and-id-not-match(string),
-        lack-of-min-signers(u16),    // min signers
-        signer-and-id-not-match(cid),
-        previous-not-match(cid),
-        invalid-signature(cid),
-        invalid-next-signer(cid),   // the signer
-        invalid-next-signer-codec(cid),   // the signer
+        lack-of-min-signers(u8),    // min signers
+        signer-and-id-not-match(string),
+        previous-not-match(string),
+        invalid-signature(string),
+        invalid-next-signer(string),   // the signer
+        invalid-next-signer-codec(string),   // the signer
         other(string),
     }
 
-    variant id-multisig {
-        one-of-one,
-        one-of-two,
-        two-of-tree,
-        three-of-five,
+    record id-key {
+        id: string,
+        public-key: list<u8>,
     }
 
-    record id-config {
-        multisig: id-multisig,
-        key-reuse: bool
+    record id-assertation-key {
+        key: id-key,
+        valid-from: string,
+        valid-until: string,
+    }
+
+    record id-claim {
+        key: string,
+        value: list<u8>,
     }
 
     record persisted-id-proof {
-        id: cid,
+        id: string,
         pk: list<u8>,
         sig: list<u8>,
     }
 
     record persisted-id-inception {
-        id: cid,
+        id: string,
         payload: list<u8>,
     }
 
     record persisted-id-event {
-        id: cid,
+        id: string,
         payload: list<u8>,
         proofs: list<persisted-id-proof>,
     }
@@ -59,23 +61,27 @@ world idp2p-id {
         // Identifier 
         id: string,
         // Multi signature method   
-        config: id-config,
-        // State of the identity
-        state: cid,
+        threshold: u8,
         // Last event id
-        event-id: cid,
+        event-id: string,
         // Last event time
         event-timestamp: string,
-        // CID codec should be 0x72(libp2p-key) or 0xed 
-        mediators: list<string>,
+        // Current signers
+        signers: list<id-key>,
         // CID codec should be 0xed 
-        next-signers: list<cid>,  
-        // All signers
-        all-signers: list<cid>,
-        // All signers
-        all-states: list<cid>,
+        next-signers: list<string>,
+        // Mediator list 
+        mediators: list<string>,
+        // Authentication list
+        authentication: list<id-key>,
+        // Key agreement list
+        key-agreement: list<id-key>,
+        // Assertation list
+        assertation: list<id-assertation-key>,
+        // Claims
+        claims: list<id-claim>,
     }
-    
+
     export verify-inception: func(incepiton: persisted-id-inception) -> result<id-view, id-inception-error>;
 
     export verify-event: func(view: id-view, event: persisted-id-event) -> result<id-view, id-event-error>;    

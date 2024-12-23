@@ -1,4 +1,4 @@
-use idp2p_common::cid::CidExt;
+extern crate alloc;
 
 pub mod internal;
 pub mod verify;
@@ -7,26 +7,6 @@ wit_bindgen::generate!({
     world: "idp2p-id",
     additional_derives: [PartialEq, Eq, Hash, Clone, serde::Serialize, serde::Deserialize],
 });
-
-impl IdMultisig {
-    pub fn total_signers(&self) -> u16 {
-        match self {
-            IdMultisig::OneOfOne => 1,
-            IdMultisig::OneOfTwo => 2,
-            IdMultisig::TwoOfTree => 3,
-            IdMultisig::ThreeOfFive => 5,
-        }
-    }
-
-    pub fn get_min_signers(&self) -> u16 {
-        match self {
-            IdMultisig::OneOfOne => 1,
-            IdMultisig::OneOfTwo => 1,
-            IdMultisig::TwoOfTree => 2,
-            IdMultisig::ThreeOfFive => 3,
-        }
-    }
-}
 
 struct GuestComponent;
 

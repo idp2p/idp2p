@@ -62,7 +62,7 @@ impl<S: IdStore, V: IdVerifier> IdMessageHandler<S, V> {
                     NotifyEvent { version, event } => {
                         let view = self
                             .verifier
-                            .verify_event(version, &id_entry.view, &event)
+                            .verify_event(&version, &id_entry.view, &event)
                             .await?;
                         id_entry.view = view;
                         self.store.set_id(&id, &id_entry).await?;
@@ -71,10 +71,10 @@ impl<S: IdStore, V: IdVerifier> IdMessageHandler<S, V> {
                     Provide { id: pid } => {
                         let mut view = self
                             .verifier
-                            .verify_inception(pid.version, &pid.inception)
+                            .verify_inception(&pid.version, &pid.inception)
                             .await?;
                         for (version, event) in pid.events.clone() {
-                            view = self.verifier.verify_event(version, &view, &event).await?;
+                            view = self.verifier.verify_event(&version, &view, &event).await?;
                         }
                         let entry = IdEntry {
                             view,
@@ -122,9 +122,9 @@ impl<S: IdStore, V: IdVerifier> IdMessageHandler<S, V> {
                 for to in message.to {
                     let id = self.store.get_id(&to).await?.ok_or(anyhow::anyhow!("Invalid id"))?;
 
-                    if id.view.mediators.contains(&peer.to_string()) {
+                    //if id.view.mediators.contains() {
                         return Ok(IdMessageHandlerResponseKind::MessageResponse(message.payload));
-                    }
+                    //}
                 }
             }
         }

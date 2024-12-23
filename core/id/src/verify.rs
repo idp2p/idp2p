@@ -1,86 +1,85 @@
+use alloc::vec::Vec;
 use cid::Cid;
 use idp2p_common::{cbor, cid::CidExt, verifying::ed25519::verify, ED_CODE};
 
 use crate::{
-    internal::IdEvent, internal::IdEventPayload::*, internal::IdInception,
-    internal::IdMediatorAction::*, IdEventError, IdInceptionError, IdView, PersistedIdEvent,
-    PersistedIdInception,
+    internal::IdEvent, internal::IdEventPayload::*, internal::IdInception, IdEventError,
+    IdInceptionError, IdView, PersistedIdEvent, PersistedIdInception,
 };
 
 pub fn verify_inception(pid: PersistedIdInception) -> Result<IdView, IdInceptionError> {
-    let id = Cid::from_bytes(&pid.id).map_err(|_| IdInceptionError::InvalidId)?;
+    let id = Cid::try_from(pid.id.as_str()).map_err(|_| IdInceptionError::InvalidId)?;
     id.ensure(pid.payload.as_slice())
         .map_err(|e| IdInceptionError::PayloadAndIdNotMatch(e.to_string()))?;
     let inception: IdInception =
         cbor::decode(&pid.payload).map_err(|_| IdInceptionError::InvalidPayload)?;
-    let total_signers: u16 = inception.next_signers.len() as u16;
-    if total_signers != inception.config.multisig.total_signers() {
-        return Err(IdInceptionError::TotalNextSignersNotMatch(total_signers));
+    let total_signers = inception.next_signers.len() as u8;
+    if total_signers < inception.threshold {
+        return Err(IdInceptionError::TotalNextSignersNotMatch(
+            inception.threshold,
+        ));
     }
-    for signer in &inception.next_signers {
-        if signer.codec() != ED_CODE {
-            return Err(IdInceptionError::InvalidNextSignerCodec(signer.to_bytes()));
+    for next_signer in &inception.next_signers {
+        let next_signer_cid = Cid::try_from(next_signer.as_str())
+            .map_err(|_| IdInceptionError::InvalidNextSignerCodec(next_signer.clone()))?;
+        if next_signer_cid.codec() != ED_CODE {
+            return Err(IdInceptionError::InvalidNextSignerCodec(
+                next_signer.clone(),
+            ));
         }
     }
-    let all_signers: Vec<Vec<u8>> = inception
-        .next_signers
-        .iter()
-        .map(|s| s.to_bytes())
-        .collect();
+
     let id_str = format!("/p2p/id/{}", id.to_string());
     let id_view = IdView {
         id: id_str,
-        config: inception.config,
-        state: inception.state.to_bytes(),
         event_id: pid.id.clone(),
         event_timestamp: inception.timestamp.to_string(),
-        mediators: inception.mediators,
-        next_signers: all_signers.clone(),
-        all_signers: all_signers,
-        all_states: vec![inception.state.to_bytes()],
+        next_signers: inception.next_signers.clone(),
+        signers: todo!(),
+        mediators: todo!(),
+        authentication: todo!(),
+        key_agreement: todo!(),
+        assertation: todo!(),
+        threshold: todo!(),
+        claims: todo!(),
     };
 
     Ok(id_view)
 }
 
 pub fn verify_event(view: IdView, pevent: PersistedIdEvent) -> Result<IdView, IdEventError> {
-    let event_id = Cid::from_bytes(&pevent.id).map_err(|_| IdEventError::InvalidEventId)?;
+    let event_id = Cid::try_from(pevent.id.as_str()).map_err(|_| IdEventError::InvalidEventId)?;
     event_id
         .ensure(pevent.payload.as_slice())
         .map_err(|e| IdEventError::PayloadAndIdNotMatch(e.to_string()))?;
     let event: IdEvent = cbor::decode(&pevent.payload).map_err(|_| IdEventError::InvalidPayload)?;
-    if event.previous
-        != Cid::from_bytes(&view.event_id).map_err(|_| IdEventError::InvalidEventId)?
-    {
-        return Err(IdEventError::PreviousNotMatch(event.previous.to_bytes()));
+    if event.previous != view.event_id {
+        return Err(IdEventError::PreviousNotMatch(event.previous));
     }
+
     for proof in pevent.proofs {
-        let signer_id = Cid::from_bytes(&proof.id)
+        let signer_id = Cid::try_from(proof.id.as_str())
             .map_err(|_| IdEventError::InvalidNextSignerCodec(proof.id.clone()))?;
         signer_id
             .ensure(&proof.pk)
-            .map_err(|_| IdEventError::SignerAndIdNotMatch(signer_id.to_bytes()))?;
-        if !view
-            .next_signers
-            .iter()
-            .any(|x| x.to_vec() == signer_id.to_bytes())
-        {
-            return Err(IdEventError::InvalidNextSigner(signer_id.to_bytes()));
+            .map_err(|_| IdEventError::SignerAndIdNotMatch(proof.id.clone()))?;
+        if !view.next_signers.iter().any(|x| x == proof.id.as_str()) {
+            return Err(IdEventError::InvalidNextSigner(proof.id.clone()));
         }
         verify(&proof.pk, &pevent.payload, &proof.sig)
-            .map_err(|_| IdEventError::InvalidSignature(signer_id.to_bytes()))?;
+            .map_err(|_| IdEventError::InvalidSignature(proof.id.clone()))?;
     }
     let mut view = view;
-    match event.payload {
-        Action(action) => {
-            if let Some(cid) = action.state {
-                view.state = cid.to_bytes();
-                view.all_states.push(cid.to_bytes());
+    /*match event.payload {
+        Rotation(rotation) => {
+            if let Some(state) = rotation.state {
+                view.state = state.to_string();
+                view.all_states.push(state.to_string());
             }
-            for med in action.mediators {
+            for med in rotation.mediators {
                 match med {
-                    Add(peer_id) => view.mediators.push(peer_id),
-                    Remove(peer_id) => view.mediators.retain(|x| *x != peer_id),
+                    Add(kid) => view.mediators.push(kid.to_bytes()),
+                    Remove(kid) => view.mediators.retain(|x| *x != kid.to_bytes()),
                 }
             }
         }
@@ -92,7 +91,7 @@ pub fn verify_event(view: IdView, pevent: PersistedIdEvent) -> Result<IdView, Id
     }
     view.event_id = event_id.to_bytes();
     view.event_timestamp = event.timestamp.to_string();
-    view.next_signers = event.next_signers.iter().map(|x| x.to_bytes()).collect();
+    view.next_signers = event.next_signers.iter().map(|x| x.to_bytes()).collect();*/
 
     Ok(view)
 }

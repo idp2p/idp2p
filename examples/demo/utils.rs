@@ -18,7 +18,7 @@ pub fn generate_id(mediator: &PeerId) -> Result<(String, PersistedId)> {
     let cid = Cid::create(0x01, payload.as_slice())?;
     let persisted_id = PersistedId {
         id: cid.to_bytes(),
-        version: 1,
+        version: "1.0.0".to_string(),
         inception: PersistedIdInception {
             id: cid.to_bytes(),
             payload: payload,
@@ -39,10 +39,9 @@ pub fn generate(signer: &[u8], mediator: &str) -> anyhow::Result<IdInception> {
             multisig: IdMultisig::OneOfOne,
             key_reuse: true,
         },
-        state,
+        state: "state".to_string(),
         timestamp: Utc::now(),
         next_signers,
-        mediators: vec![mediator.to_owned()],
     };
 
     Ok(inception)

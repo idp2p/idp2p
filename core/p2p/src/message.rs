@@ -13,7 +13,7 @@ pub enum IdGossipMessageKind {
     },
     // Notify an identity event
     NotifyEvent {
-        version: u64,
+        version: String,
         event: PersistedIdEvent,
     },
     // Notify message(this means you have a message)

@@ -54,7 +54,6 @@ pub(crate) struct Idp2pBehaviour {
 }
 
 pub(crate) struct IdNetworkEventLoop<S: IdStore, V: IdVerifier> {
-    current_user: String,
     store: Arc<InMemoryKvStore>,
     swarm: Swarm<Idp2pBehaviour>,
     event_sender: mpsc::Sender<IdAppEvent>,
@@ -64,23 +63,16 @@ pub(crate) struct IdNetworkEventLoop<S: IdStore, V: IdVerifier> {
 
 impl<S: IdStore, V: IdVerifier> IdNetworkEventLoop<S, V> {
     pub fn new(
-        current_user: String,
+        port: u16,
         store: Arc<InMemoryKvStore>,
         event_sender: mpsc::Sender<IdAppEvent>,
         cmd_receiver: mpsc::Receiver<IdNetworkCommand>,
         id_handler: IdMessageHandler<S, V>,
-    ) -> anyhow::Result<(PeerId, Self)> {
-        let port = match current_user.as_str() {
-            "alice" => 43727,
-            "bob" => 43728,
-            "dog" => 43729,
-            _ => panic!("Unknown user"),
-        };
+    ) -> anyhow::Result<(PeerId, Self)> {    
         let swarm = create_swarm(port)?;
         Ok((
             swarm.local_peer_id().to_owned(),
             Self {
-                current_user,
                 store,
                 swarm,
                 event_sender,
@@ -124,6 +116,8 @@ impl<S: IdStore, V: IdVerifier> IdNetworkEventLoop<S, V> {
         &mut self,
         event: SwarmEvent<Idp2pBehaviourEvent>,
     ) -> anyhow::Result<()> {
+        let current_user = self.store.get_current_user().await?;
+
         match event {
             SwarmEvent::Behaviour(Idp2pBehaviourEvent::Gossipsub(event)) => match event {
                 libp2p::gossipsub::Event::Message {

@@ -1,46 +1,48 @@
-use chrono::prelude::*;
-use cid::Cid;
+use alloc::{string::String, vec::Vec};
 use serde::{Deserialize, Serialize};
 
-use crate::IdConfig;
+use crate::{IdAssertationKey, IdClaim, IdKey};
 
-/// IdInception
-///
-/// The inception of the identity protocol.
-///
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct IdInception {
-    pub config: IdConfig,
-    pub state: Cid,
-    pub timestamp: DateTime<Utc>,
-    pub next_signers: Vec<Cid>,
-    pub mediators: Vec<String>,
+    pub threshold: u8,
+    pub timestamp: String,
+    pub signers: Vec<IdKey>,
+    pub next_signers: Vec<String>,
+    pub actions: Vec<IdActionKind>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub enum IdMediatorAction {
-    Add(String),
-    Remove(String)
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct IdAction {
-    pub state: Option<Cid>,
-    pub mediators: Vec<IdMediatorAction>
+pub enum IdActionKind {
+    AddMediator(String),
+    RemoveMediator(String),
+    AddAuthentication(IdKey),
+    RemoveAuthentication(String),
+    AddKeyAgreement(IdKey),
+    RemoveKeyAgreement(String),
+    AddAssertation(IdAssertationKey),
+    RemoveAssertation(String),
+    AddClaim(IdClaim),
+    RemoveClaim(String),
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum IdEventPayload {
-    Action(IdAction),
-    Recovery(Option<IdConfig>),
+    // Should be signed with current keys
+    Interaction(Vec<IdActionKind>),
+    // Should be signed with next keys
+    Rotation {
+        next_threshold: u8,
+        next_signers: Vec<String>,
+    },
+    // Should be signed with next keys
+    Delegation(String),
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct IdEvent {
-    pub timestamp: DateTime<Utc>,
-    pub previous: Cid,
-    pub signers: Vec<Cid>,
+    pub timestamp: String,
+    pub previous: String,
+    pub signers: Vec<String>,
     pub payload: IdEventPayload,
-    pub next_signers: Vec<Cid>,
 }
-
