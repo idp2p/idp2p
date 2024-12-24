@@ -1,4 +1,4 @@
-use cid::Cid;
+use cid::{multibase::Base, Cid};
 use multihash::Multihash;
 
 use crate::{utils::sha256_hash, SHA2_256_CODE};
@@ -6,8 +6,8 @@ use crate::{utils::sha256_hash, SHA2_256_CODE};
 pub trait CidExt {
     fn ensure(&self, input: &[u8]) -> anyhow::Result<()>;
     fn create(code: u64, input: &[u8]) -> anyhow::Result<Cid>;
-    fn from_bytes(bytes: &[u8]) -> anyhow::Result<Cid>;
-    fn to_id_string(&self) -> String;
+    fn from_id_string(prefix: &str, cid: &str) -> anyhow::Result<Cid>;
+    fn to_id_string(&self, prefix: &str) -> String;
 }
 
 impl CidExt for Cid {
@@ -34,12 +34,21 @@ impl CidExt for Cid {
         let mh = Multihash::<64>::wrap(SHA2_256_CODE, &input_digest).map_err(anyhow::Error::msg)?;
         Ok(Cid::new_v1(code, mh))
     }
+    
+    // id
+    // event
+    // key
+    // message
 
-    fn from_bytes(bytes: &[u8]) -> anyhow::Result<Cid> {
-        Ok(Cid::try_from(bytes).map_err(anyhow::Error::msg)?)
+    fn from_id_string(prefix: &str, id: &str) -> anyhow::Result<Cid> {
+        let prefix = format!("/idp2p/{}/", prefix);
+        if let Some(cid) = id.strip_prefix(&prefix) {
+            return Ok(Cid::try_from(cid).map_err(anyhow::Error::msg)?);
+        }
+        anyhow::bail!("Invalid id")
     }
 
-    fn to_id_string(&self) -> String {
-        format!("idp2p://{}", self.to_string())
+    fn to_id_string(&self, prefix: &str) -> String {
+        format!("/idp2p/{prefix}/{}", self.to_string_of_base(Base::Base32Lower).unwrap())
     }
 }

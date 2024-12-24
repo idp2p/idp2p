@@ -1,10 +1,19 @@
 interface error {
+    record id-not-match-error {
+        expected: string,
+        actual: string,
+    }
+
+    variant id-decode-error {
+        invalid-prefix
+    }
+
     variant id-inception-error {
         invalid-id,
         invalid-payload, 
         payload-and-id-not-match(string),
-        total-next-signers-not-match(u8),    // total signers
-        invalid-next-signer-codec(string),   // the signer
+        total-next-signers-not-match(id-error),    // total signers
+        invalid-next-signer-codec(id-error),         // the signer
         other(string),
     }
 

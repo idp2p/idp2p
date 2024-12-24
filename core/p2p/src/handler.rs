@@ -42,8 +42,8 @@ impl<S: IdStore, V: IdVerifier> IdMessageHandler<S, V> {
     ) -> Result<Option<Vec<u8>>> {
         use IdGossipMessageKind::*;
         match topic.as_str() {
-            s if s.starts_with("/p2p/id/") => {
-                let id = s.strip_prefix("/p2p/id/").unwrap();
+            s if s.starts_with("/idp2p/id/") => {
+                let id = s.strip_prefix("/idp2p/id/").unwrap();
                 let mut id_entry: IdEntry = self
                     .store
                     .get_id(id)
@@ -97,8 +97,8 @@ impl<S: IdStore, V: IdVerifier> IdMessageHandler<S, V> {
                     }
                 }
             }
-            s if s.starts_with("/p2p/id/") => {
-                let id = s.strip_prefix("/p2p/id/").unwrap();
+            s if s.starts_with("/idp2p/id/") => {
+                let id = s.strip_prefix("/idp2p/id/").unwrap();
                 todo!()
             }
             _ => return todo!(),

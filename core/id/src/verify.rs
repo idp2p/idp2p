@@ -1,23 +1,42 @@
-use alloc::vec::Vec;
 use cid::Cid;
 use idp2p_common::{cbor, cid::CidExt, verifying::ed25519::verify, ED_CODE};
+use serde::de::DeserializeOwned;
 
 use crate::{
-    idp2p::id::types::{IdEvent, IdInception}, IdEventError, IdInceptionError, IdView, PersistedIdEvent, PersistedIdInception
+    idp2p::id::{
+        error::{IdDecodeError, IdError},
+        types::{IdEvent, IdInception},
+    },
+    IdEventError, IdInceptionError, IdView, PersistedIdEvent, PersistedIdInception,
 };
 
+fn decode<T: DeserializeOwned>(prefix: &str, id: &str, payload: &[u8]) -> Result<T, IdDecodeError> {
+    let prefix = format!("/idp2p/{}/", prefix);
+    if let Some(cid) = id.strip_prefix(&prefix) {}
+    let cid = Cid::try_from(id).map_err(|_| IdDecodeError::InvalidPrefix)?;
+    cid.ensure(payload)
+        .map_err(|e| IdDecodeError::InvalidPrefix)?;
+    let t: T = cbor::decode(payload).map_err(|_| IdDecodeError::InvalidPrefix)?;
+    Ok(t)
+}
+
 pub fn verify_inception(pid: PersistedIdInception) -> Result<IdView, IdInceptionError> {
-    let id = Cid::try_from(pid.id.as_str()).map_err(|_| IdInceptionError::InvalidId)?;
+    /*let id = Cid::try_from(pid.id.as_str()).map_err(|_| IdInceptionError::InvalidId)?;
     id.ensure(pid.payload.as_slice())
         .map_err(|e| IdInceptionError::PayloadAndIdNotMatch(e.to_string()))?;
     let inception: IdInception =
-        cbor::decode(&pid.payload).map_err(|_| IdInceptionError::InvalidPayload)?;
+        cbor::decode(&pid.payload).map_err(|_| IdInceptionError::InvalidPayload)?;*/
+    let inception: IdInception =
+        decode("id", &pid.id, &pid.payload).map_err(|e| IdInceptionError::InvalidPayload)?;
+
     let total_signers = inception.next_signers.len() as u8;
     if total_signers < inception.threshold {
-        return Err(IdInceptionError::TotalNextSignersNotMatch(
-            inception.threshold,
-        ));
+        return Err(IdInceptionError::TotalNextSignersNotMatch(IdError {
+            expected: (),
+            actual: (),
+        }));
     }
+
     for next_signer in &inception.next_signers {
         let next_signer_cid = Cid::try_from(next_signer.as_str())
             .map_err(|_| IdInceptionError::InvalidNextSignerCodec(next_signer.clone()))?;
@@ -28,7 +47,7 @@ pub fn verify_inception(pid: PersistedIdInception) -> Result<IdView, IdInception
         }
     }
 
-    let id_str = format!("/p2p/id/{}", id.to_string());
+    let id_str = format!("/idp2p/id/{}", id.to_string());
     let id_view = IdView {
         id: id_str,
         event_id: pid.id.clone(),
