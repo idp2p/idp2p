@@ -7,6 +7,6 @@ pub mod verifier;
 
 bindgen!({
     world:"idp2p-id",
-    path:  "../id/wit/world.wit",
+    path:  "../id/wit/",
     additional_derives: [PartialEq, Eq, Hash, Clone, serde::Serialize, serde::Deserialize],
 });

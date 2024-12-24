@@ -1,7 +1,7 @@
-use cid::Cid;
 use serde::{Deserialize, Serialize};
 
 use crate::{model::PersistedId, PersistedIdEvent};
+
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum IdGossipMessageKind {

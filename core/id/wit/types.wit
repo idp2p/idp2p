@@ -1,0 +1,61 @@
+interface types {
+    record id-key {
+        id: string,
+        public-key: list<u8>,
+    }
+
+    record id-assertation-key {
+        key: id-key,
+        valid-from: string,
+        valid-until: string,
+    }
+
+    record id-claim {
+        key: string,
+        value: list<u8>,
+    }    
+
+    variant id-action-kind {
+        create-mediator(string),
+        revoke-mediator(string),
+        create-authentication(id-key),
+        revoke-authentication(string),
+        create-key-agreement(id-key),
+        revoke-key-agreement(string),
+        create-assertion-method(id-assertation-key),
+        revoke-assertion-method(string),
+        create-claim(id-claim),
+        revoke-claim(string),
+    }
+
+    record id-inception {
+        threshold: u8,
+        timestamp: string,
+        signers: list<id-key>,
+        next-signers: list<string>,
+        actions: list<id-action-kind>,
+    }
+
+    record id-rotation {
+        next-threshold: u8,
+        next-signers: list<string>,
+    }
+
+    variant id-event-kind {
+        // Should be signed with current keys
+        interaction(list<id-action-kind>),
+        // Should be signed with next keys
+        rotation(id-rotation),
+        // Should be signed with next keys
+        delegation(string),
+    }
+
+    record id-event {
+        timestamp: string,
+        previous: string,
+        signers: list<string>,
+        payload: id-event-kind,
+    }
+    
+
+}

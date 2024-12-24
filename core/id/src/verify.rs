@@ -3,8 +3,7 @@ use cid::Cid;
 use idp2p_common::{cbor, cid::CidExt, verifying::ed25519::verify, ED_CODE};
 
 use crate::{
-    internal::IdEvent, internal::IdEventPayload::*, internal::IdInception, IdEventError,
-    IdInceptionError, IdView, PersistedIdEvent, PersistedIdInception,
+    idp2p::id::types::{IdEvent, IdInception}, IdEventError, IdInceptionError, IdView, PersistedIdEvent, PersistedIdInception
 };
 
 pub fn verify_inception(pid: PersistedIdInception) -> Result<IdView, IdInceptionError> {

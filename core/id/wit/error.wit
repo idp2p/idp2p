@@ -1,0 +1,24 @@
+interface error {
+    variant id-inception-error {
+        invalid-id,
+        invalid-payload, 
+        payload-and-id-not-match(string),
+        total-next-signers-not-match(u8),    // total signers
+        invalid-next-signer-codec(string),   // the signer
+        other(string),
+    }
+
+    variant id-event-error {
+        invalid-id,
+        invalid-event-id,
+        invalid-payload, 
+        payload-and-id-not-match(string),
+        lack-of-min-signers(u8),            // min signers
+        signer-and-id-not-match(string),
+        previous-not-match(string),
+        invalid-signature(string),
+        invalid-next-signer(string),         // the signer
+        invalid-next-signer-codec(string),   // the signer
+        other(string),
+    }
+}

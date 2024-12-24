@@ -1,86 +1,8 @@
 package idp2p:id;
 
 world idp2p-id {
-    variant id-inception-error {
-        invalid-id,
-        invalid-payload, 
-        payload-and-id-not-match(string),
-        total-next-signers-not-match(u8),  // total signers
-        invalid-next-signer-codec(string),   // the signer
-        other(string),
-    }
-
-    variant id-event-error {
-        invalid-id,
-        invalid-event-id,
-        invalid-payload, 
-        payload-and-id-not-match(string),
-        lack-of-min-signers(u8),    // min signers
-        signer-and-id-not-match(string),
-        previous-not-match(string),
-        invalid-signature(string),
-        invalid-next-signer(string),   // the signer
-        invalid-next-signer-codec(string),   // the signer
-        other(string),
-    }
-
-    record id-key {
-        id: string,
-        public-key: list<u8>,
-    }
-
-    record id-assertation-key {
-        key: id-key,
-        valid-from: string,
-        valid-until: string,
-    }
-
-    record id-claim {
-        key: string,
-        value: list<u8>,
-    }
-
-    record persisted-id-proof {
-        id: string,
-        pk: list<u8>,
-        sig: list<u8>,
-    }
-
-    record persisted-id-inception {
-        id: string,
-        payload: list<u8>,
-    }
-
-    record persisted-id-event {
-        id: string,
-        payload: list<u8>,
-        proofs: list<persisted-id-proof>,
-    }
-
-    record id-view {
-        // Identifier 
-        id: string,
-        // Multi signature method   
-        threshold: u8,
-        // Last event id
-        event-id: string,
-        // Last event time
-        event-timestamp: string,
-        // Current signers
-        signers: list<id-key>,
-        // CID codec should be 0xed 
-        next-signers: list<string>,
-        // Mediator list 
-        mediators: list<string>,
-        // Authentication list
-        authentication: list<id-key>,
-        // Key agreement list
-        key-agreement: list<id-key>,
-        // Assertation list
-        assertation: list<id-assertation-key>,
-        // Claims
-        claims: list<id-claim>,
-    }
+    use model.{persisted-id-inception, id-view, persisted-id-event};
+    use error.{id-inception-error, id-event-error};
 
     export verify-inception: func(incepiton: persisted-id-inception) -> result<id-view, id-inception-error>;
 

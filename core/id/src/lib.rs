@@ -1,10 +1,10 @@
 extern crate alloc;
 
-pub mod internal;
 pub mod verify;
 
 wit_bindgen::generate!({
     world: "idp2p-id",
+    generate_unused_types: true,
     additional_derives: [PartialEq, Eq, Hash, Clone, serde::Serialize, serde::Deserialize],
 });
 

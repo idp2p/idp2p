@@ -1,0 +1,62 @@
+interface model {
+    use types.{id-key, id-assertation-key, id-claim};
+
+    record persisted-id-proof {
+        id: string,
+        pk: list<u8>,
+        sig: list<u8>,
+    }
+
+    record persisted-id-inception {
+        id: string,
+        payload: list<u8>,
+    }
+
+    record persisted-id-event {
+        id: string,
+        payload: list<u8>,
+        proofs: list<persisted-id-proof>,
+    }
+
+    record id-view {
+        // Identifier 
+        id: string,
+        // Multi signature method   
+        threshold: u8,
+        // Last event id
+        event-id: string,
+        // Last event time
+        event-timestamp: string,
+        // Current signers
+        signers: list<id-key>,
+        // CID codec should be 0xed 
+        next-signers: list<string>,
+        // Mediator list 
+        mediators: list<string>,
+        // Authentication list
+        authentication: list<id-key>,
+        // Key agreement list
+        key-agreement: list<id-key>,
+        // Assertation list
+        assertation: list<id-assertation-key>,
+        // Claims
+        claims: list<id-claim>,
+    }
+    
+    record persisted-id-event-with-version {
+        version: string,
+        event: persisted-id-event,
+    }
+
+    record persisted-id {
+        // Identity id
+        id: list<u8>,
+        // Specifies the version of inception
+        version: string,
+        // Inception id and payload
+        inception: persisted-id-inception,
+        // The key specifies the version of event
+        events: list<persisted-id-event-with-version>,
+    }
+    
+}
