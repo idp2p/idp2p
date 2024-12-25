@@ -10,3 +10,4 @@ pub mod utils;
 pub mod cbor;
 pub mod verifying;
 pub mod said;
+pub mod error;

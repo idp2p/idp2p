@@ -47,7 +47,7 @@ structopt = "0"
 libp2p = { version = "0.54.1", features = ["full"] }
 tokio = { version = "1", features = ["full"] }
 semver = { version = "1", default-features = false, features = ["serde"] }
-regex = { version = "1", default-features = false }
+regex = { version = "1", default-features = false, features = ["unicode-perl"] }
 anyhow = { version = "1", default-features = false }
 serde = { version = "1", default-features = false, features = [
     "derive",

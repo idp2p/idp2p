@@ -54,7 +54,7 @@ impl<S: IdStore, V: IdVerifier> IdMessageHandler<S, V> {
                     Resolve => {
                         let cmd = IdMessageHandlerCommand::Publish {
                             topic: topic.to_owned(),
-                            payload: id_entry.identity.id,
+                            payload: id_entry.,
                         };
                         self.sender.send(cmd).await?;
                         return Ok(None);
