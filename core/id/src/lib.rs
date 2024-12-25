@@ -1,6 +1,6 @@
 extern crate alloc;
 
-pub mod verify;
+mod inception;
 
 wit_bindgen::generate!({
     world: "idp2p-id",
@@ -14,10 +14,11 @@ export!(GuestComponent);
 
 impl Guest for GuestComponent {
     fn verify_inception(inception: PersistedIdInception) -> Result<IdView, IdInceptionError> {
-        verify::verify_inception(inception)
+        inception.verify()
     }
 
     fn verify_event(view: IdView, event: PersistedIdEvent) -> Result<IdView, IdEventError> {
-        verify::verify_event(view, event)
+        todo!()
+        //verify::verify_event(view, event)
     }
 }

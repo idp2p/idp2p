@@ -1,33 +1,47 @@
 interface error {
-    record id-not-match-error {
-        expected: string,
-        actual: string,
+    variant error-value {
+        text(string),
+        bytes(list<u8>),
+        number(s64),
+        boolean(bool)
     }
 
-    variant id-decode-error {
-        invalid-prefix
+    record id-error-param {
+        key: string,
+        value: error-value
     }
 
-    variant id-inception-error {
+    variant id-inception-error-kind {
         invalid-id,
         invalid-payload, 
-        payload-and-id-not-match(string),
-        total-next-signers-not-match(id-error),    // total signers
-        invalid-next-signer-codec(id-error),         // the signer
-        other(string),
+        payload-and-id-not-match,
+        threshold-not-match,     
+        invalid-next-signer-codec,                 
+        unknown,
     }
 
-    variant id-event-error {
+    variant id-event-error-kind {
         invalid-id,
         invalid-event-id,
         invalid-payload, 
-        payload-and-id-not-match(string),
-        lack-of-min-signers(u8),            // min signers
-        signer-and-id-not-match(string),
-        previous-not-match(string),
-        invalid-signature(string),
-        invalid-next-signer(string),         // the signer
-        invalid-next-signer-codec(string),   // the signer
-        other(string),
+        payload-and-id-not-match,
+        lack-of-min-signers,           
+        signer-and-id-not-match,
+        previous-not-match,
+        invalid-signature,
+        invalid-next-signer,      
+        invalid-next-signer-codec,   
+        unknown,
     }
+
+    record id-event-error {
+       kind: id-event-error-kind,
+       params: list<id-error-param>
+    }
+
+    record id-inception-error {
+        kind: id-inception-error-kind,
+        params: list<id-error-param>
+    }
+ 
 }

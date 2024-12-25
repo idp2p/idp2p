@@ -35,11 +35,6 @@ impl CidExt for Cid {
         Ok(Cid::new_v1(code, mh))
     }
     
-    // id
-    // event
-    // key
-    // message
-
     fn from_id_string(prefix: &str, id: &str) -> anyhow::Result<Cid> {
         let prefix = format!("/idp2p/{}/", prefix);
         if let Some(cid) = id.strip_prefix(&prefix) {

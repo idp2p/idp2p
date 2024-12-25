@@ -3,23 +3,13 @@ use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct PersistedId {
-    // Identity id
-    pub id: Vec<u8>,
-    // Specifies the version of inception
-    pub version: String,
-    // Inception id and payload
-    pub inception: PersistedIdInception,
-    // The key specifies the version of event
-    pub events: HashMap<String, PersistedIdEvent>,
-}
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct IdEntry {
-    pub view: IdView,
-    pub identity: PersistedId,
     pub is_client: bool,
+    pub view: IdView,
+    pub inception: PersistedIdInception,
+    pub events: HashMap<String, PersistedIdEvent>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]

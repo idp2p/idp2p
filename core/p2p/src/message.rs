@@ -1,7 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use crate::{model::PersistedId, PersistedIdEvent};
-
+use crate::PersistedIdEvent;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum IdGossipMessageKind {
@@ -9,7 +8,7 @@ pub enum IdGossipMessageKind {
     Resolve,
     // Provide an identity document
     Provide {
-        id: PersistedId,
+        providers: Vec<String>,
     },
     // Notify an identity event
     NotifyEvent {

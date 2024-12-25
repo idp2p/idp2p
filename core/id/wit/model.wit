@@ -1,5 +1,5 @@
 interface model {
-    use types.{id-key, id-assertation-key, id-claim};
+    use types.{id-signer, id-claim};
 
     record persisted-id-proof {
         id: string,
@@ -28,17 +28,9 @@ interface model {
         // Last event time
         event-timestamp: string,
         // Current signers
-        signers: list<id-key>,
+        signers: list<id-signer>,
         // CID codec should be 0xed 
         next-signers: list<string>,
-        // Mediator list 
-        mediators: list<string>,
-        // Authentication list
-        authentication: list<id-key>,
-        // Key agreement list
-        key-agreement: list<id-key>,
-        // Assertation list
-        assertation: list<id-assertation-key>,
         // Claims
         claims: list<id-claim>,
     }

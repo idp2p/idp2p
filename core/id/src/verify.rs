@@ -1,63 +1,65 @@
 use cid::Cid;
-use idp2p_common::{cbor, cid::CidExt, verifying::ed25519::verify, ED_CODE};
-use serde::de::DeserializeOwned;
+use idp2p_common::{
+    cbor, cid::CidExt, utils::parse_id, verifying::ed25519::verify, ED_CODE,
+};
+
 
 use crate::{
-    idp2p::id::{
-        error::{IdDecodeError, IdError},
-        types::{IdEvent, IdInception},
-    },
+    idp2p::id::{error::IdInceptionErrorKind, types::{IdEvent, IdInception, IdActionKind::*, IdEventKind::*}},
     IdEventError, IdInceptionError, IdView, PersistedIdEvent, PersistedIdInception,
 };
 
-fn decode<T: DeserializeOwned>(prefix: &str, id: &str, payload: &[u8]) -> Result<T, IdDecodeError> {
-    let prefix = format!("/idp2p/{}/", prefix);
-    if let Some(cid) = id.strip_prefix(&prefix) {}
-    let cid = Cid::try_from(id).map_err(|_| IdDecodeError::InvalidPrefix)?;
-    cid.ensure(payload)
-        .map_err(|e| IdDecodeError::InvalidPrefix)?;
-    let t: T = cbor::decode(payload).map_err(|_| IdDecodeError::InvalidPrefix)?;
-    Ok(t)
-}
-
 pub fn verify_inception(pid: PersistedIdInception) -> Result<IdView, IdInceptionError> {
-    /*let id = Cid::try_from(pid.id.as_str()).map_err(|_| IdInceptionError::InvalidId)?;
-    id.ensure(pid.payload.as_slice())
-        .map_err(|e| IdInceptionError::PayloadAndIdNotMatch(e.to_string()))?;
-    let inception: IdInception =
-        cbor::decode(&pid.payload).map_err(|_| IdInceptionError::InvalidPayload)?;*/
-    let inception: IdInception =
-        decode("id", &pid.id, &pid.payload).map_err(|e| IdInceptionError::InvalidPayload)?;
-
-    let total_signers = inception.next_signers.len() as u8;
-    if total_signers < inception.threshold {
-        return Err(IdInceptionError::TotalNextSignersNotMatch(IdError {
-            expected: (),
-            actual: (),
-        }));
+    // Decode 
+    // 
+    let inception: IdInception = pid.try_into()?;
+    // Timestamp check
+    // 
+    
+    // Signer threshold, codec, public bytes check 
+    // 
+    let total_next_signers = inception.next_signers.len() as u8;
+    if total_next_signers < inception.next_threshold {
+        todo!("")
     }
 
     for next_signer in &inception.next_signers {
-        let next_signer_cid = Cid::try_from(next_signer.as_str())
-            .map_err(|_| IdInceptionError::InvalidNextSignerCodec(next_signer.clone()))?;
+        let next_signer_cid = Cid::try_from(next_signer.as_str())?;
         if next_signer_cid.codec() != ED_CODE {
-            return Err(IdInceptionError::InvalidNextSignerCodec(
-                next_signer.clone(),
-            ));
+            todo!("")
         }
     }
 
-    let id_str = format!("/idp2p/id/{}", id.to_string());
+    // Next Signer threshold, codec check 
+    // 
+    let total_signers = inception.signers.len() as u8;
+    if total_signers < inception.threshold {
+        todo!("")
+    }
+
+    for signer in &inception.signers {
+        let signer_cid = Cid::try_from(signer.id.as_str())?;
+        if signer_cid.codec() != ED_CODE {
+            todo!("codec error")
+        }
+        todo!("check public key")
+    }
+
+    // Claims check 
+    // 
+    for action in inception.actions {
+        match action {
+            CreateClaim(id_claim) => todo!(),
+            RevokeClaim(_) => todo!("Error"),
+        }
+    }
+
     let id_view = IdView {
-        id: id_str,
+        id: pid.id,
         event_id: pid.id.clone(),
-        event_timestamp: inception.timestamp.to_string(),
+        event_timestamp: inception.timestamp,
         next_signers: inception.next_signers.clone(),
         signers: todo!(),
-        mediators: todo!(),
-        authentication: todo!(),
-        key_agreement: todo!(),
-        assertation: todo!(),
         threshold: todo!(),
         claims: todo!(),
     };
@@ -66,16 +68,33 @@ pub fn verify_inception(pid: PersistedIdInception) -> Result<IdView, IdInception
 }
 
 pub fn verify_event(view: IdView, pevent: PersistedIdEvent) -> Result<IdView, IdEventError> {
-    let event_id = Cid::try_from(pevent.id.as_str()).map_err(|_| IdEventError::InvalidEventId)?;
-    event_id
-        .ensure(pevent.payload.as_slice())
-        .map_err(|e| IdEventError::PayloadAndIdNotMatch(e.to_string()))?;
-    let event: IdEvent = cbor::decode(&pevent.payload).map_err(|_| IdEventError::InvalidPayload)?;
+    let event: IdEvent = pevent.try_into()?;
     if event.previous != view.event_id {
-        return Err(IdEventError::PreviousNotMatch(event.previous));
+        //return Err(IdEventError::PreviousNotMatch(event.previous));
     }
 
-    for proof in pevent.proofs {
+    // Timestamp check
+    // Verify proofs and check signer if it exists in event.signers
+
+    match event.payload {
+        Interaction(actions) => {
+            // Check signers and threshold
+            for action in actions {
+                match action {
+                    CreateClaim(id_claim) => todo!(),
+                    RevokeClaim(id) => todo!(),
+                }
+            }
+        },
+        Rotation(id_rotation) => {
+
+        },
+        Delegation(_) => {
+
+        },
+    }
+
+    /*for proof in pevent.proofs {
         let signer_id = Cid::try_from(proof.id.as_str())
             .map_err(|_| IdEventError::InvalidNextSignerCodec(proof.id.clone()))?;
         signer_id
@@ -86,7 +105,7 @@ pub fn verify_event(view: IdView, pevent: PersistedIdEvent) -> Result<IdView, Id
         }
         verify(&proof.pk, &pevent.payload, &proof.sig)
             .map_err(|_| IdEventError::InvalidSignature(proof.id.clone()))?;
-    }
+    }*/
     let mut view = view;
     /*match event.payload {
         Rotation(rotation) => {
@@ -112,4 +131,31 @@ pub fn verify_event(view: IdView, pevent: PersistedIdEvent) -> Result<IdView, Id
     view.next_signers = event.next_signers.iter().map(|x| x.to_bytes()).collect();*/
 
     Ok(view)
+}
+
+impl TryFrom<PersistedIdInception> for IdInception {
+    type Error = IdInceptionError;
+
+    fn try_from(value: PersistedIdInception) -> Result<Self, Self::Error> {
+        let (_, cid) =
+            parse_id_with_version("id", &value.id).map_err(|_| Self::Error::InvalidId)?;
+        cid.ensure(&value.payload)
+            .map_err(|_| Self::Error::InvalidId)?;
+        let inception: IdInception =
+            cbor::decode(&value.payload).map_err(|_| Self::Error::InvalidId)?;
+        Ok(inception)
+    }
+}
+
+impl TryFrom<PersistedIdEvent> for IdEvent {
+    type Error;
+
+    fn try_from(value: PersistedIdEvent) -> Result<Self, Self::Error> {
+        let event_id = Cid::try_from(pevent.id.as_str()).map_err(|_| IdEventError::InvalidEventId)?;
+        event_id
+            .ensure(pevent.payload.as_slice())
+            .map_err(|e| IdEventError::PayloadAndIdNotMatch(e.to_string()))?;
+        let event: IdEvent = cbor::decode(&pevent.payload).map_err(|_| IdEventError::InvalidPayload)?;
+        todo!()
+    }
 }

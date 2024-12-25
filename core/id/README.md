@@ -2,3 +2,42 @@
 
 - Multisig recovery minimum signer
 - Handle verify_event
+
+`/idp2p/id/{major}/{minor}/{cid}`
+
+Specifies identifier of identity controller
+
+`/idp2p/event/{major}/{minor}/{cid}`
+
+Specifies identity keri event
+
+`/idp2p/signer/{cid}`
+
+Specifies identity keri signer
+
+-----------------------------------
+
+`/idp2p/message/{major}/{minor}/{cid}`
+
+Specifies idp2p message id
+
+-------------------------------
+
+`/idp2p/authentication/`   -> cid
+
+`/idp2p/key-agreement/`    -> cid 
+
+`/idp2p/assertion-method/` -> cid 
+
+`/idp2p/peer/`       -> peer 
+
+`/idp2p/mediator/`     -> id 
+
+
+
+Examples:
+
+- `/idp2p/id/1/0/bafkreieq5jui4j25lacwomsqgjeswwl3y5zcdrresptwgmfylxo2depppq`
+
+
+
