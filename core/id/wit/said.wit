@@ -1,0 +1,38 @@
+interface said {
+    record said-semver {
+        major: u16,
+        minor: u16,
+    }
+
+    enum said-signer-kind {
+        ed25519
+    }
+
+    enum said-agreement-kind {
+        x25519
+    }
+
+    record said-state {
+        kind: u64,
+        version: said-semver
+    }
+
+    variant said-kind {
+        id(said-semver),
+        event(said-semver),
+        signer,
+        message(said-semver),
+        mediator,
+        peer,
+        authentication,
+        key-agreement,
+        assertion-method,
+        state(said-state)
+    }
+
+    record said {
+        version: u16,
+        cid: list<u8>,
+        kind: said-kind,
+    }
+}

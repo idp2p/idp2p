@@ -3,10 +3,15 @@ use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
-
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub enum IdEntryKind {
+    Owner,
+    Client,
+    Subscriber
+}
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct IdEntry {
-    pub is_client: bool,
+    pub kind: IdEntryKind,
     pub view: IdView,
     pub inception: PersistedIdInception,
     pub events: HashMap<String, PersistedIdEvent>,

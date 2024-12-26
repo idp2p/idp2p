@@ -1,3 +1,104 @@
+use cid::Cid;
+use multihash::Multihash;
+
+use crate::{error::IdError, utils::sha256_hash, SHA2_256_CODE};
+
+pub struct IdVersion {
+    major: u16,
+    minor: u16,
+}
+
+pub enum IdSignerCodec {
+   Ed = 0xed,
+}
+
+pub enum IdKeyAgreementCodec {
+    X25519 = 0xec,
+}
+
+pub struct Idp2pId {
+    cid: Cid,
+    kind: Idp2pIdKind,
+}
+
+
+pub enum Idp2pIdKind {
+    Id(IdVersion),
+    Event(IdVersion),
+    Signer,
+    Message(IdVersion),
+    Mediator,
+    Peer,
+    Authentication,
+    KeyAgreement,
+    AssertionMethod,
+    State {
+       kind: u64,
+       version: IdVersion
+    }
+}
+
+// [kind]([major][minor])?
+impl Idp2pIdKind {
+    fn encode(&self) -> Vec<u8> {
+        match self {
+            Idp2pIdKind::Id(version) => 0,
+            Idp2pIdKind::Event(version) => 1,
+            Idp2pIdKind::Signer => 2,
+            Idp2pIdKind::Message(version) => 3,
+            Idp2pIdKind::Mediator => 4,
+            Idp2pIdKind::Peer => 5,
+            Idp2pIdKind::Authentication => 6,
+            Idp2pIdKind::KeyAgreement => 7,
+            Idp2pIdKind::AssertionMethod => 8,
+        
+        }
+    }
+}
+
+impl Idp2pId {
+    pub fn new(kind: Idp2pIdKind, codec: u64, bytes: &[u8]) -> Result<Self, IdError> {
+        let prefix = kind.encode();
+        let input_digest = sha256_hash(bytes)?;
+        let mh =
+            Multihash::<64>::wrap(SHA2_256_CODE, &input_digest).map_err(|_| IdError::Unknown)?;
+        let cid = Cid::new_v1(codec, mh);
+        todo!()
+    }
+}
+
+
+pub trait CidExt {
+    fn ensure(&self, input: &[u8]) -> Result<(), IdError>;
+    fn create(code: u64, input: &[u8]) -> Result<Cid, IdError>;
+}
+
+impl CidExt for Cid {
+    fn ensure(&self, input: &[u8]) -> Result<(), IdError> {
+        match self.hash().code() {
+            SHA2_256_CODE => {
+                let input_digest = sha256_hash(input)?;
+                if self.hash().digest() != input_digest.as_slice() {
+                    return Err(IdError::EnsureError {
+                        expected: input_digest.to_vec(),
+                        actual: self.hash().digest().to_vec(),
+                    });
+                }
+            }
+            _ => return Err(IdError::InvalidHashAlg(self.hash().code())),
+        }
+        Ok(())
+    }
+
+    fn create(code: u64, input: &[u8]) -> Result<Self, IdError> {
+        let input_digest = sha256_hash(input)?;
+        let mh =
+            Multihash::<64>::wrap(SHA2_256_CODE, &input_digest).map_err(|_| IdError::Unknown)?;
+        Ok(Cid::new_v1(code, mh))
+    }
+}
+
+
 use std::str::FromStr;
 use regex::Regex;
 use crate::error::IdError;
@@ -12,13 +113,6 @@ impl FromStr for Idp2pId {
     type Err = IdError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        // This pattern:
-        //
-        // ^/idp2p                              -- must start with "/idp2p"
-        // /(?<kind>[a-z]+)                     -- slash plus [id|event|message] (captured in 'kind')
-        // (?:/(?<major>\d+)/(?<minor>\d+))?    -- the ENTIRE major+minor block is optional
-        // /(?<cid>.+)                          -- slash plus remainder as cid
-        //
         // If major is present, minor must also be present and vice versa
         //
         let re =
@@ -27,23 +121,17 @@ impl FromStr for Idp2pId {
 
         let caps = re.captures(s).ok_or(IdError::InvalidId)?;
 
-        // Convert the 'kind' capture to the enum variant
         let kind = caps["kind"].to_string();
 
-        // Attempt to extract the optional major and minor
         let major = caps.name("major").map(|m| m.as_str());
         let minor = caps.name("minor").map(|m| m.as_str());
 
-        // If both major and minor are present, create the version string.
-        // If neither is present, version = None.
-        // Otherwise, it's an invalid ID.
         let version = match (major, minor) {
             (Some(maj), Some(min)) => Some(format!("{}.{}", maj, min)),
             (None, None) => None,
             _ => return Err(IdError::InvalidId),
         };
 
-        // Convert `cid` capture
         let identifier = caps["identifier"].to_string();
         //let cid = Cid::try_from(cid_str).map_err(|_| IdError::InvalidId)?;
 

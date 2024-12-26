@@ -9,7 +9,7 @@ interface types {
         value: list<u8>,
         valid-from: option<string>,
         valid-until: option<string>
-    }    
+    }  
 
     variant id-action-kind {
         create-claim(id-claim),
@@ -31,18 +31,13 @@ interface types {
         next-signers: list<string>,
     }
 
-    record id-delegation {
-        signers: list<id-signer>,
-        next-id: string
-    }
-
     variant id-event-kind {
         // Should be signed with current keys
         interaction(list<id-action-kind>),
         // Should be signed with next keys
         rotation(id-rotation),
         // Should be signed with next keys
-        delegation(id-delegation),
+        delegation(string),
     }
 
     record id-event {

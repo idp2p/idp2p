@@ -29,11 +29,19 @@ Specifies idp2p message id
 
 `/idp2p/assertion-method/` -> cid 
 
-`/idp2p/peer/`       -> peer 
+`/idp2p/peer/`             -> peer 
 
-`/idp2p/mediator/`     -> id 
+`/idp2p/mediator/`         -> id 
 
-
+0 -> id
+1 -> event
+2 -> signer
+3 -> message
+4 -> mediator
+5 -> peer
+6 -> authentication
+7 -> key-agreement
+8 -> assertion-method
 
 Examples:
 

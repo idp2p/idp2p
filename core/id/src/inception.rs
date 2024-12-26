@@ -3,7 +3,7 @@ use idp2p_common::ED_CODE;
 
 use crate::{
     idp2p::id::{error::IdInceptionErrorKind, types::IdInception},
-    IdInceptionError, IdView, PersistedIdInception,
+    IdInceptionError, IdView, PersistedIdInception, idp2p::id::said::SaidAgreementKind
 };
 impl PersistedIdInception {
     pub(crate) fn verify(&self) -> Result<IdView, IdInceptionError> {
