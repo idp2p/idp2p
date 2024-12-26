@@ -2,6 +2,9 @@ extern crate alloc;
 
 mod inception;
 
+const TIMESTAMP: i64 = 0;
+const VERSION: (u16, u16) = (0, 1);
+
 wit_bindgen::generate!({
     world: "idp2p-id",
     generate_unused_types: true,

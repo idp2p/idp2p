@@ -7,8 +7,8 @@ interface types {
     record id-claim {
         key: string,
         value: list<u8>,
-        valid-from: option<string>,
-        valid-until: option<string>
+        valid-from: option<s64>,
+        valid-until: option<s64>
     }  
 
     variant id-action-kind {
@@ -17,7 +17,7 @@ interface types {
     }
 
     record id-inception {        
-        timestamp: string,
+        timestamp: s64,
         threshold: u8,
         signers: list<id-signer>,
         next-threshold: u8,
@@ -42,7 +42,7 @@ interface types {
 
     record id-event {
         // Timestamp of event
-        timestamp: string,
+        timestamp: s64,
         // Previous event id
         previous: string,
         // Event payload

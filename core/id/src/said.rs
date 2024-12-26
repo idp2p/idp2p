@@ -1,42 +1,6 @@
 use cid::Cid;
 use multihash::Multihash;
 
-use crate::{error::IdError, utils::sha256_hash, SHA2_256_CODE};
-
-pub struct IdVersion {
-    major: u16,
-    minor: u16,
-}
-
-pub enum IdSignerCodec {
-   Ed = 0xed,
-}
-
-pub enum IdKeyAgreementCodec {
-    X25519 = 0xec,
-}
-
-pub struct Idp2pId {
-    cid: Cid,
-    kind: Idp2pIdKind,
-}
-
-
-pub enum Idp2pIdKind {
-    Id(IdVersion),
-    Event(IdVersion),
-    Signer,
-    Message(IdVersion),
-    Mediator,
-    Peer,
-    Authentication,
-    KeyAgreement,
-    AssertionMethod,
-    State {
-       kind: u64,
-       version: IdVersion
-    }
-}
 
 // [kind]([major][minor])?
 impl Idp2pIdKind {

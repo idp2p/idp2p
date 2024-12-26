@@ -26,29 +26,12 @@ interface model {
         // Last event id
         event-id: string,
         // Last event time
-        event-timestamp: string,
+        event-timestamp: s64,
         // Current signers
         signers: list<id-signer>,
         // CID codec should be 0xed 
         next-signers: list<string>,
         // Claims
         claims: list<id-claim>,
-    }
-    
-    record persisted-id-event-with-version {
-        version: string,
-        event: persisted-id-event,
-    }
-
-    record persisted-id {
-        // Identity id
-        id: list<u8>,
-        // Specifies the version of inception
-        version: string,
-        // Inception id and payload
-        inception: persisted-id-inception,
-        // The key specifies the version of event
-        events: list<persisted-id-event-with-version>,
-    }
-    
+    }    
 }
