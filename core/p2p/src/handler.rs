@@ -54,7 +54,7 @@ impl<S: IdStore, V: IdVerifier> IdMessageHandler<S, V> {
                     Resolve => {
                         let cmd = IdMessageHandlerCommand::Publish {
                             topic: topic.to_owned(),
-                            payload: id_entry.,
+                            payload: cbor::encode(&id_entry)?,
                         };
                         self.sender.send(cmd).await?;
                         return Ok(None);
@@ -84,7 +84,7 @@ impl<S: IdStore, V: IdVerifier> IdMessageHandler<S, V> {
                         self.store.set_id(&id, &entry).await?;
                         return Ok(None);
                     }
-                    NotifyMessage { id, providers } => {
+                    NotifyMessage { id, providers, direction } => {
                         let cmd = IdMessageHandlerCommand::Request {
                             peer: PeerId::from_str(&providers.get(0).unwrap())?,
                             message_id: id.to_string(),

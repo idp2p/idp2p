@@ -21,12 +21,14 @@ interface model {
     record id-view {
         // Identifier 
         id: string,
-        // Multi signature method   
-        threshold: u8,
         // Last event id
         event-id: string,
         // Last event time
         event-timestamp: s64,
+        // Threshold  
+        threshold: u8,
+        // Next threshold  
+        next-threshold: u8,
         // Current signers
         signers: list<id-signer>,
         // CID codec should be 0xed 

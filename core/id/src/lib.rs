@@ -1,6 +1,9 @@
 extern crate alloc;
 
+mod said;
 mod inception;
+mod event;
+mod error;
 
 const TIMESTAMP: i64 = 0;
 const VERSION: (u16, u16) = (0, 1);
@@ -25,3 +28,4 @@ impl Guest for GuestComponent {
         //verify::verify_event(view, event)
     }
 }
+

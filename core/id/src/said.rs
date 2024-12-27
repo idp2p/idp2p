@@ -1,4 +1,44 @@
-use cid::Cid;
+use std::str::FromStr;
+
+use crate::error::IdError;
+
+pub enum Idp2pSaidKind {
+    Id,
+    Event,
+    Signer,
+    Message,
+    Mediator,
+    Peer,
+    Authentication,
+    KeyAgreement,
+    AssertionMethod,
+    State
+}
+
+
+impl Idp2pSaidKind {
+    pub fn ensure_id(&self) -> Result<&Self, IdError> {
+        Ok(self)
+    }
+
+    pub fn ensure_signer(&self) -> Result<&Self, IdError> {
+        Ok(self)
+    }
+
+    pub fn ensure_claim(&self) -> Result<&Self, IdError> {
+        Ok(self)
+    }
+}
+
+impl FromStr for Idp2pSaidKind {
+    type Err = IdError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        todo!()
+    }
+}
+
+/*use cid::Cid;
 use multihash::Multihash;
 
 
@@ -78,7 +118,7 @@ impl FromStr for Idp2pId {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         // If major is present, minor must also be present and vice versa
-        //
+        // /idp2p/1/0/events/bafkreieq5jui4j25lacwomsqgjeswwl3y5zcdrresptwgmfylxo2depppq
         let re =
             Regex::new(r"^/idp2p/(?<kind>[a-z]+)(?:/(?<major>\d+)/(?<minor>\d+))?/(?<identifier>.+)$")
                 .unwrap();
@@ -149,6 +189,7 @@ mod tests {
 
     #[test]
     fn test_invalid_only_minor() {
+        // "/idp2p/state/1/2/{CID}"
         // This doesn't even match the required pattern, but let's see it fail
         let input = format!("/idp2p/event/1.2/{CID}");
         let parsed = parse_idp2p_id(input.as_str());
@@ -164,4 +205,4 @@ mod tests {
         // Should fail because the CID parsing fails
         assert!(parsed.is_err());
     }
-}
+}*/

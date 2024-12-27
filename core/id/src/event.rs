@@ -1,4 +1,97 @@
-use cid::Cid;
+use std::str::FromStr;
+
+use idp2p_common::{
+    cbor, ed25519::verify, error::CommonError, said::{Said, SaidError}
+};
+
+use crate::{
+    error::IdError, idp2p::id::types::{IdEvent, IdEventKind::*, IdActionKind::*}, said::Idp2pSaidKind, IdEventError, IdView,
+    PersistedIdEvent, TIMESTAMP,
+};
+
+impl PersistedIdEvent {
+    pub(crate) fn verify(&self, view: &mut IdView,) -> Result<IdView, IdEventError> {
+        let event: IdEvent = self.try_into()?;
+
+        // Timestamp check
+        //
+        if event.timestamp < TIMESTAMP {
+            todo!("timestamp error")
+        }
+
+        // Previous event check
+        //
+        if event.previous != view.event_id {
+            //return Err(IdEventError::PreviousNotMatch(event.previous));
+        }
+
+        // Proof verification
+        //
+        let mut signers = vec![];
+        for proof in &self.proofs {
+            let signer_said = Said::from_str(proof.id.as_str())?;
+            signer_said.validate(&proof.pk)?;
+            Idp2pSaidKind::from_str(&signer_said.kind)?.ensure_signer()?;
+            if signers.contains(&signer_said) {
+                //return Err(IdEventError::InvalidNextSigner(proof.id.clone()));
+            }
+            verify(&proof.pk, &self.payload, &proof.sig)?;
+            signers.push(signer_said);
+        }
+
+        match event.payload {
+            Interaction(actions) => {
+                // Check signers and threshold
+                for action in actions {
+                    match action {
+                        CreateClaim(id_claim) => todo!(),
+                        RevokeClaim(id) => todo!(),
+                    }
+                }
+            },
+            Rotation(id_rotation) => {
+    
+            },
+            Delegation(_) => {
+    
+            },
+        }
+
+        Ok(view.to_owned())
+    }
+}
+
+impl TryFrom<&PersistedIdEvent> for IdEvent {
+    type Error = IdEventError;
+
+    fn try_from(value: &PersistedIdEvent) -> Result<Self, Self::Error> {
+        let said: Said = Said::from_str(value.id.as_str())?;
+        said.validate(&value.payload)?;
+        Idp2pSaidKind::from_str(&said.kind)?.ensure_id()?;
+        let event: IdEvent = cbor::decode(&value.payload)?;
+        Ok(event)
+    }
+}
+
+impl From<CommonError> for IdEventError {
+    fn from(value: CommonError) -> Self {
+        todo!()
+    }
+}
+
+impl From<SaidError> for IdEventError {
+    fn from(value: SaidError) -> Self {
+        todo!()
+    }
+}
+
+impl From<IdError> for IdEventError {
+    fn from(value: IdError) -> Self {
+        todo!()
+    }
+}
+
+/*use cid::Cid;
 use idp2p_common::{
     cbor, cid::CidExt, utils::parse_id, verifying::ed25519::verify, ED_CODE,
 };
@@ -10,14 +103,14 @@ use crate::{
 };
 
 pub fn verify_inception(pid: PersistedIdInception) -> Result<IdView, IdInceptionError> {
-    // Decode 
-    // 
+    // Decode
+    //
     let inception: IdInception = pid.try_into()?;
     // Timestamp check
-    // 
-    
-    // Signer threshold, codec, public bytes check 
-    // 
+    //
+
+    // Signer threshold, codec, public bytes check
+    //
     let total_next_signers = inception.next_signers.len() as u8;
     if total_next_signers < inception.next_threshold {
         todo!("")
@@ -30,8 +123,8 @@ pub fn verify_inception(pid: PersistedIdInception) -> Result<IdView, IdInception
         }
     }
 
-    // Next Signer threshold, codec check 
-    // 
+    // Next Signer threshold, codec check
+    //
     let total_signers = inception.signers.len() as u8;
     if total_signers < inception.threshold {
         todo!("")
@@ -45,8 +138,8 @@ pub fn verify_inception(pid: PersistedIdInception) -> Result<IdView, IdInception
         todo!("check public key")
     }
 
-    // Claims check 
-    // 
+    // Claims check
+    //
     for action in inception.actions {
         match action {
             CreateClaim(id_claim) => todo!(),
@@ -159,3 +252,4 @@ impl TryFrom<PersistedIdEvent> for IdEvent {
         todo!()
     }
 }
+*/

@@ -1,62 +1,81 @@
-use alloc::str::FromStr;
+use std::str::FromStr;
 
-use cid::Cid;
-use idp2p_common::ED_CODE;
+use idp2p_common::{
+    cbor,
+    error::CommonError,
+    said::{Said, SaidError},
+};
 
 use crate::{
-    idp2p::id::types::IdInception, IdInceptionError, IdView, PersistedIdInception, Said, TIMESTAMP,
+    error::IdError, idp2p::id::types::IdInception, said::Idp2pSaidKind, IdInceptionError, IdView,
+    PersistedIdInception, TIMESTAMP,
 };
 
 impl PersistedIdInception {
     pub(crate) fn verify(&self) -> Result<IdView, IdInceptionError> {
         let inception: IdInception = self.try_into()?;
+
+        // Timestamp check
+        //
         if inception.timestamp < TIMESTAMP {
             todo!("timestamp error")
         }
 
-        // Signer threshold, codec, public bytes check
-        //
-        let total_next_signers = inception.next_signers.len() as u8;
-        if total_next_signers < inception.next_threshold {
-            todo!("threshold error")
-        }
-
-        for next_signer in &inception.next_signers {
-            let next_signer_cid = Cid::try_from(next_signer.as_str()).unwrap();
-            if next_signer_cid.codec() != ED_CODE {
-                todo!("")
-            }
-        }
-
-        // Next Signer threshold, codec check
+        // Signer check
         //
         let total_signers = inception.signers.len() as u8;
         if total_signers < inception.threshold {
-            todo!("")
+            todo!("threshold error")
+        }
+        let mut signers = vec![];
+        for signer in &inception.signers {
+            let signer_said = Said::from_str(signer.id.as_str())?;
+            signer_said.validate(&signer.public_key)?;
+            Idp2pSaidKind::from_str(&signer_said.kind)?.ensure_signer()?;
+            if signers.contains(signer) {
+                todo!("dublicate signers")
+            }
+            signers.push(signer.to_owned());
         }
 
-        for signer in &inception.signers {
-            let signer_cid = Cid::try_from(signer.id.as_str()).unwrap();
-            if signer_cid.codec() != ED_CODE {
-                todo!("codec error")
+        // Next Signer check
+        //
+        let total_next_signers = inception.next_signers.len() as u8;
+        if total_next_signers < inception.next_threshold {
+            todo!("next threshold error")
+        }
+        let mut next_signers = vec![];
+        for next_signer in &inception.next_signers {
+            let next_signer_said = Said::from_str(next_signer.as_str())?;
+            Idp2pSaidKind::from_str(&next_signer_said.kind)?.ensure_signer()?;
+            if next_signers.contains(next_signer) {
+                todo!("dublicate next signers")
             }
-            todo!("check public key")
+            next_signers.push(next_signer.to_owned());
         }
 
         // Claims check
         //
+
+        let mut claims = vec![];
         for claim in &inception.claims {
-            todo!()
+            let said = Said::from_str(&claim.id)?;
+            Idp2pSaidKind::from_str(&said.kind)?.ensure_claim()?;
+            if claims.contains(claim) {
+                todo!("dublicate signers")
+            }
+            claims.push(claim.to_owned());
         }
 
         let id_view = IdView {
             id: self.id.clone(),
             event_id: self.id.clone(),
             event_timestamp: inception.timestamp,
-            next_signers: inception.next_signers.clone(),
-            signers: inception.signers,
             threshold: inception.threshold,
-            claims: inception.claims,
+            signers: signers,
+            next_threshold: inception.next_threshold,
+            next_signers: next_signers,
+            claims: claims,
         };
 
         Ok(id_view)
@@ -67,18 +86,28 @@ impl TryFrom<&PersistedIdInception> for IdInception {
     type Error = IdInceptionError;
 
     fn try_from(value: &PersistedIdInception) -> Result<Self, Self::Error> {
-        let id = Said::from_str(value.id.as_str()).unwrap();
-        /*id.ensure(&value.payload).should_be_id()?;
+        let said: Said = Said::from_str(value.id.as_str())?;
+        said.validate(&value.payload)?;
+        Idp2pSaidKind::from_str(&said.kind)?.ensure_id()?;
         let inception: IdInception = cbor::decode(&value.payload)?;
-        Ok(inception)*/
+        Ok(inception)
+    }
+}
+
+impl From<CommonError> for IdInceptionError {
+    fn from(value: CommonError) -> Self {
         todo!()
     }
 }
 
-impl FromStr for Said {
-    type Err = ();
+impl From<SaidError> for IdInceptionError {
+    fn from(value: SaidError) -> Self {
+        todo!()
+    }
+}
 
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
+impl From<IdError> for IdInceptionError {
+    fn from(value: IdError) -> Self {
         todo!()
     }
 }

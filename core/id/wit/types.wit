@@ -5,8 +5,8 @@ interface types {
     }
 
     record id-claim {
-        key: string,
-        value: list<u8>,
+        id: string,
+        payload: list<u8>,
         valid-from: option<s64>,
         valid-until: option<s64>
     }  

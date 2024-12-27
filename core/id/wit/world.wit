@@ -3,7 +3,6 @@ package idp2p:id;
 world idp2p-id {
     use model.{persisted-id-inception, id-view, persisted-id-event};
     use error.{id-inception-error, id-event-error};
-    use said.{said};
 
     export verify-inception: func(incepiton: persisted-id-inception) -> result<id-view, id-inception-error>;
 
