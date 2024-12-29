@@ -7,7 +7,7 @@ edition = "2021"
 crate-type = ["lib", "cdylib"]
 
 [dependencies]
-hex = { workspace = true }
+rand = { workspace = true }
 wit-bindgen = { workspace = true }
 anyhow = { workspace = true }
 regex = { workspace = true }
@@ -16,4 +16,5 @@ cid = { workspace = true }
 multihash = { workspace = true }
 serde = { workspace = true }
 chrono = { workspace = true }
+ed25519-dalek = { workspace = true }
 idp2p-common = { path = "../../common" }

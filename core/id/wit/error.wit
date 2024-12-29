@@ -1,47 +1,49 @@
 interface error {
-    variant error-value {
-        text(string),
-        bytes(list<u8>),
-        number(s64),
-        boolean(bool)
+    record id-error {
+        id: string,
+        reason: string,
     }
 
-    record id-error-param {
-        key: string,
-        value: error-value
+    variant id-inception-error {
+        // general
+        invalid-version,
+        invalid-timestamp,
+        invalid-id(string),
+        invalid-payload,
+        payload-and-id-not-match,
+        threshold-not-match,
+        next-threshold-not-match,
+        // signers
+        invalid-signer(id-error),
+        // next signers
+        invalid-next-signer(id-error),
+        // claims
+        invalid-claim(id-error),
+        // other
+        other(string),
     }
 
-    variant id-inception-error-kind {
-        invalid-id,
+    variant id-event-error {
+        // general
+        invalid-version,
+        invalid-timestamp,
+        invalid-event-id(string),
         invalid-payload, 
         payload-and-id-not-match,
-        threshold-not-match,     
-        invalid-next-signer-codec,                 
-        unknown,
-    }
-
-    variant id-event-error-kind {
-        invalid-id,
-        invalid-event-id,
-        invalid-payload, 
-        payload-and-id-not-match,
-        lack-of-min-signers,           
-        signer-and-id-not-match,
         previous-not-match,
-        invalid-signature,
-        invalid-next-signer,      
-        invalid-next-signer-codec,   
-        unknown,
-    }
-
-    record id-event-error {
-       kind: id-event-error-kind,
-       params: list<id-error-param>
-    }
-
-    record id-inception-error {
-        kind: id-inception-error-kind,
-        params: list<id-error-param>
+        threshold-not-match,
+        next-threshold-not-match,
+        lack-of-min-proofs,           
+        // proofs
+        invalid-proof(id-error),
+        // signers
+        invalid-signer(id-error),
+        // next signers
+        invalid-next-signer(id-error),     
+        // claims
+        invalid-claim(id-error),
+        // other          
+        other(string),
     }
  
 }

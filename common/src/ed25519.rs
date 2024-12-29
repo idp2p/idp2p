@@ -8,12 +8,12 @@ const ED25519_SIG_SIZE: usize = 64;
 pub fn verify(public: &[u8], content: &[u8], sig: &[u8]) -> Result<(), CommonError> {
     let public: [u8; ED25519_PUBKEY_SIZE] = public
         .try_into()
-        .map_err(|_| CommonError::InvalidPublicKey(public.to_vec()))?;
+        .map_err(|_| CommonError::InvalidPublicKey)?;
     let sig: [u8; ED25519_SIG_SIZE] = sig
         .try_into()
-        .map_err(|_| CommonError::InvalidSignature(sig.to_vec()))?;
+        .map_err(|_| CommonError::InvalidSignature)?;
     let pk = VerifyingKey::from_bytes(&public)
-        .map_err(|_| CommonError::InvalidPublicKey(public.to_vec()))?;
+        .map_err(|_| CommonError::InvalidPublicKey)?;
     let signature = Signature::from(&sig);
     pk.verify_strict(content, &signature)
         .map_err(|_| CommonError::SignatureVerifyError)?;

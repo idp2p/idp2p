@@ -40,7 +40,7 @@ wit-component = "0"
 dotenv = "0"
 tracing = "0"
 tracing-subscriber = "0"
-rand = "0"
+rand = "0.8"
 lol_alloc = "0"
 hex = "0"
 structopt = "0"
@@ -56,7 +56,7 @@ serde = { version = "1", default-features = false, features = [
 wit-bindgen = { version = "0", default-features = false, features = ["macros"] }
 ciborium = { version = "0", default-features = false }
 serde_json = { version = "1", default-features = false }
-ed25519-dalek = { version = "2", default-features = false }
+ed25519-dalek = { version = "2", default-features = false, features = ["alloc", "rand_core"] }
 sha2 = { version = "*", default-features = false }
 multihash = { version = "*", default-features = false, features = [
     "serde",

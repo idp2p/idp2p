@@ -17,13 +17,13 @@ pub enum IdGossipMessageKind {
     NotifyMessage {
         id: String,
         providers: Vec<String>,
-        direction: IdGossipMessageDirection 
+        direction: IdMessageDirection 
     },
     Other(Vec<u8>),
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub enum IdGossipMessageDirection {
+pub enum IdMessageDirection {
     From,
     To
 }

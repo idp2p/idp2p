@@ -1,5 +1,5 @@
 interface model {
-    use types.{id-signer, id-claim};
+    use types.{id-key, id-assertion-method};
 
     record persisted-id-proof {
         id: string,
@@ -30,10 +30,20 @@ interface model {
         // Next threshold  
         next-threshold: u8,
         // Current signers
-        signers: list<id-signer>,
+        signers: list<id-key>,
         // CID codec should be 0xed 
         next-signers: list<string>,
-        // Claims
-        claims: list<id-claim>,
+        // Peers
+        peers: list<string>,
+        // Mediators
+        mediators: list<string>,
+        // Key Agreement
+        key-agreements: list<id-key>,
+        // Assertion Methods
+        assertion-methods: list<id-assertion-method>,
+        // States
+        states: list<string>,
+        // All signers
+        all-keys: list<string>,
     }    
 }

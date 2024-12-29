@@ -1,12 +1,14 @@
 extern crate alloc;
 
-mod said;
+use idp2p_common::said::SaidVersion;
+
 mod inception;
 mod event;
-mod error;
+mod validation;
+mod claim;
 
-const TIMESTAMP: i64 = 0;
-const VERSION: (u16, u16) = (0, 1);
+const TIMESTAMP: i64 = 1735689600;
+const VERSION: SaidVersion = SaidVersion { major: 0, minor: 1 };
 
 wit_bindgen::generate!({
     world: "idp2p-id",
@@ -24,8 +26,9 @@ impl Guest for GuestComponent {
     }
 
     fn verify_event(view: IdView, event: PersistedIdEvent) -> Result<IdView, IdEventError> {
-        todo!()
-        //verify::verify_event(view, event)
+        let mut view = view;
+        event.verify(&mut view)
     }
 }
+
 

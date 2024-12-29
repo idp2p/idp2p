@@ -1,60 +1,104 @@
 use std::str::FromStr;
 
-use idp2p_common::{
-    cbor, ed25519::verify, error::CommonError, said::{Said, SaidError}
-};
+use idp2p_common::{cbor, ed25519::verify, said::Said};
 
 use crate::{
-    error::IdError, idp2p::id::types::{IdEvent, IdEventKind::*, IdActionKind::*}, said::Idp2pSaidKind, IdEventError, IdView,
-    PersistedIdEvent, TIMESTAMP,
+    idp2p::id::{
+        error::IdError,
+        types::{IdActionKind::*, IdEvent, IdEventKind::*},
+    },
+    validation::SaidValidator,
+    IdEventError, IdView, PersistedIdEvent, TIMESTAMP, VERSION,
 };
 
 impl PersistedIdEvent {
-    pub(crate) fn verify(&self, view: &mut IdView,) -> Result<IdView, IdEventError> {
+    pub(crate) fn verify(&self, view: &mut IdView) -> Result<IdView, IdEventError> {
         let event: IdEvent = self.try_into()?;
 
         // Timestamp check
         //
         if event.timestamp < TIMESTAMP {
-            todo!("timestamp error")
+            return Err(IdEventError::InvalidTimestamp);
         }
 
         // Previous event check
         //
         if event.previous != view.event_id {
-            //return Err(IdEventError::PreviousNotMatch(event.previous));
+            return Err(IdEventError::PreviousNotMatch);
         }
 
         // Proof verification
         //
         let mut signers = vec![];
         for proof in &self.proofs {
-            let signer_said = Said::from_str(proof.id.as_str())?;
-            signer_said.validate(&proof.pk)?;
-            Idp2pSaidKind::from_str(&signer_said.kind)?.ensure_signer()?;
-            if signers.contains(&signer_said) {
-                //return Err(IdEventError::InvalidNextSigner(proof.id.clone()));
+            let sid = Said::from_str(proof.id.as_str()).map_err(|e| {
+                IdEventError::InvalidProof(IdError {
+                    id: proof.id.clone(),
+                    reason: e.to_string(),
+                })
+            })?;
+            sid.validate(&proof.pk).map_err(|e| {
+                IdEventError::InvalidProof(IdError {
+                    id: proof.id.clone(),
+                    reason: e.to_string(),
+                })
+            })?;
+            if signers.contains(&proof.id) {
+                return Err(IdEventError::InvalidProof(IdError {
+                    id: proof.id.clone(),
+                    reason: "duplicate-proof".to_string(),
+                }));
             }
-            verify(&proof.pk, &self.payload, &proof.sig)?;
-            signers.push(signer_said);
+            verify(&proof.pk, &self.payload, &proof.sig).map_err(|e| {
+                IdEventError::InvalidProof(IdError {
+                    id: proof.id.clone(),
+                    reason: e.to_string(),
+                })
+            })?;
+            signers.push(proof.id.clone());
         }
 
         match event.payload {
             Interaction(actions) => {
+                if (signers.len() as u8) < view.threshold {
+                    return Err(IdEventError::LackOfMinProofs);
+                }
+                for signer in &signers {
+                    if !view.signers.iter().any(|s| s.id == *signer) {
+                        return Err(IdEventError::InvalidProof(IdError {
+                            id: signer.clone(),
+                            reason: "signer-not-found".to_string(),
+                        }));
+                    }
+                }
                 // Check signers and threshold
                 for action in actions {
                     match action {
-                        CreateClaim(id_claim) => todo!(),
-                        RevokeClaim(id) => todo!(),
+                        CreateClaim(id_claim) => {
+                            id_claim.validate()?;
+                            view.claims.push(id_claim.to_owned());
+                        }
+                        RevokeClaim(id) => {
+                            if let Some(claim) = view.claims.iter().find(|c| c.id == id) {
+                                view.claims
+                                    .remove(view.claims.iter().position(|c| c.id == id).unwrap());
+                            }
+                            //return Err(IdEventError::ClaimNotFound);
+                        }
                     }
                 }
-            },
+            }
             Rotation(id_rotation) => {
-    
-            },
-            Delegation(_) => {
-    
-            },
+                // Check signers and threshold
+                for signer in &id_rotation.signers {
+                    /*let signer_said = Said::from_str(signer.id.as_str())?;
+                    signer_said.validate(&signer.public_key)?;
+                    signer_said.ensure_signer()?;*/
+                }
+            }
+            Delegation(new_id) => {
+                //
+            }
         }
 
         Ok(view.to_owned())
@@ -65,191 +109,18 @@ impl TryFrom<&PersistedIdEvent> for IdEvent {
     type Error = IdEventError;
 
     fn try_from(value: &PersistedIdEvent) -> Result<Self, Self::Error> {
-        let said: Said = Said::from_str(value.id.as_str())?;
-        said.validate(&value.payload)?;
-        Idp2pSaidKind::from_str(&said.kind)?.ensure_id()?;
-        let event: IdEvent = cbor::decode(&value.payload)?;
+        let said: Said = Said::from_str(value.id.as_str())
+            .map_err(|e| IdEventError::InvalidEventId(e.to_string()))?;
+        if said.version != VERSION {
+            return Err(IdEventError::InvalidVersion);
+        }
+        said.validate(&value.payload)
+            .map_err(|e| IdEventError::InvalidEventId(e.to_string()))?;
+        said.ensure_event()
+            .map_err(|_| IdEventError::PayloadAndIdNotMatch)?;
+
+        let event: IdEvent =
+            cbor::decode(&value.payload).map_err(|_| IdEventError::InvalidPayload)?;
         Ok(event)
     }
 }
-
-impl From<CommonError> for IdEventError {
-    fn from(value: CommonError) -> Self {
-        todo!()
-    }
-}
-
-impl From<SaidError> for IdEventError {
-    fn from(value: SaidError) -> Self {
-        todo!()
-    }
-}
-
-impl From<IdError> for IdEventError {
-    fn from(value: IdError) -> Self {
-        todo!()
-    }
-}
-
-/*use cid::Cid;
-use idp2p_common::{
-    cbor, cid::CidExt, utils::parse_id, verifying::ed25519::verify, ED_CODE,
-};
-
-
-use crate::{
-    idp2p::id::{error::IdInceptionErrorKind, types::{IdEvent, IdInception, IdActionKind::*, IdEventKind::*}},
-    IdEventError, IdInceptionError, IdView, PersistedIdEvent, PersistedIdInception,
-};
-
-pub fn verify_inception(pid: PersistedIdInception) -> Result<IdView, IdInceptionError> {
-    // Decode
-    //
-    let inception: IdInception = pid.try_into()?;
-    // Timestamp check
-    //
-
-    // Signer threshold, codec, public bytes check
-    //
-    let total_next_signers = inception.next_signers.len() as u8;
-    if total_next_signers < inception.next_threshold {
-        todo!("")
-    }
-
-    for next_signer in &inception.next_signers {
-        let next_signer_cid = Cid::try_from(next_signer.as_str())?;
-        if next_signer_cid.codec() != ED_CODE {
-            todo!("")
-        }
-    }
-
-    // Next Signer threshold, codec check
-    //
-    let total_signers = inception.signers.len() as u8;
-    if total_signers < inception.threshold {
-        todo!("")
-    }
-
-    for signer in &inception.signers {
-        let signer_cid = Cid::try_from(signer.id.as_str())?;
-        if signer_cid.codec() != ED_CODE {
-            todo!("codec error")
-        }
-        todo!("check public key")
-    }
-
-    // Claims check
-    //
-    for action in inception.actions {
-        match action {
-            CreateClaim(id_claim) => todo!(),
-            RevokeClaim(_) => todo!("Error"),
-        }
-    }
-
-    let id_view = IdView {
-        id: pid.id,
-        event_id: pid.id.clone(),
-        event_timestamp: inception.timestamp,
-        next_signers: inception.next_signers.clone(),
-        signers: todo!(),
-        threshold: todo!(),
-        claims: todo!(),
-    };
-
-    Ok(id_view)
-}
-
-pub fn verify_event(view: IdView, pevent: PersistedIdEvent) -> Result<IdView, IdEventError> {
-    let event: IdEvent = pevent.try_into()?;
-    if event.previous != view.event_id {
-        //return Err(IdEventError::PreviousNotMatch(event.previous));
-    }
-
-    // Timestamp check
-    // Verify proofs and check signer if it exists in event.signers
-
-    match event.payload {
-        Interaction(actions) => {
-            // Check signers and threshold
-            for action in actions {
-                match action {
-                    CreateClaim(id_claim) => todo!(),
-                    RevokeClaim(id) => todo!(),
-                }
-            }
-        },
-        Rotation(id_rotation) => {
-
-        },
-        Delegation(_) => {
-
-        },
-    }
-
-    /*for proof in pevent.proofs {
-        let signer_id = Cid::try_from(proof.id.as_str())
-            .map_err(|_| IdEventError::InvalidNextSignerCodec(proof.id.clone()))?;
-        signer_id
-            .ensure(&proof.pk)
-            .map_err(|_| IdEventError::SignerAndIdNotMatch(proof.id.clone()))?;
-        if !view.next_signers.iter().any(|x| x == proof.id.as_str()) {
-            return Err(IdEventError::InvalidNextSigner(proof.id.clone()));
-        }
-        verify(&proof.pk, &pevent.payload, &proof.sig)
-            .map_err(|_| IdEventError::InvalidSignature(proof.id.clone()))?;
-    }*/
-    let mut view = view;
-    /*match event.payload {
-        Rotation(rotation) => {
-            if let Some(state) = rotation.state {
-                view.state = state.to_string();
-                view.all_states.push(state.to_string());
-            }
-            for med in rotation.mediators {
-                match med {
-                    Add(kid) => view.mediators.push(kid.to_bytes()),
-                    Remove(kid) => view.mediators.retain(|x| *x != kid.to_bytes()),
-                }
-            }
-        }
-        Recovery(config) => {
-            if let Some(config) = config {
-                view.config = config;
-            }
-        }
-    }
-    view.event_id = event_id.to_bytes();
-    view.event_timestamp = event.timestamp.to_string();
-    view.next_signers = event.next_signers.iter().map(|x| x.to_bytes()).collect();*/
-
-    Ok(view)
-}
-
-impl TryFrom<PersistedIdInception> for IdInception {
-    type Error = IdInceptionError;
-
-    fn try_from(value: PersistedIdInception) -> Result<Self, Self::Error> {
-        let (_, cid) =
-            parse_id_with_version("id", &value.id).map_err(|_| Self::Error::InvalidId)?;
-        cid.ensure(&value.payload)
-            .map_err(|_| Self::Error::InvalidId)?;
-        let inception: IdInception =
-            cbor::decode(&value.payload).map_err(|_| Self::Error::InvalidId)?;
-        Ok(inception)
-    }
-}
-
-impl TryFrom<PersistedIdEvent> for IdEvent {
-    type Error;
-
-    fn try_from(value: PersistedIdEvent) -> Result<Self, Self::Error> {
-        let event_id = Cid::try_from(pevent.id.as_str()).map_err(|_| IdEventError::InvalidEventId)?;
-        event_id
-            .ensure(pevent.payload.as_slice())
-            .map_err(|e| IdEventError::PayloadAndIdNotMatch(e.to_string()))?;
-        let event: IdEvent = cbor::decode(&pevent.payload).map_err(|_| IdEventError::InvalidPayload)?;
-        todo!()
-    }
-}
-*/

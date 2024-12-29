@@ -25,6 +25,20 @@ pub enum SaidError {
     Unknown,
 }
 
+impl ToString for SaidError {
+    fn to_string(&self) -> String {
+        match self {
+            SaidError::InvalidIdFormat => "invalid-id-format".to_string(),
+            SaidError::PayloadAndIdNotMatch {
+                expected: _,
+                actual: _,
+            } => format!("payload-and-id-not-match"),
+            SaidError::InvalidHashAlg(alg) => format!("invalid-hash-alg: {}", alg),
+            SaidError::Unknown => "unknown-error".to_string(),
+        }
+    }
+}
+
 impl Said {
     pub fn new(
         version: SaidVersion,
@@ -60,6 +74,15 @@ impl Said {
     }
 }
 
+impl ToString for Said {
+    fn to_string(&self) -> String {
+        format!(
+            "/idp2p/{}/{}/{}/{}",
+            self.kind, self.version.major, self.version.minor, self.cid
+        )
+    }
+}
+
 impl FromStr for Said {
     type Err = SaidError;
 
@@ -87,7 +110,7 @@ impl FromStr for Said {
 #[cfg(test)]
 mod tests {
     use super::*;
-
+    // const ID: &str = "/did/1/idp2p/1/5464/event/bafkreieq5jui4j25lacwomsqgjeswwl3y5zcdrresptwgmfylxo2depppq";
     const CID: &str = "bafkreieq5jui4j25lacwomsqgjeswwl3y5zcdrresptwgmfylxo2depppq";
 
     #[test]

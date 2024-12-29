@@ -1,14 +1,14 @@
 use std::str::FromStr;
 
-use idp2p_common::{
-    cbor,
-    error::CommonError,
-    said::{Said, SaidError},
-};
+use idp2p_common::{cbor, said::Said};
 
 use crate::{
-    error::IdError, idp2p::id::types::IdInception, said::Idp2pSaidKind, IdInceptionError, IdView,
-    PersistedIdInception, TIMESTAMP,
+    idp2p::id::{
+        error::{IdError, IdInceptionError},
+        types::IdInception,
+    },
+    validation::SaidValidator,
+    IdView, PersistedIdInception, TIMESTAMP, VERSION,
 };
 
 impl PersistedIdInception {
@@ -18,22 +18,40 @@ impl PersistedIdInception {
         // Timestamp check
         //
         if inception.timestamp < TIMESTAMP {
-            todo!("timestamp error")
+            return Err(IdInceptionError::InvalidTimestamp);
         }
 
         // Signer check
         //
         let total_signers = inception.signers.len() as u8;
         if total_signers < inception.threshold {
-            todo!("threshold error")
+            return Err(IdInceptionError::ThresholdNotMatch);
         }
         let mut signers = vec![];
         for signer in &inception.signers {
-            let signer_said = Said::from_str(signer.id.as_str())?;
-            signer_said.validate(&signer.public_key)?;
-            Idp2pSaidKind::from_str(&signer_said.kind)?.ensure_signer()?;
+            let signer_said = Said::from_str(signer.id.as_str()).map_err(|e| {
+                IdInceptionError::InvalidSigner(IdError {
+                    id: signer.id.clone(),
+                    reason: e.to_string(),
+                })
+            })?;
+            signer_said.validate(&signer.public_key).map_err(|e| {
+                IdInceptionError::InvalidSigner(IdError {
+                    id: signer.id.clone(),
+                    reason: e.to_string(),
+                })
+            })?;
+            signer_said.ensure_signer().map_err(|e| {
+                IdInceptionError::InvalidSigner(IdError {
+                    id: signer.id.clone(),
+                    reason: e.to_string(),
+                })
+            })?;
             if signers.contains(signer) {
-                todo!("dublicate signers")
+                return Err(IdInceptionError::InvalidSigner(IdError {
+                    id: signer.id.clone(),
+                    reason: "duplicate-signer".to_string(),
+                }));
             }
             signers.push(signer.to_owned());
         }
@@ -42,14 +60,27 @@ impl PersistedIdInception {
         //
         let total_next_signers = inception.next_signers.len() as u8;
         if total_next_signers < inception.next_threshold {
-            todo!("next threshold error")
+            return Err(IdInceptionError::ThresholdNotMatch);
         }
         let mut next_signers = vec![];
         for next_signer in &inception.next_signers {
-            let next_signer_said = Said::from_str(next_signer.as_str())?;
-            Idp2pSaidKind::from_str(&next_signer_said.kind)?.ensure_signer()?;
+            let next_signer_said = Said::from_str(next_signer.as_str()).map_err(|e| {
+                IdInceptionError::InvalidNextSigner(IdError {
+                    id: next_signer.clone(),
+                    reason: e.to_string(),
+                })
+            })?;
+            next_signer_said.ensure_signer().map_err(|e| {
+                IdInceptionError::InvalidNextSigner(IdError {
+                    id: next_signer.clone(),
+                    reason: e.to_string(),
+                })
+            })?;
             if next_signers.contains(next_signer) {
-                todo!("dublicate next signers")
+                return Err(IdInceptionError::InvalidNextSigner(IdError {
+                    id: next_signer.clone(),
+                    reason: "duplicate-next-signer".to_string(),
+                }));
             }
             next_signers.push(next_signer.to_owned());
         }
@@ -59,13 +90,17 @@ impl PersistedIdInception {
 
         let mut claims = vec![];
         for claim in &inception.claims {
-            let said = Said::from_str(&claim.id)?;
-            Idp2pSaidKind::from_str(&said.kind)?.ensure_claim()?;
+            claim.validate()?;
             if claims.contains(claim) {
-                todo!("dublicate signers")
+                return Err(IdInceptionError::InvalidClaim(IdError {
+                    id: claim.id.clone(),
+                    reason: "duplicate-claim".to_string(),
+                }));
             }
             claims.push(claim.to_owned());
         }
+        let all_signers = vec![];
+        let all_claims = vec![];
 
         let id_view = IdView {
             id: self.id.clone(),
@@ -76,6 +111,8 @@ impl PersistedIdInception {
             next_threshold: inception.next_threshold,
             next_signers: next_signers,
             claims: claims,
+            all_signers: all_signers,
+            all_claims: all_claims,
         };
 
         Ok(id_view)
@@ -86,28 +123,62 @@ impl TryFrom<&PersistedIdInception> for IdInception {
     type Error = IdInceptionError;
 
     fn try_from(value: &PersistedIdInception) -> Result<Self, Self::Error> {
-        let said: Said = Said::from_str(value.id.as_str())?;
-        said.validate(&value.payload)?;
-        Idp2pSaidKind::from_str(&said.kind)?.ensure_id()?;
-        let inception: IdInception = cbor::decode(&value.payload)?;
+        let said: Said = Said::from_str(value.id.as_str())
+            .map_err(|e| IdInceptionError::InvalidId(e.to_string()))?;
+        if said.version != VERSION {
+            return Err(IdInceptionError::InvalidVersion);
+        }
+        said.validate(&value.payload)
+            .map_err(|e| IdInceptionError::InvalidId(e.to_string()))?;
+        said.ensure_id()
+            .map_err(|_| IdInceptionError::PayloadAndIdNotMatch)?;
+        let inception: IdInception =
+            cbor::decode(&value.payload).map_err(|_| IdInceptionError::InvalidPayload)?;
         Ok(inception)
     }
 }
 
-impl From<CommonError> for IdInceptionError {
-    fn from(value: CommonError) -> Self {
-        todo!()
-    }
-}
+#[cfg(test)]
+mod tests {
+    use ed25519_dalek::SigningKey;
+    use idp2p_common::{CBOR_CODE, ED_CODE};
+    use rand::rngs::OsRng;
 
-impl From<SaidError> for IdInceptionError {
-    fn from(value: SaidError) -> Self {
-        todo!()
-    }
-}
+    use crate::idp2p::id::types::IdKey;
 
-impl From<IdError> for IdInceptionError {
-    fn from(value: IdError) -> Self {
-        todo!()
+    use super::*;
+
+    fn create_signer() -> IdKey {
+        let mut csprng = OsRng;
+        let signing_key: SigningKey = SigningKey::generate(&mut csprng);
+        let said = Said::new(VERSION, "signer", ED_CODE, signing_key.as_bytes())
+            .unwrap()
+            .to_string();
+        IdKey {
+            id: said,
+            public_key: signing_key.to_bytes().to_vec(),
+        }
+    }
+
+    #[test]
+    fn test_verify_inception() {
+        let inception = IdInception {
+            timestamp: 1735689600,
+            threshold: 3,
+            signers: vec![create_signer(), create_signer()],
+            next_threshold: 1,
+            next_signers: vec![create_signer().id],
+            claims: vec![],
+        };
+        let inception_bytes = cbor::encode(&inception).unwrap();
+        let id = Said::new(VERSION, "id", CBOR_CODE, inception_bytes.as_slice()).unwrap();
+        eprintln!("ID: {}", id.to_string());
+        let pinception = PersistedIdInception {
+            id: id.to_string(),
+            payload: inception_bytes,
+        };
+        let result = pinception.verify();
+        eprintln!("Result: {:#?}", result);
+        assert!(result.is_ok());
     }
 }
