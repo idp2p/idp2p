@@ -49,6 +49,7 @@ tokio = { version = "1", features = ["full"] }
 semver = { version = "1", default-features = false, features = ["serde"] }
 regex = { version = "1", default-features = false, features = ["unicode-perl"] }
 anyhow = { version = "1", default-features = false }
+thiserror = "2"
 serde = { version = "1", default-features = false, features = [
     "derive",
     "alloc",

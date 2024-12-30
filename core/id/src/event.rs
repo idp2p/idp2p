@@ -74,8 +74,11 @@ impl PersistedIdEvent {
                 // Check signers and threshold
                 for action in actions {
                     match action {
+                        CreatePeer(_) => todo!(),
+                        RevokePeer(_) => todo!(),
+                        CreateMediator(_) => todo!(),
+                        RevokeMediator(_) => todo!(),
                         CreateClaim(id_claim) => {
-                            id_claim.validate()?;
                             view.claims.push(id_claim.to_owned());
                         }
                         RevokeClaim(id) => {

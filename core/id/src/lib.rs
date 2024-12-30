@@ -5,7 +5,6 @@ use idp2p_common::said::SaidVersion;
 mod inception;
 mod event;
 mod validation;
-mod claim;
 
 const TIMESTAMP: i64 = 1735689600;
 const VERSION: SaidVersion = SaidVersion { major: 0, minor: 1 };

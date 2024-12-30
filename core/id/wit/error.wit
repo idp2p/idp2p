@@ -5,7 +5,6 @@ interface error {
     }
 
     variant id-inception-error {
-        // general
         invalid-version,
         invalid-timestamp,
         invalid-id(string),
@@ -13,18 +12,13 @@ interface error {
         payload-and-id-not-match,
         threshold-not-match,
         next-threshold-not-match,
-        // signers
         invalid-signer(id-error),
-        // next signers
         invalid-next-signer(id-error),
-        // claims
         invalid-claim(id-error),
-        // other
         other(string),
     }
 
     variant id-event-error {
-        // general
         invalid-version,
         invalid-timestamp,
         invalid-event-id(string),
@@ -34,15 +28,10 @@ interface error {
         threshold-not-match,
         next-threshold-not-match,
         lack-of-min-proofs,           
-        // proofs
         invalid-proof(id-error),
-        // signers
         invalid-signer(id-error),
-        // next signers
         invalid-next-signer(id-error),     
-        // claims
         invalid-claim(id-error),
-        // other          
         other(string),
     }
  

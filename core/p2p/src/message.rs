@@ -9,10 +9,7 @@ pub enum IdGossipMessageKind {
     // Resolve identity
     Resolve,
     // Notify an identity event
-    NotifyEvent {
-        version: String,
-        event: PersistedIdEvent,
-    },
+    NotifyEvent(PersistedIdEvent),
     // Notify message(this means you have a message)
     NotifyMessage {
         id: String,

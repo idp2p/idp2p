@@ -19,7 +19,6 @@ pub trait SaidValidator {
     fn ensure_id(&self) -> Result<(), IdValidationError>;
     fn ensure_event(&self) -> Result<(), IdValidationError>;
     fn ensure_signer(&self) -> Result<(), IdValidationError>;
-    fn ensure_claim(&self) -> Result<(), IdValidationError>;
 }
 
 impl SaidValidator for Said {
@@ -52,16 +51,6 @@ impl SaidValidator for Said {
             _ => Err(IdValidationError::InvalidIdKind),
         }
     }
-
-    fn ensure_claim(&self) -> Result<(), IdValidationError> {
-        match self.kind.as_str() {
-            "mediator" => Ok(()), // 
-            "peer" => Ok(()),
-            "key-agreement" => Ok(()),
-            "assertion-method" => Ok(()),
-            "state" => Ok(()),
-            _ => Err(IdValidationError::InvalidIdKind),            
-        }
-    }
+    
 }
 

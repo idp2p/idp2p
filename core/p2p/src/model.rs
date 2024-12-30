@@ -1,5 +1,5 @@
-use crate::{IdView, PersistedIdEvent, PersistedIdInception};
 use anyhow::Result;
+use crate::{ IdView, PersistedIdEvent, PersistedIdInception};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 

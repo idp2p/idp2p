@@ -25,6 +25,12 @@ pub enum SaidError {
     Unknown,
 }
 
+impl ToString for SaidVersion {
+    fn to_string(&self) -> String {
+        format!("{}.{}", self.major, self.minor)
+    }
+}
+
 impl ToString for SaidError {
     fn to_string(&self) -> String {
         match self {
@@ -36,6 +42,12 @@ impl ToString for SaidError {
             SaidError::InvalidHashAlg(alg) => format!("invalid-hash-alg: {}", alg),
             SaidError::Unknown => "unknown-error".to_string(),
         }
+    }
+}
+
+impl From<SaidError> for anyhow::Error  {
+    fn from(value: SaidError) -> Self {
+        todo!()
     }
 }
 

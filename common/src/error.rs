@@ -20,3 +20,9 @@ impl ToString for CommonError {
         }           
     }   
 }
+
+impl From<CommonError> for anyhow::Error  {
+    fn from(value: CommonError) -> Self {
+        todo!()
+    }
+}

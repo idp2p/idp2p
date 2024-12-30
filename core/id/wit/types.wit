@@ -1,39 +1,36 @@
 interface types {
-    record id-key {
+    record id-signer {
         id: string,
         public-key: list<u8>,
     }
 
-    record id-assertion-method {
-        key: id-key,
-        valid-from: s64,
-        valid-until: s64
-    }  
+    record id-claim {
+        id: string,
+        payload: list<u8>
+    }
 
     variant id-action-kind {
         create-peer(string),
         revoke-peer(string),
         create-mediator(string),
         revoke-mediator(string),
-        create-assertion-method(id-assertion-method),
-        revoke-assertion-method(string),
-        create-key-agreement(id-key),
-        revoke-key-agreement(string),
-        create-state(string),
-        revoke-state(string),
+        create-claim(id-claim),
+        revoke-claim(string),
     }
 
     record id-inception {        
         timestamp: s64,
         threshold: u8,
-        signers: list<id-key>,
+        signers: list<id-signer>,
         next-threshold: u8,
         next-signers: list<string>,
+        peers: list<string>,
+        mediators: list<string>,
         claims: list<id-claim>,
     }
 
     record id-rotation {
-        signers: list<id-key>,
+        signers: list<id-signer>,
         next-threshold: u8,
         next-signers: list<string>,
     }

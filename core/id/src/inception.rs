@@ -13,6 +13,7 @@ use crate::{
 
 impl PersistedIdInception {
     pub(crate) fn verify(&self) -> Result<IdView, IdInceptionError> {
+        let mut all_keys = vec![];
         let inception: IdInception = self.try_into()?;
 
         // Timestamp check
@@ -53,6 +54,7 @@ impl PersistedIdInception {
                     reason: "duplicate-signer".to_string(),
                 }));
             }
+            all_keys.push(signer.id.clone());
             signers.push(signer.to_owned());
         }
 
@@ -82,25 +84,36 @@ impl PersistedIdInception {
                     reason: "duplicate-next-signer".to_string(),
                 }));
             }
+            all_keys.push(next_signer.clone());
             next_signers.push(next_signer.to_owned());
         }
 
-        // Claims check
-        //
+        let mut mediators = vec![];
+        for mediator in &inception.mediators {
+            let said = Said::from_str(mediator.as_str()).map_err(|e| {
+                IdInceptionError::InvalidNextSigner(IdError {
+                    id: mediator.clone(),
+                    reason: e.to_string(),
+                })
+            })?;
+            said.ensure_id().map_err(|e| {
+                IdInceptionError::InvalidNextSigner(IdError {
+                    id: mediator.clone(),
+                    reason: e.to_string(),
+                })
+            })?;
+            mediators.push(mediator.to_owned());
+        }
+
+        let mut peers = vec![];
+        for peer in &inception.peers {
+            peers.push(peer.to_owned());
+        }
 
         let mut claims = vec![];
         for claim in &inception.claims {
-            claim.validate()?;
-            if claims.contains(claim) {
-                return Err(IdInceptionError::InvalidClaim(IdError {
-                    id: claim.id.clone(),
-                    reason: "duplicate-claim".to_string(),
-                }));
-            }
             claims.push(claim.to_owned());
         }
-        let all_signers = vec![];
-        let all_claims = vec![];
 
         let id_view = IdView {
             id: self.id.clone(),
@@ -110,9 +123,10 @@ impl PersistedIdInception {
             signers: signers,
             next_threshold: inception.next_threshold,
             next_signers: next_signers,
+            all_keys: all_keys,
+            peers: peers,
+            mediators: mediators,
             claims: claims,
-            all_signers: all_signers,
-            all_claims: all_claims,
         };
 
         Ok(id_view)
@@ -144,17 +158,17 @@ mod tests {
     use idp2p_common::{CBOR_CODE, ED_CODE};
     use rand::rngs::OsRng;
 
-    use crate::idp2p::id::types::IdKey;
+    use crate::idp2p::id::types::IdSigner;
 
     use super::*;
 
-    fn create_signer() -> IdKey {
+    fn create_signer() -> IdSigner {
         let mut csprng = OsRng;
         let signing_key: SigningKey = SigningKey::generate(&mut csprng);
         let said = Said::new(VERSION, "signer", ED_CODE, signing_key.as_bytes())
             .unwrap()
             .to_string();
-        IdKey {
+        IdSigner {
             id: said,
             public_key: signing_key.to_bytes().to_vec(),
         }
@@ -164,10 +178,12 @@ mod tests {
     fn test_verify_inception() {
         let inception = IdInception {
             timestamp: 1735689600,
-            threshold: 3,
-            signers: vec![create_signer(), create_signer()],
+            threshold: 1,
+            signers: vec![create_signer()],
             next_threshold: 1,
             next_signers: vec![create_signer().id],
+            peers: vec![],
+            mediators: vec![],
             claims: vec![],
         };
         let inception_bytes = cbor::encode(&inception).unwrap();
