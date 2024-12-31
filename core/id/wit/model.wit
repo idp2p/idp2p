@@ -33,10 +33,6 @@ interface model {
         signers: list<id-signer>,
         // CID codec should be 0xed 
         next-signers: list<string>,
-        // Peers
-        peers: list<string>,
-        // Mediators
-        mediators: list<string>,
         // Claims
         claims: list<id-claim>,
         // All keys

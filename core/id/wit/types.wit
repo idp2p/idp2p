@@ -4,18 +4,14 @@ interface types {
         public-key: list<u8>,
     }
 
-    record id-claim {
+    record id-action {
         id: string,
         payload: list<u8>
     }
 
-    variant id-action-kind {
-        create-peer(string),
-        revoke-peer(string),
-        create-mediator(string),
-        revoke-mediator(string),
-        create-claim(id-claim),
-        revoke-claim(string),
+    record id-claim {
+        id: string,
+        payload: list<list<u8>>
     }
 
     record id-inception {        
@@ -24,9 +20,7 @@ interface types {
         signers: list<id-signer>,
         next-threshold: u8,
         next-signers: list<string>,
-        peers: list<string>,
-        mediators: list<string>,
-        claims: list<id-claim>,
+        actions: list<id-action>,
     }
 
     record id-rotation {
@@ -37,7 +31,7 @@ interface types {
 
     variant id-event-kind {
         // Should be signed with current keys
-        interaction(list<id-action-kind>),
+        interaction(list<id-action>),
         // Should be signed with next keys
         rotation(id-rotation),
         // Should be signed with next keys

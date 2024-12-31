@@ -9,12 +9,25 @@ pub enum IdEntryKind {
     Client,
     Subscriber
 }
+
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct IdEntry {
     pub kind: IdEntryKind,
     pub view: IdView,
     pub inception: PersistedIdInception,
     pub events: HashMap<String, PersistedIdEvent>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub enum IdPeerActionKind {
+    AddPeer(String),
+    RemovePeer(String)
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub enum IdMediatorActionKind {
+    AddMediator(String),
+    RemoveMediator(String)
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
