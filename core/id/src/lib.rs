@@ -1,13 +1,11 @@
 extern crate alloc;
 
-use idp2p_common::id::SaidVersion;
-
 mod inception;
 mod event;
 mod validation;
 
 const TIMESTAMP: i64 = 1735689600;
-const VERSION: SaidVersion = SaidVersion { major: 0, minor: 1 };
+const VERSION: (u16, u16) = (0, 1);
 
 wit_bindgen::generate!({
     world: "idp2p-id",

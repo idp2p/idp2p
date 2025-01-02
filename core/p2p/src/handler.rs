@@ -1,7 +1,7 @@
 use anyhow::Result;
 
 use futures::{channel::mpsc::Sender, SinkExt};
-use idp2p_common::{cbor, id::Said};
+use idp2p_common::{cbor, id::Id};
 
 use libp2p::{gossipsub::TopicHash, PeerId};
 use std::{str::FromStr, sync::Arc};
@@ -37,7 +37,7 @@ impl<S: IdStore, V: IdVerifier> IdMessageHandler<S, V> {
         payload: &[u8],
     ) -> Result<Option<Vec<u8>>> {
         use IdGossipMessageKind::*;
-        let said = Said::from_str(topic.as_str())?;
+        let said = Id::from_str(topic.as_str())?;
         if said.kind == "id" {
             let mut id_entry: IdEntry = self
                 .store

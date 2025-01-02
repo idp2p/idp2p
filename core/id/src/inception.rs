@@ -1,13 +1,13 @@
 use std::str::FromStr;
 
-use idp2p_common::{cbor, id::Said};
+use idp2p_common::{cbor, id::Id};
 
 use crate::{
     idp2p::id::{
         error::{IdError, IdInceptionError},
         types::IdInception,
     },
-    validation::SaidValidator,
+    validation::IdValidator,
     IdView, PersistedIdInception, TIMESTAMP, VERSION,
 };
 
@@ -30,7 +30,7 @@ impl PersistedIdInception {
         }
         let mut signers = vec![];
         for signer in &inception.signers {
-            let signer_said = Said::from_str(signer.id.as_str()).map_err(|e| {
+            let signer_said = Id::from_str(signer.id.as_str()).map_err(|e| {
                 IdInceptionError::InvalidSigner(IdError {
                     id: signer.id.clone(),
                     reason: e.to_string(),
@@ -66,7 +66,7 @@ impl PersistedIdInception {
         }
         let mut next_signers = vec![];
         for next_signer in &inception.next_signers {
-            let next_signer_said = Said::from_str(next_signer.as_str()).map_err(|e| {
+            let next_signer_said = Id::from_str(next_signer.as_str()).map_err(|e| {
                 IdInceptionError::InvalidNextSigner(IdError {
                     id: next_signer.clone(),
                     reason: e.to_string(),
@@ -113,14 +113,14 @@ impl TryFrom<&PersistedIdInception> for IdInception {
     type Error = IdInceptionError;
 
     fn try_from(value: &PersistedIdInception) -> Result<Self, Self::Error> {
-        let said: Said = Said::from_str(value.id.as_str())
+        let id: Id = Id::from_str(value.id.as_str())
             .map_err(|e| IdInceptionError::InvalidId(e.to_string()))?;
-        if said.version != VERSION {
+        if (id.major, id.minor) != VERSION {
             return Err(IdInceptionError::InvalidVersion);
         }
-        said.validate(&value.payload)
+        id.validate(&value.payload)
             .map_err(|e| IdInceptionError::InvalidId(e.to_string()))?;
-        said.ensure_id()
+        id.ensure_id()
             .map_err(|_| IdInceptionError::PayloadAndIdNotMatch)?;
         let inception: IdInception =
             cbor::decode(&value.payload).map_err(|_| IdInceptionError::InvalidPayload)?;
@@ -141,9 +141,15 @@ mod tests {
     fn create_signer() -> IdSigner {
         let mut csprng = OsRng;
         let signing_key: SigningKey = SigningKey::generate(&mut csprng);
-        let said = Said::new(VERSION, "signer", ED_CODE, signing_key.as_bytes())
-            .unwrap()
-            .to_string();
+        let said = Id::new(
+            "signer",
+            VERSION.0,
+            VERSION.1,
+            ED_CODE,
+            signing_key.as_bytes(),
+        )
+        .unwrap()
+        .to_string();
         IdSigner {
             id: said,
             public_key: signing_key.to_bytes().to_vec(),
@@ -161,7 +167,14 @@ mod tests {
             actions: vec![],
         };
         let inception_bytes = cbor::encode(&inception).unwrap();
-        let id = Said::new(VERSION, "id", CBOR_CODE, inception_bytes.as_slice()).unwrap();
+        let id = Id::new(
+            "id",
+            VERSION.0,
+            VERSION.1,
+            CBOR_CODE,
+            inception_bytes.as_slice(),
+        )
+        .unwrap();
         eprintln!("ID: {}", id.to_string());
         let pinception = PersistedIdInception {
             id: id.to_string(),

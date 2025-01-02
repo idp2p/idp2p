@@ -1,3 +1,5 @@
+use alloc::vec::Vec;
+
 use crate::error::CommonError;
 
 pub fn encode<T: serde::Serialize>(value: &T) -> Result<Vec<u8>, CommonError> {

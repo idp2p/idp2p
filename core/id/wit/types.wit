@@ -6,6 +6,7 @@ interface types {
 
     record id-action {
         id: string,
+        action-id: string,
         payload: list<u8>
     }
 

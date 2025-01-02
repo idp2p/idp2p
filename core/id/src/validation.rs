@@ -1,4 +1,4 @@
-use idp2p_common::{id::Said, CBOR_CODE, ED_CODE};
+use idp2p_common::{id::Id, CBOR_CODE, ED_CODE};
 
 #[derive(Debug)]
 pub enum IdValidationError {
@@ -15,13 +15,13 @@ impl ToString for IdValidationError {
     }
 }
 
-pub trait SaidValidator {
+pub trait IdValidator {
     fn ensure_id(&self) -> Result<(), IdValidationError>;
     fn ensure_event(&self) -> Result<(), IdValidationError>;
     fn ensure_signer(&self) -> Result<(), IdValidationError>;
 }
 
-impl SaidValidator for Said {
+impl IdValidator for Id {
     fn ensure_id(&self) -> Result<(), IdValidationError> {
         if self.cid.codec() != CBOR_CODE {
             return Err(IdValidationError::InvalidCodec);

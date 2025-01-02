@@ -1,3 +1,4 @@
+use alloc::string::String;
 use sha2::{Digest, Sha256};
 
 use crate::error::CommonError;

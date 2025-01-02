@@ -9,7 +9,7 @@ crate-type = ["lib", "cdylib"]
 [dependencies]
 rand = { workspace = true }
 wit-bindgen = { workspace = true }
-anyhow = { workspace = true }
+thiserror = { workspace = true }
 regex = { workspace = true }
 sha2 = { workspace = true }
 cid = { workspace = true }

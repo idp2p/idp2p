@@ -1,14 +1,12 @@
 use std::str::FromStr;
 
-use idp2p_common::{cbor, ed25519::verify, id::Said};
+use idp2p_common::{cbor, ed25519::verify, id::Id};
 
 use crate::{
     idp2p::id::{
         error::IdError,
         types::{ IdEvent, IdEventKind::*},
-    },
-    validation::SaidValidator,
-    IdEventError, IdView, PersistedIdEvent, TIMESTAMP, VERSION,
+    }, validation::IdValidator, IdEventError, IdView, PersistedIdEvent, TIMESTAMP, VERSION
 };
 
 impl PersistedIdEvent {
@@ -31,7 +29,7 @@ impl PersistedIdEvent {
         //
         let mut signers = vec![];
         for proof in &self.proofs {
-            let sid = Said::from_str(proof.id.as_str()).map_err(|e| {
+            let sid = Id::from_str(proof.id.as_str()).map_err(|e| {
                 IdEventError::InvalidProof(IdError {
                     id: proof.id.clone(),
                     reason: e.to_string(),
@@ -113,14 +111,14 @@ impl TryFrom<&PersistedIdEvent> for IdEvent {
     type Error = IdEventError;
 
     fn try_from(value: &PersistedIdEvent) -> Result<Self, Self::Error> {
-        let said: Said = Said::from_str(value.id.as_str())
+        let id: Id = Id::from_str(value.id.as_str())
             .map_err(|e| IdEventError::InvalidEventId(e.to_string()))?;
-        if said.version != VERSION {
+        if (id.major, id.minor) != VERSION {
             return Err(IdEventError::InvalidVersion);
         }
-        said.validate(&value.payload)
+        id.validate(&value.payload)
             .map_err(|e| IdEventError::InvalidEventId(e.to_string()))?;
-        said.ensure_event()
+        id.ensure_event()
             .map_err(|_| IdEventError::PayloadAndIdNotMatch)?;
 
         let event: IdEvent =

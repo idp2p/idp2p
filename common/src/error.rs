@@ -1,28 +1,17 @@
-#[derive(Debug)]
+use thiserror::Error;
+
+#[derive(Error, Debug)]
 pub enum CommonError {
+    #[error("Error")]
     DecodeError,
+    #[error("Error")]
     EncodeError,
+    #[error("Error")]
     InvalidPublicKey,
+    #[error("Error")]
     InvalidSignature,
+    #[error("Error")]
     SignatureVerifyError,
+    #[error("Error")]
     Unknown
-}
-
-impl ToString for CommonError {
-    fn to_string(&self) -> String {
-        match self {
-            CommonError::DecodeError => "decode error".to_string(),
-            CommonError::EncodeError => "encode error".to_string(),
-            CommonError::InvalidPublicKey => "invalid public key".to_string(),
-            CommonError::InvalidSignature => "invalid signature".to_string(),
-            CommonError::SignatureVerifyError => "signature verify error".to_string(),
-            CommonError::Unknown => "unknown error".to_string(),
-        }           
-    }   
-}
-
-impl From<CommonError> for anyhow::Error  {
-    fn from(value: CommonError) -> Self {
-        todo!()
-    }
 }
