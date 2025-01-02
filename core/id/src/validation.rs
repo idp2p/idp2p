@@ -1,4 +1,4 @@
-use idp2p_common::{said::Said, CBOR_CODE, ED_CODE};
+use idp2p_common::{id::Said, CBOR_CODE, ED_CODE};
 
 #[derive(Debug)]
 pub enum IdValidationError {

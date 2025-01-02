@@ -5,24 +5,23 @@ use regex::Regex;
 use std::str::FromStr;
 
 #[derive(Debug, PartialEq, Clone)]
-pub struct SaidVersion {
+pub struct Id {
+    pub kind: String,
     pub major: u16,
     pub minor: u16,
-}
-
-#[derive(Debug, PartialEq, Clone)]
-pub struct Said {
-    pub version: SaidVersion,
-    pub kind: String,
     pub cid: Cid,
 }
 
 #[derive(Debug)]
-pub enum SaidError {
+pub enum IdError {
     InvalidIdFormat,
     PayloadAndIdNotMatch { expected: Vec<u8>, actual: Vec<u8> },
     InvalidHashAlg(u64),
     Unknown,
+}
+
+impl core::error::Error for IdError {
+    
 }
 
 impl ToString for SaidVersion {

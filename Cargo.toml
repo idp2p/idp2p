@@ -6,6 +6,7 @@ edition = "2021"
 edition = "2021"
 members = [
     "common",
+    "core/did",
     "core/id",
     "core/p2p",
 ]
@@ -63,6 +64,8 @@ multihash = { version = "*", default-features = false, features = [
     "serde",
     "alloc",
 ] }
+multibase = "0.9"
+unsigned-varint = "0.8.0"
 cid = { version = "0.11.1", features = ["serde"] }
 chrono = { version = "0", default-features = false, features = [
     "alloc",

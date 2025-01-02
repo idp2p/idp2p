@@ -1,6 +1,6 @@
 extern crate alloc;
 
-use idp2p_common::said::SaidVersion;
+use idp2p_common::id::SaidVersion;
 
 mod inception;
 mod event;

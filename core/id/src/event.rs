@@ -1,11 +1,11 @@
 use std::str::FromStr;
 
-use idp2p_common::{cbor, ed25519::verify, said::Said};
+use idp2p_common::{cbor, ed25519::verify, id::Said};
 
 use crate::{
     idp2p::id::{
         error::IdError,
-        types::{IdActionKind::*, IdEvent, IdEventKind::*},
+        types::{ IdEvent, IdEventKind::*},
     },
     validation::SaidValidator,
     IdEventError, IdView, PersistedIdEvent, TIMESTAMP, VERSION,
@@ -73,7 +73,7 @@ impl PersistedIdEvent {
                 }
                 // Check signers and threshold
                 for action in actions {
-                    match action {
+                    /*match action {
                         CreatePeer(_) => todo!(),
                         RevokePeer(_) => todo!(),
                         CreateMediator(_) => todo!(),
@@ -88,7 +88,7 @@ impl PersistedIdEvent {
                             }
                             //return Err(IdEventError::ClaimNotFound);
                         }
-                    }
+                    }*/
                 }
             }
             Rotation(id_rotation) => {
@@ -100,6 +100,7 @@ impl PersistedIdEvent {
                 }
             }
             Delegation(new_id) => {
+               
                 //
             }
         }

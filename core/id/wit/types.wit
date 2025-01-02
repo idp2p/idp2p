@@ -9,11 +9,6 @@ interface types {
         payload: list<u8>
     }
 
-    record id-claim {
-        id: string,
-        payload: list<list<u8>>
-    }
-
     record id-inception {        
         timestamp: s64,
         threshold: u8,

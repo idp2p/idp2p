@@ -1,5 +1,5 @@
 interface model {
-    use types.{id-signer, id-claim};
+    use types.{id-signer, id-action};
 
     record persisted-id-proof {
         id: string,
@@ -34,7 +34,7 @@ interface model {
         // CID codec should be 0xed 
         next-signers: list<string>,
         // Claims
-        claims: list<id-claim>,
+        actions: list<id-action>,
         // All keys
         all-keys: list<string>,
     }    

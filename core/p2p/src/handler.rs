@@ -1,7 +1,7 @@
 use anyhow::Result;
 
 use futures::{channel::mpsc::Sender, SinkExt};
-use idp2p_common::{cbor, said::Said};
+use idp2p_common::{cbor, id::Said};
 
 use libp2p::{gossipsub::TopicHash, PeerId};
 use std::{str::FromStr, sync::Arc};

@@ -1,6 +1,6 @@
 use std::str::FromStr;
 
-use idp2p_common::{cbor, said::Said};
+use idp2p_common::{cbor, id::Said};
 
 use crate::{
     idp2p::id::{
@@ -88,31 +88,9 @@ impl PersistedIdInception {
             next_signers.push(next_signer.to_owned());
         }
 
-        let mut mediators = vec![];
-        for mediator in &inception.mediators {
-            let said = Said::from_str(mediator.as_str()).map_err(|e| {
-                IdInceptionError::InvalidNextSigner(IdError {
-                    id: mediator.clone(),
-                    reason: e.to_string(),
-                })
-            })?;
-            said.ensure_id().map_err(|e| {
-                IdInceptionError::InvalidNextSigner(IdError {
-                    id: mediator.clone(),
-                    reason: e.to_string(),
-                })
-            })?;
-            mediators.push(mediator.to_owned());
-        }
-
-        let mut peers = vec![];
-        for peer in &inception.peers {
-            peers.push(peer.to_owned());
-        }
-
-        let mut claims = vec![];
-        for claim in &inception.claims {
-            claims.push(claim.to_owned());
+        let mut actions = vec![];
+        for action in &inception.actions {
+            actions.push(action.to_owned());
         }
 
         let id_view = IdView {
@@ -124,9 +102,7 @@ impl PersistedIdInception {
             next_threshold: inception.next_threshold,
             next_signers: next_signers,
             all_keys: all_keys,
-            peers: peers,
-            mediators: mediators,
-            claims: claims,
+            actions: actions,
         };
 
         Ok(id_view)
@@ -182,9 +158,7 @@ mod tests {
             signers: vec![create_signer()],
             next_threshold: 1,
             next_signers: vec![create_signer().id],
-            peers: vec![],
-            mediators: vec![],
-            claims: vec![],
+            actions: vec![],
         };
         let inception_bytes = cbor::encode(&inception).unwrap();
         let id = Said::new(VERSION, "id", CBOR_CODE, inception_bytes.as_slice()).unwrap();
