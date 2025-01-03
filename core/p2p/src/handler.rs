@@ -37,8 +37,8 @@ impl<S: IdStore, V: IdVerifier> IdMessageHandler<S, V> {
         payload: &[u8],
     ) -> Result<Option<Vec<u8>>> {
         use IdGossipMessageKind::*;
-        let said = Id::from_str(topic.as_str())?;
-        if said.kind == "id" {
+        let id = Id::from_str(topic.as_str())?;
+        if id.kind == "id" {
             let mut id_entry: IdEntry = self
                 .store
                 .get_id(topic.as_str())
@@ -60,7 +60,7 @@ impl<S: IdStore, V: IdVerifier> IdMessageHandler<S, V> {
                         .verify_event("", &id_entry.view, &event)
                         .await?;
                     id_entry.view = view;
-                    self.store.set_id(&said.version.to_string(), &id_entry).await?;
+                    self.store.set_id(&id.version_str(), &id_entry).await?;
                     return Ok(None);
                 }
                 NotifyMessage {

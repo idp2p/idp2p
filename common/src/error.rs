@@ -1,9 +1,11 @@
+
+use alloc::string::String;
 use thiserror::Error;
 
 #[derive(Error, Debug)]
 pub enum CommonError {
-    #[error("Error")]
-    DecodeError,
+    #[error("{0}")]
+    DecodeError(String),
     #[error("Error")]
     EncodeError,
     #[error("Error")]
@@ -13,5 +15,7 @@ pub enum CommonError {
     #[error("Error")]
     SignatureVerifyError,
     #[error("Error")]
-    Unknown
+    MultihashError(#[from] multihash::Error),
+    #[error("Error")]
+    Other(#[from] core::fmt::Error),
 }

@@ -166,7 +166,7 @@ mod tests {
             next_signers: vec![create_signer().id],
             actions: vec![],
         };
-        let inception_bytes = cbor::encode(&inception).unwrap();
+        let inception_bytes = cbor::encode(&inception);
         let id = Id::new(
             "id",
             VERSION.0,

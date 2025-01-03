@@ -38,9 +38,8 @@ impl Id {
         codec: u64,
         bytes: &[u8],
     ) -> Result<Self, IdError> {
-        let input_digest = sha256_hash(bytes)?;
-        let mh =
-            Multihash::<64>::wrap(SHA2_256_CODE, &input_digest)?;
+        let input_digest = sha256_hash(bytes);
+        let mh = Multihash::<64>::wrap(SHA2_256_CODE, &input_digest)?;
         let cid = Cid::new_v1(codec, mh);
         let kind = kind.to_string();
         Ok(Self {
@@ -58,7 +57,7 @@ impl Id {
     pub fn validate(&self, payload: &[u8]) -> Result<&Self, IdError> {
         match self.cid.hash().code() {
             SHA2_256_CODE => {
-                let input_digest = sha256_hash(payload)?;
+                let input_digest = sha256_hash(payload);
                 if self.cid.hash().digest() != input_digest.as_slice() {
                     return Err(IdError::PayloadAndIdNotMatch);
                 }
