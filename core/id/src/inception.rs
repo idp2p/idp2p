@@ -1,6 +1,6 @@
 use std::str::FromStr;
 
-use idp2p_common::{cbor, id::Id};
+use idp2p_common::{action::IdAction, cbor, id::Id};
 
 use crate::{
     idp2p::id::{
@@ -115,7 +115,8 @@ impl TryFrom<&PersistedIdInception> for IdInception {
     fn try_from(value: &PersistedIdInception) -> Result<Self, Self::Error> {
         let id: Id = Id::from_str(value.id.as_str())
             .map_err(|e| IdInceptionError::InvalidId(e.to_string()))?;
-        if (id.major, id.minor) != VERSION {
+        let action = IdAction::from_bytes(&value.payload).unwrap();
+        if (action.major, action.minor) != VERSION {
             return Err(IdInceptionError::InvalidVersion);
         }
         id.validate(&value.payload)
@@ -123,7 +124,7 @@ impl TryFrom<&PersistedIdInception> for IdInception {
         id.ensure_id()
             .map_err(|_| IdInceptionError::PayloadAndIdNotMatch)?;
         let inception: IdInception =
-            cbor::decode(&value.payload).map_err(|_| IdInceptionError::InvalidPayload)?;
+            cbor::decode(action.payload).map_err(|_| IdInceptionError::InvalidPayload)?;
         Ok(inception)
     }
 }
@@ -141,17 +142,15 @@ mod tests {
     fn create_signer() -> IdSigner {
         let mut csprng = OsRng;
         let signing_key: SigningKey = SigningKey::generate(&mut csprng);
-        let said = Id::new(
+        let id = Id::new(
             "signer",
-            VERSION.0,
-            VERSION.1,
             ED_CODE,
             signing_key.as_bytes(),
         )
         .unwrap()
         .to_string();
         IdSigner {
-            id: said,
+            id: id,
             public_key: signing_key.to_bytes().to_vec(),
         }
     }
@@ -169,8 +168,6 @@ mod tests {
         let inception_bytes = cbor::encode(&inception);
         let id = Id::new(
             "id",
-            VERSION.0,
-            VERSION.1,
             CBOR_CODE,
             inception_bytes.as_slice(),
         )

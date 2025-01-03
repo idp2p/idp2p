@@ -1,6 +1,6 @@
 use std::str::FromStr;
 
-use idp2p_common::{cbor, ed25519::verify, id::Id};
+use idp2p_common::{action::IdAction, cbor, ed25519::verify, id::Id};
 
 use crate::{
     idp2p::id::{
@@ -113,7 +113,8 @@ impl TryFrom<&PersistedIdEvent> for IdEvent {
     fn try_from(value: &PersistedIdEvent) -> Result<Self, Self::Error> {
         let id: Id = Id::from_str(value.id.as_str())
             .map_err(|e| IdEventError::InvalidEventId(e.to_string()))?;
-        if (id.major, id.minor) != VERSION {
+        let action = IdAction::from_bytes(&value.payload).unwrap();
+        if (action.major, action.minor) != VERSION {
             return Err(IdEventError::InvalidVersion);
         }
         id.validate(&value.payload)
@@ -122,7 +123,7 @@ impl TryFrom<&PersistedIdEvent> for IdEvent {
             .map_err(|_| IdEventError::PayloadAndIdNotMatch)?;
 
         let event: IdEvent =
-            cbor::decode(&value.payload).map_err(|_| IdEventError::InvalidPayload)?;
+            cbor::decode(&action.payload).map_err(|_| IdEventError::InvalidPayload)?;
         Ok(event)
     }
 }

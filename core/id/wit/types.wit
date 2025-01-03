@@ -5,11 +5,10 @@ interface types {
     }
 
     record id-action {
-        id: string,
-        kind: string,
-        major: u16,
-        minor: u16,
-        payload: list<u8>
+        // Aggregate id
+        aid: string,
+        // Action payload(kind, version and payload)
+        body: list<u8>
     }
 
     record id-inception {        

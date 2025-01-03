@@ -9,71 +9,73 @@ use thiserror::Error;
 #[derive(Debug, PartialEq, Clone)]
 pub struct Id {
     pub kind: String,
-    pub major: u16,
-    pub minor: u16,
     pub cid: Cid,
 }
 
 #[derive(Error, Debug)]
 pub enum IdError {
-    #[error("Error")]
+    #[error("Invalid ID format. Expected format: /idp2p/<kind>/<cid>")]
     InvalidIdFormat,
-    #[error("Error")]
-    PayloadAndIdNotMatch,
-    #[error("Error")]
-    InvalidHashAlg(u64),
-    #[error("Error")]
-    CommonError(#[from] CommonError),
-    #[error("Error")]
-    MultihashError(#[from] multihash::Error),
-    #[error("Error")]
-    Other(#[from] core::fmt::Error),
+    
+    #[error("Payload hash does not match the CID hash")]
+    PayloadHashMismatch,
+    
+    #[error("Unsupported hash algorithm: {0}. Expected SHA2-256")]
+    UnsupportedHashAlgorithm(u64),
+    
+    #[error("Invalid kind: {0}. Kind must be a lowercase alphabetic string")]
+    InvalidKind(String),
+    
+    #[error("CID parsing error: {0}")]
+    InvalidCid(String),
+    
+    #[error("Common error: {0}")]
+    Common(#[from] CommonError),
+    
+    #[error("Multihash error: {0}")]
+    Multihash(#[from] multihash::Error),
+    
+    #[error("Internal error: {0}")]
+    Internal(String),
 }
 
 impl Id {
     pub fn new(
         kind: &str,
-        major: u16,
-        minor: u16,
         codec: u64,
         bytes: &[u8],
     ) -> Result<Self, IdError> {
+        if !kind.chars().all(|c| c.is_ascii_lowercase()) {
+            return Err(IdError::InvalidKind(kind.to_string()));
+        }
+
         let input_digest = sha256_hash(bytes);
-        let mh = Multihash::<64>::wrap(SHA2_256_CODE, &input_digest)?;
+        let mh = Multihash::<64>::wrap(SHA2_256_CODE, &input_digest)
+            .map_err(|e| IdError::Multihash(e))?;
         let cid = Cid::new_v1(codec, mh);
         let kind = kind.to_string();
-        Ok(Self {
-            major,
-            minor,
-            kind,
-            cid,
-        })
-    }
-
-    pub fn version_str(&self) -> String {
-        format!("{}.{}", self.major, self.minor)
+        
+        Ok(Self { kind, cid })
     }
 
     pub fn validate(&self, payload: &[u8]) -> Result<&Self, IdError> {
-        match self.cid.hash().code() {
-            SHA2_256_CODE => {
-                let input_digest = sha256_hash(payload);
-                if self.cid.hash().digest() != input_digest.as_slice() {
-                    return Err(IdError::PayloadAndIdNotMatch);
-                }
-            }
-            _ => return Err(IdError::InvalidHashAlg(self.cid.hash().code())),
+        let hash_code = self.cid.hash().code();
+        if hash_code != SHA2_256_CODE {
+            return Err(IdError::UnsupportedHashAlgorithm(hash_code));
         }
+
+        let input_digest = sha256_hash(payload);
+        if self.cid.hash().digest() != input_digest.as_slice() {
+            return Err(IdError::PayloadHashMismatch);
+        }
+
         Ok(self)
     }
 }
 
 impl ToString for Id {
     fn to_string(&self) -> String {
-        format!(
-            "/idp2p/{}/{}/{}/{}",
-            self.kind, self.major, self.minor, self.cid
-        )
+        format!("/idp2p/{}/{}", self.kind, self.cid)
     }
 }
 
@@ -81,71 +83,71 @@ impl FromStr for Id {
     type Err = IdError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let re =
-            Regex::new(r"^/idp2p/(?<kind>[a-z]+)/(?<major>\d+)/(?<minor>\d+)/(?<cid>.+)$").unwrap();
+        let re = Regex::new(r"^/idp2p/(?<kind>[a-z]+)/(?<cid>.+)$")
+            .map_err(|e| IdError::Internal(e.to_string()))?;
 
-        let caps = re.captures(s).ok_or(Self::Err::InvalidIdFormat)?;
+        let caps = re.captures(s)
+            .ok_or(IdError::InvalidIdFormat)?;
 
         let kind = caps["kind"].to_string();
+        if !kind.chars().all(|c| c.is_ascii_lowercase()) {
+            return Err(IdError::InvalidKind(kind));
+        }
 
-        let major = caps["major"].to_string();
-        let minor = caps["minor"].to_string();
-        let major = u16::from_str(major.as_str()).map_err(|_| Self::Err::InvalidIdFormat)?;
-        let minor = u16::from_str(minor.as_str()).map_err(|_| Self::Err::InvalidIdFormat)?;
-        let cid = caps["cid"].to_string();
-        let cid = Cid::try_from(cid).map_err(|_| Self::Err::InvalidIdFormat)?;
+        let cid_str = caps["cid"].to_string();
+        let cid = Cid::try_from(cid_str.as_str())
+            .map_err(|e| IdError::InvalidCid(e.to_string()))?;
 
-        Ok(Self {
-            major,
-            minor,
-            kind,
-            cid,
-        })
+        Ok(Self { kind, cid })
     }
 }
-
+// did:p2p:{cid}
 #[cfg(test)]
 mod tests {
     use super::*;
-    // const ID: &str = "/did/1/idp2p/1/5464/event/bafkreieq5jui4j25lacwomsqgjeswwl3y5zcdrresptwgmfylxo2depppq";
     const CID: &str = "bafkreieq5jui4j25lacwomsqgjeswwl3y5zcdrresptwgmfylxo2depppq";
 
     #[test]
-    fn test_valid_version() {
-        let input = format!("/idp2p/event/1/42/{CID}");
-        let parsed = Id::from_str(input.as_str());
+    fn test_valid_id() {
+        let input = format!("/idp2p/event/{CID}");
+        let parsed = Id::from_str(&input);
         assert!(parsed.is_ok());
-        let idp2p_id = parsed.unwrap();
-        // Check that version is Some("1.42")
-        assert_eq!(idp2p_id.major, 1);
-        // Check that kind is Event
-        matches!(idp2p_id.kind.as_str(), "event");
+        let id = parsed.unwrap();
+        assert_eq!(id.kind, "event");
+        assert_eq!(id.to_string(), input);
     }
 
     #[test]
-    fn test_invalid() {
-        // Here, we include only a major version: /1/ instead of /1/2/
-        let input = format!("/idp2p/event/{CID}");
-        let parsed = Id::from_str(input.as_str());
-        // Should fail because minor is missing
-        assert!(parsed.is_err());
+    fn test_invalid_prefix() {
+        let input = format!("/abc/event/{CID}");
+        let error = Id::from_str(&input).unwrap_err();
+        assert!(matches!(error, IdError::InvalidIdFormat));
+    }
+
+    #[test]
+    fn test_invalid_kind() {
+        let input = format!("/idp2p/EVENT/{CID}");
+        let error = Id::from_str(&input).unwrap_err();
+        assert!(matches!(error, IdError::InvalidIdFormat));
     }
 
     #[test]
     fn test_invalid_cid() {
-        // Non-CID string as last segment
-        let input = "/idp2p/id/1/2/not-a-cid";
-        let parsed = Id::from_str(input);
-        // Should fail because the CID parsing fails
-        assert!(parsed.is_err());
+        let input = "/idp2p/event/not-a-cid";
+        let error = Id::from_str(input).unwrap_err();
+        assert!(matches!(error, IdError::InvalidCid(_)));
     }
 
     #[test]
-    fn test_invalid_payload() {
-        // Non-CID string as last segment
-        let input = "/idp2p/id/1/2/not-a-cid";
-        let parsed = Id::from_str(input);
-        // Should fail because the CID parsing fails
-        assert!(parsed.is_err());
+    fn test_new_invalid_kind() {
+        let result = Id::new("INVALID", 0, &[0u8; 32]);
+        assert!(matches!(result, Err(IdError::InvalidKind(_))));
+    }
+
+    #[test]
+    fn test_validate_wrong_hash() {
+        let id = Id::new("test", 0, &[0u8; 32]).unwrap();
+        let result = id.validate(&[1u8; 32]);
+        assert!(matches!(result, Err(IdError::PayloadHashMismatch)));
     }
 }

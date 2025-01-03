@@ -33,9 +33,9 @@ interface model {
         signers: list<id-signer>,
         // CID codec should be 0xed 
         next-signers: list<string>,
+        // All keys
+        all-signers: list<string>,
         // Claims
         actions: list<id-action>,
-        // All keys
-        all-keys: list<string>,
     }    
 }
