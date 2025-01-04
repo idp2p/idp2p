@@ -1,5 +1,5 @@
 interface model {
-    use types.{id-signer, id-action};
+    use types.{id-signer, id-claim};
 
     record persisted-id-proof {
         id: string,
@@ -9,16 +9,18 @@ interface model {
 
     record persisted-id-inception {
         id: string,
+        version: string,
         payload: list<u8>,
     }
 
     record persisted-id-event {
         id: string,
+        version: string,
         payload: list<u8>,
         proofs: list<persisted-id-proof>,
     }
 
-    record id-view {
+    record id-projection {
         // Identifier 
         id: string,
         // Last event id
@@ -35,7 +37,9 @@ interface model {
         next-signers: list<string>,
         // All keys
         all-signers: list<string>,
-        // Claims
-        actions: list<id-action>,
+        // All actions
+        claims: list<id-claim>,
+        // Delegate
+        delegate-id: option<string>,
     }    
 }

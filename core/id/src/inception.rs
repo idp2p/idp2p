@@ -1,19 +1,18 @@
 use std::str::FromStr;
 
-use idp2p_common::{action::IdAction, cbor, id::Id};
+use idp2p_common::{cbor, id::Id};
 
 use crate::{
     idp2p::id::{
         error::{IdError, IdInceptionError},
         types::IdInception,
     },
-    validation::IdValidator,
-    IdView, PersistedIdInception, TIMESTAMP, VERSION,
+    IdProjection, PersistedIdInception, TIMESTAMP,
 };
 
 impl PersistedIdInception {
-    pub(crate) fn verify(&self) -> Result<IdView, IdInceptionError> {
-        let mut all_keys = vec![];
+    pub(crate) fn verify(&self) -> Result<IdProjection, IdInceptionError> {
+        let mut all_signers = vec![];
         let inception: IdInception = self.try_into()?;
 
         // Timestamp check
@@ -30,19 +29,19 @@ impl PersistedIdInception {
         }
         let mut signers = vec![];
         for signer in &inception.signers {
-            let signer_said = Id::from_str(signer.id.as_str()).map_err(|e| {
+            let signer_id = Id::from_str(signer.id.as_str()).map_err(|e| {
                 IdInceptionError::InvalidSigner(IdError {
                     id: signer.id.clone(),
                     reason: e.to_string(),
                 })
             })?;
-            signer_said.validate(&signer.public_key).map_err(|e| {
-                IdInceptionError::InvalidSigner(IdError {
+            if signer_id.kind != "signer" {
+                return Err(IdInceptionError::InvalidSigner(IdError {
                     id: signer.id.clone(),
-                    reason: e.to_string(),
-                })
-            })?;
-            signer_said.ensure_signer().map_err(|e| {
+                    reason: "invalid-signer-kind".to_string(),
+                }))
+            }
+            signer_id.ensure(&signer.public_key).map_err(|e| {
                 IdInceptionError::InvalidSigner(IdError {
                     id: signer.id.clone(),
                     reason: e.to_string(),
@@ -54,7 +53,7 @@ impl PersistedIdInception {
                     reason: "duplicate-signer".to_string(),
                 }));
             }
-            all_keys.push(signer.id.clone());
+            all_signers.push(signer.id.clone());
             signers.push(signer.to_owned());
         }
 
@@ -66,34 +65,34 @@ impl PersistedIdInception {
         }
         let mut next_signers = vec![];
         for next_signer in &inception.next_signers {
-            let next_signer_said = Id::from_str(next_signer.as_str()).map_err(|e| {
+            let next_signer_id = Id::from_str(next_signer.as_str()).map_err(|e| {
                 IdInceptionError::InvalidNextSigner(IdError {
                     id: next_signer.clone(),
                     reason: e.to_string(),
                 })
             })?;
-            next_signer_said.ensure_signer().map_err(|e| {
-                IdInceptionError::InvalidNextSigner(IdError {
+            if next_signer_id.kind != "signer" {
+                return Err(IdInceptionError::InvalidNextSigner(IdError {
                     id: next_signer.clone(),
-                    reason: e.to_string(),
-                })
-            })?;
+                    reason: "invalid-next-signer-kind".to_string(),
+                }));
+            }
             if next_signers.contains(next_signer) {
                 return Err(IdInceptionError::InvalidNextSigner(IdError {
                     id: next_signer.clone(),
                     reason: "duplicate-next-signer".to_string(),
                 }));
             }
-            all_keys.push(next_signer.clone());
+            all_signers.push(next_signer.clone());
             next_signers.push(next_signer.to_owned());
         }
 
-        let mut actions = vec![];
-        for action in &inception.actions {
-            actions.push(action.to_owned());
+        let mut claims = vec![];
+        for claim in &inception.claims {
+            claims.push(claim.to_owned());
         }
 
-        let id_view = IdView {
+        let id_projection = IdProjection {
             id: self.id.clone(),
             event_id: self.id.clone(),
             event_timestamp: inception.timestamp,
@@ -101,11 +100,12 @@ impl PersistedIdInception {
             signers: signers,
             next_threshold: inception.next_threshold,
             next_signers: next_signers,
-            all_keys: all_keys,
-            actions: actions,
+            all_signers: all_signers,
+            claims: claims,
+            delegate_id: None
         };
 
-        Ok(id_view)
+        Ok(id_projection)
     }
 }
 
@@ -115,16 +115,13 @@ impl TryFrom<&PersistedIdInception> for IdInception {
     fn try_from(value: &PersistedIdInception) -> Result<Self, Self::Error> {
         let id: Id = Id::from_str(value.id.as_str())
             .map_err(|e| IdInceptionError::InvalidId(e.to_string()))?;
-        let action = IdAction::from_bytes(&value.payload).unwrap();
-        if (action.major, action.minor) != VERSION {
-            return Err(IdInceptionError::InvalidVersion);
+        if id.kind != "id" {
+            return Err(IdInceptionError::InvalidId(id.to_string()));
         }
-        id.validate(&value.payload)
-            .map_err(|e| IdInceptionError::InvalidId(e.to_string()))?;
-        id.ensure_id()
+        id.ensure(&value.payload)
             .map_err(|_| IdInceptionError::PayloadAndIdNotMatch)?;
         let inception: IdInception =
-            cbor::decode(action.payload).map_err(|_| IdInceptionError::InvalidPayload)?;
+            cbor::decode(&value.payload).map_err(|_| IdInceptionError::InvalidPayload)?;
         Ok(inception)
     }
 }
@@ -142,13 +139,9 @@ mod tests {
     fn create_signer() -> IdSigner {
         let mut csprng = OsRng;
         let signing_key: SigningKey = SigningKey::generate(&mut csprng);
-        let id = Id::new(
-            "signer",
-            ED_CODE,
-            signing_key.as_bytes(),
-        )
-        .unwrap()
-        .to_string();
+        let id = Id::new("signer", ED_CODE, signing_key.as_bytes())
+            .unwrap()
+            .to_string();
         IdSigner {
             id: id,
             public_key: signing_key.to_bytes().to_vec(),
@@ -163,18 +156,14 @@ mod tests {
             signers: vec![create_signer()],
             next_threshold: 1,
             next_signers: vec![create_signer().id],
-            actions: vec![],
+            claims: vec![],
         };
         let inception_bytes = cbor::encode(&inception);
-        let id = Id::new(
-            "id",
-            CBOR_CODE,
-            inception_bytes.as_slice(),
-        )
-        .unwrap();
+        let id = Id::new("id", CBOR_CODE, inception_bytes.as_slice()).unwrap();
         eprintln!("ID: {}", id.to_string());
         let pinception = PersistedIdInception {
             id: id.to_string(),
+            version: "".to_string(),
             payload: inception_bytes,
         };
         let result = pinception.verify();

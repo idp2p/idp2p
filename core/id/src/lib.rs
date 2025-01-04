@@ -2,10 +2,9 @@ extern crate alloc;
 
 mod inception;
 mod event;
-mod validation;
+mod error;
 
 const TIMESTAMP: i64 = 1735689600;
-const VERSION: (u16, u16) = (0, 1);
 
 wit_bindgen::generate!({
     world: "idp2p-id",
@@ -18,13 +17,13 @@ struct GuestComponent;
 export!(GuestComponent);
 
 impl Guest for GuestComponent {
-    fn verify_inception(inception: PersistedIdInception) -> Result<IdView, IdInceptionError> {
+    fn verify_inception(inception: PersistedIdInception) -> Result<IdProjection, IdInceptionError> {
         inception.verify()
     }
 
-    fn verify_event(view: IdView, event: PersistedIdEvent) -> Result<IdView, IdEventError> {
-        let mut view = view;
-        event.verify(&mut view)
+    fn verify_event(projection: IdProjection, event: PersistedIdEvent) -> Result<IdProjection, IdEventError> {
+        let mut projection = projection;
+        event.verify(&mut projection)
     }
 }
 

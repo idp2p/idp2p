@@ -1,10 +1,15 @@
 package idp2p:id;
 
 world idp2p-id {
-    use model.{persisted-id-inception, id-view, persisted-id-event};
+    use model.{persisted-id-inception, id-projection, persisted-id-event};
     use error.{id-inception-error, id-event-error};
 
-    export verify-inception: func(incepiton: persisted-id-inception) -> result<id-view, id-inception-error>;
+    export verify-inception: func(
+        incepiton: persisted-id-inception
+    ) -> result<id-projection, id-inception-error>;
 
-    export verify-event: func(view: id-view, event: persisted-id-event) -> result<id-view, id-event-error>;    
+    export verify-event: func(
+        projection: id-projection,
+        event: persisted-id-event
+    ) -> result<id-projection, id-event-error>;    
 }

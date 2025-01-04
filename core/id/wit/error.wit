@@ -5,7 +5,6 @@ interface error {
     }
 
     variant id-inception-error {
-        invalid-version,
         invalid-timestamp,
         invalid-id(string),
         invalid-payload,
@@ -19,7 +18,6 @@ interface error {
     }
 
     variant id-event-error {
-        invalid-version,
         invalid-timestamp,
         invalid-event-id(string),
         invalid-payload, 
@@ -32,6 +30,7 @@ interface error {
         invalid-signer(id-error),
         invalid-next-signer(id-error),     
         invalid-claim(id-error),
+        invalid-delegation-id(string),
         other(string),
     }
  

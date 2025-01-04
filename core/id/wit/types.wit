@@ -4,11 +4,21 @@ interface types {
         public-key: list<u8>,
     }
 
-    record id-action {
-        // Aggregate id
-        aid: string,
-        // Action payload(kind, version and payload)
-        body: list<u8>
+    variant id-claim-value-kind {
+        text(string),
+        bytes(list<u8>),
+    }
+
+    record id-claim {
+        id: string,
+        value: id-claim-value-kind,
+        valid-from: option<s64>,
+        valid-until: option<s64>,
+    } 
+
+    variant id-claim-event-kind {
+        added(id-claim),
+        removed(string),
     }
 
     record id-inception {        
@@ -17,7 +27,7 @@ interface types {
         signers: list<id-signer>,
         next-threshold: u8,
         next-signers: list<string>,
-        actions: list<id-action>,
+        claims: list<id-claim>,
     }
 
     record id-rotation {
@@ -28,7 +38,7 @@ interface types {
 
     variant id-event-kind {
         // Should be signed with current keys
-        interaction(list<id-action>),
+        interaction(list<id-claim-event-kind>),
         // Should be signed with next keys
         rotation(id-rotation),
         // Should be signed with next keys
@@ -42,6 +52,5 @@ interface types {
         previous: string,
         // Event payload
         payload: id-event-kind,
-    }
-    
+    }    
 }

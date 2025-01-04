@@ -58,7 +58,7 @@ impl Id {
         Ok(Self { kind, cid })
     }
 
-    pub fn validate(&self, payload: &[u8]) -> Result<&Self, IdError> {
+    pub fn ensure(&self, payload: &[u8]) -> Result<&Self, IdError> {
         let hash_code = self.cid.hash().code();
         if hash_code != SHA2_256_CODE {
             return Err(IdError::UnsupportedHashAlgorithm(hash_code));
@@ -147,7 +147,7 @@ mod tests {
     #[test]
     fn test_validate_wrong_hash() {
         let id = Id::new("test", 0, &[0u8; 32]).unwrap();
-        let result = id.validate(&[1u8; 32]);
+        let result = id.ensure(&[1u8; 32]);
         assert!(matches!(result, Err(IdError::PayloadHashMismatch)));
     }
 }
