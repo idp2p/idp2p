@@ -4,6 +4,7 @@ pub mod message;
 pub mod model;
 pub mod handler;
 pub mod verifier;
+pub mod error;
 
 bindgen!({
     world:"idp2p-id",

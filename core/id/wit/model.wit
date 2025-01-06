@@ -40,6 +40,6 @@ interface model {
         // All actions
         claims: list<id-claim>,
         // Delegate
-        delegate-id: option<string>,
+        next-id: option<string>,
     }    
 }

@@ -42,7 +42,7 @@ interface types {
         // Should be signed with next keys
         rotation(id-rotation),
         // Should be signed with next keys
-        delegation(string),
+        migration(string),
     }
 
     record id-event {

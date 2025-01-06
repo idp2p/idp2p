@@ -1,5 +1,4 @@
-use anyhow::Result;
-use crate::{ IdView, PersistedIdEvent, PersistedIdInception};
+use crate::{error::HandleError, IdProjection, PersistedIdEvent, PersistedIdInception};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
@@ -7,13 +6,13 @@ use std::collections::HashMap;
 pub enum IdEntryKind {
     Owner,
     Client,
-    Subscriber
+    Subscriber,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct IdEntry {
     pub kind: IdEntryKind,
-    pub view: IdView,
+    pub projection: IdProjection,
     pub inception: PersistedIdInception,
     pub events: HashMap<String, PersistedIdEvent>,
 }
@@ -21,13 +20,13 @@ pub struct IdEntry {
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub enum IdPeerActionKind {
     AddPeer(String),
-    RemovePeer(String)
+    RemovePeer(String),
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub enum IdMediatorActionKind {
     AddMediator(String),
-    RemoveMediator(String)
+    RemoveMediator(String),
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -41,21 +40,19 @@ pub struct IdMessage {
 pub trait IdVerifier {
     async fn verify_inception(
         &self,
-        version: &str,
         inception: &PersistedIdInception,
-    ) -> Result<IdView>;
+    ) -> Result<IdProjection, HandleError>;
     async fn verify_event(
         &self,
-        version: &str,
-        view: &IdView,
+        projection: &IdProjection,
         event: &PersistedIdEvent,
-    ) -> Result<IdView>;
+    ) -> Result<IdProjection, HandleError>;
 }
 
 #[trait_variant::make(Send)]
 pub trait IdStore {
-    async fn get_id(&self, id: &str) -> Result<Option<IdEntry>>;
-    async fn get_msg(&self, id: &str) -> Result<Option<IdMessage>>;
-    async fn set_id(&self, id: &str, value: &IdEntry) -> Result<()>;
-    async fn set_msg(&self, id: &str, value: &IdMessage) -> Result<()>;
+    async fn get_id(&self, id: &str) -> Result<Option<IdEntry>, HandleError>;
+    async fn get_msg(&self, id: &str) -> Result<Option<IdMessage>, HandleError>;
+    async fn set_id(&self, id: &str, value: &IdEntry) -> Result<(), HandleError>;
+    async fn set_msg(&self, id: &str, value: &IdMessage) -> Result<(), HandleError>;
 }

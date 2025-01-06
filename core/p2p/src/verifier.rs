@@ -1,4 +1,3 @@
-use anyhow::Result;
 use std::{collections::HashMap, sync::Mutex};
 
 use wasmtime::{
@@ -7,7 +6,7 @@ use wasmtime::{
 };
 
 use crate::{
-     model::IdVerifier, IdView, Idp2pId, PersistedIdEvent, PersistedIdInception,
+     error::HandleError, model::IdVerifier, IdProjection, Idp2pId, PersistedIdEvent, PersistedIdInception
 };
 
 pub struct IdVerifierImpl {
@@ -16,7 +15,7 @@ pub struct IdVerifierImpl {
 }
 
 impl IdVerifierImpl {
-    pub fn new(components: HashMap<String, Vec<u8>>) -> Result<Self> {
+    pub fn new(components: HashMap<String, Vec<u8>>) -> Result<Self, HandleError> {
         let engine =
             Engine::new(Config::new().wasm_component_model(true))?;
         let id_components: HashMap<String, Component> = HashMap::new();
@@ -40,7 +39,7 @@ impl IdVerifierImpl {
             .insert(version.to_string(), component);
     }
 
-    fn get_component(&self, version: &str) -> Result<(Idp2pId, Store<()>)> {
+    fn get_component(&self, version: &str) -> Result<(Idp2pId, Store<()>), HandleError> {
         let mut store = Store::new(&self.engine, ());
         let component = self
             .id_components
@@ -57,22 +56,20 @@ impl IdVerifierImpl {
 impl IdVerifier for IdVerifierImpl {
     async fn verify_inception(
         &self,
-        version: &str,
         inception: &PersistedIdInception,
-    ) -> Result<IdView> {
-        let (verifier, mut store) = self.get_component(version)?;
-        let view = verifier.call_verify_inception(&mut store, inception)??;
-        Ok(view)
+    ) -> Result<IdProjection, HandleError> {
+        let (verifier, mut store) = self.get_component(&inception.version)?;
+        let projection = verifier.call_verify_inception(&mut store, inception)??;
+        Ok(projection)
     }
     async fn verify_event(
         &self,
-        version: &str,
-        view: &IdView,
+        projection: &IdProjection,
         event: &PersistedIdEvent,
-    ) -> Result<IdView> {
-        let (verifier, mut store) = self.get_component(version)?;
-        let view = verifier.call_verify_event(&mut store, view, event)??;
-        Ok(view)
+    ) -> Result<IdProjection, HandleError> {
+        let (verifier, mut store) = self.get_component(&event.version)?;
+        let projection = verifier.call_verify_event(&mut store, projection, event)??;
+        Ok(projection)
     }
 }
 

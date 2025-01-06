@@ -169,7 +169,7 @@ impl PersistedIdEvent {
                 // Update the signers in the projection
                 projection.signers = id_rotation.signers.clone();
             }
-            Delegation(new_id) => {
+            Migration(next_id) => {
                 for signer in &signers {
                     if !projection.next_signers.iter().any(|s| s == signer) {
                         return Err(IdEventError::InvalidProof(IdError {
@@ -179,15 +179,15 @@ impl PersistedIdEvent {
                     }
                 }
                 // Validate the new delegated ID
-                let delegated_id = Id::from_str(new_id.as_str())
-                    .map_err(|e| IdEventError::Other("invalid-delegated-id".to_string()))?;
+                let delegated_id = Id::from_str(next_id.as_str())
+                    .map_err(|e| IdEventError::Other("invalid-next-id".to_string()))?;
 
                 delegated_id
                     .ensure(&self.payload)
-                    .map_err(|e| IdEventError::Other("invalid-delegated-id".to_string()))?;
+                    .map_err(|e| IdEventError::Other("invalid-next-id".to_string()))?;
 
                 // Update the projection with the new delegated ID
-                projection.delegate_id = Some(new_id);
+                projection.next_id = Some(next_id);
             }
         }
 

@@ -102,7 +102,7 @@ impl PersistedIdInception {
             next_signers: next_signers,
             all_signers: all_signers,
             claims: claims,
-            delegate_id: None
+            next_id: None
         };
 
         Ok(id_projection)

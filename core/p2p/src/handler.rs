@@ -1,5 +1,3 @@
-use anyhow::Result;
-
 use futures::{channel::mpsc::Sender, SinkExt};
 use idp2p_common::{cbor, id::Id};
 
@@ -7,8 +5,7 @@ use libp2p::{gossipsub::TopicHash, PeerId};
 use std::{str::FromStr, sync::Arc};
 
 use crate::{
-    message::{IdGossipMessageKind, IdMessageHandlerRequestKind, IdMessageHandlerResponseKind},
-    model::{IdEntry, IdMessage, IdStore, IdVerifier},
+    error::HandleError, message::{IdGossipMessageKind, IdMessageHandlerRequestKind, IdMessageHandlerResponseKind}, model::{IdEntry, IdMessage, IdStore, IdVerifier}
 };
 
 pub struct IdMessageHandler<S: IdStore, V: IdVerifier> {
@@ -35,7 +32,7 @@ impl<S: IdStore, V: IdVerifier> IdMessageHandler<S, V> {
         &mut self,
         topic: &TopicHash,
         payload: &[u8],
-    ) -> Result<Option<Vec<u8>>> {
+    ) -> Result<Option<Vec<u8>>, HandleError> {
         use IdGossipMessageKind::*;
         let id = Id::from_str(topic.as_str())?;
         if id.kind == "id" {
@@ -43,24 +40,24 @@ impl<S: IdStore, V: IdVerifier> IdMessageHandler<S, V> {
                 .store
                 .get_id(topic.as_str())
                 .await?
-                .ok_or(anyhow::anyhow!(""))?;
+                .ok_or(HandleError::IdNotFound(topic.to_string()))?;
             let payload = cbor::decode(payload)?;
             match payload {
                 Resolve => {
                     let cmd = IdMessageHandlerCommand::Publish {
                         topic: topic.to_owned(),
-                        payload: cbor::encode(&id_entry)?,
+                        payload: cbor::encode(&id_entry),
                     };
-                    self.sender.send(cmd).await?;
+                    self.sender.send(cmd).await.expect("");
                     return Ok(None);
                 }
                 NotifyEvent(event) => {
-                    let view = self
+                    let projection = self
                         .verifier
-                        .verify_event("", &id_entry.view, &event)
+                        .verify_event(&id_entry.projection, &event)
                         .await?;
-                    id_entry.view = view;
-                    self.store.set_id(&id.version_str(), &id_entry).await?;
+                    id_entry.projection = projection;
+                    self.store.set_id(topic.as_str(), &id_entry).await?;
                     return Ok(None);
                 }
                 NotifyMessage {
@@ -69,10 +66,10 @@ impl<S: IdStore, V: IdVerifier> IdMessageHandler<S, V> {
                     direction,
                 } => {
                     let cmd = IdMessageHandlerCommand::Request {
-                        peer: PeerId::from_str(&providers.get(0).unwrap())?,
+                        peer: PeerId::from_str(&providers.get(0).unwrap()).unwrap(),
                         message_id: id.to_string(),
                     };
-                    self.sender.send(cmd).await?;
+                    self.sender.send(cmd).await.expect("");
                     return Ok(None);
                 }
                 Other(payload) => {
@@ -88,21 +85,21 @@ impl<S: IdStore, V: IdVerifier> IdMessageHandler<S, V> {
         &self,
         peer: PeerId,
         req: IdMessageHandlerRequestKind,
-    ) -> Result<IdMessageHandlerResponseKind> {
+    ) -> Result<IdMessageHandlerResponseKind, HandleError> {
         match req {
             IdMessageHandlerRequestKind::MessageRequest(message_id) => {
                 let message = self
                     .store
                     .get_msg(&message_id)
                     .await?
-                    .ok_or(anyhow::anyhow!("No message found"))?;
+                    .ok_or(HandleError::IdNotFound(message_id))?;
 
                 for to in message.to {
                     let id = self
                         .store
                         .get_id(&to)
                         .await?
-                        .ok_or(anyhow::anyhow!("Invalid id"))?;
+                        .ok_or(HandleError::IdNotFound(to))?;
 
                     //if id.view.mediators.contains() {
                     return Ok(IdMessageHandlerResponseKind::MessageResponse(
@@ -113,8 +110,8 @@ impl<S: IdStore, V: IdVerifier> IdMessageHandler<S, V> {
             }
             IdMessageHandlerRequestKind::IdRequest(_) => todo!(),
         }
+        todo!()
 
-        anyhow::bail!("Unauthorized message");
     }
 
     pub async fn handle_response_message(
@@ -122,7 +119,7 @@ impl<S: IdStore, V: IdVerifier> IdMessageHandler<S, V> {
         from: &str,
         message_id: &str,
         payload: Vec<u8>,
-    ) -> Result<()> {
+    ) -> Result<(), HandleError> {
         let msg = IdMessage {
             from: from.to_string(),
             to: vec![],
