@@ -40,7 +40,7 @@ async fn main() -> anyhow::Result<()> {
         id_store.clone(),
         verifier.clone(),
         handler_cmd_sender.clone(),
-    )?;
+    );
     let port: u16 = match opt.name.as_str() {
         "alice" => 43727,
         "bob" => 43728,
@@ -68,8 +68,6 @@ async fn main() -> anyhow::Result<()> {
         }
     });
     app::run(
-        opt.name.clone(),
-        peer,
         store.clone(),
         network_cmd_sender,
         app_event_receiver,

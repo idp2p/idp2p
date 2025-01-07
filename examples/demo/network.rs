@@ -105,7 +105,7 @@ impl<S: IdStore, V: IdVerifier> IdNetworkEventLoop<S, V> {
                     .send_request(&peer, req);
             }
             Publish { topic, payload } => {
-                let data = cbor::encode(&payload)?;
+                let data = cbor::encode(&payload);
                 self.swarm.behaviour_mut().gossipsub.publish(topic, data)?;
             }
         }
@@ -151,23 +151,19 @@ impl<S: IdStore, V: IdVerifier> IdNetworkEventLoop<S, V> {
                             .unwrap();
                     }
                     IdRequestKind::Meet => {
-                        let user_id = self
+                        let current_user = self
                             .store
-                            .get_user(&self.current_user)
+                            .get_current_user()
                             .await
-                            .unwrap()
-                            .unwrap()
-                            .id
-                            .unwrap()
-                            .clone();
+                            .unwrap();
                         self.swarm
                             .behaviour_mut()
                             .request_response
                             .send_response(
                                 channel,
                                 IdResponseKind::MeetResult {
-                                    username: self.current_user.clone(),
-                                    id: user_id,
+                                    username: current_user.username.clone(),
+                                    id: current_user.id.clone(),
                                 },
                             )
                             .unwrap();
@@ -180,9 +176,9 @@ impl<S: IdStore, V: IdVerifier> IdNetworkEventLoop<S, V> {
                         .await?;*/
                     }
                     IdResponseKind::MeetResult { username, id } => {
-                        let mut user = self.store.get_user(&username).await.unwrap().unwrap();
-                        user.id = Some(id.clone());
-                        self.store.set_user(&username, &user).await.unwrap();
+                        let mut current_user = self.store.get_current_user().await.unwrap();
+                        
+                        self.store.set_current_user(&current_user).await.unwrap();
                         self.swarm
                             .behaviour_mut()
                             .gossipsub

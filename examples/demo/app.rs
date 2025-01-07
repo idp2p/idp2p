@@ -1,8 +1,9 @@
 use crate::network::IdNetworkCommand;
 use crate::store::InMemoryKvStore;
+use crate::user::UserState;
 use futures::channel::mpsc;
 use futures::SinkExt;
-use idp2p_p2p::message::IdGossipMessageKind;
+use idp2p_p2p::message::{IdGossipMessageKind, IdMessageDirection};
 use layout::Flex;
 use libp2p::gossipsub::IdentTopic;
 use libp2p::PeerId;
@@ -38,12 +39,7 @@ enum InputMode {
 
 /// App holds the state of the application
 struct App {
-    /// Current user
-    current_user: String,
-    /// Current peer
-    current_peer: PeerId,
-    /// List of users
-    users: Vec<String>,
+    current_user: UserState,
     /// Store
     store: Arc<InMemoryKvStore>,
     /// Current value of the input box
@@ -62,16 +58,13 @@ struct App {
 
 impl App {
     fn new(
-        current_user: String,
-        current_peer: PeerId,
+        current_user: UserState,
         store: Arc<InMemoryKvStore>,
         network_cmd_sender: mpsc::Sender<IdNetworkCommand>,
         event_receiver: mpsc::Receiver<IdAppEvent>,
     ) -> Self {
         Self {
             current_user,
-            current_peer,
-            users: vec![],
             store: store,
             input: Input::default(),
             input_mode: InputMode::Normal,
@@ -93,8 +86,6 @@ impl App {
     }
 }
 pub(crate) async fn run(
-    current_user: String,
-    current_peer: PeerId,
     store: Arc<InMemoryKvStore>,
     network_cmd_sender: mpsc::Sender<IdNetworkCommand>,
     event_receiver: mpsc::Receiver<IdAppEvent>,
@@ -105,9 +96,9 @@ pub(crate) async fn run(
     execute!(stdout, EnterAlternateScreen, EnableMouseCapture)?;
     let backend = CrosstermBackend::new(stdout);
     let mut terminal = Terminal::new(backend)?;
-  
+    let current_user = store.get_current_user().await.unwrap();
     // create app and run it
-    let app = App::new(current_user, current_peer, store, network_cmd_sender, event_receiver);
+    let app = App::new(current_user, store, network_cmd_sender, event_receiver);
 
     let res = run_app(&mut terminal, app).await;
 
@@ -130,7 +121,7 @@ pub(crate) async fn run(
 async fn run_app<B: Backend>(terminal: &mut Terminal<B>, mut app: App) -> io::Result<()> {
     loop {
         terminal.draw(|f| ui(f, &app))?;
-        let alice = app.store.get_user("alice").await.unwrap().unwrap();
+        /*let alice = app.store.get_user("alice").await.unwrap().unwrap();
         let bob = app.store.get_user("bob").await.unwrap().unwrap();
         let dog = app.store.get_user("dog").await.unwrap().unwrap();
         let mut users = vec![];
@@ -143,7 +134,7 @@ async fn run_app<B: Backend>(terminal: &mut Terminal<B>, mut app: App) -> io::Re
         if let Some(id) = dog.id.clone() {
             users.push(format!("Dog - {}", id));
         }
-        app.users = users;
+        app.users = users;*/
 
         while let Ok(Some(event)) = app.event_receiver.try_next() {
             app.handle_event(event);
@@ -152,37 +143,39 @@ async fn run_app<B: Backend>(terminal: &mut Terminal<B>, mut app: App) -> io::Re
             match app.input_mode {
                 InputMode::Normal => match key.code {
                     KeyCode::Char('e') => {
-                        let alice = app.store.get_user("alice").await.unwrap().unwrap();
+                        /*let alice = app.store.get_user("alice").await.unwrap().unwrap();
                         let bob = app.store.get_user("bob").await.unwrap().unwrap();
-                        let dog = app.store.get_user("dog").await.unwrap().unwrap();
+                        let dog = app.store.get_user("dog").await.unwrap().unwrap();*/
 
-                        if app.current_user != "alice" {
-                            if let Some(id) = alice.id.clone()  {
-                                let topic = IdentTopic::new(id.to_string());
-                                app.network_cmd_sender
-                                .send(IdNetworkCommand::Publish { topic, payload: IdGossipMessageKind::Resolve })
+                        if app.current_user.username.as_str() != "alice" {
+                            /*let topic = IdentTopic::new(id.to_string());
+                            app.network_cmd_sender
+                                .send(IdNetworkCommand::Publish {
+                                    topic,
+                                    payload: IdGossipMessageKind::Resolve,
+                                })
                                 .await
-                                .unwrap();
-                            }
-                        
+                                .unwrap();*/
                         }
-                        if app.current_user != "bob" {
-                            if let Some(id) = bob.id.clone()  {
-                                let topic = IdentTopic::new(id.to_string());
+                        if app.current_user.username.as_str() != "bob" {
+                                /*let topic = IdentTopic::new(id.to_string());
                                 app.network_cmd_sender
-                                .send(IdNetworkCommand::Publish { topic, payload: IdGossipMessageKind::Resolve })
-                                .await
-                                .unwrap();
-                            }
+                                    .send(IdNetworkCommand::Publish {
+                                        topic,
+                                        payload: IdGossipMessageKind::Resolve,
+                                    })
+                                    .await
+                                    .unwrap();*/
                         }
-                        if app.current_user != "dog"  {
-                            if let Some(id) = dog.id  {
-                                let topic = IdentTopic::new(id.to_string());
+                        if app.current_user.username.as_str() != "dog" {
+                                /*let topic = IdentTopic::new(id.to_string());
                                 app.network_cmd_sender
-                                .send(IdNetworkCommand::Publish { topic, payload: IdGossipMessageKind::Resolve })
-                                .await
-                                .unwrap();
-                            }
+                                    .send(IdNetworkCommand::Publish {
+                                        topic,
+                                        payload: IdGossipMessageKind::Resolve,
+                                    })
+                                    .await
+                                    .unwrap();*/
                         }
 
                         app.input_mode = InputMode::Editing;
@@ -196,19 +189,23 @@ async fn run_app<B: Backend>(terminal: &mut Terminal<B>, mut app: App) -> io::Re
                 InputMode::Editing => match key.code {
                     KeyCode::Enter => {
                         if !app.input.value().is_empty() {
-                            let topic =match app.current_user.as_str() {
-                               "alice" => bob.id.clone().unwrap(),
-                               "bob" => alice.id.clone().unwrap(),
-                               _ => panic!("")
+                            /*let topic = match app.current_user.username.as_str() {
+                                "alice" => bob.id.clone().unwrap(),
+                                "bob" => alice.id.clone().unwrap(),
+                                _ => panic!(""),
                             };
                             let topic = IdentTopic::new(topic);
                             app.network_cmd_sender
-                                .send(IdNetworkCommand::Publish{
+                                .send(IdNetworkCommand::Publish {
                                     topic,
-                                    payload: IdGossipMessageKind::NotifyMessage { id: alice.id.unwrap(), providers: vec![app.current_peer.to_string()] }
+                                    payload: IdGossipMessageKind::NotifyMessage {
+                                        direction: IdMessageDirection::To,
+                                        id: alice.id.unwrap(),
+                                        providers: vec![app.current_peer.to_string()],
+                                    },
                                 })
                                 .await
-                                .unwrap();
+                                .unwrap();*/
                         }
                         app.input.reset();
                     }
@@ -254,7 +251,7 @@ fn ui(f: &mut Frame, app: &App) {
         )
         .split(f.area());
 
-    let title = app.current_user.to_uppercase();
+    let title = app.current_user.username.to_uppercase();
     // Render header
     let header = Paragraph::new(Span::styled(
         &title,
@@ -286,8 +283,8 @@ fn ui(f: &mut Frame, app: &App) {
         ),
     };
     let mut text = "".to_owned();
-    for user in app.users.iter() {
-        text.push_str(format!("{}\n", user).as_str());
+    for user in app.current_user.others.iter() {
+        text.push_str(format!("{}\n", user.name).as_str());
     }
     let text = Text::from(text).style(style);
 
@@ -367,11 +364,13 @@ fn draw(f: &mut Frame, app: &App) {
         )
         .split(f.area());
 
-    let title = app.current_user.to_uppercase();
+    let title = app.current_user.username.to_uppercase();
     // Render header
     let header = Paragraph::new(Span::styled(
         &title,
-        Style::default().fg(Color::Green).add_modifier(Modifier::BOLD),
+        Style::default()
+            .fg(Color::Green)
+            .add_modifier(Modifier::BOLD),
     ));
     f.render_widget(header, chunks[0]);
 
@@ -399,8 +398,8 @@ fn draw(f: &mut Frame, app: &App) {
         ),
     };
     let mut text = "".to_owned();
-    for user in app.users.iter() {
-        text.push_str(format!("{}\n", user).as_str());
+    for user in app.current_user.others.iter() {
+        text.push_str(format!("{}\n", user.name).as_str());
     }
     let text = Text::from(text).style(style);
 
@@ -441,4 +440,3 @@ fn draw(f: &mut Frame, app: &App) {
         List::new(messages).block(Block::default().borders(Borders::ALL).title("Messages"));
     f.render_widget(messages, chunks[3]);
 }
-
