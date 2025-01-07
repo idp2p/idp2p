@@ -5,7 +5,12 @@ use libp2p::{gossipsub::TopicHash, PeerId};
 use std::{str::FromStr, sync::Arc};
 
 use crate::{
-    error::HandleError, message::{IdGossipMessageKind, IdMessageHandlerRequestKind, IdMessageHandlerResponseKind}, model::{IdEntry, IdMessage, IdStore, IdVerifier}
+    error::HandleError,
+    message::{
+        IdGossipMessageKind, IdMessageDirection, IdMessageHandlerRequestKind,
+        IdMessageHandlerResponseKind,
+    },
+    model::{IdEntry, IdEntryKind, IdMessage, IdStore, IdVerifier},
 };
 
 pub struct IdMessageHandler<S: IdStore, V: IdVerifier> {
@@ -44,20 +49,26 @@ impl<S: IdStore, V: IdVerifier> IdMessageHandler<S, V> {
             let payload = cbor::decode(payload)?;
             match payload {
                 Resolve => {
-                    let cmd = IdMessageHandlerCommand::Publish {
-                        topic: topic.to_owned(),
-                        payload: cbor::encode(&id_entry),
-                    };
-                    self.sender.send(cmd).await.expect("");
+                    if id_entry.kind != IdEntryKind::Subscriber {
+                        let cmd = IdMessageHandlerCommand::Publish {
+                            topic: topic.to_owned(),
+                            payload: cbor::encode(&id_entry),
+                        };
+                        self.sender.send(cmd).await.expect("Error sending message");
+                    }
+
                     return Ok(None);
                 }
                 NotifyEvent(event) => {
-                    let projection = self
-                        .verifier
-                        .verify_event(&id_entry.projection, &event)
-                        .await?;
-                    id_entry.projection = projection;
-                    self.store.set_id(topic.as_str(), &id_entry).await?;
+                    if id_entry.projection.event_id != event.id {
+                        let projection = self
+                            .verifier
+                            .verify_event(&id_entry.projection, &event)
+                            .await?;
+                        id_entry.projection = projection;
+                        self.store.set_id(topic.as_str(), &id_entry).await?;
+                    }
+
                     return Ok(None);
                 }
                 NotifyMessage {
@@ -65,11 +76,19 @@ impl<S: IdStore, V: IdVerifier> IdMessageHandler<S, V> {
                     providers,
                     direction,
                 } => {
-                    let cmd = IdMessageHandlerCommand::Request {
-                        peer: PeerId::from_str(&providers.get(0).unwrap()).unwrap(),
-                        message_id: id.to_string(),
+                    match direction {
+                        IdMessageDirection::From => {}
+                        IdMessageDirection::To => {
+                            if id_entry.kind != IdEntryKind::Subscriber {
+                                let cmd = IdMessageHandlerCommand::Request {
+                                    peer: PeerId::from_str(&providers.get(0).unwrap()).unwrap(),
+                                    message_id: id.to_string(),
+                                };
+                                self.sender.send(cmd).await.expect(" Error sending message");
+                            }
+                        }
                     };
-                    self.sender.send(cmd).await.expect("");
+
                     return Ok(None);
                 }
                 Other(payload) => {
@@ -111,7 +130,6 @@ impl<S: IdStore, V: IdVerifier> IdMessageHandler<S, V> {
             IdMessageHandlerRequestKind::IdRequest(_) => todo!(),
         }
         todo!()
-
     }
 
     pub async fn handle_response_message(

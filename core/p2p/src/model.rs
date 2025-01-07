@@ -2,7 +2,7 @@ use crate::{error::HandleError, IdProjection, PersistedIdEvent, PersistedIdIncep
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub enum IdEntryKind {
     Owner,
     Client,
