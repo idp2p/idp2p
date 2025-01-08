@@ -1,8 +1,8 @@
-use std::{collections::HashMap, sync::Arc};
-
 use futures::{channel::mpsc, StreamExt};
+use idp2p_common::id::Id;
 use idp2p_p2p::{handler::IdMessageHandler, verifier::IdVerifierImpl};
 use network::IdNetworkEventLoop;
+use std::{collections::HashMap, fs, sync::Arc};
 use store::{InMemoryIdStore, InMemoryKvStore};
 use structopt::StructOpt;
 use tracing_subscriber::EnvFilter;
@@ -11,8 +11,8 @@ use user::UserState;
 mod app;
 mod network;
 mod store;
-mod utils;
 mod user;
+mod utils;
 
 #[derive(Debug, StructOpt)]
 #[structopt(name = "idp2p", about = "Usage of idp2p.")]
@@ -30,11 +30,15 @@ async fn main() -> anyhow::Result<()> {
         .try_init()
         .unwrap();
     let store = Arc::new(InMemoryKvStore::new());
-    
+
     let (handler_cmd_sender, handler_cmd_receiver) = mpsc::channel(0);
     let (app_event_sender, app_event_receiver) = mpsc::channel(0);
     let (network_cmd_sender, network_cmd_receiver) = mpsc::channel(0);
-    let verifier = Arc::new(IdVerifierImpl::new(HashMap::new())?);
+    let comp_bytes = fs::read("./target/wasm32-unknown-unknown/debug/idp2p_id.wasm")
+        .expect("Failed to read input file");
+    let comp_id = Id::new("component", 0x01, &comp_bytes).unwrap().to_string();
+    let comps = [(comp_id.clone(), comp_bytes)].into_iter().collect();
+    let verifier = Arc::new(IdVerifierImpl::new(comps)?);
     let id_store = Arc::new(InMemoryIdStore(store.clone()));
     let id_handler = IdMessageHandler::new(
         id_store.clone(),
@@ -54,9 +58,11 @@ async fn main() -> anyhow::Result<()> {
         network_cmd_receiver,
         id_handler,
     )?;
-    let (id, pid) = utils::generate_id(&peer)?;
+
+    let pid = utils::generate_actor(&comp_id, &peer)?;
     tokio::spawn(network.run());
-    let user = UserState::new(&opt.name, &id, &peer.to_string());
+    let user = UserState::new(&opt.name, &pid.id, &peer.to_string());
+    store.set_current_user(&user).await.unwrap();
     tokio::spawn({
         let mut handler_cmd_receiver = handler_cmd_receiver;
         async move {
@@ -67,12 +73,8 @@ async fn main() -> anyhow::Result<()> {
             }
         }
     });
-    app::run(
-        store.clone(),
-        network_cmd_sender,
-        app_event_receiver,
-    )
-    .await
-    .unwrap();
+    app::run(store.clone(), network_cmd_sender, app_event_receiver)
+        .await
+        .unwrap();
     Ok(())
 }

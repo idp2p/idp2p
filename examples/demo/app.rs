@@ -135,7 +135,7 @@ async fn run_app<B: Backend>(terminal: &mut Terminal<B>, mut app: App) -> io::Re
             users.push(format!("Dog - {}", id));
         }
         app.users = users;*/
-
+        let current_user = app.store.get_current_user().await.unwrap();
         while let Ok(Some(event)) = app.event_receiver.try_next() {
             app.handle_event(event);
         }
@@ -147,7 +147,7 @@ async fn run_app<B: Backend>(terminal: &mut Terminal<B>, mut app: App) -> io::Re
                         let bob = app.store.get_user("bob").await.unwrap().unwrap();
                         let dog = app.store.get_user("dog").await.unwrap().unwrap();*/
 
-                        if app.current_user.username.as_str() != "alice" {
+                        if current_user.username.as_str() != "alice" {
                             /*let topic = IdentTopic::new(id.to_string());
                             app.network_cmd_sender
                                 .send(IdNetworkCommand::Publish {
@@ -157,25 +157,26 @@ async fn run_app<B: Backend>(terminal: &mut Terminal<B>, mut app: App) -> io::Re
                                 .await
                                 .unwrap();*/
                         }
-                        if app.current_user.username.as_str() != "bob" {
-                                /*let topic = IdentTopic::new(id.to_string());
-                                app.network_cmd_sender
-                                    .send(IdNetworkCommand::Publish {
-                                        topic,
-                                        payload: IdGossipMessageKind::Resolve,
-                                    })
-                                    .await
-                                    .unwrap();*/
+                        if current_user.username.as_str() != "bob" {
+                            /*let topic = IdentTopic::new(id.to_string());
+                            app.network_cmd_sender
+                                .send(IdNetworkCommand::Publish {
+                                    topic,
+                                    payload: IdGossipMessageKind::Resolve,
+                                })
+                                .await
+                                .unwrap();*/
                         }
-                        if app.current_user.username.as_str() != "dog" {
-                                /*let topic = IdentTopic::new(id.to_string());
+                        if current_user.username.as_str() != "dog" {
+                            if let Some(dog) = current_user.others.iter().find(|x| x.name == "dog") {
                                 app.network_cmd_sender
                                     .send(IdNetworkCommand::Publish {
-                                        topic,
+                                        topic: IdentTopic::new(dog.id.clone().unwrap()),
                                         payload: IdGossipMessageKind::Resolve,
                                     })
                                     .await
-                                    .unwrap();*/
+                                    .unwrap();
+                            }
                         }
 
                         app.input_mode = InputMode::Editing;
@@ -283,6 +284,7 @@ fn ui(f: &mut Frame, app: &App) {
         ),
     };
     let mut text = "".to_owned();
+
     for user in app.current_user.others.iter() {
         text.push_str(format!("{}\n", user.name).as_str());
     }
@@ -332,111 +334,4 @@ fn popup_area(area: Rect, percent_x: u16, percent_y: u16) -> Rect {
     let [area] = vertical.areas(area);
     let [area] = horizontal.areas(area);
     area
-}
-
-fn draw(f: &mut Frame, app: &App) {
-    let area = f.area();
-    if app.show_help_popup {
-        let area = popup_area(area, 60, 20);
-
-        let popup = Paragraph::new("Unsupported key pressed. Press any key to continue.")
-            .style(
-                Style::default()
-                    .fg(Color::Blue)
-                    .add_modifier(Modifier::BOLD),
-            )
-            .block(Block::default().borders(Borders::ALL).title("Help"));
-        f.render_widget(Clear, area); // Clear background beneath the popup
-        f.render_widget(popup, area);
-        return;
-    }
-    let chunks = Layout::default()
-        .direction(Direction::Vertical)
-        .margin(2)
-        .constraints(
-            [
-                Constraint::Length(2), // Space for header
-                Constraint::Length(3), // Space for help message
-                Constraint::Length(3), // Space for input
-                Constraint::Min(1),    // Remaining space for messages
-            ]
-            .as_ref(),
-        )
-        .split(f.area());
-
-    let title = app.current_user.username.to_uppercase();
-    // Render header
-    let header = Paragraph::new(Span::styled(
-        &title,
-        Style::default()
-            .fg(Color::Green)
-            .add_modifier(Modifier::BOLD),
-    ));
-    f.render_widget(header, chunks[0]);
-
-    // Render help message
-    let (msg, style) = match app.input_mode {
-        InputMode::Normal => (
-            vec![
-                Span::raw("Press "),
-                Span::styled("q", Style::default().add_modifier(Modifier::BOLD)),
-                Span::raw(" to exit, "),
-                Span::styled("e", Style::default().add_modifier(Modifier::BOLD)),
-                Span::raw(" to start editing."),
-            ],
-            Style::default().add_modifier(Modifier::RAPID_BLINK),
-        ),
-        InputMode::Editing => (
-            vec![
-                Span::raw("Press "),
-                Span::styled("Esc", Style::default().add_modifier(Modifier::BOLD)),
-                Span::raw(" to stop editing, "),
-                Span::styled("Enter", Style::default().add_modifier(Modifier::BOLD)),
-                Span::raw(" to record the message"),
-            ],
-            Style::default(),
-        ),
-    };
-    let mut text = "".to_owned();
-    for user in app.current_user.others.iter() {
-        text.push_str(format!("{}\n", user.name).as_str());
-    }
-    let text = Text::from(text).style(style);
-
-    let help_message = Paragraph::new(text);
-    f.render_widget(help_message, chunks[1]);
-
-    // Render input box
-    let width = chunks[1].width.max(3) - 3; // Keep 2 for borders and 1 for cursor
-    let scroll = app.input.visual_scroll(width as usize);
-    let input = Paragraph::new(app.input.value())
-        .style(match app.input_mode {
-            InputMode::Normal => Style::default(),
-            InputMode::Editing => Style::default().fg(Color::Yellow),
-        })
-        .scroll((0, scroll as u16))
-        .block(Block::default().borders(Borders::ALL).title("Input"));
-    f.render_widget(input, chunks[2]);
-
-    // Set cursor position when editing
-    if let InputMode::Editing = app.input_mode {
-        f.set_cursor_position((
-            chunks[2].x + ((app.input.visual_cursor()).max(scroll) - scroll) as u16 + 1,
-            chunks[2].y + 1,
-        ));
-    }
-
-    // Render messages
-    let messages: Vec<ListItem> = app
-        .messages
-        .iter()
-        .enumerate()
-        .map(|(i, m)| {
-            let content = vec![Line::from(Span::raw(format!("{}: {}", i, m)))];
-            ListItem::new(content)
-        })
-        .collect();
-    let messages =
-        List::new(messages).block(Block::default().borders(Borders::ALL).title("Messages"));
-    f.render_widget(messages, chunks[3]);
 }

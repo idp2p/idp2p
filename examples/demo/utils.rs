@@ -1,80 +1,46 @@
-use std::collections::HashMap;
 
 use anyhow::Result;
-use chrono::Utc;
-use cid::Cid;
 use ed25519_dalek::SigningKey;
-use idp2p_common::{cbor, ED_CODE};
-use idp2p_p2p::{PersistedIdInception};
+use idp2p_common::{cbor, id::Id, CBOR_CODE, ED_CODE};
+use idp2p_id::idp2p::id::types::{IdClaim, IdClaimValueKind, IdInception, IdSigner};
+use idp2p_p2p::PersistedIdInception;
 use libp2p::PeerId;
 use rand::rngs::OsRng;
 
-pub fn generate_id(mediator: &PeerId) -> Result<(String, PersistedId)> {
+fn create_signer() -> IdSigner {
     let mut csprng = OsRng;
     let signing_key: SigningKey = SigningKey::generate(&mut csprng);
-    let inception = generate(&signing_key.to_bytes(), &mediator.to_string())?;
-    let payload = cbor::encode(&inception)?;
-    let cid = Cid::create(0x01, payload.as_slice())?;
-    let persisted_id = PersistedId {
-        id: cid.to_bytes(),
-        version: "1.0.0".to_string(),
-        inception: PersistedIdInception {
-            id: cid.to_bytes(),
-            payload: payload,
-        },
-        events: HashMap::new(),
-    };
-    let id = cid.to_string();
-    Ok((id, persisted_id))
+    let id = Id::new("signer", ED_CODE, signing_key.as_bytes())
+        .unwrap()
+        .to_string();
+    IdSigner {
+        id: id,
+        public_key: signing_key.to_bytes().to_vec(),
+    }
 }
 
-pub fn generate(signer: &[u8], mediator: &str) -> anyhow::Result<IdInception> {
-    let state = cid::Cid::default();
-    let signer = Cid::create(ED_CODE, signer)?;
-    let next_signers = vec![signer];
-
+pub fn generate_actor(version: &str, peer: &PeerId) -> Result<PersistedIdInception> {
+    let peer_claim = IdClaim {
+        id: format!("/idp2p/peer/{}", peer.to_string()),
+        value: IdClaimValueKind::Text(peer.to_string()),
+        valid_from: None,
+        valid_until: None,
+    };
     let inception = IdInception {
-        config: IdConfig {
-            multisig: IdMultisig::OneOfOne,
-            key_reuse: true,
-        },
-        state: "state".to_string(),
-        timestamp: Utc::now(),
-        next_signers,
+        timestamp: 1735689600,
+        threshold: 1,
+        signers: vec![create_signer()],
+        next_threshold: 1,
+        next_signers: vec![create_signer().id],
+        claims: vec![peer_claim],
     };
-
-    Ok(inception)
-}
-/*
-fn get_component(&self, version: u64) -> Result<(Idp2pId, Store<()>)> {
-    let mut store = Store::new(&self.engine, ());
-    let component = self
-        .id_components
-        .lock()
-        .unwrap()
-        .get(&version)
-        .unwrap()
-        .clone();
-    let (id, _) = Idp2pId::instantiate(&mut store, &component, &Linker::new(&self.engine))?;
-    Ok((id, store))
+    let inception_bytes = cbor::encode(&inception);
+    let id = Id::new("id", CBOR_CODE, inception_bytes.as_slice()).unwrap();
+    let pinception = PersistedIdInception {
+        id: id.to_string(),
+        version: version.to_string(),
+        payload: inception_bytes,
+    };
+    Ok(pinception)
 }
 
-fn verify_inception(&self, version: u64, inception: &PersistedIdInception) -> Result<IdView> {
-    let (verifier, mut store) = self.get_component(version)?;
-    let view = verifier.call_verify_inception(&mut store, inception)??;
-    Ok(view)
-}
-
-fn verify_event(&self, version: u64, view: &IdView, event: &PersistedIdEvent) -> Result<IdView> {
-    let (verifier, mut store) = self.get_component(version)?;
-    let view = verifier.call_verify_event(&mut store, view, event)??;
-    Ok(view)
-}
-
-
-        let engine = Engine::new(Config::new().wasm_component_model(true))?;
-
-        let components = HashMap::new();
-
-        let id_components = Arc::new(Mutex::new(components));
-*/
