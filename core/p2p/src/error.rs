@@ -5,6 +5,8 @@ use thiserror::Error;
 pub enum HandleError {
     #[error("Identity not found: {0}")]
     IdNotFound(String),
+    #[error("Peer not found: {0}")]
+    PeerNotFound(String),
     #[error("Common error")]
     CommonError(#[from] idp2p_common::error::CommonError),
     #[error("Wasmtime error")]

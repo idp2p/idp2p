@@ -1,8 +1,8 @@
-use futures::{channel::mpsc, StreamExt};
+use futures::{channel::mpsc, SinkExt, StreamExt};
 use idp2p_common::id::Id;
-use idp2p_p2p::{handler::IdMessageHandler, verifier::IdVerifierImpl};
-use network::IdNetworkEventLoop;
-use std::{collections::HashMap, fs, sync::Arc};
+use idp2p_p2p::{handler::{IdMessageHandler, IdMessageHandlerCommand}, verifier::IdVerifierImpl};
+use network::{IdNetworkCommand, IdNetworkEventLoop, IdRequestKind};
+use std::{collections::HashMap, fs, net, sync::Arc};
 use store::{InMemoryIdStore, InMemoryKvStore};
 use structopt::StructOpt;
 use tracing_subscriber::EnvFilter;
@@ -64,11 +64,27 @@ async fn main() -> anyhow::Result<()> {
     let user = UserState::new(&opt.name, &pid.id, &peer.to_string());
     store.set_current_user(&user).await.unwrap();
     tokio::spawn({
+        let network_cmd_sender_clone = network_cmd_sender.clone();
+       
         let mut handler_cmd_receiver = handler_cmd_receiver;
         async move {
             loop {
                 tokio::select! {
-                    handler_cmd = handler_cmd_receiver.next() => todo!(),
+                    handler_cmd = handler_cmd_receiver.next() => match handler_cmd {
+                        Some(cmd) => match cmd {
+                            IdMessageHandlerCommand::Request { peer, message_id } => {
+                                let req = todo!();
+                                network_cmd_sender_clone.send(IdNetworkCommand::SendRequest {
+                                    peer,
+                                    req
+                                }).await.unwrap();
+                            }
+                            IdMessageHandlerCommand::Publish { topic, payload } => {
+                                
+                            }
+                        },
+                        None => break
+                    },
                 }
             }
         }

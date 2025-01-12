@@ -6,8 +6,10 @@ edition = "2021"
 [lib]
 crate-type = ["lib", "cdylib"]
 
-[dependencies]
+[dev-dependencies]
 rand = { workspace = true }
+
+[dependencies]
 wit-bindgen = { workspace = true }
 thiserror = { workspace = true }
 regex = { workspace = true }

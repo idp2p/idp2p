@@ -6,7 +6,7 @@ use std::collections::HashMap;
 pub enum IdEntryKind {
     Owner,
     Client,
-    Subscriber,
+    Following,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -18,15 +18,9 @@ pub struct IdEntry {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
-pub enum IdPeerActionKind {
-    AddPeer(String),
-    RemovePeer(String),
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub enum IdMediatorActionKind {
-    AddMediator(String),
-    RemoveMediator(String),
+pub struct IdPeer {
+    pub peer_id: String,
+    pub owner: String,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -53,6 +47,8 @@ pub trait IdVerifier {
 pub trait IdStore {
     async fn get_id(&self, id: &str) -> Result<Option<IdEntry>, HandleError>;
     async fn get_msg(&self, id: &str) -> Result<Option<IdMessage>, HandleError>;
+    async fn get_peer(&self, id: &str) -> Result<Option<IdPeer>, HandleError>;
     async fn set_id(&self, id: &str, value: &IdEntry) -> Result<(), HandleError>;
     async fn set_msg(&self, id: &str, value: &IdMessage) -> Result<(), HandleError>;
+    async fn set_peer(&self, id: &str, value: &IdPeer) -> Result<(), HandleError>;
 }

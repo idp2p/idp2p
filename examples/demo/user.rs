@@ -1,6 +1,5 @@
 use serde::{Deserialize, Serialize};
 
-
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct OtherIdUser {
     pub name: String,
@@ -32,40 +31,28 @@ impl UserState {
                 username: username.to_string(),
                 id: id.to_string(),
                 peer: peer.to_string(),
-                others: vec![
-                    OtherIdUser::new("bob"),
-                    OtherIdUser::new("dog"),
-                ],
+                others: vec![OtherIdUser::new("bob"), OtherIdUser::new("dog")],
             },
             "bob" => UserState {
                 username: username.to_string(),
                 id: id.to_string(),
                 peer: peer.to_string(),
-                others: vec![
-                    OtherIdUser::new("alice"),
-                    OtherIdUser::new("dog"),
-                ],
+                others: vec![OtherIdUser::new("alice"), OtherIdUser::new("dog")],
             },
             "dog" => UserState {
                 username: username.to_string(),
                 id: id.to_string(),
                 peer: peer.to_string(),
-                others: vec![
-                    OtherIdUser::new("alice"),
-                    OtherIdUser::new("bob"),
-                ],
+                others: vec![OtherIdUser::new("alice"), OtherIdUser::new("bob")],
             },
             _ => panic!("Unknown user"),
         }
     }
 
-    pub fn get_port(&self) -> u16 {
-        match self.username.as_str() {
-            "alice" => 43727,
-            "bob" => 43728,
-            "dog" => 43729,
-            _ => panic!("Unknown user"),
-        }
+    pub fn set_other(&mut self, username: &str, id: &str) -> () {
+        let other = self.others.iter_mut().find(|o| o.name == username).unwrap();
+        other.id = Some(id.to_string());
+        other.is_connected = true;
     }
 
     pub fn is_connected(&self) -> bool {

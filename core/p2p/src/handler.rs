@@ -49,7 +49,7 @@ impl<S: IdStore, V: IdVerifier> IdMessageHandler<S, V> {
             let payload = cbor::decode(payload)?;
             match payload {
                 Resolve => {
-                    if id_entry.kind != IdEntryKind::Subscriber {
+                    if id_entry.kind != IdEntryKind::Following {
                         let cmd = IdMessageHandlerCommand::Publish {
                             topic: topic.to_owned(),
                             payload: cbor::encode(&id_entry),
@@ -79,7 +79,7 @@ impl<S: IdStore, V: IdVerifier> IdMessageHandler<S, V> {
                     match direction {
                         IdMessageDirection::From => {}
                         IdMessageDirection::To => {
-                            if id_entry.kind != IdEntryKind::Subscriber {
+                            if id_entry.kind != IdEntryKind::Following {
                                 let cmd = IdMessageHandlerCommand::Request {
                                     peer: PeerId::from_str(&providers.get(0).unwrap()).unwrap(),
                                     message_id: id.to_string(),
@@ -96,72 +96,71 @@ impl<S: IdStore, V: IdVerifier> IdMessageHandler<S, V> {
                 }
             }
         } else {
-            todo!()
+            return Err(HandleError::IdNotFound(topic.to_string()))
         }
     }
 
     pub async fn handle_request_message(
         &self,
-        peer: PeerId,
+        peer_id: PeerId,
         req: IdMessageHandlerRequestKind,
     ) -> Result<IdMessageHandlerResponseKind, HandleError> {
         match req {
-            IdMessageHandlerRequestKind::MessageRequest(message_id) => {
+            IdMessageHandlerRequestKind::MessageRequest { id, message_id } => {
+                let peer = self.store.get_peer(&peer_id.to_string()).await?.ok_or(HandleError::PeerNotFound(peer_id.to_string()))?;
                 let message = self
                     .store
                     .get_msg(&message_id)
                     .await?
                     .ok_or(HandleError::IdNotFound(message_id))?;
-
-                for to in message.to {
-                    let id = self
+                let id_entry = self
                         .store
-                        .get_id(&to)
+                        .get_id(&id)
                         .await?
-                        .ok_or(HandleError::IdNotFound(to))?;
-
-                    //if id.view.mediators.contains() {
+                        .ok_or(HandleError::IdNotFound(id.to_string()))?;
+                if message.to.contains(&id) && peer.owner == id_entry.projection.id {
                     return Ok(IdMessageHandlerResponseKind::MessageResponse(
                         message.payload,
                     ));
-                    //}
                 }
+                return Err(HandleError::PeerNotFound(peer_id.to_string()));
             }
-            IdMessageHandlerRequestKind::IdRequest(_) => todo!(),
+            IdMessageHandlerRequestKind::IdRequest(id) => {
+                todo!()
+            },
         }
-        todo!()
     }
 
     pub async fn handle_response_message(
         &self,
         from: &str,
         message_id: &str,
-        payload: Vec<u8>,
+        message_body: IdMessageHandlerResponseKind,
     ) -> Result<(), HandleError> {
-        let msg = IdMessage {
-            from: from.to_string(),
-            to: vec![],
-            payload,
-        };
-        self.store.set_msg(&message_id, &msg).await?;
-        /*
-                           Provide { id: pid } => {
-                       let mut view = self
-                           .verifier
-                           .verify_inception(&pid.version, &pid.inception)
-                           .await?;
-                       for (version, event) in pid.events.clone() {
-                           view = self.verifier.verify_event(&version, &view, &event).await?;
-                       }
-                       let entry = IdEntry {
-                           view,
-                           identity: pid.clone(),
-                           is_client: false,
-                       };
-                       self.store.set_id(&id, &entry).await?;
-                       return Ok(None);
-                   }
-        */
+        match message_body {
+            IdMessageHandlerResponseKind::MessageResponse(payload) => {
+                let msg = IdMessage {
+                    from: from.to_string(),
+                    to: vec![],
+                    payload,
+                };
+                self.store.set_msg(message_id, &msg).await?;
+            }
+            IdMessageHandlerResponseKind::IdResponse { inception, events } => {
+                let mut id_projection = self.verifier.verify_inception(&inception).await?;
+                for (_, event) in events.clone() {
+                    id_projection = self.verifier.verify_event(&id_projection, &event).await?;
+                }
+                let id = inception.id.clone();
+                let entry = IdEntry {
+                    kind: IdEntryKind::Following,
+                    projection: id_projection,
+                    inception: inception,
+                    events: events,
+                };
+                self.store.set_id(&id, &entry).await?;
+            }
+        }
         Ok(())
     }
 }

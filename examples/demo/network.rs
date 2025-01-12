@@ -116,8 +116,6 @@ impl<S: IdStore, V: IdVerifier> IdNetworkEventLoop<S, V> {
         &mut self,
         event: SwarmEvent<Idp2pBehaviourEvent>,
     ) -> anyhow::Result<()> {
-        let current_user = self.store.get_current_user().await?;
-
         match event {
             SwarmEvent::Behaviour(Idp2pBehaviourEvent::Gossipsub(event)) => match event {
                 libp2p::gossipsub::Event::Message {
@@ -171,13 +169,14 @@ impl<S: IdStore, V: IdVerifier> IdNetworkEventLoop<S, V> {
                 },
                 request_response::Message::Response { response, .. } => match response {
                     IdResponseKind::Message(msg) => {
+                        //self.id_handler.handle_response_message(from, message_id, payload)
                         /*self.event_sender
                         .send(IdAppInEvent::GotMessage(msg))
                         .await?;*/
                     }
                     IdResponseKind::MeetResult { username, id } => {
                         let mut current_user = self.store.get_current_user().await.unwrap();
-                        
+                        current_user.set_other(&username, &id);
                         self.store.set_current_user(&current_user).await.unwrap();
                         self.swarm
                             .behaviour_mut()

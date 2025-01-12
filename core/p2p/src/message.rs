@@ -27,7 +27,10 @@ pub enum IdMessageDirection {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum IdMessageHandlerRequestKind {
-    MessageRequest(String),
+    MessageRequest {
+        id: String,
+        message_id: String
+    },
     IdRequest(String)
 }
 

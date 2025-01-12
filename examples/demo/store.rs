@@ -4,7 +4,7 @@ use std::{
 };
 
 use idp2p_common::cbor;
-use idp2p_p2p::{error::HandleError, model::{IdEntry, IdMessage, IdStore}};
+use idp2p_p2p::{error::HandleError, model::{IdEntry, IdMessage, IdPeer, IdStore}};
 use serde::{de::DeserializeOwned, Serialize};
 
 use crate::user::UserState;
@@ -59,6 +59,12 @@ impl IdStore for InMemoryIdStore {
         Ok(msg)
     }
 
+    async fn get_peer(&self, id: &str) -> Result<Option<IdPeer>, HandleError> {
+        let peer_key = format!("/peers/{}", id);
+        let peer = self.0.get(&peer_key).await?;
+        Ok(peer)
+    }
+
     async fn set_id(&self, id: &str, entry: &IdEntry) -> Result<(), HandleError> {
         let id_key = format!("/identities/{}", id);
         self.0.set(&id_key, entry).await?;
@@ -68,6 +74,12 @@ impl IdStore for InMemoryIdStore {
     async fn set_msg(&self, id: &str, msg: &IdMessage) -> Result<(), HandleError> {
         let msg_key = format!("/messages/{}", id);
         self.0.set(&msg_key, msg).await?;
+        Ok(())
+    }
+
+    async  fn set_peer(&self,id: &str,value: &IdPeer) -> Result<(),HandleError> {
+        let peer_key = format!("/peers/{}", id);
+        self.0.set(&peer_key, value).await?;
         Ok(())
     }
 }
