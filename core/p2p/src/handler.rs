@@ -96,7 +96,7 @@ impl<S: IdStore, V: IdVerifier> IdMessageHandler<S, V> {
                 }
             }
         } else {
-            return Err(HandleError::IdNotFound(topic.to_string()))
+            return Err(HandleError::IdNotFound(topic.to_string()));
         }
     }
 
@@ -107,17 +107,21 @@ impl<S: IdStore, V: IdVerifier> IdMessageHandler<S, V> {
     ) -> Result<IdMessageHandlerResponseKind, HandleError> {
         match req {
             IdMessageHandlerRequestKind::MessageRequest { id, message_id } => {
-                let peer = self.store.get_peer(&peer_id.to_string()).await?.ok_or(HandleError::PeerNotFound(peer_id.to_string()))?;
+                let peer = self
+                    .store
+                    .get_peer(&peer_id.to_string())
+                    .await?
+                    .ok_or(HandleError::PeerNotFound(peer_id.to_string()))?;
                 let message = self
                     .store
                     .get_msg(&message_id)
                     .await?
                     .ok_or(HandleError::IdNotFound(message_id))?;
                 let id_entry = self
-                        .store
-                        .get_id(&id)
-                        .await?
-                        .ok_or(HandleError::IdNotFound(id.to_string()))?;
+                    .store
+                    .get_id(&id)
+                    .await?
+                    .ok_or(HandleError::IdNotFound(id.to_string()))?;
                 if message.to.contains(&id) && peer.owner == id_entry.projection.id {
                     return Ok(IdMessageHandlerResponseKind::MessageResponse(
                         message.payload,
@@ -126,8 +130,16 @@ impl<S: IdStore, V: IdVerifier> IdMessageHandler<S, V> {
                 return Err(HandleError::PeerNotFound(peer_id.to_string()));
             }
             IdMessageHandlerRequestKind::IdRequest(id) => {
-                todo!()
-            },
+                let id_entry = self
+                    .store
+                    .get_id(&id)
+                    .await?
+                    .ok_or(HandleError::IdNotFound(id.clone()))?;
+                return Ok(IdMessageHandlerResponseKind::IdResponse {
+                    inception: id_entry.inception,
+                    events: id_entry.events,
+                });
+            }
         }
     }
 
