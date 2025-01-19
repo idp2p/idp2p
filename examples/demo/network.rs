@@ -278,6 +278,6 @@ pub fn create_swarm(port: u16) -> anyhow::Result<Swarm<Idp2pBehaviour>> {
         .with_swarm_config(|c| c.with_idle_connection_timeout(Duration::from_secs(60)))
         .build();
 
-    swarm.listen_on(format!("/ip4/0.0.0.0/tcp/{port}").parse().unwrap())?;
+    swarm.listen_on(format!("/ip4/127.0.0.1/tcp/{port}").parse().unwrap())?;
     Ok(swarm)
 }

@@ -6,7 +6,7 @@ use futures::SinkExt;
 use idp2p_p2p::message::{IdGossipMessageKind, IdMessageDirection};
 use layout::Flex;
 use libp2p::gossipsub::IdentTopic;
-use libp2p::PeerId;
+use ratatui::crossterm::event::KeyEvent;
 use ratatui::prelude::*;
 use ratatui::widgets::Clear;
 use ratatui::{
@@ -32,6 +32,7 @@ pub(crate) enum IdAppEvent {
     GotMessage(String),
 }
 
+#[derive(Debug, PartialEq)]
 enum InputMode {
     Normal,
     Editing,
@@ -78,13 +79,15 @@ impl App {
     fn handle_event(&mut self, event: IdAppEvent) {
         match event {
             IdAppEvent::ListenOn(addr) => {
-                //println!("Listening on {} as {}", addr, self.current_user);
+                let msg = format!("Listening on {} as {}", addr, self.current_user.username);
+                self.messages.push(msg);
             }
             IdAppEvent::Resolved { id, peer, name } => todo!(),
             IdAppEvent::GotMessage(_) => todo!(),
         }
     }
 }
+
 pub(crate) async fn run(
     store: Arc<InMemoryKvStore>,
     network_cmd_sender: mpsc::Sender<IdNetworkCommand>,
@@ -121,105 +124,82 @@ pub(crate) async fn run(
 async fn run_app<B: Backend>(terminal: &mut Terminal<B>, mut app: App) -> io::Result<()> {
     loop {
         terminal.draw(|f| ui(f, &app))?;
-        /*let alice = app.store.get_user("alice").await.unwrap().unwrap();
-        let bob = app.store.get_user("bob").await.unwrap().unwrap();
-        let dog = app.store.get_user("dog").await.unwrap().unwrap();
-        let mut users = vec![];
-        if let Some(id) = alice.id.clone() {
-            users.push(format!("Alice - {}", id));
-        }
-        if let Some(id) = bob.id.clone() {
-            users.push(format!("Bob - {}", id));
-        }
-        if let Some(id) = dog.id.clone() {
-            users.push(format!("Dog - {}", id));
-        }
-        app.users = users;*/
+
         let current_user = app.store.get_current_user().await.unwrap();
         while let Ok(Some(event)) = app.event_receiver.try_next() {
             app.handle_event(event);
         }
         if let Event::Key(key) = event::read()? {
-            match app.input_mode {
-                InputMode::Normal => match key.code {
-                    KeyCode::Char('e') => {
-                        /*let alice = app.store.get_user("alice").await.unwrap().unwrap();
-                        let bob = app.store.get_user("bob").await.unwrap().unwrap();
-                        let dog = app.store.get_user("dog").await.unwrap().unwrap();*/
-
-                        if current_user.username.as_str() != "alice" {
-                            /*let topic = IdentTopic::new(id.to_string());
-                            app.network_cmd_sender
-                                .send(IdNetworkCommand::Publish {
-                                    topic,
-                                    payload: IdGossipMessageKind::Resolve,
-                                })
-                                .await
-                                .unwrap();*/
-                        }
-                        if current_user.username.as_str() != "bob" {
-                            /*let topic = IdentTopic::new(id.to_string());
-                            app.network_cmd_sender
-                                .send(IdNetworkCommand::Publish {
-                                    topic,
-                                    payload: IdGossipMessageKind::Resolve,
-                                })
-                                .await
-                                .unwrap();*/
-                        }
-                        if current_user.username.as_str() != "dog" {
-                            if let Some(dog) = current_user.others.iter().find(|x| x.name == "dog") {
-                                app.network_cmd_sender
-                                    .send(IdNetworkCommand::Publish {
-                                        topic: IdentTopic::new(dog.id.clone().unwrap()),
-                                        payload: IdGossipMessageKind::Resolve,
-                                    })
-                                    .await
-                                    .unwrap();
-                            }
-                        }
-
-                        app.input_mode = InputMode::Editing;
-                        app.show_help_popup = false;
-                    }
-                    KeyCode::Char('q') => {
-                        return Ok(());
-                    }
-                    _ => {}
-                },
-                InputMode::Editing => match key.code {
-                    KeyCode::Enter => {
-                        if !app.input.value().is_empty() {
-                            /*let topic = match app.current_user.username.as_str() {
-                                "alice" => bob.id.clone().unwrap(),
-                                "bob" => alice.id.clone().unwrap(),
-                                _ => panic!(""),
-                            };
-                            let topic = IdentTopic::new(topic);
-                            app.network_cmd_sender
-                                .send(IdNetworkCommand::Publish {
-                                    topic,
-                                    payload: IdGossipMessageKind::NotifyMessage {
-                                        direction: IdMessageDirection::To,
-                                        id: alice.id.unwrap(),
-                                        providers: vec![app.current_peer.to_string()],
-                                    },
-                                })
-                                .await
-                                .unwrap();*/
-                        }
-                        app.input.reset();
-                    }
-                    KeyCode::Esc => {
-                        app.input_mode = InputMode::Normal;
-                    }
-                    _ => {
-                        app.input.handle_event(&Event::Key(key));
-                    }
-                },
+            if app.input_mode == InputMode::Normal && key.code == KeyCode::Char('q') {
+                return Ok(());
             }
+            key_event(key, &mut app, &current_user).await;
         }
     }
+}
+
+async fn resolve(username: &str, app: &mut App, current_user: &UserState) {
+    if let Some(user) = current_user.others.iter().find(|x| x.name == username) {
+        app.network_cmd_sender
+            .send(IdNetworkCommand::Publish {
+                topic: IdentTopic::new(user.id.clone().unwrap()),
+                payload: IdGossipMessageKind::Resolve,
+            })
+            .await
+            .unwrap();
+    }
+}
+
+async fn key_event(key: KeyEvent, app: &mut App, current_user: &UserState) {
+    match app.input_mode {
+        InputMode::Normal => match key.code {
+            KeyCode::Char('e') => {
+                if current_user.username.as_str() != "alice" {
+                    resolve("alice", app, current_user).await;   
+                }
+                if current_user.username.as_str() != "bob" {
+                    resolve("bob", app, current_user).await;   
+                }
+                if current_user.username.as_str() != "dog" {
+                    resolve("dog", app, current_user).await;
+                }
+
+                app.input_mode = InputMode::Editing;
+                app.show_help_popup = false;
+            }
+            _ => {}
+        },
+        InputMode::Editing => match key.code {
+            KeyCode::Enter => {
+                if !app.input.value().is_empty() {
+                    /*let topic = match app.current_user.username.as_str() {
+                        "alice" => bob.id.clone().unwrap(),
+                        "bob" => alice.id.clone().unwrap(),
+                        _ => panic!(""),
+                    };
+                    let topic = IdentTopic::new(topic);
+                    app.network_cmd_sender
+                        .send(IdNetworkCommand::Publish {
+                            topic,
+                            payload: IdGossipMessageKind::NotifyMessage {
+                                direction: IdMessageDirection::To,
+                                id: alice.id.unwrap(),
+                                providers: vec![app.current_peer.to_string()],
+                            },
+                        })
+                        .await
+                        .unwrap();*/
+                }
+                app.input.reset();
+            }
+            KeyCode::Esc => {
+                app.input_mode = InputMode::Normal;
+            }
+            _ => {
+                app.input.handle_event(&Event::Key(key));
+            }
+        },
+    };
 }
 
 fn ui(f: &mut Frame, app: &App) {
@@ -252,11 +232,15 @@ fn ui(f: &mut Frame, app: &App) {
         )
         .split(f.area());
 
-    let title = app.current_user.username.to_uppercase();
+    let title = format!(
+        "{} - {}",
+        app.current_user.username.to_uppercase(),
+        app.current_user.id
+    );
     // Render header
     let header = Paragraph::new(Span::styled(
         &title,
-        Style::default().fg(Color::Red).add_modifier(Modifier::BOLD),
+        Style::default().fg(Color::Green).add_modifier(Modifier::BOLD),
     ));
     f.render_widget(header, chunks[0]);
 
@@ -283,11 +267,11 @@ fn ui(f: &mut Frame, app: &App) {
             Style::default(),
         ),
     };
-    let mut text = "".to_owned();
+    let mut text = app.current_user.peer.to_string();
 
-    for user in app.current_user.others.iter() {
+    /*for user in app.current_user.others.iter() {
         text.push_str(format!("{}\n", user.name).as_str());
-    }
+    }*/
     let text = Text::from(text).style(style);
 
     let help_message = Paragraph::new(text);
@@ -318,8 +302,8 @@ fn ui(f: &mut Frame, app: &App) {
         .messages
         .iter()
         .enumerate()
-        .map(|(i, m)| {
-            let content = vec![Line::from(Span::raw(format!("{}: {}", i, m)))];
+        .map(|(_, m)| {
+            let content = vec![Line::from(Span::raw(format!("{}", m)))];
             ListItem::new(content)
         })
         .collect();
