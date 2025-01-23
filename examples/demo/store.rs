@@ -5,6 +5,7 @@ use std::{
 
 use idp2p_common::cbor;
 use idp2p_p2p::{error::HandleError, model::{IdEntry, IdMessage, IdPeer, IdStore}};
+use libp2p::PeerId;
 use serde::{de::DeserializeOwned, Serialize};
 
 use crate::user::UserState;

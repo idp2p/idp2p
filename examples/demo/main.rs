@@ -73,11 +73,12 @@ async fn main() -> anyhow::Result<()> {
                     handler_cmd = handler_cmd_receiver.next() => match handler_cmd {
                         Some(cmd) => match cmd {
                             IdMessageHandlerCommand::Request { peer, message_id } => {
-                                let req = todo!();
+                                todo!()
+                                /*let req = todo!();
                                 network_cmd_sender_clone.send(IdNetworkCommand::SendRequest {
                                     peer,
                                     req
-                                }).await.unwrap();
+                                }).await.unwrap();*/
                             }
                             IdMessageHandlerCommand::Publish { topic, payload } => {
                                 

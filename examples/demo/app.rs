@@ -23,13 +23,13 @@ use tui_input::backend::crossterm::EventHandler;
 use tui_input::Input;
 
 pub(crate) enum IdAppEvent {
-    ListenOn(String),
     Resolved {
         id: String,
         peer: String,
         name: String,
     },
     GotMessage(String),
+    Other(String),
 }
 
 #[derive(Debug, PartialEq)]
@@ -40,9 +40,10 @@ enum InputMode {
 
 /// App holds the state of the application
 struct App {
-    current_user: UserState,
     /// Store
     store: Arc<InMemoryKvStore>,
+    /// Current user
+    current_user: UserState,
     /// Current value of the input box
     input: Input,
     /// Current input mode
@@ -58,15 +59,15 @@ struct App {
 }
 
 impl App {
-    fn new(
-        current_user: UserState,
+    async fn new(
         store: Arc<InMemoryKvStore>,
         network_cmd_sender: mpsc::Sender<IdNetworkCommand>,
         event_receiver: mpsc::Receiver<IdAppEvent>,
     ) -> Self {
+        let current_user = store.get_current_user().await.unwrap();
         Self {
-            current_user,
             store: store,
+            current_user: current_user,
             input: Input::default(),
             input_mode: InputMode::Normal,
             messages: Vec::new(),
@@ -76,14 +77,22 @@ impl App {
         }
     }
 
-    fn handle_event(&mut self, event: IdAppEvent) {
+    async fn handle_event(&mut self, event: IdAppEvent) {
+        let current_user = self.store.get_current_user().await.unwrap();
+
         match event {
-            IdAppEvent::ListenOn(addr) => {
-                let msg = format!("Listening on {} as {}", addr, self.current_user.username);
+            IdAppEvent::Other(msg) => {
                 self.messages.push(msg);
             }
-            IdAppEvent::Resolved { id, peer, name } => todo!(),
-            IdAppEvent::GotMessage(_) => todo!(),
+            IdAppEvent::Resolved { id, peer, name } => {
+                let msg = format!("Resolved {} as {}", id, name);
+                self.messages.push(msg);
+                self.current_user = current_user;
+            },
+            IdAppEvent::GotMessage(msg) => {
+                let msg = format!("Got message: {}", msg);
+                self.messages.push(msg);
+            },
         }
     }
 }
@@ -99,9 +108,9 @@ pub(crate) async fn run(
     execute!(stdout, EnterAlternateScreen, EnableMouseCapture)?;
     let backend = CrosstermBackend::new(stdout);
     let mut terminal = Terminal::new(backend)?;
-    let current_user = store.get_current_user().await.unwrap();
+    // let current_user = store.get_current_user().await.unwrap();
     // create app and run it
-    let app = App::new(current_user, store, network_cmd_sender, event_receiver);
+    let app = App::new(store, network_cmd_sender, event_receiver).await;
 
     let res = run_app(&mut terminal, app).await;
 
@@ -127,7 +136,7 @@ async fn run_app<B: Backend>(terminal: &mut Terminal<B>, mut app: App) -> io::Re
 
         let current_user = app.store.get_current_user().await.unwrap();
         while let Ok(Some(event)) = app.event_receiver.try_next() {
-            app.handle_event(event);
+            app.handle_event(event).await;
         }
         if let Event::Key(key) = event::read()? {
             if app.input_mode == InputMode::Normal && key.code == KeyCode::Char('q') {
@@ -244,35 +253,12 @@ fn ui(f: &mut Frame, app: &App) {
     ));
     f.render_widget(header, chunks[0]);
 
-    // Render help message
-    let (msg, style) = match app.input_mode {
-        InputMode::Normal => (
-            vec![
-                Span::raw("Press "),
-                Span::styled("q", Style::default().add_modifier(Modifier::BOLD)),
-                Span::raw(" to exit, "),
-                Span::styled("e", Style::default().add_modifier(Modifier::BOLD)),
-                Span::raw(" to start editing."),
-            ],
-            Style::default().add_modifier(Modifier::RAPID_BLINK),
-        ),
-        InputMode::Editing => (
-            vec![
-                Span::raw("Press "),
-                Span::styled("Esc", Style::default().add_modifier(Modifier::BOLD)),
-                Span::raw(" to stop editing, "),
-                Span::styled("Enter", Style::default().add_modifier(Modifier::BOLD)),
-                Span::raw(" to record the message"),
-            ],
-            Style::default(),
-        ),
-    };
     let mut text = app.current_user.peer.to_string();
 
-    /*for user in app.current_user.others.iter() {
-        text.push_str(format!("{}\n", user.name).as_str());
-    }*/
-    let text = Text::from(text).style(style);
+    for user in app.current_user.others.iter() {
+        text.push_str(format!("{:?}\n", user).as_str());
+    }
+    //let text = Text::from(text).style(style);
 
     let help_message = Paragraph::new(text);
     f.render_widget(help_message, chunks[1]);

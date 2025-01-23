@@ -68,7 +68,7 @@ impl<S: IdStore, V: IdVerifier> IdNetworkEventLoop<S, V> {
         event_sender: mpsc::Sender<IdAppEvent>,
         cmd_receiver: mpsc::Receiver<IdNetworkCommand>,
         id_handler: IdMessageHandler<S, V>,
-    ) -> anyhow::Result<(PeerId, Self)> {    
+    ) -> anyhow::Result<(PeerId, Self)> {
         let swarm = create_swarm(port)?;
         Ok((
             swarm.local_peer_id().to_owned(),
@@ -87,7 +87,10 @@ impl<S: IdStore, V: IdVerifier> IdNetworkEventLoop<S, V> {
             tokio::select! {
                 event = self.swarm.select_next_some() => self.handle_network_event(event).await.unwrap(),
                 cmd = self.cmd_receiver.next() => match cmd {
-                    Some(cmd) => self.handle_command(cmd).await.unwrap(),
+                    Some(cmd) => {
+                        let r = self.handle_command(cmd).await;
+                        println!("Command result: {r:?}");
+                    },
                     None =>  return,
                 }
             }
@@ -149,12 +152,8 @@ impl<S: IdStore, V: IdVerifier> IdNetworkEventLoop<S, V> {
                             .unwrap();
                     }
                     IdRequestKind::Meet => {
-                        let current_user = self
-                            .store
-                            .get_current_user()
-                            .await
-                            .unwrap();
-                        self.swarm
+                        let current_user = self.store.get_current_user().await.unwrap();
+                        let r = self.swarm
                             .behaviour_mut()
                             .request_response
                             .send_response(
@@ -163,8 +162,17 @@ impl<S: IdStore, V: IdVerifier> IdNetworkEventLoop<S, V> {
                                     username: current_user.username.clone(),
                                     id: current_user.id.clone(),
                                 },
-                            )
-                            .unwrap();
+                            );
+                        match r {
+                            Ok(_) => {},        
+                            Err(e) => {
+                                let msg = format!("Failed to send meet result: {e:?}");
+                                self.event_sender
+                                    .send(IdAppEvent::Other(msg))
+                                    .await
+                                    .unwrap();
+                            }
+                        }
                     }
                 },
                 request_response::Message::Response { response, .. } => match response {
@@ -181,20 +189,30 @@ impl<S: IdStore, V: IdVerifier> IdNetworkEventLoop<S, V> {
                         self.swarm
                             .behaviour_mut()
                             .gossipsub
-                            .subscribe(&IdentTopic::new(id))?;
+                            .subscribe(&IdentTopic::new(id.as_str()))?;
+                        let msg = format!("Meeted to {} as {}", peer.to_string(), username);
+
+                        self.event_sender
+                            .send(IdAppEvent::Other(msg))
+                            .await
+                            .unwrap();
                     }
                 },
             },
             SwarmEvent::NewListenAddr { address, .. } => {
+                let msg = format!("Listening on {address}");
+
                 self.event_sender
-                    .send(IdAppEvent::ListenOn(address.to_string()))
+                    .send(IdAppEvent::Other(msg))
                     .await
                     .unwrap();
             }
             SwarmEvent::Behaviour(Idp2pBehaviourEvent::Mdns(libp2p::mdns::Event::Discovered(
                 list,
             ))) => {
+                 
                 for (peer_id, _multiaddr) in list {
+                    //let connected_peer:  = self.store.get("/connected_peers/").await.unwrap();
                     self.swarm
                         .behaviour_mut()
                         .gossipsub
@@ -213,6 +231,12 @@ impl<S: IdStore, V: IdVerifier> IdNetworkEventLoop<S, V> {
             }
 
             SwarmEvent::ConnectionEstablished { peer_id, .. } => {
+                let msg = format!("Connected to {}", peer_id.to_string());
+
+                self.event_sender
+                    .send(IdAppEvent::Other(msg))
+                    .await
+                    .unwrap();
                 let _ = self
                     .swarm
                     .behaviour_mut()
@@ -277,7 +301,7 @@ pub fn create_swarm(port: u16) -> anyhow::Result<Swarm<Idp2pBehaviour>> {
         })?
         .with_swarm_config(|c| c.with_idle_connection_timeout(Duration::from_secs(60)))
         .build();
-
-    swarm.listen_on(format!("/ip4/127.0.0.1/tcp/{port}").parse().unwrap())?;
+    let ip = local_ip_address::local_ip().expect("Could not get local ip");
+    swarm.listen_on(format!("/ip4/{ip}/tcp/{port}").parse().expect("Could not parse address"))?;
     Ok(swarm)
 }
