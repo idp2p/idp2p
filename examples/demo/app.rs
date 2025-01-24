@@ -1,6 +1,7 @@
-use crate::network::IdNetworkCommand;
+use crate::network::{IdNetworkCommand, IdRequestKind};
 use crate::store::InMemoryKvStore;
 use crate::user::UserState;
+use color_eyre::owo_colors::colors::xterm::PersianGreen;
 use futures::channel::mpsc;
 use futures::SinkExt;
 use idp2p_p2p::message::{IdGossipMessageKind, IdMessageDirection};
@@ -88,11 +89,11 @@ impl App {
                 let msg = format!("Resolved {} as {}", id, name);
                 self.messages.push(msg);
                 self.current_user = current_user;
-            },
+            }
             IdAppEvent::GotMessage(msg) => {
                 let msg = format!("Got message: {}", msg);
                 self.messages.push(msg);
-            },
+            }
         }
     }
 }
@@ -162,12 +163,23 @@ async fn resolve(username: &str, app: &mut App, current_user: &UserState) {
 async fn key_event(key: KeyEvent, app: &mut App, current_user: &UserState) {
     match app.input_mode {
         InputMode::Normal => match key.code {
+            KeyCode::Char('c') => {
+                //println!("Current peers: {:#?}", current_user.peers);
+                for peer in current_user.peers.iter() {
+                    if !peer.1 {
+                        app.network_cmd_sender.send(IdNetworkCommand::SendRequest {
+                            peer: peer.0.to_owned(),
+                            req: IdRequestKind::Meet,
+                        }).await.unwrap();
+                    }
+                }
+            }
             KeyCode::Char('e') => {
                 if current_user.username.as_str() != "alice" {
-                    resolve("alice", app, current_user).await;   
+                    resolve("alice", app, current_user).await;
                 }
                 if current_user.username.as_str() != "bob" {
-                    resolve("bob", app, current_user).await;   
+                    resolve("bob", app, current_user).await;
                 }
                 if current_user.username.as_str() != "dog" {
                     resolve("dog", app, current_user).await;
@@ -249,17 +261,14 @@ fn ui(f: &mut Frame, app: &App) {
     // Render header
     let header = Paragraph::new(Span::styled(
         &title,
-        Style::default().fg(Color::Green).add_modifier(Modifier::BOLD),
+        Style::default()
+            .fg(Color::Green)
+            .add_modifier(Modifier::BOLD),
     ));
     f.render_widget(header, chunks[0]);
 
-    let mut text = app.current_user.peer.to_string();
-
-    for user in app.current_user.others.iter() {
-        text.push_str(format!("{:?}\n", user).as_str());
-    }
-    //let text = Text::from(text).style(style);
-
+    let text = "[c] to connect, [r] to resolve, [e] to edit, [q] to quit".to_string();
+    
     let help_message = Paragraph::new(text);
     f.render_widget(help_message, chunks[1]);
 
