@@ -69,7 +69,7 @@ impl<S: IdStore, V: IdVerifier> IdNetworkEventLoop<S, V> {
         cmd_receiver: mpsc::Receiver<IdNetworkCommand>,
         id_handler: IdMessageHandler<S, V>,
     ) -> anyhow::Result<(PeerId, Self)> {
-        let swarm = create_swarm(port)?;
+        let swarm = create_swarm(port, )?;
         Ok((
             swarm.local_peer_id().to_owned(),
             Self {

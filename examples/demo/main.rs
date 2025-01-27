@@ -1,8 +1,11 @@
-use futures::{channel::mpsc, SinkExt, StreamExt};
+use futures::{channel::mpsc, StreamExt};
 use idp2p_common::id::Id;
-use idp2p_p2p::{handler::{IdMessageHandler, IdMessageHandlerCommand}, verifier::IdVerifierImpl};
-use network::{IdNetworkCommand, IdNetworkEventLoop, IdRequestKind};
-use std::{collections::HashMap, fs, net, sync::Arc};
+use idp2p_p2p::{
+    handler::{IdMessageHandler, IdMessageHandlerCommand},
+    verifier::IdVerifierImpl,
+};
+use network::IdNetworkEventLoop;
+use std::{fs, sync::Arc};
 use store::{InMemoryIdStore, InMemoryKvStore};
 use structopt::StructOpt;
 use tracing_subscriber::EnvFilter;
@@ -51,6 +54,7 @@ async fn main() -> anyhow::Result<()> {
         "dog" => 43729,
         _ => panic!("Unknown user"),
     };
+
     let (peer, network) = IdNetworkEventLoop::new(
         port,
         store.clone(),
@@ -58,14 +62,13 @@ async fn main() -> anyhow::Result<()> {
         network_cmd_receiver,
         id_handler,
     )?;
-
-    let pid = utils::generate_actor(&comp_id, &peer)?;
     tokio::spawn(network.run());
+    let pid = utils::generate_actor(&comp_id, &peer)?;
     let user = UserState::new(&opt.name, &pid.id, &peer.to_string());
     store.set_current_user(&user).await.unwrap();
     tokio::spawn({
         let network_cmd_sender_clone = network_cmd_sender.clone();
-       
+
         let mut handler_cmd_receiver = handler_cmd_receiver;
         async move {
             loop {
@@ -81,7 +84,7 @@ async fn main() -> anyhow::Result<()> {
                                 }).await.unwrap();*/
                             }
                             IdMessageHandlerCommand::Publish { topic, payload } => {
-                                
+
                             }
                         },
                         None => break
@@ -90,8 +93,6 @@ async fn main() -> anyhow::Result<()> {
             }
         }
     });
-    app::run(store.clone(), network_cmd_sender, app_event_receiver)
-        .await
-        .unwrap();
+    app::run(store, network_cmd_sender, app_event_receiver).await?;
     Ok(())
 }

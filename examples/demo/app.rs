@@ -1,7 +1,83 @@
-use crate::network::{IdNetworkCommand, IdRequestKind};
+use std::{error::Error, io, sync::Arc};
+
+use futures::{channel::mpsc, SinkExt, StreamExt};
+use idp2p_p2p::message::IdGossipMessageKind;
+use libp2p::gossipsub::IdentTopic;
+use tokio::io::AsyncBufReadExt;
+
+use crate::{
+    network::{self, IdNetworkCommand, IdRequestKind},
+    store::InMemoryKvStore,
+};
+
+#[derive(Debug)]
+pub(crate) enum IdAppEvent {
+    Resolved {
+        id: String,
+        peer: String,
+        name: String,
+    },
+    GotMessage(String),
+    Other(String),
+}
+
+pub(crate) async fn run(
+    store: Arc<InMemoryKvStore>,
+    network_cmd_sender: mpsc::Sender<IdNetworkCommand>,
+    event_receiver: mpsc::Receiver<IdAppEvent>,
+) -> anyhow::Result<()> {
+    let mut stdin = tokio::io::BufReader::new(tokio::io::stdin()).lines();
+    let mut network_cmd_sender = network_cmd_sender.clone();
+    let mut event_receiver = event_receiver;
+    loop {
+        tokio::select! {
+            Ok(Some(line)) = stdin.next_line() => {
+                let mut split = line.split_whitespace();
+                match split.next().unwrap() {
+                    "connect" => {
+                        let current_user = store.get_current_user().await.unwrap();
+                        for peer in current_user.peers.iter() {
+                            if !peer.1 {
+                                network_cmd_sender.send(IdNetworkCommand::SendRequest {
+                                    peer: peer.0.to_owned(),
+                                    req: IdRequestKind::Meet,
+                                }).await.unwrap();
+                            }
+                        }
+                    },
+                    "resolve" => {
+                        let current_user = store.get_current_user().await.unwrap();
+                        let username = split.next().unwrap();
+                        if let Some(user) = current_user.others.iter().find(|x| x.name == username) {
+                            network_cmd_sender
+                                .send(IdNetworkCommand::Publish {
+                                    topic: IdentTopic::new(user.id.clone().unwrap()),
+                                    payload: IdGossipMessageKind::Resolve,
+                                })
+                                .await
+                                .unwrap();
+                        }
+                    }
+                    "info" => {
+                        let current_user = store.get_current_user().await.unwrap();
+                        let current_user_str = serde_json::to_string_pretty(&current_user).unwrap();
+                        println!("{}", current_user_str);
+                    }
+                    "exit" => return Ok(()),
+                    _ => println!("Unknown command")
+                }
+            }
+            Some(event) = event_receiver.next() => match event {
+                IdAppEvent::Other(msg) => println!("{}", msg),
+                _ => todo!()
+            }
+        }
+    }
+}
+
+/*use crate::network::{IdNetworkCommand, IdRequestKind};
 use crate::store::InMemoryKvStore;
 use crate::user::UserState;
-use color_eyre::owo_colors::colors::xterm::PersianGreen;
 use futures::channel::mpsc;
 use futures::SinkExt;
 use idp2p_p2p::message::{IdGossipMessageKind, IdMessageDirection};
@@ -23,6 +99,7 @@ use std::{error::Error, io};
 use tui_input::backend::crossterm::EventHandler;
 use tui_input::Input;
 
+#[derive(Debug)]
 pub(crate) enum IdAppEvent {
     Resolved {
         id: String,
@@ -79,6 +156,7 @@ impl App {
     }
 
     async fn handle_event(&mut self, event: IdAppEvent) {
+        println!("Got event: {:?}", event);
         let current_user = self.store.get_current_user().await.unwrap();
 
         match event {
@@ -164,6 +242,7 @@ async fn key_event(key: KeyEvent, app: &mut App, current_user: &UserState) {
     match app.input_mode {
         InputMode::Normal => match key.code {
             KeyCode::Char('c') => {
+                println!("Typed c, current user: {:#?}", current_user);
                 //println!("Current peers: {:#?}", current_user.peers);
                 for peer in current_user.peers.iter() {
                     if !peer.1 {
@@ -268,7 +347,7 @@ fn ui(f: &mut Frame, app: &App) {
     f.render_widget(header, chunks[0]);
 
     let text = "[c] to connect, [r] to resolve, [e] to edit, [q] to quit".to_string();
-    
+
     let help_message = Paragraph::new(text);
     f.render_widget(help_message, chunks[1]);
 
@@ -313,4 +392,4 @@ fn popup_area(area: Rect, percent_x: u16, percent_y: u16) -> Rect {
     let [area] = vertical.areas(area);
     let [area] = horizontal.areas(area);
     area
-}
+}*/
