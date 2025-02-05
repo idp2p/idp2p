@@ -1,10 +1,11 @@
-use futures::{channel::mpsc, StreamExt};
+use futures::{channel::mpsc, SinkExt, StreamExt};
 use idp2p_common::id::Id;
 use idp2p_p2p::{
     handler::{IdMessageHandler, IdMessageHandlerCommand},
+    message::IdMessageHandlerRequestKind,
     verifier::IdVerifierImpl,
 };
-use network::IdNetworkEventLoop;
+use network::{IdNetworkCommand, IdNetworkEventLoop, IdRequestKind};
 use std::{fs, sync::Arc};
 use store::{InMemoryIdStore, InMemoryKvStore};
 use structopt::StructOpt;
@@ -67,7 +68,7 @@ async fn main() -> anyhow::Result<()> {
     let user = UserState::new(&opt.name, &pid.id, &peer.to_string());
     store.set_current_user(&user).await.unwrap();
     tokio::spawn({
-        let network_cmd_sender_clone = network_cmd_sender.clone();
+        let mut network_cmd_sender_clone = network_cmd_sender.clone();
 
         let mut handler_cmd_receiver = handler_cmd_receiver;
         async move {
@@ -76,12 +77,12 @@ async fn main() -> anyhow::Result<()> {
                     handler_cmd = handler_cmd_receiver.next() => match handler_cmd {
                         Some(cmd) => match cmd {
                             IdMessageHandlerCommand::Request { peer, message_id } => {
-                                todo!()
-                                /*let req = todo!();
+                                let req = IdRequestKind::Message(
+                                    IdMessageHandlerRequestKind::MessageRequest { id: peer.to_string(), message_id });
                                 network_cmd_sender_clone.send(IdNetworkCommand::SendRequest {
                                     peer,
                                     req
-                                }).await.unwrap();*/
+                                }).await.unwrap();
                             }
                             IdMessageHandlerCommand::Publish { topic, payload } => {
 

@@ -1,5 +1,5 @@
-use cid::Cid;
-use futures::{channel::mpsc, SinkExt, StreamExt};
+use futures::{channel::mpsc, future::FutureExt, select, stream::StreamExt, SinkExt};
+
 use idp2p_common::cbor;
 use idp2p_p2p::{
     handler::IdMessageHandler,
@@ -69,7 +69,7 @@ impl<S: IdStore, V: IdVerifier> IdNetworkEventLoop<S, V> {
         cmd_receiver: mpsc::Receiver<IdNetworkCommand>,
         id_handler: IdMessageHandler<S, V>,
     ) -> anyhow::Result<(PeerId, Self)> {
-        let swarm = create_swarm(port, )?;
+        let swarm = create_swarm(port)?;
         Ok((
             swarm.local_peer_id().to_owned(),
             Self {
@@ -84,6 +84,28 @@ impl<S: IdStore, V: IdVerifier> IdNetworkEventLoop<S, V> {
 
     pub(crate) async fn run(mut self) {
         loop {
+            select! {
+                event = self.swarm.next().fuse() => match event {
+                    Some(event) => {
+                        if let Err(e) = self.handle_network_event(event).await {
+                            println!("Error handling network event: {}", e);
+                        }
+                    }
+                    None => return
+                },
+                cmd = self.cmd_receiver.next().fuse() => match cmd {
+                    Some(cmd) => {
+                        if let Err(e) = self.handle_command(cmd).await {
+                            println!("Error handling command: {}", e);
+                        }
+                    }
+                    None => return,
+                }
+            }
+        }
+    }
+    /*pub(crate) async fn run(mut self) {
+        loop {
             tokio::select! {
                 event = self.swarm.select_next_some() => self.handle_network_event(event).await.unwrap(),
                 cmd = self.cmd_receiver.next() => match cmd {
@@ -97,7 +119,7 @@ impl<S: IdStore, V: IdVerifier> IdNetworkEventLoop<S, V> {
                 }
             }
         }
-    }
+    }*/
 
     async fn handle_command(&mut self, cmd: IdNetworkCommand) -> anyhow::Result<()> {
         use IdNetworkCommand::*;
@@ -156,18 +178,15 @@ impl<S: IdStore, V: IdVerifier> IdNetworkEventLoop<S, V> {
                             .unwrap();
                     }
                     IdRequestKind::Meet => {
-                        let r = self.swarm
-                            .behaviour_mut()
-                            .request_response
-                            .send_response(
-                                channel,
-                                IdResponseKind::MeetResult {
-                                    username: current_user.username.clone(),
-                                    id: current_user.id.clone(),
-                                },
-                            );
+                        let r = self.swarm.behaviour_mut().request_response.send_response(
+                            channel,
+                            IdResponseKind::MeetResult {
+                                username: current_user.username.clone(),
+                                id: current_user.id.clone(),
+                            },
+                        );
                         match r {
-                            Ok(_) => {},        
+                            Ok(_) => {}
                             Err(e) => {
                                 let msg = format!("Failed to send meet result: {e:?}");
                                 self.event_sender
@@ -188,9 +207,9 @@ impl<S: IdStore, V: IdVerifier> IdNetworkEventLoop<S, V> {
                     IdResponseKind::MeetResult { username, id } => {
                         current_user.set_other_id(&username, &id, &peer);
                         /*self.swarm
-                            .behaviour_mut()
-                            .gossipsub
-                            .subscribe(&IdentTopic::new(id.as_str()))?;*/
+                        .behaviour_mut()
+                        .gossipsub
+                        .subscribe(&IdentTopic::new(id.as_str()))?;*/
                         let msg = format!("Connected to {} as {}", peer.to_string(), username);
 
                         self.event_sender
@@ -200,11 +219,13 @@ impl<S: IdStore, V: IdVerifier> IdNetworkEventLoop<S, V> {
                     }
                 },
             },
-            SwarmEvent::Behaviour(Idp2pBehaviourEvent::RequestResponse(request_response::Event::OutboundFailure {
-                peer,
-                request_id,
-                error
-            })) => {
+            SwarmEvent::Behaviour(Idp2pBehaviourEvent::RequestResponse(
+                request_response::Event::OutboundFailure {
+                    peer,
+                    request_id,
+                    error,
+                },
+            )) => {
                 // ---- THIS is where you catch the error for a failed outbound request ----
                 eprintln!(
                     "Outbound request to peer {:?} (ID = {:?}) failed: {:?}",
@@ -221,7 +242,7 @@ impl<S: IdStore, V: IdVerifier> IdNetworkEventLoop<S, V> {
             }
             SwarmEvent::Behaviour(Idp2pBehaviourEvent::Mdns(libp2p::mdns::Event::Discovered(
                 list,
-            ))) => {        
+            ))) => {
                 for (peer_id, multiaddr) in list {
                     if !current_user.peers.contains_key(&peer_id) {
                         current_user.peers.insert(peer_id.clone(), false);
@@ -230,7 +251,7 @@ impl<S: IdStore, V: IdVerifier> IdNetworkEventLoop<S, V> {
                                 "Discovered peer {}",
                                 peer_id.to_string()
                             )))
-                            .await      
+                            .await
                             .unwrap();
                     }
                     self.swarm
@@ -238,7 +259,6 @@ impl<S: IdStore, V: IdVerifier> IdNetworkEventLoop<S, V> {
                         .gossipsub
                         .add_explicit_peer(&peer_id);
                     self.swarm.add_peer_address(peer_id, multiaddr);
-
                 }
             }
             SwarmEvent::Behaviour(Idp2pBehaviourEvent::Mdns(libp2p::mdns::Event::Expired(
@@ -312,6 +332,10 @@ pub fn create_swarm(port: u16) -> anyhow::Result<Swarm<Idp2pBehaviour>> {
         .with_swarm_config(|c| c.with_idle_connection_timeout(Duration::from_secs(60)))
         .build();
     let ip = local_ip_address::local_ip().expect("Could not get local ip");
-    swarm.listen_on(format!("/ip4/{ip}/tcp/{port}").parse().expect("Could not parse address"))?;
+    swarm.listen_on(
+        format!("/ip4/{ip}/tcp/{port}")
+            .parse()
+            .expect("Could not parse address"),
+    )?;
     Ok(swarm)
 }

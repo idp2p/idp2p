@@ -49,6 +49,7 @@ pub(crate) async fn run(
                         let current_user = store.get_current_user().await.unwrap();
                         let username = split.next().unwrap();
                         if let Some(user) = current_user.others.iter().find(|x| x.name == username) {
+                            //store.get(&user.id.clone().unwrap()).await.unwrap();
                             network_cmd_sender
                                 .send(IdNetworkCommand::Publish {
                                     topic: IdentTopic::new(user.id.clone().unwrap()),
