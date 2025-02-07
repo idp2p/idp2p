@@ -1,15 +1,12 @@
 use futures::{channel::mpsc::Sender, SinkExt};
 use idp2p_common::{cbor, id::Id};
 
-use libp2p::{gossipsub::{IdentTopic, TopicHash}, PeerId};
+use libp2p::{gossipsub::TopicHash, PeerId};
 use std::{str::FromStr, sync::Arc};
 
 use crate::{
     error::HandleError,
-    message::{
-        IdGossipMessageKind, IdMessageDirection, IdMessageHandlerRequestKind,
-        IdMessageHandlerResponseKind,
-    },
+    message::{IdGossipMessageKind, IdMessageHandlerRequestKind, IdMessageHandlerResponseKind, IdMessageNotifyKind},
     model::{IdEntry, IdEntryKind, IdMessage, IdStore, IdVerifier},
 };
 
@@ -80,11 +77,13 @@ impl<S: IdStore, V: IdVerifier> IdMessageHandler<S, V> {
                 NotifyMessage {
                     id,
                     providers,
-                    direction,
+                    kind,
                 } => {
-                    match direction {
-                        IdMessageDirection::From => {}
-                        IdMessageDirection::To => {
+                    match kind {
+                        IdMessageNotifyKind::ProvideId => {
+
+                        },
+                        IdMessageNotifyKind::SendMessage => {
                             if id_entry.kind != IdEntryKind::Following {
                                 let payload = IdMessageHandlerRequestKind::MessageRequest {
                                     id: id_entry.inception.id.to_string(),
@@ -96,7 +95,8 @@ impl<S: IdStore, V: IdVerifier> IdMessageHandler<S, V> {
                                 };
                                 self.sender.send(cmd).await.expect(" Error sending message");
                             }
-                        }
+                        },
+                        _=> {}
                     };
 
                     return Ok(None);

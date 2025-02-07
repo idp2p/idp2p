@@ -26,6 +26,7 @@ struct Opt {
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
+    dotenv::dotenv().ok();
     let opt = Opt::from_args();
     color_eyre::install().map_err(anyhow::Error::msg)?;
     tracing_subscriber::fmt()
@@ -62,10 +63,12 @@ async fn main() -> anyhow::Result<()> {
         network_cmd_receiver,
         id_handler,
     )?;
-    tokio::spawn(network.run());
     let pid = utils::generate_actor(&comp_id, &peer)?;
     let user = UserState::new(&opt.name, &pid.id, &peer.to_string());
     store.set_current_user(&user).await.unwrap();
+    tokio::spawn(network.run());
+    
+   
     tokio::spawn({
         let mut network_cmd_sender_clone = network_cmd_sender.clone();
         
