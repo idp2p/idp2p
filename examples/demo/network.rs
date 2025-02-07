@@ -7,7 +7,7 @@ use idp2p_p2p::{
     model::{IdStore, IdVerifier},
 };
 use libp2p::{
-    gossipsub::{self, Behaviour as GossipsubBehaviour, IdentTopic},
+    gossipsub::{self, Behaviour as GossipsubBehaviour, IdentTopic, TopicHash},
     identity::Keypair,
     mdns, noise,
     request_response::{self, cbor::Behaviour as ReqResBehaviour, ProtocolSupport},
@@ -41,8 +41,8 @@ pub(crate) enum IdNetworkCommand {
         req: IdRequestKind,
     },
     Publish {
-        topic: IdentTopic,
-        payload: IdGossipMessageKind,
+        topic: TopicHash,
+        payload: Vec<u8>,
     },
 }
 

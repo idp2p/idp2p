@@ -2,7 +2,6 @@ use futures::{channel::mpsc, SinkExt, StreamExt};
 use idp2p_common::id::Id;
 use idp2p_p2p::{
     handler::{IdMessageHandler, IdMessageHandlerCommand},
-    message::IdMessageHandlerRequestKind,
     verifier::IdVerifierImpl,
 };
 use network::{IdNetworkCommand, IdNetworkEventLoop, IdRequestKind};
@@ -69,23 +68,25 @@ async fn main() -> anyhow::Result<()> {
     store.set_current_user(&user).await.unwrap();
     tokio::spawn({
         let mut network_cmd_sender_clone = network_cmd_sender.clone();
-
+        
         let mut handler_cmd_receiver = handler_cmd_receiver;
         async move {
             loop {
                 tokio::select! {
                     handler_cmd = handler_cmd_receiver.next() => match handler_cmd {
                         Some(cmd) => match cmd {
-                            IdMessageHandlerCommand::Request { peer, message_id } => {
-                                let req = IdRequestKind::Message(
-                                    IdMessageHandlerRequestKind::MessageRequest { id: peer.to_string(), message_id });
+                            IdMessageHandlerCommand::Request { peer, payload } => {
+                                let req = IdRequestKind::Message(payload);
                                 network_cmd_sender_clone.send(IdNetworkCommand::SendRequest {
                                     peer,
                                     req
                                 }).await.unwrap();
                             }
                             IdMessageHandlerCommand::Publish { topic, payload } => {
-
+                                network_cmd_sender_clone.send(IdNetworkCommand::Publish {
+                                    topic,
+                                    payload
+                                }).await.unwrap();
                             }
                         },
                         None => break

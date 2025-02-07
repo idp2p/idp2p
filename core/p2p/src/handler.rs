@@ -1,7 +1,7 @@
 use futures::{channel::mpsc::Sender, SinkExt};
 use idp2p_common::{cbor, id::Id};
 
-use libp2p::{gossipsub::TopicHash, PeerId};
+use libp2p::{gossipsub::{IdentTopic, TopicHash}, PeerId};
 use std::{str::FromStr, sync::Arc};
 
 use crate::{
@@ -20,8 +20,14 @@ pub struct IdMessageHandler<S: IdStore, V: IdVerifier> {
 }
 
 pub enum IdMessageHandlerCommand {
-    Publish { topic: TopicHash, payload: Vec<u8> },
-    Request { peer: PeerId, message_id: String },
+    Publish {
+        topic: TopicHash,
+        payload: Vec<u8>,
+    },
+    Request {
+        peer: PeerId,
+        payload: IdMessageHandlerRequestKind,
+    },
 }
 
 impl<S: IdStore, V: IdVerifier> IdMessageHandler<S, V> {
@@ -80,9 +86,13 @@ impl<S: IdStore, V: IdVerifier> IdMessageHandler<S, V> {
                         IdMessageDirection::From => {}
                         IdMessageDirection::To => {
                             if id_entry.kind != IdEntryKind::Following {
+                                let payload = IdMessageHandlerRequestKind::MessageRequest {
+                                    id: id_entry.inception.id.to_string(),
+                                    message_id: id.to_string(),
+                                };
                                 let cmd = IdMessageHandlerCommand::Request {
                                     peer: PeerId::from_str(&providers.get(0).unwrap()).unwrap(),
-                                    message_id: id.to_string(),
+                                    payload,
                                 };
                                 self.sender.send(cmd).await.expect(" Error sending message");
                             }

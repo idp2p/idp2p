@@ -1,6 +1,7 @@
 use std::{error::Error, io, sync::Arc};
 
 use futures::{channel::mpsc, SinkExt, StreamExt};
+use idp2p_common::cbor;
 use idp2p_p2p::message::IdGossipMessageKind;
 use libp2p::gossipsub::IdentTopic;
 use tokio::io::AsyncBufReadExt;
@@ -29,6 +30,7 @@ pub(crate) async fn run(
     let mut stdin = tokio::io::BufReader::new(tokio::io::stdin()).lines();
     let mut network_cmd_sender = network_cmd_sender.clone();
     let mut event_receiver = event_receiver;
+   
     loop {
         tokio::select! {
             Ok(Some(line)) = stdin.next_line() => {
@@ -49,11 +51,10 @@ pub(crate) async fn run(
                         let current_user = store.get_current_user().await.unwrap();
                         let username = split.next().unwrap();
                         if let Some(user) = current_user.others.iter().find(|x| x.name == username) {
-                            //store.get(&user.id.clone().unwrap()).await.unwrap();
                             network_cmd_sender
                                 .send(IdNetworkCommand::Publish {
-                                    topic: IdentTopic::new(user.id.clone().unwrap()),
-                                    payload: IdGossipMessageKind::Resolve,
+                                    topic: IdentTopic::new(user.id.clone().unwrap()).hash(),
+                                    payload: cbor::encode(&IdGossipMessageKind::Resolve),
                                 })
                                 .await
                                 .unwrap();
