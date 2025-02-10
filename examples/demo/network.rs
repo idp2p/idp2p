@@ -20,6 +20,7 @@ use std::{
     sync::Arc,
     time::Duration,
 };
+use tracing::info;
 
 use crate::{app::IdAppEvent, store::InMemoryKvStore};
 
@@ -42,8 +43,9 @@ pub(crate) enum IdNetworkCommand {
     },
     Publish {
         topic: TopicHash,
-        payload: Vec<u8>,
+        payload: IdGossipMessageKind,
     },
+    Subscribe(IdentTopic),
 }
 
 #[derive(NetworkBehaviour)]
@@ -104,22 +106,6 @@ impl<S: IdStore, V: IdVerifier> IdNetworkEventLoop<S, V> {
             }
         }
     }
-    /*pub(crate) async fn run(mut self) {
-        loop {
-            tokio::select! {
-                event = self.swarm.select_next_some() => self.handle_network_event(event).await.unwrap(),
-                cmd = self.cmd_receiver.next() => match cmd {
-                    Some(cmd) => {
-                        let r = self.handle_command(cmd).await;
-                        if let Err(e) = r {
-                            println!("Error handling command: {}", e);
-                        }
-                    },
-                    None =>  return,
-                }
-            }
-        }
-    }*/
 
     async fn handle_command(&mut self, cmd: IdNetworkCommand) -> anyhow::Result<()> {
         use IdNetworkCommand::*;
@@ -132,8 +118,15 @@ impl<S: IdStore, V: IdVerifier> IdNetworkEventLoop<S, V> {
                     .send_request(&peer, req);
             }
             Publish { topic, payload } => {
+                info!("Publishing message: {topic}", topic = topic.as_str());
+                let ident_topic = IdentTopic::new(topic.as_str());
+                self.swarm.behaviour_mut().gossipsub.subscribe(&ident_topic)?;
                 let data = cbor::encode(&payload);
                 self.swarm.behaviour_mut().gossipsub.publish(topic, data)?;
+            }
+            Subscribe(topic) => {
+                info!("Subscribing to topic: {topic}", topic = topic.hash().as_str());
+                self.swarm.behaviour_mut().gossipsub.subscribe(&topic)?;
             }
         }
         Ok(())
@@ -154,7 +147,11 @@ impl<S: IdStore, V: IdVerifier> IdNetworkEventLoop<S, V> {
                 } => {
                     let result = self
                         .id_handler
-                        .handle_gossip_message(&message.topic, &message.data)
+                        .handle_gossip_message(
+                            &message.topic,
+                            &message.data,
+                            vec![current_user.peer.clone()],
+                        )
                         .await?;
                     if let Some(payload) = result {
                         println!("Custom message {:?}", payload);
@@ -226,7 +223,6 @@ impl<S: IdStore, V: IdVerifier> IdNetworkEventLoop<S, V> {
                     error,
                 },
             )) => {
-                // ---- THIS is where you catch the error for a failed outbound request ----
                 eprintln!(
                     "Outbound request to peer {:?} (ID = {:?}) failed: {:?}",
                     peer, request_id, error

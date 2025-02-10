@@ -1,11 +1,10 @@
 use futures::{channel::mpsc, SinkExt, StreamExt};
 use idp2p_common::id::Id;
 use idp2p_p2p::{
-    handler::{IdMessageHandler, IdMessageHandlerCommand},
-    verifier::IdVerifierImpl,
+    handler::{IdMessageHandler, IdMessageHandlerCommand}, model::IdEntryKind, verifier::IdVerifierImpl
 };
 use network::{IdNetworkCommand, IdNetworkEventLoop, IdRequestKind};
-use std::{fs, sync::Arc};
+use std::{collections::HashMap, fs, sync::Arc};
 use store::{InMemoryIdStore, InMemoryKvStore};
 use structopt::StructOpt;
 use tracing_subscriber::EnvFilter;
@@ -63,12 +62,16 @@ async fn main() -> anyhow::Result<()> {
         network_cmd_receiver,
         id_handler,
     )?;
+    let id_handler = IdMessageHandler::new(
+        id_store.clone(),
+        verifier.clone(),
+        handler_cmd_sender.clone(),
+    );
     let pid = utils::generate_actor(&comp_id, &peer)?;
+    id_handler.create_id(IdEntryKind::Owner, pid.clone(), HashMap::new()).await?;
     let user = UserState::new(&opt.name, &pid.id, &peer.to_string());
     store.set_current_user(&user).await.unwrap();
-    tokio::spawn(network.run());
-    
-   
+    tokio::spawn(network.run());   
     tokio::spawn({
         let mut network_cmd_sender_clone = network_cmd_sender.clone();
         

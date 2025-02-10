@@ -4,6 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+tracing = { workspace = true }
 libp2p = { workspace = true }
 thiserror = { workspace = true }
 regex = { workspace = true }

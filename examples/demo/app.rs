@@ -1,13 +1,14 @@
-use std::{error::Error, io, sync::Arc};
+use std::sync::Arc;
 
 use futures::{channel::mpsc, SinkExt, StreamExt};
 use idp2p_common::cbor;
 use idp2p_p2p::message::IdGossipMessageKind;
 use libp2p::gossipsub::IdentTopic;
 use tokio::io::AsyncBufReadExt;
+use tracing::info;
 
 use crate::{
-    network::{self, IdNetworkCommand, IdRequestKind},
+    network::{IdNetworkCommand, IdRequestKind},
     store::InMemoryKvStore,
 };
 
@@ -38,6 +39,8 @@ pub(crate) async fn run(
                 match split.next().unwrap() {
                     "connect" => {
                         let current_user = store.get_current_user().await.unwrap();
+                        let topic = IdentTopic::new(&current_user.id);
+                        network_cmd_sender.send(IdNetworkCommand::Subscribe(topic)).await.unwrap();
                         for peer in current_user.peers.iter() {
                             if !peer.1 {
                                 network_cmd_sender.send(IdNetworkCommand::SendRequest {
@@ -51,16 +54,16 @@ pub(crate) async fn run(
                         let current_user = store.get_current_user().await.unwrap();
                         for user in current_user.others.iter() {
                             if let Some(id) = user.id.clone() {
-                                 network_cmd_sender
+                                let topic = IdentTopic::new(&id);
+                                network_cmd_sender.send(IdNetworkCommand::Subscribe(topic)).await.unwrap();
+                                network_cmd_sender
                                     .send(IdNetworkCommand::Publish {
                                         topic: IdentTopic::new(&id).hash(),
-                                        payload: cbor::encode(&IdGossipMessageKind::Resolve),
+                                        payload: IdGossipMessageKind::Resolve,
                                     })
                                     .await
                                     .unwrap();
                             }
-                               
-
                         }
                     }
                     "info" => {

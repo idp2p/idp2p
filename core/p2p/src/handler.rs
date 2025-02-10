@@ -1,13 +1,21 @@
 use futures::{channel::mpsc::Sender, SinkExt};
-use idp2p_common::{cbor, id::Id};
+use idp2p_common::cbor;
+use tracing::info;
 
-use libp2p::{gossipsub::TopicHash, PeerId};
-use std::{str::FromStr, sync::Arc};
+use libp2p::{
+    gossipsub::{IdentTopic, TopicHash},
+    PeerId,
+};
+use std::{collections::HashMap, str::FromStr, sync::Arc};
 
 use crate::{
     error::HandleError,
-    message::{IdGossipMessageKind, IdMessageHandlerRequestKind, IdMessageHandlerResponseKind, IdMessageNotifyKind},
+    message::{
+        IdGossipMessageKind, IdMessageHandlerRequestKind, IdMessageHandlerResponseKind,
+        IdMessageNotifyKind,
+    },
     model::{IdEntry, IdEntryKind, IdMessage, IdStore, IdVerifier},
+    PersistedIdEvent, PersistedIdInception,
 };
 
 pub struct IdMessageHandler<S: IdStore, V: IdVerifier> {
@@ -19,7 +27,7 @@ pub struct IdMessageHandler<S: IdStore, V: IdVerifier> {
 pub enum IdMessageHandlerCommand {
     Publish {
         topic: TopicHash,
-        payload: Vec<u8>,
+        payload: IdGossipMessageKind,
     },
     Request {
         peer: PeerId,
@@ -40,73 +48,73 @@ impl<S: IdStore, V: IdVerifier> IdMessageHandler<S, V> {
         &mut self,
         topic: &TopicHash,
         payload: &[u8],
+        providers: Vec<String>
     ) -> Result<Option<Vec<u8>>, HandleError> {
         use IdGossipMessageKind::*;
-        let id = Id::from_str(topic.as_str())?;
-        if id.kind == "id" {
-            let mut id_entry: IdEntry = self
-                .store
-                .get_id(topic.as_str())
-                .await?
-                .ok_or(HandleError::IdNotFound(topic.to_string()))?;
-            let payload = cbor::decode(payload)?;
-            match payload {
-                Resolve => {
-                    if id_entry.kind != IdEntryKind::Following {
-                        let cmd = IdMessageHandlerCommand::Publish {
-                            topic: topic.to_owned(),
-                            payload: cbor::encode(&id_entry),
-                        };
-                        self.sender.send(cmd).await.expect("Error sending message");
-                    }
+        let mut id_entry: IdEntry = self
+            .store
+            .get_id(topic.as_str())
+            .await?
+            .ok_or(HandleError::IdNotFound(topic.to_string()))?;
+        let payload = cbor::decode(payload)?;
+        info!("Received gossip message: {topic}");
 
-                    return Ok(None);
-                }
-                NotifyEvent(event) => {
-                    if id_entry.projection.event_id != event.id {
-                        let projection = self
-                            .verifier
-                            .verify_event(&id_entry.projection, &event)
-                            .await?;
-                        id_entry.projection = projection;
-                        self.store.set_id(topic.as_str(), &id_entry).await?;
-                    }
-
-                    return Ok(None);
-                }
-                NotifyMessage {
-                    id,
-                    providers,
-                    kind,
-                } => {
-                    match kind {
-                        IdMessageNotifyKind::ProvideId => {
-
+        match payload {
+            Resolve => {
+                if id_entry.kind != IdEntryKind::Following {
+                    let cmd = IdMessageHandlerCommand::Publish {
+                        topic: topic.to_owned(),
+                        payload: IdGossipMessageKind::NotifyMessage {
+                            id: id_entry.inception.id.to_string(),
+                            providers: providers,
+                            kind: IdMessageNotifyKind::ProvideId,
                         },
-                        IdMessageNotifyKind::SendMessage => {
-                            if id_entry.kind != IdEntryKind::Following {
-                                let payload = IdMessageHandlerRequestKind::MessageRequest {
-                                    id: id_entry.inception.id.to_string(),
-                                    message_id: id.to_string(),
-                                };
-                                let cmd = IdMessageHandlerCommand::Request {
-                                    peer: PeerId::from_str(&providers.get(0).unwrap()).unwrap(),
-                                    payload,
-                                };
-                                self.sender.send(cmd).await.expect(" Error sending message");
-                            }
-                        },
-                        _=> {}
                     };
+                    self.sender.send(cmd).await.expect("Error sending message");
+                }
 
-                    return Ok(None);
-                }
-                Other(payload) => {
-                    return Ok(Some(payload));
-                }
+                return Ok(None);
             }
-        } else {
-            return Err(HandleError::IdNotFound(topic.to_string()));
+            NotifyEvent(event) => {
+                if id_entry.projection.event_id != event.id {
+                    let projection = self
+                        .verifier
+                        .verify_event(&id_entry.projection, &event)
+                        .await?;
+                    id_entry.projection = projection;
+                    self.store.set_id(topic.as_str(), &id_entry).await?;
+                }
+
+                return Ok(None);
+            }
+            NotifyMessage {
+                id,
+                providers,
+                kind,
+            } => {
+                match kind {
+                    IdMessageNotifyKind::ProvideId => {}
+                    IdMessageNotifyKind::SendMessage => {
+                        if id_entry.kind != IdEntryKind::Following {
+                            let payload = IdMessageHandlerRequestKind::MessageRequest {
+                                id: id_entry.inception.id.to_string(),
+                                message_id: id.to_string(),
+                            };
+                            let cmd = IdMessageHandlerCommand::Request {
+                                peer: PeerId::from_str(&providers.get(0).unwrap()).unwrap(),
+                                payload,
+                            };
+                            self.sender.send(cmd).await.expect(" Error sending message");
+                        }
+                    }
+                    _ => {}
+                };
+
+                return Ok(None);
+            }
+            Other(payload) => {
+                return Ok(Some(payload));
+            }
         }
     }
 
@@ -169,20 +177,32 @@ impl<S: IdStore, V: IdVerifier> IdMessageHandler<S, V> {
                 self.store.set_msg(message_id, &msg).await?;
             }
             IdMessageHandlerResponseKind::IdResponse { inception, events } => {
-                let mut id_projection = self.verifier.verify_inception(&inception).await?;
-                for (_, event) in events.clone() {
-                    id_projection = self.verifier.verify_event(&id_projection, &event).await?;
-                }
-                let id = inception.id.clone();
-                let entry = IdEntry {
-                    kind: IdEntryKind::Following,
-                    projection: id_projection,
-                    inception: inception,
-                    events: events,
-                };
-                self.store.set_id(&id, &entry).await?;
+                self.create_id(IdEntryKind::Following, inception, events)
+                    .await?;
             }
         }
+        Ok(())
+    }
+
+    pub async fn create_id(
+        &self,
+        kind: IdEntryKind,
+        inception: PersistedIdInception,
+        events: HashMap<String, PersistedIdEvent>,
+    ) -> Result<(), HandleError> {
+        let mut id_projection = self.verifier.verify_inception(&inception).await?;
+        for (_, event) in events.clone() {
+            id_projection = self.verifier.verify_event(&id_projection, &event).await?;
+        }
+        let id = inception.id.clone();
+        let entry = IdEntry {
+            kind: kind,
+            projection: id_projection,
+            inception: inception,
+            events: events,
+        };
+        let p2p_id = IdentTopic::new(id).hash().to_string();
+        self.store.set_id(&p2p_id, &entry).await?;
         Ok(())
     }
 }
