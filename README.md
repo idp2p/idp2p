@@ -5,15 +5,15 @@
 A self-describing identity protocol on top of libp2p. 
 
 
-## FAQ
+## Messages
 
-**Question:** Why idp2p?
+- Alice sends a message to Bob
+- Alice broadcasts a message to all subscribers
 
-**Answer:** Idp2p is .
 
-**Question:** Is idp2p a DIDs method?
+- Direct message(Alice -> Bob)
+- Broadcast(Alice -> All)
 
-**Answer:** How idp2p try to solve privacy?
 
 
 [See idp2p spec and demo](https://idp2p.github.io)

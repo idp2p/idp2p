@@ -10,10 +10,7 @@ use std::{collections::HashMap, str::FromStr, sync::Arc};
 
 use crate::{
     error::HandleError,
-    message::{
-        IdGossipMessageKind, IdMessageHandlerRequestKind, IdMessageHandlerResponseKind,
-        IdMessageNotifyKind,
-    },
+    message::{IdGossipMessageKind, IdMessageHandlerRequestKind, IdMessageHandlerResponseKind, IdMessageKind},
     model::{IdEntry, IdEntryKind, IdMessage, IdStore, IdVerifier},
     PersistedIdEvent, PersistedIdInception,
 };
@@ -48,44 +45,47 @@ impl<S: IdStore, V: IdVerifier> IdMessageHandler<S, V> {
         &mut self,
         topic: &TopicHash,
         payload: &[u8],
-        providers: Vec<String>
+        providers: Vec<String>,
     ) -> Result<Option<Vec<u8>>, HandleError> {
         use IdGossipMessageKind::*;
-        let mut id_entry: IdEntry = self
-            .store
-            .get_id(topic.as_str())
-            .await?
-            .ok_or(HandleError::IdNotFound(topic.to_string()))?;
+        let id_entry: Option<IdEntry> = self.store.get_id(topic.as_str()).await?;
         let payload = cbor::decode(payload)?;
         info!("Received gossip message: {topic}");
 
         match payload {
             Resolve => {
-                if id_entry.kind != IdEntryKind::Following {
-                    let cmd = IdMessageHandlerCommand::Publish {
-                        topic: topic.to_owned(),
-                        payload: IdGossipMessageKind::NotifyMessage {
-                            id: id_entry.inception.id.to_string(),
-                            providers: providers,
-                            kind: IdMessageNotifyKind::ProvideId,
-                        },
-                    };
-                    self.sender.send(cmd).await.expect("Error sending message");
+                if let Some(id_entry) = id_entry {
+                    if id_entry.kind != IdEntryKind::Following {
+                        let cmd = IdMessageHandlerCommand::Publish {
+                            topic: topic.to_owned(),
+                            payload: IdGossipMessageKind::Provide(providers),
+                        };
+                        self.sender.send(cmd).await.expect("Error sending message");
+                    }
                 }
-
-                return Ok(None);
+            }
+            Provide(providers) => {
+                if let Some(id_entry) = id_entry {
+                    let payload =
+                        IdMessageHandlerRequestKind::IdRequest(id_entry.inception.id.clone());
+                    let cmd = IdMessageHandlerCommand::Request {
+                        peer: PeerId::from_str(&providers.get(0).unwrap()).unwrap(),
+                        payload,
+                    };
+                    self.sender.send(cmd).await.expect(" Error sending message");
+                }
             }
             NotifyEvent(event) => {
-                if id_entry.projection.event_id != event.id {
-                    let projection = self
-                        .verifier
-                        .verify_event(&id_entry.projection, &event)
-                        .await?;
-                    id_entry.projection = projection;
-                    self.store.set_id(topic.as_str(), &id_entry).await?;
+                if let Some(mut id_entry) = id_entry {
+                    if id_entry.projection.event_id != event.id {
+                        let projection = self
+                            .verifier
+                            .verify_event(&id_entry.projection, &event)
+                            .await?;
+                        id_entry.projection = projection;
+                        self.store.set_id(topic.as_str(), &id_entry).await?;
+                    }
                 }
-
-                return Ok(None);
             }
             NotifyMessage {
                 id,
@@ -93,29 +93,29 @@ impl<S: IdStore, V: IdVerifier> IdMessageHandler<S, V> {
                 kind,
             } => {
                 match kind {
-                    IdMessageNotifyKind::ProvideId => {}
-                    IdMessageNotifyKind::SendMessage => {
-                        if id_entry.kind != IdEntryKind::Following {
-                            let payload = IdMessageHandlerRequestKind::MessageRequest {
-                                id: id_entry.inception.id.to_string(),
-                                message_id: id.to_string(),
-                            };
-                            let cmd = IdMessageHandlerCommand::Request {
-                                peer: PeerId::from_str(&providers.get(0).unwrap()).unwrap(),
-                                payload,
-                            };
-                            self.sender.send(cmd).await.expect(" Error sending message");
+                    IdMessageKind::Direct => {
+                        if let Some(id_entry) = id_entry {
+                            if id_entry.kind != IdEntryKind::Following {
+                                let payload = IdMessageHandlerRequestKind::MessageRequest {
+                                    id: id_entry.inception.id.to_string(),
+                                    message_id: id.to_string(),
+                                };
+                                let cmd = IdMessageHandlerCommand::Request {
+                                    peer: PeerId::from_str(&providers.get(0).unwrap()).unwrap(),
+                                    payload,
+                                };
+                                self.sender.send(cmd).await.expect(" Error sending message");
+                            }
                         }
                     }
                     _ => {}
                 };
-
-                return Ok(None);
             }
             Other(payload) => {
                 return Ok(Some(payload));
             }
         }
+        Ok(None)
     }
 
     pub async fn handle_request_message(
