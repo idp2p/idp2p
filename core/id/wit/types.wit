@@ -1,6 +1,9 @@
 interface types {
+    /// A signer in the identity microledger
     record id-signer {
+        /// Identifier of the signer e.g. "signer",
         id: string,
+        /// Public key bytes of the signer,
         public-key: list<u8>,
     }
 
@@ -9,16 +12,12 @@ interface types {
         bytes(list<u8>),
     }
 
+    /// A claim in the identity microledger
     record id-claim {
-        id: string,
+        /// Key of the claim e.g. "name", 
+        key: string,
+        /// Value of the claim encoded based on key type
         value: id-claim-value-kind,
-        valid-from: option<s64>,
-        valid-until: option<s64>,
-    } 
-
-    variant id-claim-event-kind {
-        added(id-claim),
-        removed(string),
     }
 
     record id-inception {        
@@ -38,7 +37,7 @@ interface types {
 
     variant id-event-kind {
         // Should be signed with current keys
-        interaction(list<id-claim-event-kind>),
+        interaction(list<id-claim>),
         // Should be signed with next keys
         rotation(id-rotation),
         // Should be signed with next keys

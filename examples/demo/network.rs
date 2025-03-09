@@ -118,14 +118,28 @@ impl<S: IdStore, V: IdVerifier> IdNetworkEventLoop<S, V> {
                     .send_request(&peer, req);
             }
             Publish { topic, payload } => {
-                info!("Publishing message: {topic}", topic = topic.as_str());
+                info!(
+                    "Publishing message: {topic}, payload: {payload:?}",
+                    topic = topic.as_str()
+                );
+                /*let mesh_peers = self.swarm.behaviour_mut().gossipsub.mesh_peers(&topic);
+                for mpeer in mesh_peers {
+                    info!("Mesh peer: {}", mpeer);
+                }*/
+
                 let ident_topic = IdentTopic::new(topic.as_str());
-                self.swarm.behaviour_mut().gossipsub.subscribe(&ident_topic)?;
+                self.swarm
+                    .behaviour_mut()
+                    .gossipsub
+                    .subscribe(&ident_topic)?;
                 let data = cbor::encode(&payload);
                 self.swarm.behaviour_mut().gossipsub.publish(topic, data)?;
             }
             Subscribe(topic) => {
-                info!("Subscribing to topic: {topic}", topic = topic.hash().as_str());
+                info!(
+                    "Subscribing to topic: {topic}",
+                    topic = topic.hash().as_str()
+                );
                 self.swarm.behaviour_mut().gossipsub.subscribe(&topic)?;
             }
         }
@@ -196,6 +210,7 @@ impl<S: IdStore, V: IdVerifier> IdNetworkEventLoop<S, V> {
                 },
                 request_response::Message::Response { response, .. } => match response {
                     IdResponseKind::Message(msg) => {
+                        info!("Got message: {msg:?}");
                         //self.id_handler.handle_response_message(from, message_id, payload)
                         /*self.event_sender
                         .send(IdAppInEvent::GotMessage(msg))
@@ -203,10 +218,6 @@ impl<S: IdStore, V: IdVerifier> IdNetworkEventLoop<S, V> {
                     }
                     IdResponseKind::MeetResult { username, id } => {
                         current_user.set_other_id(&username, &id, &peer);
-                        /*self.swarm
-                        .behaviour_mut()
-                        .gossipsub
-                        .subscribe(&IdentTopic::new(id.as_str()))?;*/
                         let msg = format!("Connected to {} as {}", peer.to_string(), username);
 
                         self.event_sender
@@ -267,7 +278,9 @@ impl<S: IdStore, V: IdVerifier> IdNetworkEventLoop<S, V> {
                         .remove_explicit_peer(&peer_id);
                 }
             }
-            _ => {}
+            other => {
+                println!("Swarm event: {other:?}");
+            }
         }
         self.store.set_current_user(&current_user).await.unwrap();
 

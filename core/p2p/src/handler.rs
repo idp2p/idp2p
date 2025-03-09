@@ -65,9 +65,9 @@ impl<S: IdStore, V: IdVerifier> IdMessageHandler<S, V> {
                 }
             }
             Provide(providers) => {
-                if let Some(id_entry) = id_entry {
+                if id_entry.is_none() {
                     let payload =
-                        IdMessageHandlerRequestKind::IdRequest(id_entry.inception.id.clone());
+                        IdMessageHandlerRequestKind::IdRequest(topic.to_string());
                     let cmd = IdMessageHandlerCommand::Request {
                         peer: PeerId::from_str(&providers.get(0).unwrap()).unwrap(),
                         payload,
@@ -177,6 +177,10 @@ impl<S: IdStore, V: IdVerifier> IdMessageHandler<S, V> {
                 self.store.set_msg(message_id, &msg).await?;
             }
             IdMessageHandlerResponseKind::IdResponse { inception, events } => {
+                info!(
+                    "Creating id: {}",
+                    inception.id
+                );
                 self.create_id(IdEntryKind::Following, inception, events)
                     .await?;
             }

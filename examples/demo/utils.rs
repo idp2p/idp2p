@@ -21,10 +21,8 @@ fn create_signer() -> IdSigner {
 
 pub fn generate_actor(version: &str, peer: &PeerId) -> Result<PersistedIdInception> {
     let peer_claim = IdClaim {
-        id: format!("/idp2p/peer/{}", peer.to_string()),
-        value: IdClaimValueKind::Text(peer.to_string()),
-        valid_from: None,
-        valid_until: None,
+        key: format!("/idp2p/peer/{}", peer.to_string()),
+        value: IdClaimValueKind::Text(peer.to_string())
     };
     let inception = IdInception {
         timestamp: 1735689600,

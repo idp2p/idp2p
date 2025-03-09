@@ -5,6 +5,12 @@ use serde::{Deserialize, Serialize};
 use crate::{PersistedIdEvent, PersistedIdInception};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum IdMessageKind {
+    Direct,
+    Broadcast,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum IdGossipMessageKind {
     // Resolve identity
     Resolve,
@@ -22,9 +28,9 @@ pub enum IdGossipMessageKind {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub enum IdMessageKind {
-    Direct,
-    Broadcast,
+pub struct IdGossipMessage{
+    pub id: String,
+    pub payload: IdGossipMessageKind
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

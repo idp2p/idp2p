@@ -1,10 +1,10 @@
-use std::sync::Arc;
+use std::{sync::Arc, time::Duration};
 
 use futures::{channel::mpsc, SinkExt, StreamExt};
 use idp2p_common::cbor;
-use idp2p_p2p::message::IdGossipMessageKind;
+use idp2p_p2p::{message::IdGossipMessageKind, model::IdEntry};
 use libp2p::gossipsub::IdentTopic;
-use tokio::io::AsyncBufReadExt;
+use tokio::{io::AsyncBufReadExt, time::sleep};
 use tracing::info;
 
 use crate::{
@@ -37,7 +37,7 @@ pub(crate) async fn run(
             Ok(Some(line)) = stdin.next_line() => {
                 let mut split = line.split_whitespace();
                 match split.next().unwrap() {
-                    "connect" => {
+                    "c" => {
                         let current_user = store.get_current_user().await.unwrap();
                         let topic = IdentTopic::new(&current_user.id);
                         network_cmd_sender.send(IdNetworkCommand::Subscribe(topic)).await.unwrap();
@@ -50,12 +50,14 @@ pub(crate) async fn run(
                             }
                         }
                     },
-                    "resolve" => {
+                    "r" => {
                         let current_user = store.get_current_user().await.unwrap();
                         for user in current_user.others.iter() {
                             if let Some(id) = user.id.clone() {
                                 let topic = IdentTopic::new(&id);
                                 network_cmd_sender.send(IdNetworkCommand::Subscribe(topic)).await.unwrap();
+                                sleep(Duration::from_secs(5)).await;
+
                                 network_cmd_sender
                                     .send(IdNetworkCommand::Publish {
                                         topic: IdentTopic::new(&id).hash(),
@@ -66,12 +68,23 @@ pub(crate) async fn run(
                             }
                         }
                     }
-                    "info" => {
+                    "i" => {
+                        let current_user = store.get_current_user().await.unwrap();
+                        for user in current_user.others.iter() {
+                            if let Some(id) = user.id.clone() {
+                                let did: IdEntry = store.get(&format!("/identities/{}", id)).await.unwrap().unwrap();
+                                println!("{}", serde_json::to_string_pretty(&did).unwrap());
+                            }
+                        }
+                        let current_user_str = serde_json::to_string_pretty(&current_user).unwrap();
+                        println!("{}", current_user_str);
+                    }
+                    "m" => {
                         let current_user = store.get_current_user().await.unwrap();
                         let current_user_str = serde_json::to_string_pretty(&current_user).unwrap();
                         println!("{}", current_user_str);
                     }
-                    "exit" => return Ok(()),
+                    "e" => return Ok(()),
                     _ => println!("Unknown command")
                 }
             }

@@ -2,18 +2,9 @@
 
 > `Experimental`, inspired by `ipfs`, `did:peer` and `keri`
 
-A self-describing identity protocol on top of libp2p. 
+⚠️ In Progress
 
-
-## Messages
-
-- Alice sends a message to Bob
-- Alice broadcasts a message to all subscribers
-
-
-- Direct message(Alice -> Bob)
-- Broadcast(Alice -> All)
-
+A decentralized identity protocol on top of keri and libp2p. 
 
 
 [See idp2p spec and demo](https://idp2p.github.io)
