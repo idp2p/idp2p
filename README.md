@@ -1,16 +1,27 @@
 # idp2p
 
-> `Experimental`, inspired by `ipfs`, `did:peer` and `keri`
+> `Experimental`, inspired by `ipfs` and `keri`
 
 ⚠️ In Progress
 
 A decentralized identity protocol on top of keri and libp2p. 
 
 
-[See idp2p spec and demo](https://idp2p.github.io)
+[See idp2p spec](https://idp2p.github.io)
 
 
 ## Getting Started 
+
+#### Generate peers and identities
+
+- ```cargo run --example demo -- -i alice```
+- ```cargo run --example demo -- -i bob```
+
+#### Commands
+
+- `c` - Connect to peers
+- `r` - Resolve identities
+- `s` - Send message
 
 
 ## Contributions
