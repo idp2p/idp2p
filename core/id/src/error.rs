@@ -1,17 +1,22 @@
-use idp2p_common::error::CommonError;
+use idp2p_common::{error::CommonError, identifier::IdentifierError};
 
-use crate::IdInceptionError;
+#[derive(Debug)]
+pub struct IdError(String);
 
-impl From<CommonError> for IdInceptionError {
+impl IdError {
+    pub fn new(e: &str) -> Self {
+        Self(e.to_string())
+    }
+}
+
+impl From<CommonError> for IdError {
     fn from(value: CommonError) -> Self {
-        match value {
-            CommonError::DecodeError(_) => todo!(),
-            CommonError::EncodeError => todo!(),
-            CommonError::InvalidPublicKey => todo!(),
-            CommonError::InvalidSignature => todo!(),
-            CommonError::SignatureVerifyError => todo!(),
-            CommonError::MultihashError(error) => todo!(),
-            CommonError::Other(error) => todo!(),
-        }
+        todo!()
+    }
+}
+
+impl From<IdentifierError> for IdError {
+    fn from(value: IdentifierError) -> Self {
+        todo!()
     }
 }

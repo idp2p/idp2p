@@ -6,10 +6,42 @@ use idp2p_common::{cbor, ed25519::verify, id::Id};
 use crate::{
     idp2p::id::{
         error::IdError,
-        types::{IdClaimEventKind, IdEvent, IdEventKind::*},
+        types::{ IdEvent, IdEventKind::*},
     },
     IdEventError, IdProjection, PersistedIdEvent, TIMESTAMP,
 };
+
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct IdRotation {
+    pub signers: Vec<IdSigner>,
+    pub next_threshold: u8,
+    pub next_signers: Vec<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub enum IdEventKind {
+    /// Should be signed with current keys
+    Interaction(Vec<IdClaim>),
+
+    /// Should be signed with next keys
+    Rotation(IdRotation),
+
+    /// Should be signed with next keys
+    Migration(String),
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct IdEvent {
+    /// Timestamp of event
+    pub timestamp: i64,
+
+    /// Previous event id
+    pub previous: String,
+
+    /// Event payload
+    pub payload: IdEventKind,
+}
 
 impl PersistedIdEvent {
     pub(crate) fn verify(
@@ -78,16 +110,7 @@ impl PersistedIdEvent {
 
                 // Process each claim
                 for claim in claims {
-                    match claim {
-                        IdClaimEventKind::Added(id_claim) => {
-                            // Add the claim to the projection
-                            projection.claims.push(id_claim);
-                        }
-                        IdClaimEventKind::Removed(id_claim_id) => {
-                            // Remove the claim from the projection
-                            projection.claims.retain(|c| c.id != id_claim_id);
-                        }
-                    }
+                    projection.claims.push(claim);
                 }
             }
             Rotation(id_rotation) => {
@@ -222,791 +245,791 @@ mod tests {
     use super::*;
 
     /*
-    #[test]
-    fn test_verify_successful_interaction() {
-        // Arrange
-        let mut projection = IdProjection::new(
-            "prev_event".to_string(),
-            1,
-            vec![Signer {
-                id: "signer1".to_string(),
-                public_key: vec![1, 2, 3],
-            }],
-        );
-
-        let proofs = vec![Proof {
-            id: "signer1".to_string(),
-            pk: vec![1, 2, 3],
-            sig: b"valid".to_vec(),
-        }];
-
-        let persisted_event = PersistedIdEvent {
-            id: "event2".to_string(),
-            payload: b"interaction".to_vec(),
-            previous: "prev_event".to_string(),
-            timestamp: TIMESTAMP + 100,
-            proofs,
-        };
-
-        // Act
-        let result = persisted_event.verify(&mut projection);
-
-        // Assert
-        assert!(result.is_ok());
-        let updated_projection = result.unwrap();
-        assert_eq!(updated_projection.event_id, "event2");
-        // Assuming the interaction adds a claim, verify the claim exists
-        // assert_eq!(updated_projection.claims.len(), 1);
-        // assert_eq!(updated_projection.claims[0].id, "claim1");
-    }
-
-    #[test]
-    fn test_verify_invalid_timestamp() {
-        // Arrange
-        let mut projection = IdProjection::new(
-            "prev_event".to_string(),
-            1,
-            vec![Signer {
-                id: "signer1".to_string(),
-                public_key: vec![1, 2, 3],
-            }],
-        );
-
-        let proofs = vec![Proof {
-            id: "signer1".to_string(),
-            pk: vec![1, 2, 3],
-            sig: b"valid".to_vec(),
-        }];
-
-        let persisted_event = PersistedIdEvent {
-            id: "event2".to_string(),
-            payload: b"interaction".to_vec(),
-            previous: "prev_event".to_string(),
-            timestamp: TIMESTAMP - 100, // Invalid timestamp
-            proofs,
-        };
-
-        // Act
-        let result = persisted_event.verify(&mut projection);
-
-        // Assert
-        assert_eq!(result, Err(IdEventError::InvalidTimestamp));
-    }
-
-    #[test]
-    fn test_verify_previous_event_mismatch() {
-        // Arrange
-        let mut projection = IdProjection::new(
-            "prev_event".to_string(),
-            1,
-            vec![Signer {
-                id: "signer1".to_string(),
-                public_key: vec![1, 2, 3],
-            }],
-        );
-
-        let proofs = vec![Proof {
-            id: "signer1".to_string(),
-            pk: vec![1, 2, 3],
-            sig: b"valid".to_vec(),
-        }];
-
-        let persisted_event = PersistedIdEvent {
-            id: "event2".to_string(),
-            payload: b"interaction".to_vec(),
-            previous: "wrong_prev".to_string(), // Mismatch
-            timestamp: TIMESTAMP + 100,
-            proofs,
-        };
-
-        // Act
-        let result = persisted_event.verify(&mut projection);
-
-        // Assert
-        assert_eq!(result, Err(IdEventError::PreviousNotMatch));
-    }
-
-    #[test]
-    fn test_verify_invalid_proof_id() {
-        // Arrange
-        let mut projection = IdProjection::new(
-            "prev_event".to_string(),
-            1,
-            vec![Signer {
-                id: "signer1".to_string(),
-                public_key: vec![1, 2, 3],
-            }],
-        );
-
-        let proofs = vec![Proof {
-            id: "".to_string(), // Invalid ID
-            pk: vec![1, 2, 3],
-            sig: b"valid".to_vec(),
-        }];
-
-        let persisted_event = PersistedIdEvent {
-            id: "event2".to_string(),
-            payload: b"interaction".to_vec(),
-            previous: "prev_event".to_string(),
-            timestamp: TIMESTAMP + 100,
-            proofs,
-        };
-
-        // Act
-        let result = persisted_event.verify(&mut projection);
-
-        // Assert
-        assert_eq!(
-            result,
-            Err(IdEventError::InvalidProof(IdError {
-                id: "".to_string(),
-                reason: "Empty ID".to_string(),
-            }))
-        );
-    }
-
-    #[test]
-    fn test_verify_invalid_proof_pk() {
-        // Arrange
-        let mut projection = IdProjection::new(
-            "prev_event".to_string(),
-            1,
-            vec![Signer {
-                id: "signer1".to_string(),
-                public_key: vec![1, 2, 3],
-            }],
-        );
-
-        let proofs = vec![Proof {
-            id: "signer1".to_string(),
-            pk: vec![], // Invalid PK
-            sig: b"valid".to_vec(),
-        }];
-
-        let persisted_event = PersistedIdEvent {
-            id: "event2".to_string(),
-            payload: b"interaction".to_vec(),
-            previous: "prev_event".to_string(),
-            timestamp: TIMESTAMP + 100,
-            proofs,
-        };
-
-        // Act
-        let result = persisted_event.verify(&mut projection);
-
-        // Assert
-        assert_eq!(
-            result,
-            Err(IdEventError::InvalidProof(IdError {
-                id: "signer1".to_string(),
-                reason: "Invalid kind".to_string(),
-            }))
-        );
-    }
-
-    #[test]
-    fn test_verify_duplicate_proofs() {
-        // Arrange
-        let mut projection = IdProjection::new(
-            "prev_event".to_string(),
-            2,
-            vec![
-                Signer {
+        #[test]
+        fn test_verify_successful_interaction() {
+            // Arrange
+            let mut projection = IdProjection::new(
+                "prev_event".to_string(),
+                1,
+                vec![Signer {
                     id: "signer1".to_string(),
                     public_key: vec![1, 2, 3],
-                },
-                Signer {
-                    id: "signer2".to_string(),
-                    public_key: vec![4, 5, 6],
-                },
-            ],
-        );
+                }],
+            );
 
-        let proofs = vec![
-            Proof {
+            let proofs = vec![Proof {
                 id: "signer1".to_string(),
                 pk: vec![1, 2, 3],
                 sig: b"valid".to_vec(),
-            },
-            Proof {
-                id: "signer1".to_string(), // Duplicate
+            }];
+
+            let persisted_event = PersistedIdEvent {
+                id: "event2".to_string(),
+                payload: b"interaction".to_vec(),
+                previous: "prev_event".to_string(),
+                timestamp: TIMESTAMP + 100,
+                proofs,
+            };
+
+            // Act
+            let result = persisted_event.verify(&mut projection);
+
+            // Assert
+            assert!(result.is_ok());
+            let updated_projection = result.unwrap();
+            assert_eq!(updated_projection.event_id, "event2");
+            // Assuming the interaction adds a claim, verify the claim exists
+            // assert_eq!(updated_projection.claims.len(), 1);
+            // assert_eq!(updated_projection.claims[0].id, "claim1");
+        }
+
+        #[test]
+        fn test_verify_invalid_timestamp() {
+            // Arrange
+            let mut projection = IdProjection::new(
+                "prev_event".to_string(),
+                1,
+                vec![Signer {
+                    id: "signer1".to_string(),
+                    public_key: vec![1, 2, 3],
+                }],
+            );
+
+            let proofs = vec![Proof {
+                id: "signer1".to_string(),
                 pk: vec![1, 2, 3],
                 sig: b"valid".to_vec(),
-            },
-        ];
+            }];
 
-        let persisted_event = PersistedIdEvent {
-            id: "event2".to_string(),
-            payload: b"interaction".to_vec(),
-            previous: "prev_event".to_string(),
-            timestamp: TIMESTAMP + 100,
-            proofs,
-        };
+            let persisted_event = PersistedIdEvent {
+                id: "event2".to_string(),
+                payload: b"interaction".to_vec(),
+                previous: "prev_event".to_string(),
+                timestamp: TIMESTAMP - 100, // Invalid timestamp
+                proofs,
+            };
 
-        // Act
-        let result = persisted_event.verify(&mut projection);
+            // Act
+            let result = persisted_event.verify(&mut projection);
 
-        // Assert
-        assert_eq!(
-            result,
-            Err(IdEventError::InvalidProof(IdError {
-                id: "signer1".to_string(),
-                reason: "duplicate-proof".to_string(),
-            }))
-        );
-    }
+            // Assert
+            assert_eq!(result, Err(IdEventError::InvalidTimestamp));
+        }
 
-    #[test]
-    fn test_verify_invalid_signature() {
-        // Arrange
-        let mut projection = IdProjection::new(
-            "prev_event".to_string(),
-            1,
-            vec![Signer {
-                id: "signer1".to_string(),
-                public_key: vec![1, 2, 3],
-            }],
-        );
-
-        let proofs = vec![Proof {
-            id: "signer1".to_string(),
-            pk: vec![1, 2, 3],
-            sig: b"invalid".to_vec(), // Invalid signature
-        }];
-
-        let persisted_event = PersistedIdEvent {
-            id: "event2".to_string(),
-            payload: b"interaction".to_vec(),
-            previous: "prev_event".to_string(),
-            timestamp: TIMESTAMP + 100,
-            proofs,
-        };
-
-        // Act
-        let result = persisted_event.verify(&mut projection);
-
-        // Assert
-        assert_eq!(
-            result,
-            Err(IdEventError::InvalidProof(IdError {
-                id: "signer1".to_string(),
-                reason: "Invalid signature".to_string(),
-            }))
-        );
-    }
-
-    #[test]
-    fn test_verify_insufficient_proofs() {
-        // Arrange
-        let mut projection = IdProjection::new(
-            "prev_event".to_string(),
-            2,
-            vec![
-                Signer {
+        #[test]
+        fn test_verify_previous_event_mismatch() {
+            // Arrange
+            let mut projection = IdProjection::new(
+                "prev_event".to_string(),
+                1,
+                vec![Signer {
                     id: "signer1".to_string(),
                     public_key: vec![1, 2, 3],
-                },
-                Signer {
-                    id: "signer2".to_string(),
-                    public_key: vec![4, 5, 6],
-                },
-            ],
-        );
+                }],
+            );
 
-        let proofs = vec![Proof {
-            id: "signer1".to_string(),
-            pk: vec![1, 2, 3],
-            sig: b"valid".to_vec(),
-        }];
-
-        let persisted_event = PersistedIdEvent {
-            id: "event2".to_string(),
-            payload: b"interaction".to_vec(),
-            previous: "prev_event".to_string(),
-            timestamp: TIMESTAMP + 100,
-            proofs,
-        };
-
-        // Act
-        let result = persisted_event.verify(&mut projection);
-
-        // Assert
-        assert_eq!(result, Err(IdEventError::LackOfMinProofs));
-    }
-
-    #[test]
-    fn test_verify_signer_not_found() {
-        // Arrange
-        let mut projection = IdProjection::new(
-            "prev_event".to_string(),
-            1,
-            vec![Signer {
+            let proofs = vec![Proof {
                 id: "signer1".to_string(),
-                public_key: vec![1, 2, 3],
-            }],
-        );
+                pk: vec![1, 2, 3],
+                sig: b"valid".to_vec(),
+            }];
 
-        let proofs = vec![Proof {
-            id: "unknown_signer".to_string(), // Not in projection.signers
-            pk: vec![7, 8, 9],
-            sig: b"valid".to_vec(),
-        }];
+            let persisted_event = PersistedIdEvent {
+                id: "event2".to_string(),
+                payload: b"interaction".to_vec(),
+                previous: "wrong_prev".to_string(), // Mismatch
+                timestamp: TIMESTAMP + 100,
+                proofs,
+            };
 
-        let persisted_event = PersistedIdEvent {
-            id: "event2".to_string(),
-            payload: b"interaction".to_vec(),
-            previous: "prev_event".to_string(),
-            timestamp: TIMESTAMP + 100,
-            proofs,
-        };
+            // Act
+            let result = persisted_event.verify(&mut projection);
 
-        // Act
-        let result = persisted_event.verify(&mut projection);
+            // Assert
+            assert_eq!(result, Err(IdEventError::PreviousNotMatch));
+        }
 
-        // Assert
-        assert_eq!(
-            result,
-            Err(IdEventError::InvalidProof(IdError {
-                id: "unknown_signer".to_string(),
-                reason: "signer-not-found".to_string(),
-            }))
-        );
-    }
-
-    #[test]
-    fn test_verify_interaction_add_and_remove_claims() {
-        // Arrange
-        let mut projection = IdProjection::new(
-            "prev_event".to_string(),
-            1,
-            vec![Signer {
-                id: "signer1".to_string(),
-                public_key: vec![1, 2, 3],
-            }],
-        );
-
-        // Initially, no claims
-        assert_eq!(projection.claims.len(), 0);
-
-        // First, add a claim
-        let add_proofs = vec![Proof {
-            id: "signer1".to_string(),
-            pk: vec![1, 2, 3],
-            sig: b"valid".to_vec(),
-        }];
-
-        let add_persisted_event = PersistedIdEvent {
-            id: "event_add_claim".to_string(),
-            payload: b"interaction".to_vec(),
-            previous: "prev_event".to_string(),
-            timestamp: TIMESTAMP + 100,
-            proofs: add_proofs,
-        };
-
-        // Act
-        let result_add = add_persisted_event.verify(&mut projection);
-
-        // Assert
-        assert!(result_add.is_ok());
-        let updated_projection = result_add.unwrap();
-        assert_eq!(updated_projection.event_id, "event_add_claim");
-        // Since claims are empty in the payload, no claims should be added
-        assert_eq!(updated_projection.claims.len(), 0);
-
-        // Now, remove the claim (though no claims exist, this is to test retention)
-        let remove_proofs = vec![Proof {
-            id: "signer1".to_string(),
-            pk: vec![1, 2, 3],
-            sig: b"valid".to_vec(),
-        }];
-
-        let remove_persisted_event = PersistedIdEvent {
-            id: "event_remove_claim".to_string(),
-            payload: b"interaction".to_vec(),
-            previous: "event_add_claim".to_string(),
-            timestamp: TIMESTAMP + 200,
-            proofs: remove_proofs,
-        };
-
-        // Act
-        let result_remove = remove_persisted_event.verify(&mut projection);
-
-        // Assert
-        assert!(result_remove.is_ok());
-        let updated_projection = result_remove.unwrap();
-        assert_eq!(updated_projection.event_id, "event_remove_claim");
-        // No claims to remove, so claims should remain the same
-        assert_eq!(updated_projection.claims.len(), 0);
-    }
-
-    #[test]
-    fn test_verify_rotation_success() {
-        // Arrange
-        let mut projection = IdProjection::new(
-            "prev_event".to_string(),
-            1,
-            vec![
-                Signer {
+        #[test]
+        fn test_verify_invalid_proof_id() {
+            // Arrange
+            let mut projection = IdProjection::new(
+                "prev_event".to_string(),
+                1,
+                vec![Signer {
                     id: "signer1".to_string(),
                     public_key: vec![1, 2, 3],
-                },
-                Signer {
-                    id: "signer2".to_string(),
-                    public_key: vec![4, 5, 6],
-                },
-            ],
-        );
-        projection.next_signers = vec!["signer3".to_string()];
-        projection.threshold = 2;
+                }],
+            );
 
-        let proofs = vec![Proof {
-            id: "signer3".to_string(),
-            pk: vec![7, 8, 9],
-            sig: b"valid".to_vec(),
-        }];
+            let proofs = vec![Proof {
+                id: "".to_string(), // Invalid ID
+                pk: vec![1, 2, 3],
+                sig: b"valid".to_vec(),
+            }];
 
-        let rotation = IdRotation {
-            signers: vec![
-                Signer {
-                    id: "signer3".to_string(),
-                    public_key: vec![7, 8, 9],
-                },
-                Signer {
-                    id: "signer4".to_string(),
-                    public_key: vec![10, 11, 12],
-                },
-            ],
-            next_signers: vec!["signer5".to_string()],
-            next_threshold: 1,
-        };
+            let persisted_event = PersistedIdEvent {
+                id: "event2".to_string(),
+                payload: b"interaction".to_vec(),
+                previous: "prev_event".to_string(),
+                timestamp: TIMESTAMP + 100,
+                proofs,
+            };
 
-        let event = IdEvent {
-            id: "event_rotation".to_string(),
-            previous: "prev_event".to_string(),
-            timestamp: TIMESTAMP + 100,
-            payload: IdEventKind::Rotation(rotation),
-        };
+            // Act
+            let result = persisted_event.verify(&mut projection);
 
-        let persisted_event = PersistedIdEvent {
-            id: "event_rotation".to_string(),
-            payload: b"rotation".to_vec(),
-            previous: "prev_event".to_string(),
-            timestamp: TIMESTAMP + 100,
-            proofs,
-        };
+            // Assert
+            assert_eq!(
+                result,
+                Err(IdEventError::InvalidProof(IdError {
+                    id: "".to_string(),
+                    reason: "Empty ID".to_string(),
+                }))
+            );
+        }
 
-        // Act
-        let result = persisted_event.verify(&mut projection);
-
-        // Assert
-        assert!(result.is_ok());
-        let updated_projection = result.unwrap();
-        assert_eq!(updated_projection.event_id, "event_rotation");
-        assert_eq!(updated_projection.signers.len(), 2);
-        assert_eq!(updated_projection.signers[0].id, "signer3");
-        assert_eq!(updated_projection.signers[1].id, "signer4");
-        assert_eq!(updated_projection.next_signers.len(), 1);
-        assert_eq!(updated_projection.next_signers[0], "signer5");
-        assert_eq!(updated_projection.all_signers.len(), 5); // Original 2 + new 2 + next 1
-    }
-
-    #[test]
-    fn test_verify_rotation_insufficient_threshold() {
-        // Arrange
-        let mut projection = IdProjection::new(
-            "prev_event".to_string(),
-            3,
-            vec![
-                Signer {
+        #[test]
+        fn test_verify_invalid_proof_pk() {
+            // Arrange
+            let mut projection = IdProjection::new(
+                "prev_event".to_string(),
+                1,
+                vec![Signer {
                     id: "signer1".to_string(),
                     public_key: vec![1, 2, 3],
-                },
-                Signer {
-                    id: "signer2".to_string(),
-                    public_key: vec![4, 5, 6],
-                },
-                Signer {
-                    id: "signer3".to_string(),
-                    public_key: vec![7, 8, 9],
-                },
-            ],
-        );
-        projection.next_signers = vec!["signer4".to_string()];
-        projection.threshold = 3;
+                }],
+            );
 
-        let proofs = vec![Proof {
-            id: "signer4".to_string(),
-            pk: vec![10, 11, 12],
-            sig: b"valid".to_vec(),
-        }];
-
-        let rotation = IdRotation {
-            signers: vec![
-                Signer {
-                    id: "signer4".to_string(),
-                    public_key: vec![10, 11, 12],
-                },
-                Signer {
-                    id: "signer5".to_string(),
-                    public_key: vec![13, 14, 15],
-                },
-            ],
-            next_signers: vec!["signer6".to_string()],
-            next_threshold: 2, // Insufficient threshold
-        };
-
-        let persisted_event = PersistedIdEvent {
-            id: "event_rotation".to_string(),
-            payload: b"rotation".to_vec(),
-            previous: "prev_event".to_string(),
-            timestamp: TIMESTAMP + 100,
-            proofs,
-        };
-
-        // Act
-        let result = persisted_event.verify(&mut projection);
-
-        // Assert
-        assert_eq!(result, Err(IdEventError::ThresholdNotMatch));
-    }
-
-    #[test]
-    fn test_verify_rotation_duplicate_signers() {
-        // Arrange
-        let mut projection = IdProjection::new(
-            "prev_event".to_string(),
-            1,
-            vec![Signer {
+            let proofs = vec![Proof {
                 id: "signer1".to_string(),
-                public_key: vec![1, 2, 3],
-            }],
-        );
-        projection.next_signers = vec!["signer3".to_string()];
-        projection.threshold = 1;
+                pk: vec![], // Invalid PK
+                sig: b"valid".to_vec(),
+            }];
 
-        let proofs = vec![Proof {
-            id: "signer3".to_string(),
-            pk: vec![7, 8, 9],
-            sig: b"valid".to_vec(),
-        }];
+            let persisted_event = PersistedIdEvent {
+                id: "event2".to_string(),
+                payload: b"interaction".to_vec(),
+                previous: "prev_event".to_string(),
+                timestamp: TIMESTAMP + 100,
+                proofs,
+            };
 
-        let rotation = IdRotation {
-            signers: vec![
-                Signer {
-                    id: "signer3".to_string(),
-                    public_key: vec![7, 8, 9],
+            // Act
+            let result = persisted_event.verify(&mut projection);
+
+            // Assert
+            assert_eq!(
+                result,
+                Err(IdEventError::InvalidProof(IdError {
+                    id: "signer1".to_string(),
+                    reason: "Invalid kind".to_string(),
+                }))
+            );
+        }
+
+        #[test]
+        fn test_verify_duplicate_proofs() {
+            // Arrange
+            let mut projection = IdProjection::new(
+                "prev_event".to_string(),
+                2,
+                vec![
+                    Signer {
+                        id: "signer1".to_string(),
+                        public_key: vec![1, 2, 3],
+                    },
+                    Signer {
+                        id: "signer2".to_string(),
+                        public_key: vec![4, 5, 6],
+                    },
+                ],
+            );
+
+            let proofs = vec![
+                Proof {
+                    id: "signer1".to_string(),
+                    pk: vec![1, 2, 3],
+                    sig: b"valid".to_vec(),
                 },
-                Signer {
-                    id: "signer3".to_string(), // Duplicate
-                    public_key: vec![7, 8, 9],
+                Proof {
+                    id: "signer1".to_string(), // Duplicate
+                    pk: vec![1, 2, 3],
+                    sig: b"valid".to_vec(),
                 },
-            ],
-            next_signers: vec!["signer4".to_string()],
-            next_threshold: 1,
-        };
+            ];
 
-        let persisted_event = PersistedIdEvent {
-            id: "event_rotation".to_string(),
-            payload: b"rotation".to_vec(),
-            previous: "prev_event".to_string(),
-            timestamp: TIMESTAMP + 100,
-            proofs,
-        };
+            let persisted_event = PersistedIdEvent {
+                id: "event2".to_string(),
+                payload: b"interaction".to_vec(),
+                previous: "prev_event".to_string(),
+                timestamp: TIMESTAMP + 100,
+                proofs,
+            };
 
-        // Act
-        let result = persisted_event.verify(&mut projection);
+            // Act
+            let result = persisted_event.verify(&mut projection);
 
-        // Assert
-        assert_eq!(
-            result,
-            Err(IdEventError::InvalidSigner(IdError {
+            // Assert
+            assert_eq!(
+                result,
+                Err(IdEventError::InvalidProof(IdError {
+                    id: "signer1".to_string(),
+                    reason: "duplicate-proof".to_string(),
+                }))
+            );
+        }
+
+        #[test]
+        fn test_verify_invalid_signature() {
+            // Arrange
+            let mut projection = IdProjection::new(
+                "prev_event".to_string(),
+                1,
+                vec![Signer {
+                    id: "signer1".to_string(),
+                    public_key: vec![1, 2, 3],
+                }],
+            );
+
+            let proofs = vec![Proof {
+                id: "signer1".to_string(),
+                pk: vec![1, 2, 3],
+                sig: b"invalid".to_vec(), // Invalid signature
+            }];
+
+            let persisted_event = PersistedIdEvent {
+                id: "event2".to_string(),
+                payload: b"interaction".to_vec(),
+                previous: "prev_event".to_string(),
+                timestamp: TIMESTAMP + 100,
+                proofs,
+            };
+
+            // Act
+            let result = persisted_event.verify(&mut projection);
+
+            // Assert
+            assert_eq!(
+                result,
+                Err(IdEventError::InvalidProof(IdError {
+                    id: "signer1".to_string(),
+                    reason: "Invalid signature".to_string(),
+                }))
+            );
+        }
+
+        #[test]
+        fn test_verify_insufficient_proofs() {
+            // Arrange
+            let mut projection = IdProjection::new(
+                "prev_event".to_string(),
+                2,
+                vec![
+                    Signer {
+                        id: "signer1".to_string(),
+                        public_key: vec![1, 2, 3],
+                    },
+                    Signer {
+                        id: "signer2".to_string(),
+                        public_key: vec![4, 5, 6],
+                    },
+                ],
+            );
+
+            let proofs = vec![Proof {
+                id: "signer1".to_string(),
+                pk: vec![1, 2, 3],
+                sig: b"valid".to_vec(),
+            }];
+
+            let persisted_event = PersistedIdEvent {
+                id: "event2".to_string(),
+                payload: b"interaction".to_vec(),
+                previous: "prev_event".to_string(),
+                timestamp: TIMESTAMP + 100,
+                proofs,
+            };
+
+            // Act
+            let result = persisted_event.verify(&mut projection);
+
+            // Assert
+            assert_eq!(result, Err(IdEventError::LackOfMinProofs));
+        }
+
+        #[test]
+        fn test_verify_signer_not_found() {
+            // Arrange
+            let mut projection = IdProjection::new(
+                "prev_event".to_string(),
+                1,
+                vec![Signer {
+                    id: "signer1".to_string(),
+                    public_key: vec![1, 2, 3],
+                }],
+            );
+
+            let proofs = vec![Proof {
+                id: "unknown_signer".to_string(), // Not in projection.signers
+                pk: vec![7, 8, 9],
+                sig: b"valid".to_vec(),
+            }];
+
+            let persisted_event = PersistedIdEvent {
+                id: "event2".to_string(),
+                payload: b"interaction".to_vec(),
+                previous: "prev_event".to_string(),
+                timestamp: TIMESTAMP + 100,
+                proofs,
+            };
+
+            // Act
+            let result = persisted_event.verify(&mut projection);
+
+            // Assert
+            assert_eq!(
+                result,
+                Err(IdEventError::InvalidProof(IdError {
+                    id: "unknown_signer".to_string(),
+                    reason: "signer-not-found".to_string(),
+                }))
+            );
+        }
+
+        #[test]
+        fn test_verify_interaction_add_and_remove_claims() {
+            // Arrange
+            let mut projection = IdProjection::new(
+                "prev_event".to_string(),
+                1,
+                vec![Signer {
+                    id: "signer1".to_string(),
+                    public_key: vec![1, 2, 3],
+                }],
+            );
+
+            // Initially, no claims
+            assert_eq!(projection.claims.len(), 0);
+
+            // First, add a claim
+            let add_proofs = vec![Proof {
+                id: "signer1".to_string(),
+                pk: vec![1, 2, 3],
+                sig: b"valid".to_vec(),
+            }];
+
+            let add_persisted_event = PersistedIdEvent {
+                id: "event_add_claim".to_string(),
+                payload: b"interaction".to_vec(),
+                previous: "prev_event".to_string(),
+                timestamp: TIMESTAMP + 100,
+                proofs: add_proofs,
+            };
+
+            // Act
+            let result_add = add_persisted_event.verify(&mut projection);
+
+            // Assert
+            assert!(result_add.is_ok());
+            let updated_projection = result_add.unwrap();
+            assert_eq!(updated_projection.event_id, "event_add_claim");
+            // Since claims are empty in the payload, no claims should be added
+            assert_eq!(updated_projection.claims.len(), 0);
+
+            // Now, remove the claim (though no claims exist, this is to test retention)
+            let remove_proofs = vec![Proof {
+                id: "signer1".to_string(),
+                pk: vec![1, 2, 3],
+                sig: b"valid".to_vec(),
+            }];
+
+            let remove_persisted_event = PersistedIdEvent {
+                id: "event_remove_claim".to_string(),
+                payload: b"interaction".to_vec(),
+                previous: "event_add_claim".to_string(),
+                timestamp: TIMESTAMP + 200,
+                proofs: remove_proofs,
+            };
+
+            // Act
+            let result_remove = remove_persisted_event.verify(&mut projection);
+
+            // Assert
+            assert!(result_remove.is_ok());
+            let updated_projection = result_remove.unwrap();
+            assert_eq!(updated_projection.event_id, "event_remove_claim");
+            // No claims to remove, so claims should remain the same
+            assert_eq!(updated_projection.claims.len(), 0);
+        }
+
+        #[test]
+        fn test_verify_rotation_success() {
+            // Arrange
+            let mut projection = IdProjection::new(
+                "prev_event".to_string(),
+                1,
+                vec![
+                    Signer {
+                        id: "signer1".to_string(),
+                        public_key: vec![1, 2, 3],
+                    },
+                    Signer {
+                        id: "signer2".to_string(),
+                        public_key: vec![4, 5, 6],
+                    },
+                ],
+            );
+            projection.next_signers = vec!["signer3".to_string()];
+            projection.threshold = 2;
+
+            let proofs = vec![Proof {
                 id: "signer3".to_string(),
-                reason: "duplicate-signer".to_string(),
-            }))
-        );
-    }
+                pk: vec![7, 8, 9],
+                sig: b"valid".to_vec(),
+            }];
 
-    #[test]
-    fn test_verify_delegation_success() {
-        // Arrange
-        let mut projection = IdProjection::new(
-            "prev_event".to_string(),
-            1,
-            vec![Signer {
-                id: "signer1".to_string(),
-                public_key: vec![1, 2, 3],
-            }],
-        );
-        projection.next_signers = vec!["signer2".to_string()];
+            let rotation = IdRotation {
+                signers: vec![
+                    Signer {
+                        id: "signer3".to_string(),
+                        public_key: vec![7, 8, 9],
+                    },
+                    Signer {
+                        id: "signer4".to_string(),
+                        public_key: vec![10, 11, 12],
+                    },
+                ],
+                next_signers: vec!["signer5".to_string()],
+                next_threshold: 1,
+            };
 
-        let proofs = vec![Proof {
-            id: "signer2".to_string(),
-            pk: vec![4, 5, 6],
-            sig: b"valid".to_vec(),
-        }];
+            let event = IdEvent {
+                id: "event_rotation".to_string(),
+                previous: "prev_event".to_string(),
+                timestamp: TIMESTAMP + 100,
+                payload: IdEventKind::Rotation(rotation),
+            };
 
-        let persisted_event = PersistedIdEvent {
-            id: "event_delegation".to_string(),
-            payload: b"delegation".to_vec(),
-            previous: "prev_event".to_string(),
-            timestamp: TIMESTAMP + 100,
-            proofs,
-        };
+            let persisted_event = PersistedIdEvent {
+                id: "event_rotation".to_string(),
+                payload: b"rotation".to_vec(),
+                previous: "prev_event".to_string(),
+                timestamp: TIMESTAMP + 100,
+                proofs,
+            };
 
-        // Act
-        let result = persisted_event.verify(&mut projection);
+            // Act
+            let result = persisted_event.verify(&mut projection);
 
-        // Assert
-        assert!(result.is_ok());
-        let updated_projection = result.unwrap();
-        assert_eq!(updated_projection.event_id, "event_delegation");
-        assert_eq!(updated_projection.delegate_id, Some("new_id".to_string()));
-    }
+            // Assert
+            assert!(result.is_ok());
+            let updated_projection = result.unwrap();
+            assert_eq!(updated_projection.event_id, "event_rotation");
+            assert_eq!(updated_projection.signers.len(), 2);
+            assert_eq!(updated_projection.signers[0].id, "signer3");
+            assert_eq!(updated_projection.signers[1].id, "signer4");
+            assert_eq!(updated_projection.next_signers.len(), 1);
+            assert_eq!(updated_projection.next_signers[0], "signer5");
+            assert_eq!(updated_projection.all_signers.len(), 5); // Original 2 + new 2 + next 1
+        }
 
-    #[test]
-    fn test_verify_delegation_signer_not_authorized() {
-        // Arrange
-        let mut projection = IdProjection::new(
-            "prev_event".to_string(),
-            1,
-            vec![Signer {
-                id: "signer1".to_string(),
-                public_key: vec![1, 2, 3],
-            }],
-        );
-        projection.next_signers = vec!["signer2".to_string()];
+        #[test]
+        fn test_verify_rotation_insufficient_threshold() {
+            // Arrange
+            let mut projection = IdProjection::new(
+                "prev_event".to_string(),
+                3,
+                vec![
+                    Signer {
+                        id: "signer1".to_string(),
+                        public_key: vec![1, 2, 3],
+                    },
+                    Signer {
+                        id: "signer2".to_string(),
+                        public_key: vec![4, 5, 6],
+                    },
+                    Signer {
+                        id: "signer3".to_string(),
+                        public_key: vec![7, 8, 9],
+                    },
+                ],
+            );
+            projection.next_signers = vec!["signer4".to_string()];
+            projection.threshold = 3;
 
-        let proofs = vec![Proof {
-            id: "signer3".to_string(), // Not authorized
-            pk: vec![7, 8, 9],
-            sig: b"valid".to_vec(),
-        }];
+            let proofs = vec![Proof {
+                id: "signer4".to_string(),
+                pk: vec![10, 11, 12],
+                sig: b"valid".to_vec(),
+            }];
 
-        let persisted_event = PersistedIdEvent {
-            id: "event_delegation".to_string(),
-            payload: b"delegation".to_vec(),
-            previous: "prev_event".to_string(),
-            timestamp: TIMESTAMP + 100,
-            proofs,
-        };
+            let rotation = IdRotation {
+                signers: vec![
+                    Signer {
+                        id: "signer4".to_string(),
+                        public_key: vec![10, 11, 12],
+                    },
+                    Signer {
+                        id: "signer5".to_string(),
+                        public_key: vec![13, 14, 15],
+                    },
+                ],
+                next_signers: vec!["signer6".to_string()],
+                next_threshold: 2, // Insufficient threshold
+            };
 
-        // Act
-        let result = persisted_event.verify(&mut projection);
+            let persisted_event = PersistedIdEvent {
+                id: "event_rotation".to_string(),
+                payload: b"rotation".to_vec(),
+                previous: "prev_event".to_string(),
+                timestamp: TIMESTAMP + 100,
+                proofs,
+            };
 
-        // Assert
-        assert_eq!(
-            result,
-            Err(IdEventError::InvalidProof(IdError {
+            // Act
+            let result = persisted_event.verify(&mut projection);
+
+            // Assert
+            assert_eq!(result, Err(IdEventError::ThresholdNotMatch));
+        }
+
+        #[test]
+        fn test_verify_rotation_duplicate_signers() {
+            // Arrange
+            let mut projection = IdProjection::new(
+                "prev_event".to_string(),
+                1,
+                vec![Signer {
+                    id: "signer1".to_string(),
+                    public_key: vec![1, 2, 3],
+                }],
+            );
+            projection.next_signers = vec!["signer3".to_string()];
+            projection.threshold = 1;
+
+            let proofs = vec![Proof {
                 id: "signer3".to_string(),
-                reason: "signer-not-authorized".to_string(),
-            }))
-        );
-    }
+                pk: vec![7, 8, 9],
+                sig: b"valid".to_vec(),
+            }];
 
-    #[test]
-    fn test_verify_delegation_invalid_delegated_id() {
-        // Arrange
-        let mut projection = IdProjection::new(
-            "prev_event".to_string(),
-            1,
-            vec![Signer {
+            let rotation = IdRotation {
+                signers: vec![
+                    Signer {
+                        id: "signer3".to_string(),
+                        public_key: vec![7, 8, 9],
+                    },
+                    Signer {
+                        id: "signer3".to_string(), // Duplicate
+                        public_key: vec![7, 8, 9],
+                    },
+                ],
+                next_signers: vec!["signer4".to_string()],
+                next_threshold: 1,
+            };
+
+            let persisted_event = PersistedIdEvent {
+                id: "event_rotation".to_string(),
+                payload: b"rotation".to_vec(),
+                previous: "prev_event".to_string(),
+                timestamp: TIMESTAMP + 100,
+                proofs,
+            };
+
+            // Act
+            let result = persisted_event.verify(&mut projection);
+
+            // Assert
+            assert_eq!(
+                result,
+                Err(IdEventError::InvalidSigner(IdError {
+                    id: "signer3".to_string(),
+                    reason: "duplicate-signer".to_string(),
+                }))
+            );
+        }
+
+        #[test]
+        fn test_verify_delegation_success() {
+            // Arrange
+            let mut projection = IdProjection::new(
+                "prev_event".to_string(),
+                1,
+                vec![Signer {
+                    id: "signer1".to_string(),
+                    public_key: vec![1, 2, 3],
+                }],
+            );
+            projection.next_signers = vec!["signer2".to_string()];
+
+            let proofs = vec![Proof {
+                id: "signer2".to_string(),
+                pk: vec![4, 5, 6],
+                sig: b"valid".to_vec(),
+            }];
+
+            let persisted_event = PersistedIdEvent {
+                id: "event_delegation".to_string(),
+                payload: b"delegation".to_vec(),
+                previous: "prev_event".to_string(),
+                timestamp: TIMESTAMP + 100,
+                proofs,
+            };
+
+            // Act
+            let result = persisted_event.verify(&mut projection);
+
+            // Assert
+            assert!(result.is_ok());
+            let updated_projection = result.unwrap();
+            assert_eq!(updated_projection.event_id, "event_delegation");
+            assert_eq!(updated_projection.delegate_id, Some("new_id".to_string()));
+        }
+
+        #[test]
+        fn test_verify_delegation_signer_not_authorized() {
+            // Arrange
+            let mut projection = IdProjection::new(
+                "prev_event".to_string(),
+                1,
+                vec![Signer {
+                    id: "signer1".to_string(),
+                    public_key: vec![1, 2, 3],
+                }],
+            );
+            projection.next_signers = vec!["signer2".to_string()];
+
+            let proofs = vec![Proof {
+                id: "signer3".to_string(), // Not authorized
+                pk: vec![7, 8, 9],
+                sig: b"valid".to_vec(),
+            }];
+
+            let persisted_event = PersistedIdEvent {
+                id: "event_delegation".to_string(),
+                payload: b"delegation".to_vec(),
+                previous: "prev_event".to_string(),
+                timestamp: TIMESTAMP + 100,
+                proofs,
+            };
+
+            // Act
+            let result = persisted_event.verify(&mut projection);
+
+            // Assert
+            assert_eq!(
+                result,
+                Err(IdEventError::InvalidProof(IdError {
+                    id: "signer3".to_string(),
+                    reason: "signer-not-authorized".to_string(),
+                }))
+            );
+        }
+
+        #[test]
+        fn test_verify_delegation_invalid_delegated_id() {
+            // Arrange
+            let mut projection = IdProjection::new(
+                "prev_event".to_string(),
+                1,
+                vec![Signer {
+                    id: "signer1".to_string(),
+                    public_key: vec![1, 2, 3],
+                }],
+            );
+            projection.next_signers = vec!["signer2".to_string()];
+
+            let proofs = vec![Proof {
+                id: "signer2".to_string(),
+                pk: vec![4, 5, 6],
+                sig: b"valid".to_vec(),
+            }];
+
+            let persisted_event = PersistedIdEvent {
+                id: "event_delegation_invalid".to_string(), // Invalid kind
+                payload: b"delegation_invalid".to_vec(),    // Invalid payload
+                previous: "prev_event".to_string(),
+                timestamp: TIMESTAMP + 100,
+                proofs,
+            };
+
+            // Act
+            let result = persisted_event.verify(&mut projection);
+
+            // Assert
+            assert_eq!(
+                result,
+                Err(IdEventError::Other("invalid-delegated-id".to_string()))
+            );
+        }
+
+        #[test]
+        fn test_verify_invalid_event_kind() {
+            // Arrange
+            let mut projection = IdProjection::new(
+                "prev_event".to_string(),
+                1,
+                vec![Signer {
+                    id: "signer1".to_string(),
+                    public_key: vec![1, 2, 3],
+                }],
+            );
+
+            let proofs = vec![Proof {
                 id: "signer1".to_string(),
-                public_key: vec![1, 2, 3],
-            }],
-        );
-        projection.next_signers = vec!["signer2".to_string()];
+                pk: vec![1, 2, 3],
+                sig: b"valid".to_vec(),
+            }];
 
-        let proofs = vec![Proof {
-            id: "signer2".to_string(),
-            pk: vec![4, 5, 6],
-            sig: b"valid".to_vec(),
-        }];
+            let persisted_event = PersistedIdEvent {
+                id: "event_invalid_kind".to_string(),
+                payload: b"unknown_kind".to_vec(), // Unknown payload
+                previous: "prev_event".to_string(),
+                timestamp: TIMESTAMP + 100,
+                proofs,
+            };
 
-        let persisted_event = PersistedIdEvent {
-            id: "event_delegation_invalid".to_string(), // Invalid kind
-            payload: b"delegation_invalid".to_vec(),    // Invalid payload
-            previous: "prev_event".to_string(),
-            timestamp: TIMESTAMP + 100,
-            proofs,
-        };
+            // Act
+            let result = persisted_event.verify(&mut projection);
 
-        // Act
-        let result = persisted_event.verify(&mut projection);
+            // Assert
+            assert_eq!(result, Err(IdEventError::InvalidPayload));
+        }
 
-        // Assert
-        assert_eq!(
-            result,
-            Err(IdEventError::Other("invalid-delegated-id".to_string()))
-        );
-    }
+        #[test]
+        fn test_verify_invalid_event_id_kind() {
+            // Arrange
+            let mut projection = IdProjection::new(
+                "prev_event".to_string(),
+                1,
+                vec![Signer {
+                    id: "signer1".to_string(),
+                    public_key: vec![1, 2, 3],
+                }],
+            );
 
-    #[test]
-    fn test_verify_invalid_event_kind() {
-        // Arrange
-        let mut projection = IdProjection::new(
-            "prev_event".to_string(),
-            1,
-            vec![Signer {
+            let proofs = vec![Proof {
                 id: "signer1".to_string(),
-                public_key: vec![1, 2, 3],
-            }],
-        );
+                pk: vec![1, 2, 3],
+                sig: b"valid".to_vec(),
+            }];
 
-        let proofs = vec![Proof {
-            id: "signer1".to_string(),
-            pk: vec![1, 2, 3],
-            sig: b"valid".to_vec(),
-        }];
+            let persisted_event = PersistedIdEvent {
+                id: "invalid_kind_id".to_string(), // Assume this results in kind not "event"
+                payload: b"interaction".to_vec(),
+                previous: "prev_event".to_string(),
+                timestamp: TIMESTAMP + 100,
+                proofs,
+            };
 
-        let persisted_event = PersistedIdEvent {
-            id: "event_invalid_kind".to_string(),
-            payload: b"unknown_kind".to_vec(), // Unknown payload
-            previous: "prev_event".to_string(),
-            timestamp: TIMESTAMP + 100,
-            proofs,
-        };
+            // Act
+            let result = persisted_event.verify(&mut projection);
 
-        // Act
-        let result = persisted_event.verify(&mut projection);
-
-        // Assert
-        assert_eq!(result, Err(IdEventError::InvalidPayload));
-    }
-
-    #[test]
-    fn test_verify_invalid_event_id_kind() {
-        // Arrange
-        let mut projection = IdProjection::new(
-            "prev_event".to_string(),
-            1,
-            vec![Signer {
-                id: "signer1".to_string(),
-                public_key: vec![1, 2, 3],
-            }],
-        );
-
-        let proofs = vec![Proof {
-            id: "signer1".to_string(),
-            pk: vec![1, 2, 3],
-            sig: b"valid".to_vec(),
-        }];
-
-        let persisted_event = PersistedIdEvent {
-            id: "invalid_kind_id".to_string(), // Assume this results in kind not "event"
-            payload: b"interaction".to_vec(),
-            previous: "prev_event".to_string(),
-            timestamp: TIMESTAMP + 100,
-            proofs,
-        };
-
-        // Act
-        let result = persisted_event.verify(&mut projection);
-
-        // Assert
-        assert_eq!(
-            result,
-            Err(IdEventError::InvalidEventId("invalid_kind_id".to_string()))
-        );
-    }
-*/
+            // Assert
+            assert_eq!(
+                result,
+                Err(IdEventError::InvalidEventId("invalid_kind_id".to_string()))
+            );
+        }
+    */
 }

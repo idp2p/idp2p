@@ -10,4 +10,4 @@ pub mod ed25519;
 pub mod utils;
 pub mod cbor;
 pub mod error;
-pub mod id;
+pub mod identifier;

@@ -12,7 +12,7 @@ pub enum HandleError {
     #[error("Wasmtime error")]
     WasmtimeError(#[from] wasmtime::Error),
     #[error("IdError error")]
-    IdError(#[from] idp2p_common::id::IdError),
+    IdError(#[from] idp2p_common::identifier::IdError),
     #[error("IdInceptionError error")]
     IdInceptionError(#[from] crate::IdInceptionError),
     #[error("IdEventError error")]

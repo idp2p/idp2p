@@ -1,20 +1,21 @@
-use futures::{channel::mpsc, SinkExt, StreamExt};
-use idp2p_common::id::Id;
+use structopt::StructOpt;
+use tracing_subscriber::EnvFilter;
+/*use futures::{channel::mpsc, SinkExt, StreamExt};
+use idp2p_common::identifier::Id;
 use idp2p_p2p::{
     handler::{IdMessageHandler, IdMessageHandlerCommand}, model::IdEntryKind, verifier::IdVerifierImpl
 };
 use network::{IdNetworkCommand, IdNetworkEventLoop, IdRequestKind};
 use std::{collections::HashMap, fs, sync::Arc};
 use store::{InMemoryIdStore, InMemoryKvStore};
-use structopt::StructOpt;
-use tracing_subscriber::EnvFilter;
+
 use user::UserState;
 
 mod app;
 mod network;
 mod store;
 mod user;
-mod utils;
+mod utils;*/
 
 #[derive(Debug, StructOpt)]
 #[structopt(name = "idp2p", about = "Usage of idp2p.")]
@@ -32,7 +33,7 @@ async fn main() -> anyhow::Result<()> {
         .with_env_filter(EnvFilter::from_default_env())
         .try_init()
         .unwrap();
-    let store = Arc::new(InMemoryKvStore::new());
+    /*let store = Arc::new(InMemoryKvStore::new());
 
     let (handler_cmd_sender, handler_cmd_receiver) = mpsc::channel(0);
     let (app_event_sender, app_event_receiver) = mpsc::channel(0);
@@ -101,6 +102,6 @@ async fn main() -> anyhow::Result<()> {
             }
         }
     });
-    app::run(store, network_cmd_sender, app_event_receiver).await?;
+    app::run(store, network_cmd_sender, app_event_receiver).await?;*/
     Ok(())
 }

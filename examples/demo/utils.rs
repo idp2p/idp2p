@@ -1,7 +1,7 @@
 
 use anyhow::Result;
 use ed25519_dalek::SigningKey;
-use idp2p_common::{cbor, id::Id, CBOR_CODE, ED_CODE};
+use idp2p_common::{cbor, identifier::Id, CBOR_CODE, ED_CODE};
 use idp2p_id::idp2p::id::types::{IdClaim, IdClaimValueKind, IdInception, IdSigner};
 use idp2p_p2p::PersistedIdInception;
 use libp2p::PeerId;

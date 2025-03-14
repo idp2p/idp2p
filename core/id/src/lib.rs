@@ -1,7 +1,8 @@
 extern crate alloc;
 
 mod inception;
-mod event;
+//mod event;
+mod types;
 mod error;
 
 const TIMESTAMP: i64 = 1735689600;
@@ -17,13 +18,15 @@ struct GuestComponent;
 export!(GuestComponent);
 
 impl Guest for GuestComponent {
-    fn verify_inception(inception: PersistedIdInception) -> Result<IdProjection, IdInceptionError> {
-        inception.verify()
+    fn verify_inception(inception: PersistedIdInception) -> Result<IdResult, String> {
+        todo!()
+        //inception.verify()
     }
 
-    fn verify_event(projection: IdProjection, event: PersistedIdEvent) -> Result<IdProjection, IdEventError> {
-        let mut projection = projection;
-        event.verify(&mut projection)
+    fn verify_event(state: IdState, event: PersistedIdEvent) -> Result<IdResult, String> {
+        todo!()
+        //let mut projection = projection;
+        //event.verify(&mut projection)
     }
 }
 
