@@ -5,7 +5,7 @@ edition = "2021"
 
 [dependencies]
 tracing = { workspace = true }
-libp2p = { workspace = true }
+wit-bindgen = { workspace = true }
 thiserror = { workspace = true }
 regex = { workspace = true }
 sha2 = { workspace = true }
@@ -14,10 +14,5 @@ ciborium = { workspace = true }
 multihash = { workspace = true }
 serde = { workspace = true }
 chrono = { workspace = true }
-wasmtime = { workspace = true }
-wit-component = { workspace = true }
-tokio ={ workspace = true}
-futures = { workspace = true }
-trait-variant = { workspace = true}
 idp2p-common = { path = "../../common" }
 idp2p-id = { path = "../id" }

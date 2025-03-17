@@ -22,7 +22,7 @@ pub struct UserState {
     pub username: String,
     pub id: String,
     pub peer: String,
-    pub others: Vec<OtherIdUser>,
+    pub others: OtherIdUser,
     pub peers: HashMap<PeerId, bool>,
 }
 
@@ -37,17 +37,16 @@ impl OtherIdUser {
 }
 impl UserState {
     pub fn new(username: &str, id: &str, peer: &str) -> UserState {
-       let others = match username {
-            "alice" => vec![OtherIdUser::new("bob"), OtherIdUser::new("dog")],
-            "bob" => vec![OtherIdUser::new("alice"), OtherIdUser::new("dog")],
-            "dog" => vec![OtherIdUser::new("alice"), OtherIdUser::new("bob")],
+       let other = match username {
+            "alice" => OtherIdUser::new("bob"),
+            "bob" => OtherIdUser::new("alice"),
             _ => panic!("Unknown user"),
         };
         UserState {
             username: username.to_string(),
             id: id.to_string(),
             peer: peer.to_string(),
-            others: others,
+            other: other,
             peers: HashMap::new(),
         }
     }

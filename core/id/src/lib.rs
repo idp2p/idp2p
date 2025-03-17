@@ -1,9 +1,9 @@
 extern crate alloc;
 
-mod inception;
+//mod inception;
 //mod event;
-mod types;
 mod error;
+mod types;
 
 const TIMESTAMP: i64 = 1735689600;
 
@@ -18,16 +18,13 @@ struct GuestComponent;
 export!(GuestComponent);
 
 impl Guest for GuestComponent {
-    fn verify_inception(inception: PersistedIdInception) -> Result<IdResult, String> {
+    #[doc = " Verifies an initial identity inception event."]
+    fn verify_inception(incepiton: Vec<u8>) -> Result<Vec<u8>, String> {
         todo!()
-        //inception.verify()
     }
 
-    fn verify_event(state: IdState, event: PersistedIdEvent) -> Result<IdResult, String> {
+    #[doc = " Verifies an identity update event against the existing identity state."]
+    fn verify_event(state: Vec<u8>, event: Vec<u8>) -> Result<Vec<u8>, String> {
         todo!()
-        //let mut projection = projection;
-        //event.verify(&mut projection)
     }
 }
-
-

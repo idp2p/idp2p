@@ -43,6 +43,13 @@ pub struct IdEvent {
     pub payload: IdEventKind,
 }
 
+#[derive(Debug, Serialize, Deserialize)]
+pub struct PersistedIdEvent {
+    id: String,
+    payload: Vec<u8>,
+    proofs: Vec<PersistedIdProof>,
+}
+
 impl PersistedIdEvent {
     pub(crate) fn verify(
         &self,

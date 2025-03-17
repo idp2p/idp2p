@@ -11,3 +11,4 @@ pub mod utils;
 pub mod cbor;
 pub mod error;
 pub mod identifier;
+pub mod vermsg;

@@ -1,3 +1,4 @@
+use chrono::{DateTime, Utc};
 use serde::{Serialize, Deserialize};
 
 #[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
@@ -7,6 +8,21 @@ pub struct IdSigner {
 
     /// Public key bytes of the signer
     pub public_key: Vec<u8>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct IdClaim {
+    /// Identifying the specific claim or attribute
+    pub id: String,
+
+    /// Binary payload containing
+    pub value: Vec<u8>,
+
+    /// When the claim is valid
+    pub valid_from: Option<DateTime<Utc>>,
+
+    /// When the claim is no longer valid
+    pub valid_to: Option<DateTime<Utc>>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -29,12 +45,25 @@ pub struct IdState {
     /// Current signers
     pub signers: Vec<IdSigner>,
 
+    /// Claims
+    pub claims: Vec<IdClaim>,
+
     /// CID codec should be 0xed
     pub next_signers: Vec<String>,
 
     /// All keys
     pub all_signers: Vec<String>,
 
-    /// Delegate
+    /// Previous id
+    pub previous_id: Option<String>,
+
+    /// Next id
     pub next_id: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct PersistedIdProof {
+    pub id: String,
+    pub public_key: Vec<u8>,
+    pub signature: Vec<u8>,
 }

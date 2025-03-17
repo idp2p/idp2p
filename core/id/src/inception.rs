@@ -4,7 +4,7 @@ use idp2p_common::{cbor, identifier::Identifier};
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    error::IdError, types::{IdSigner, IdState}, IdClaim, IdResult, IdVersion, PersistedIdInception, TIMESTAMP
+    error::IdError, IdSigner, IdState, IdClaim, IdResult, IdVersion, PersistedIdInception, TIMESTAMP
 };
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -15,6 +15,12 @@ pub struct IdInception {
     pub next_threshold: u8,
     pub next_signers: Vec<String>,
     pub claims: Vec<IdClaim>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct PersistedIdInception {
+    pub id: String,
+    pub payload: Vec<u8>,
 }
 
 impl PersistedIdInception {
@@ -86,10 +92,7 @@ impl PersistedIdInception {
         let id_state_bytes = cbor::encode(&id_state);
 
         let id_result = IdResult {
-            state: crate::IdState {
-                version: IdVersion { major: 1, minor: 0 },
-                payload: id_state_bytes,
-            },
+            state: state,
             claims: vec![],
         };
         Ok(id_result)
@@ -115,8 +118,6 @@ mod tests {
     use ed25519_dalek::SigningKey;
     use idp2p_common::{CBOR_CODE, ED_CODE};
     use rand::rngs::OsRng;
-
-    use crate::types::IdSigner;
 
     use super::*;
 

@@ -7,12 +7,14 @@ edition = "2021"
 members = [
     "common",
     "core/id",
-    #"core/p2p",
+    "core/p2p",
 ]
 
 [dependencies]
+thiserror = { workspace = true }
 cid ={ workspace = true }
 wasmtime = { workspace = true }
+wit-component = { workspace = true }
 structopt = { workspace = true }
 libp2p = { workspace = true }
 dotenv = { workspace = true }

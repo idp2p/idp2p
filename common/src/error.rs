@@ -15,6 +15,8 @@ pub enum CommonError {
     #[error("Error")]
     SignatureVerifyError,
     #[error("Error")]
+    InvalidVersionedMessage,
+    #[error("Error")]
     MultihashError(#[from] multihash::Error),
     #[error("Error")]
     Other(#[from] core::fmt::Error),

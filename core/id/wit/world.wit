@@ -1,53 +1,9 @@
 package idp2p:id;
 
 world idp2p-id {
-    record id-version {
-        major: u16,
-        minor: u16
-    }
-    /// Cryptographic proof attached to identity events to verify authenticity.
-    record persisted-id-proof {
-        id: string,        // Identifier of the public key
-        pk: list<u8>,      // Public key used to verify the signature
-        sig: list<u8>,     // Cryptographic signature proving authenticity
-    }
-
-    /// Represents the initial creation event (inception) of an identity.
-    record persisted-id-inception {
-        id: string,        // Unique identifier for the new identity
-        version: id-version,      // Version number of the inception data format
-        payload: list<u8>, // Raw binary payload containing inception data
-    }
-
-    /// Represents subsequent events or updates related to an existing identity.
-    record persisted-id-event {
-        id: string,                       // Identifier of this event
-        version: id-version,                     // Version number of the event data format
-        payload: list<u8>,                // Binary payload describing the event
-        proofs: list<persisted-id-proof>, // List of cryptographic proofs verifying event authenticity
-    }
-
-    /// Represents the authoritative current state or snapshot of an identity.
-    record id-state {
-        version: id-version,      // Version number of the identity state format
-        payload: list<u8>, // Raw binary payload representing identity state data
-    }
-
-    /// Represents a claim or attribute associated with an identity, possibly updated over time.
-    record id-claim {
-        key: string,       // Key identifying the specific claim or attribute
-        payload: list<u8>, // Binary payload containing the claim data
-    }
-
-    /// Successful result structure returned after verifying identity inception or events.
-    record id-result {
-        state: id-state,        // The verified identity state after the operation
-        claims: list<id-claim>, // Collection of verified claims associated with the identity
-    }
-
     /// Verifies an initial identity inception event.
-    export verify-inception: func(incepiton: persisted-id-inception) -> result<id-result, string>;
+    export verify-inception: func(incepiton: list<u8>) -> result<list<u8>, string>;
 
     /// Verifies an identity update event against the existing identity state.
-    export verify-event: func(state: id-state, event: persisted-id-event) -> result<id-result, string>;
+    export verify-event: func(state: list<u8>, event: list<u8>) -> result<list<u8>, string>;
 }

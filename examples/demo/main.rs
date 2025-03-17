@@ -17,6 +17,7 @@ mod store;
 mod user;
 mod utils;*/
 
+mod runtime;
 #[derive(Debug, StructOpt)]
 #[structopt(name = "idp2p", about = "Usage of idp2p.")]
 struct Opt {
