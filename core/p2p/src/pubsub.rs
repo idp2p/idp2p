@@ -1,10 +1,4 @@
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub enum IdMessageDirection {
-    From,
-    To,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum IdPubsubMessageKind {
     // Resolve identity
     Resolve,

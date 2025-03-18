@@ -26,16 +26,16 @@ pub enum IdentifierError {
     #[error("Invalid kind: {0}. Kind must be a lowercase alphabetic string")]
     InvalidKind(String),
     
-    #[error("CID parsing error: {0}")]
+    #[error("CID parsing error:\n {0}")]
     InvalidCid(String),
     
-    #[error("Common error: {0}")]
+    #[error("Common error:\n {0}")]
     Common(#[from] CommonError),
     
-    #[error("Multihash error: {0}")]
+    #[error("Multihash error:\n {0}")]
     Multihash(#[from] multihash::Error),
     
-    #[error("Internal error: {0}")]
+    #[error("Internal error:\n {0}")]
     Internal(String),
 }
 

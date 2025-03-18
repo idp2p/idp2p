@@ -1,6 +1,6 @@
 package idp2p:p2p;
 
-interface id-store {
+interface store {
     get: func(key: string) -> result<list<u8>, string>;
     put: func(key: string, value: list<u8>) -> result<list<u8>, string>;
     exists: func(key: string) -> result<bool, string>;
@@ -13,15 +13,25 @@ interface id-verifier {
     verify-event: func(component: string, state: list<u8>, event: list<u8>) -> result<list<u8>, string>;
 }
 
-interface id-command {
+interface message-sender {
     publish: func(topic: string, payload: list<u8>) -> result<_, string>;
     request: func(peer: string, payload: list<u8>) -> result<_, string>;
     response: func(payload: list<u8>) -> result<_, string>;
 }
 
-world idp2p-p2p {
+interface message-handler {
+    handle-pubsub: func(topic: string, payload: list<u8>) -> result<_, string>;
+    handle-request: func(payload: list<u8>) -> result<_, string>;
+    handle-response: func(payload: list<u8>) -> result<_, string>;
+}
+
+interface signer {
+    sign: func(req: list<u8>) -> result<list<u8>, string>;
+}
+
+world idp2p-p2p {    
+    import store;
     import id-verifier;
-    import id-store;
-    import id-command;
-    export handle: func(msg: list<u8>) -> result<_, string>;
+    import message-sender;
+    export message-handler;
 }

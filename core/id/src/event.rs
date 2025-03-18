@@ -1,25 +1,19 @@
-use std::collections::HashSet;
-use std::str::FromStr;
+use idp2p_common::{cbor, ed25519::verify, identifier::Identifier};
+use serde::{Deserialize, Serialize};
 
-use idp2p_common::{cbor, ed25519::verify, id::Id};
-
-use crate::{
-    idp2p::id::{
-        error::IdError,
-        types::{ IdEvent, IdEventKind::*},
-    },
-    IdEventError, IdProjection, PersistedIdEvent, TIMESTAMP,
-};
+use crate::types::{IdClaim, IdProof, IdSigner};
 
 
-#[derive(Debug, Serialize, Deserialize)]
+
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct IdRotation {
     pub signers: Vec<IdSigner>,
     pub next_threshold: u8,
     pub next_signers: Vec<String>,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub enum IdEventKind {
     /// Should be signed with current keys
     Interaction(Vec<IdClaim>),
@@ -31,7 +25,7 @@ pub enum IdEventKind {
     Migration(String),
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct IdEvent {
     /// Timestamp of event
     pub timestamp: i64,
@@ -43,13 +37,13 @@ pub struct IdEvent {
     pub payload: IdEventKind,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct PersistedIdEvent {
     id: String,
     payload: Vec<u8>,
-    proofs: Vec<PersistedIdProof>,
+    proofs: Vec<IdProof>,
 }
-
+/* 
 impl PersistedIdEvent {
     pub(crate) fn verify(
         &self,
@@ -1040,3 +1034,4 @@ mod tests {
         }
     */
 }
+*/

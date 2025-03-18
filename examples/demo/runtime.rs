@@ -56,22 +56,23 @@ struct WasmRuntime {
     engine: Engine,
     id_linker: Linker<IdState>,
     p2p_linker: Linker<P2pState>,
-    id_components:  Mutex<HashMap<String, Component>>,
-    p2p_components:  Mutex<HashMap<String, Component>>,
-
+    id_components: Mutex<HashMap<String, Component>>,
+    p2p_components: Mutex<HashMap<String, Component>>,
 }
 
 impl WasmRuntime {
     // Initialize the runtime with both components
-    pub fn new(id_comps: HashMap<String, Vec<u8>>, p2p_comps: HashMap<String, Vec<u8>>) -> anyhow::Result<Self> { // primary: Vec<u8>, secondary: Vec<u8>) -> anyhow::Result<Self> {
+    pub fn new(
+        id_comps: HashMap<String, Vec<u8>>,
+        p2p_comps: HashMap<String, Vec<u8>>,
+    ) -> anyhow::Result<Self> {
+        // primary: Vec<u8>, secondary: Vec<u8>) -> anyhow::Result<Self> {
         // Create engine with component model enabled
         let engine = Engine::new(Config::new().wasm_component_model(true))?;
 
         // Create and set up linker
         let mut p2p_linker = Linker::new(&engine);
-        p2p::id_verifier::add_to_linker(&mut p2p_linker, |state: &mut P2pState| {
-            &mut state.host
-        })?;
+        p2p::id_verifier::add_to_linker(&mut p2p_linker, |state: &mut P2pState| &mut state.host)?;
 
         let id_linker = Linker::new(&engine);
 
@@ -79,8 +80,12 @@ impl WasmRuntime {
         let mut p2p_components: HashMap<String, Component> = HashMap::new();
 
         for (id, bytes) in id_comps {
+            let component = Component::from_binary(&engine, &convert_to_component(&bytes)).unwrap();
+            id_components.insert(id, component);
         }
         for (id, bytes) in p2p_comps {
+            let component = Component::from_binary(&engine, &convert_to_component(&bytes)).unwrap();
+            p2p_components.insert(id, component);
         }
         Ok(WasmRuntime {
             engine,
@@ -91,32 +96,33 @@ impl WasmRuntime {
         })
     }
 
-    fn execute_primary(&self, runtime: Arc<Self>, input: &str) -> anyhow::Result<String> {
+    pub fn handle_pubsub_message(&self, runtime: Arc<Self>, topic: &str, msg: &[u8]) -> anyhow::Result<()> {
         // Create a new store with the secondary result
         let mut store = Store::new(
             &self.engine,
-            PrimaryState {
+            P2pState {
                 host: HostComponent { runtime },
             },
         );
-
+        let comp = self.p2p_components.lock().unwrap().get("k").unwrap().to_owned();
         // Instantiate and call the primary component
-        let (primary, _) =
-            Primary::instantiate(&mut store, &self.primary_component, &self.primary_linker)?;
-        primary.call_run(&mut store, input)
+        let (p2p, _) =
+            Idp2pP2p::instantiate(&mut store, &comp, &self.p2p_linker)?;
+        Ok(p2p.interface0.call_handle_pubsub(&mut store, topic, msg).unwrap().unwrap())
     }
 
-    fn execute_secondary(&self, input: &str) -> anyhow::Result<String> {
+    fn verify_inception(&self, inception: &[u8]) -> anyhow::Result<()> {
         // Create a new store with the secondary result
-        let mut store = Store::new(&self.engine, SecondaryState);
-
+        let mut store = Store::new(&self.engine, IdState);
+        let comp = self.id_components.lock().unwrap().get("k").unwrap().to_owned();
         // Instantiate and call the primary component
-        let (secondary, _) = Secondary::instantiate(
+        let (verifier, _) = Idp2pId::instantiate(
             &mut store,
-            &self.secondary_component,
-            &self.secondary_linker,
+            &comp,
+            &self.id_linker,
         )?;
-        secondary.call_verify(&mut store, input)
+        verifier.call_verify_inception(&mut store, inception).unwrap().unwrap();
+        Ok(())
     }
 }
 fn convert_to_component(bytes: &[u8]) -> Vec<u8> {

@@ -1,5 +1,4 @@
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub enum IdEntryKind {
@@ -8,14 +7,13 @@ pub enum IdEntryKind {
     Following,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct IdEntry {
-    pub kind: IdEntryKind,
-    pub state: IdState,
-    pub inception: PersistedIdInception,
-    pub events: HashMap<String, PersistedIdEvent>,
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum IdMessageDirection {
+    From,
+    To,
 }
 
+/* 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum IdNetworkEvent {
     Pubsub(IdPubsubMessageKind),
@@ -41,5 +39,5 @@ pub enum IdResponseKind {
         inception: PersistedIdInception,
         events: HashMap<String, PersistedIdEvent>,
     }
-}
+}*/
 

@@ -28,6 +28,8 @@ ed25519-dalek = { workspace = true }
 futures ={ workspace = true }
 local-ip-address = { workspace = true }
 tracing = { workspace = true }
+trait-variant = { workspace = true }
+async-trait = { workspace = true }
 tracing-subscriber = { workspace = true, features = ["env-filter"] }
 idp2p-common = { path = "./common" }
 idp2p-id = { path = "./core/id" }
@@ -89,3 +91,4 @@ chrono = { version = "0", default-features = false, features = [
 ] }
 futures = "0"
 trait-variant="0"
+async-trait = "0"

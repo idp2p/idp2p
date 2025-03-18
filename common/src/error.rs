@@ -1,23 +1,22 @@
-
 use alloc::string::String;
 use thiserror::Error;
 
 #[derive(Error, Debug)]
 pub enum CommonError {
-    #[error("{0}")]
+    #[error("Decoding error: {0}")]
     DecodeError(String),
-    #[error("Error")]
+    #[error("Encoding error occurred")]
     EncodeError,
-    #[error("Error")]
+    #[error("Invalid public key provided")]
     InvalidPublicKey,
-    #[error("Error")]
+    #[error("Invalid signature provided")]
     InvalidSignature,
-    #[error("Error")]
+    #[error("Signature verification failed")]
     SignatureVerifyError,
-    #[error("Error")]
+    #[error("Invalid versioned message")]
     InvalidVersionedMessage,
-    #[error("Error")]
+    #[error("Multihash error:\n {0}")]
     MultihashError(#[from] multihash::Error),
-    #[error("Error")]
+    #[error("Formatting error:\n {0}")]
     Other(#[from] core::fmt::Error),
 }

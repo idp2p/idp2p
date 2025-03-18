@@ -10,7 +10,7 @@ pub struct IdSigner {
     pub public_key: Vec<u8>,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct IdClaim {
     /// Identifying the specific claim or attribute
     pub id: String,
@@ -25,7 +25,7 @@ pub struct IdClaim {
     pub valid_to: Option<DateTime<Utc>>,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct IdState {
     /// Identifier
     pub id: String,
@@ -61,8 +61,8 @@ pub struct IdState {
     pub next_id: Option<String>,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
-pub struct PersistedIdProof {
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct IdProof {
     pub id: String,
     pub public_key: Vec<u8>,
     pub signature: Vec<u8>,

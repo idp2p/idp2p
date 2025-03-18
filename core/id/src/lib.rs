@@ -1,9 +1,10 @@
 extern crate alloc;
 
-//mod inception;
-//mod event;
 mod error;
-mod types;
+
+pub mod event;
+pub mod inception;
+pub mod types;
 
 const TIMESTAMP: i64 = 1735689600;
 
@@ -20,7 +21,7 @@ export!(GuestComponent);
 impl Guest for GuestComponent {
     #[doc = " Verifies an initial identity inception event."]
     fn verify_inception(incepiton: Vec<u8>) -> Result<Vec<u8>, String> {
-        todo!()
+        Ok(crate::inception::verify(&incepiton).map_err(|e| e.to_string())?)
     }
 
     #[doc = " Verifies an identity update event against the existing identity state."]
