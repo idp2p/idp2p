@@ -1,11 +1,17 @@
+use alloc::collections::BTreeSet;
+
 use alloc::str::FromStr;
+use alloc::string::String;
+use alloc::vec::Vec;
 
 use crate::{
     error::IdEventError,
-    types::{IdClaimEvent, IdSigner},
+    types::{IdClaimEvent, IdSigner, IdState},
+    TIMESTAMP,
 };
-use idp2p_common::{cbor, identifier::Identifier};
+use idp2p_common::{cbor, ed25519, identifier::Identifier};
 use serde::{Deserialize, Serialize};
+use IdEventKind::*;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct IdRotation {
@@ -72,7 +78,196 @@ impl TryFrom<&PersistedIdEvent> for IdEvent {
 }
 
 pub(crate) fn verify(state: &[u8], payload: &[u8]) -> Result<Vec<u8>, IdEventError> {
-    todo!()
+    let mut state: IdState = cbor::decode(state)?;
+    let pevent: PersistedIdEvent = cbor::decode(payload)?;
+    let event: IdEvent = (&pevent).try_into()?;
+
+    // Timestamp check
+    if event.timestamp < TIMESTAMP {
+        return Err(IdEventError::InvalidTimestamp);
+    }
+
+    // Previous event check
+    if event.previous != state.event_id {
+        return Err(IdEventError::PreviousNotMatch);
+    }
+
+    match event.payload {
+        Interaction(claims) => {
+            if (pevent.proofs.len() as u8) < state.threshold {
+                return Err(IdEventError::LackOfMinProofs);
+            }
+            for proof in pevent.proofs {
+                let signer = state
+                    .signers
+                    .iter()
+                    .find(|s| s.id == proof.kid)
+                    .ok_or_else(|| IdEventError::invalid_proof(&proof.kid, "not_found"))?;
+                if !state.signers.iter().any(|s| s.id == signer.id) {
+                    return Err(IdEventError::invalid_proof(&proof.kid, "not_found"));
+                }
+                // verify proof with pk
+            }
+
+            for claim in claims {
+                state.claims.push(claim);
+            }
+            // update state
+        }
+        Rotation(id_rotation) => {
+            let total_signers = id_rotation.signers.len() as u8;
+            if total_signers < state.threshold {
+                return Err(IdEventError::ThresholdNotMatch);
+            }
+            for proof in pevent.proofs {}
+        }
+        Migration(next_id) => {}
+    }
+    Ok(vec![])
+    // Proof verification
+    /*for proof in &proofs {
+        let pk = match event.payload {
+            Interaction(_) => {
+                let signer = state
+                    .signers
+                    .iter()
+                    .find(|s| s.id == proof.kid)
+                    .ok_or_else(|| IdEventError::invalid_proof(&proof.kid, "not_found"))?;
+                if !state.signers.iter().any(|s| s.id == signer.id) {
+                    return Err(IdEventError::invalid_proof(&proof.kid, "not_found"));
+                }
+                signer.public_key
+            }
+            _ => {
+                if !state.next_signers.iter().any(|s| s == &proof.kid) {
+                    return Err(IdEventError::invalid_proof(&proof.kid, "not_found"));
+                }
+
+                proof
+                    .pk
+                    .ok_or_else(|| IdEventError::invalid_proof(&proof.kid, "not_found"))?
+            }
+        };
+        let sid = Identifier::from_str(proof.kid.as_str())
+            .map_err(|e| IdEventError::invalid_proof(&proof.kid, "not_found"))?;
+
+        sid.ensure(&pk)
+            .map_err(|e| IdEventError::invalid_proof(&proof.kid, "not_found"))?;
+
+        if !signers.insert(proof.kid.clone()) {
+            return Err(IdEventError::invalid_proof(&proof.kid, "not_found"));
+        }
+
+        ed25519::verify(&pk, &payload, &proof.sig)
+            .map_err(|e| IdEventError::invalid_proof(&proof.kid, "not_found"))?;
+    }
+
+    match event.payload {
+        Interaction(claims) => {
+            if (signers.len() as u8) < state.threshold {
+                return Err(IdEventError::LackOfMinProofs);
+            }
+
+            for claim in claims {
+                state.claims.push(claim);
+            }
+        }
+        Rotation(id_rotation) => {
+            // Signer check
+            //
+            let total_signers = id_rotation.signers.len() as u8;
+            if total_signers < state.threshold {
+                return Err(IdEventError::ThresholdNotMatch);
+            }
+            let mut signers = vec![];
+            for signer in &id_rotation.signers {
+                let signer_id = Id::from_str(signer.id.as_str()).map_err(|e| {
+                    IdEventError::InvalidSigner(IdError {
+                        id: signer.id.clone(),
+                        reason: e.to_string(),
+                    })
+                })?;
+                if signer_id.kind != "signer" {
+                    return Err(IdEventError::InvalidSigner(IdError {
+                        id: signer.id.clone(),
+                        reason: "invalid-signer-kind".to_string(),
+                    }));
+                }
+                signer_id.ensure(&signer.public_key).map_err(|e| {
+                    IdEventError::InvalidSigner(IdError {
+                        id: signer.id.clone(),
+                        reason: e.to_string(),
+                    })
+                })?;
+                if signers.contains(signer) {
+                    return Err(IdEventError::InvalidSigner(IdError {
+                        id: signer.id.clone(),
+                        reason: "duplicate-signer".to_string(),
+                    }));
+                }
+                state.all_signers.push(signer.id.clone());
+                signers.push(signer.to_owned());
+            }
+
+            // Next Signer check
+            //
+            let total_next_signers = id_rotation.next_signers.len() as u8;
+            if total_next_signers < id_rotation.next_threshold {
+                return Err(IdEventError::ThresholdNotMatch);
+            }
+            let mut next_signers = vec![];
+            for next_signer in &id_rotation.next_signers {
+                let next_signer_id = Id::from_str(next_signer.as_str()).map_err(|e| {
+                    IdEventError::InvalidNextSigner(IdError {
+                        id: next_signer.clone(),
+                        reason: e.to_string(),
+                    })
+                })?;
+                if next_signer_id.kind != "signer" {
+                    return Err(IdEventError::InvalidNextSigner(IdError {
+                        id: next_signer.clone(),
+                        reason: "invalid-next-signer-kind".to_string(),
+                    }));
+                }
+                if next_signers.contains(next_signer) {
+                    return Err(IdEventError::InvalidNextSigner(IdError {
+                        id: next_signer.clone(),
+                        reason: "duplicate-next-signer".to_string(),
+                    }));
+                }
+                state.all_signers.push(next_signer.clone());
+                next_signers.push(next_signer.to_owned());
+            }
+
+            // Update the signers in the projection
+            state.signers = id_rotation.signers.clone();
+        }
+        Migration(next_id) => {
+            for signer in &signers {
+                if !state.next_signers.iter().any(|s| s == signer) {
+                    return Err(IdEventError::InvalidProof(IdError {
+                        id: signer.clone(),
+                        reason: "signer-not-authorized".to_string(),
+                    }));
+                }
+            }
+            // Validate the new delegated ID
+            let delegated_id = Id::from_str(next_id.as_str())
+                .map_err(|e| IdEventError::Other("invalid-next-id".to_string()))?;
+
+            delegated_id
+                .ensure(&self.payload)
+                .map_err(|e| IdEventError::Other("invalid-next-id".to_string()))?;
+
+            // Update the projection with the new delegated ID
+            state.next_id = Some(next_id);
+        }
+    }
+
+    // Update the view with the new event ID
+    state.event_id = self.id.clone();
+
+    Ok(projection.to_owned())*/
 }
 /*
 impl PersistedIdEvent {
@@ -80,176 +275,7 @@ impl PersistedIdEvent {
         &self,
         projection: &mut IdProjection,
     ) -> Result<IdProjection, IdEventError> {
-        let event: IdEvent = self.try_into()?;
 
-        // Timestamp check
-        if event.timestamp < TIMESTAMP {
-            return Err(IdEventError::InvalidTimestamp);
-        }
-
-        // Previous event check
-        if event.previous != projection.event_id {
-            return Err(IdEventError::PreviousNotMatch);
-        }
-
-        // Proof verification
-        let mut signers = HashSet::new();
-        for proof in &self.proofs {
-            let sid = Id::from_str(proof.id.as_str()).map_err(|e| {
-                IdEventError::InvalidProof(IdError {
-                    id: proof.id.clone(),
-                    reason: e.to_string(),
-                })
-            })?;
-
-            sid.ensure(&proof.pk).map_err(|e| {
-                IdEventError::InvalidProof(IdError {
-                    id: proof.id.clone(),
-                    reason: e.to_string(),
-                })
-            })?;
-
-            if !signers.insert(proof.id.clone()) {
-                return Err(IdEventError::InvalidProof(IdError {
-                    id: proof.id.clone(),
-                    reason: "duplicate-proof".to_string(),
-                }));
-            }
-
-            verify(&proof.pk, &self.payload, &proof.sig).map_err(|e| {
-                IdEventError::InvalidProof(IdError {
-                    id: proof.id.clone(),
-                    reason: e.to_string(),
-                })
-            })?;
-        }
-
-        match event.payload {
-            Interaction(claims) => {
-                if (signers.len() as u8) < projection.threshold {
-                    return Err(IdEventError::LackOfMinProofs);
-                }
-
-                // Validate that all signers are recognized
-                for signer in &signers {
-                    if !projection.signers.iter().any(|s| s.id == *signer) {
-                        return Err(IdEventError::InvalidProof(IdError {
-                            id: signer.clone(),
-                            reason: "signer-not-found".to_string(),
-                        }));
-                    }
-                }
-
-                // Process each claim
-                for claim in claims {
-                    projection.claims.push(claim);
-                }
-            }
-            Rotation(id_rotation) => {
-                for signer in &signers {
-                    if !projection.next_signers.iter().any(|s| s == signer) {
-                        return Err(IdEventError::InvalidProof(IdError {
-                            id: signer.clone(),
-                            reason: "signer-not-authorized".to_string(),
-                        }));
-                    }
-                }
-
-                // Signer check
-                //
-                let total_signers = id_rotation.signers.len() as u8;
-                if total_signers < projection.threshold {
-                    return Err(IdEventError::ThresholdNotMatch);
-                }
-                let mut signers = vec![];
-                for signer in &id_rotation.signers {
-                    let signer_id = Id::from_str(signer.id.as_str()).map_err(|e| {
-                        IdEventError::InvalidSigner(IdError {
-                            id: signer.id.clone(),
-                            reason: e.to_string(),
-                        })
-                    })?;
-                    if signer_id.kind != "signer" {
-                        return Err(IdEventError::InvalidSigner(IdError {
-                            id: signer.id.clone(),
-                            reason: "invalid-signer-kind".to_string(),
-                        }));
-                    }
-                    signer_id.ensure(&signer.public_key).map_err(|e| {
-                        IdEventError::InvalidSigner(IdError {
-                            id: signer.id.clone(),
-                            reason: e.to_string(),
-                        })
-                    })?;
-                    if signers.contains(signer) {
-                        return Err(IdEventError::InvalidSigner(IdError {
-                            id: signer.id.clone(),
-                            reason: "duplicate-signer".to_string(),
-                        }));
-                    }
-                    projection.all_signers.push(signer.id.clone());
-                    signers.push(signer.to_owned());
-                }
-
-                // Next Signer check
-                //
-                let total_next_signers = id_rotation.next_signers.len() as u8;
-                if total_next_signers < id_rotation.next_threshold {
-                    return Err(IdEventError::ThresholdNotMatch);
-                }
-                let mut next_signers = vec![];
-                for next_signer in &id_rotation.next_signers {
-                    let next_signer_id = Id::from_str(next_signer.as_str()).map_err(|e| {
-                        IdEventError::InvalidNextSigner(IdError {
-                            id: next_signer.clone(),
-                            reason: e.to_string(),
-                        })
-                    })?;
-                    if next_signer_id.kind != "signer" {
-                        return Err(IdEventError::InvalidNextSigner(IdError {
-                            id: next_signer.clone(),
-                            reason: "invalid-next-signer-kind".to_string(),
-                        }));
-                    }
-                    if next_signers.contains(next_signer) {
-                        return Err(IdEventError::InvalidNextSigner(IdError {
-                            id: next_signer.clone(),
-                            reason: "duplicate-next-signer".to_string(),
-                        }));
-                    }
-                    projection.all_signers.push(next_signer.clone());
-                    next_signers.push(next_signer.to_owned());
-                }
-
-                // Update the signers in the projection
-                projection.signers = id_rotation.signers.clone();
-            }
-            Migration(next_id) => {
-                for signer in &signers {
-                    if !projection.next_signers.iter().any(|s| s == signer) {
-                        return Err(IdEventError::InvalidProof(IdError {
-                            id: signer.clone(),
-                            reason: "signer-not-authorized".to_string(),
-                        }));
-                    }
-                }
-                // Validate the new delegated ID
-                let delegated_id = Id::from_str(next_id.as_str())
-                    .map_err(|e| IdEventError::Other("invalid-next-id".to_string()))?;
-
-                delegated_id
-                    .ensure(&self.payload)
-                    .map_err(|e| IdEventError::Other("invalid-next-id".to_string()))?;
-
-                // Update the projection with the new delegated ID
-                projection.next_id = Some(next_id);
-            }
-        }
-
-        // Update the view with the new event ID
-        projection.event_id = self.id.clone();
-
-        Ok(projection.to_owned())
     }
 }
 

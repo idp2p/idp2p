@@ -14,14 +14,6 @@ pub enum IdMessageDirection {
 }
 
 /* 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub enum IdNetworkEvent {
-    Pubsub(IdPubsubMessageKind),
-    Request(IdRequestKind),
-    Response(IdResponseKind),
-}
-
-
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum IdRequestKind {

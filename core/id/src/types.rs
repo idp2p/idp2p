@@ -14,10 +14,7 @@ pub struct IdClaimEvent {
     /// Identifying the specific claim or attribute
     pub id: String,
 
-    /// Version of the claim event
-    pub version: u8,
-
-    /// Binary payload containing
+    /// Binary payload `Wasmsg`
     pub payload: Vec<u8>,
 }
 

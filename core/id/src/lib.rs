@@ -1,7 +1,6 @@
 extern crate alloc;
 
 mod error;
-
 pub mod event;
 pub mod inception;
 pub mod types;
