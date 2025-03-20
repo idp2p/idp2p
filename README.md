@@ -25,8 +25,8 @@ A decentralized identity protocol on top of keri and libp2p.
 
 - [ ] Component Errors
 - [x] Wasm Runtime
-- []  Id Component 
-- []  P2p Component
+- [ ]  Id Component 
+- [ ]  P2p Component
 
 
 ## Contributions

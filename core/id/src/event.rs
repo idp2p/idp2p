@@ -1,10 +1,11 @@
-use idp2p_common::{cbor, ed25519::verify, identifier::Identifier};
+use alloc::str::FromStr;
+
+use crate::{
+    error::IdEventError,
+    types::{IdClaimEvent, IdSigner},
+};
+use idp2p_common::{cbor, identifier::Identifier};
 use serde::{Deserialize, Serialize};
-
-use crate::types::{IdClaim, IdProof, IdSigner};
-
-
-
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct IdRotation {
@@ -16,7 +17,7 @@ pub struct IdRotation {
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub enum IdEventKind {
     /// Should be signed with current keys
-    Interaction(Vec<IdClaim>),
+    Interaction(Vec<IdClaimEvent>),
 
     /// Should be signed with next keys
     Rotation(IdRotation),
@@ -41,9 +42,39 @@ pub struct IdEvent {
 pub struct PersistedIdEvent {
     id: String,
     payload: Vec<u8>,
-    proofs: Vec<IdProof>,
+    proofs: Vec<PersistedIdProof>,
 }
-/* 
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct PersistedIdProof {
+    kid: String,
+    sig: Vec<u8>,
+    pk: Option<Vec<u8>>,
+}
+
+impl TryFrom<&PersistedIdEvent> for IdEvent {
+    type Error = IdEventError;
+
+    fn try_from(value: &PersistedIdEvent) -> Result<Self, Self::Error> {
+        let id = Identifier::from_str(value.id.as_str())
+            .map_err(|e| IdEventError::InvalidEventId(e.to_string()))?;
+        id.ensure(&value.payload)
+            .map_err(|e| IdEventError::InvalidEventId(e.to_string()))?;
+
+        if id.kind != "event" {
+            return Err(IdEventError::InvalidEventId(id.to_string()));
+        }
+
+        let event: IdEvent =
+            cbor::decode(&value.payload).map_err(|_| IdEventError::InvalidPayload)?;
+        Ok(event)
+    }
+}
+
+pub(crate) fn verify(state: &[u8], payload: &[u8]) -> Result<Vec<u8>, IdEventError> {
+    todo!()
+}
+/*
 impl PersistedIdEvent {
     pub(crate) fn verify(
         &self,
@@ -222,24 +253,7 @@ impl PersistedIdEvent {
     }
 }
 
-impl TryFrom<&PersistedIdEvent> for IdEvent {
-    type Error = IdEventError;
 
-    fn try_from(value: &PersistedIdEvent) -> Result<Self, Self::Error> {
-        let id: Id = Id::from_str(value.id.as_str())
-            .map_err(|e| IdEventError::InvalidEventId(e.to_string()))?;
-        id.ensure(&value.payload)
-            .map_err(|e| IdEventError::InvalidEventId(e.to_string()))?;
-
-        if id.kind != "event" {
-            return Err(IdEventError::InvalidEventId(id.to_string()));
-        }
-
-        let event: IdEvent =
-            cbor::decode(&value.payload).map_err(|_| IdEventError::InvalidPayload)?;
-        Ok(event)
-    }
-}
 
 #[cfg(test)]
 mod tests {

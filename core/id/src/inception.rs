@@ -1,10 +1,12 @@
-use std::str::FromStr;
+use alloc::str::FromStr;
 
 use idp2p_common::{cbor, identifier::Identifier};
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    error::IdInceptionError, types::{IdClaim, IdSigner, IdState}, TIMESTAMP
+    error::IdInceptionError,
+    types::{IdClaimEvent, IdSigner, IdState},
+    TIMESTAMP,
 };
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -14,7 +16,7 @@ pub struct IdInception {
     pub signers: Vec<IdSigner>,
     pub next_threshold: u8,
     pub next_signers: Vec<String>,
-    pub claims: Vec<IdClaim>,
+    pub claims: Vec<IdClaimEvent>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -22,82 +24,6 @@ pub struct PersistedIdInception {
     pub id: String,
     pub payload: Vec<u8>,
 }
-
-
-    pub(crate) fn verify(inception: &[u8]) -> Result<Vec<u8>, IdInceptionError> {
-        let pinception: PersistedIdInception = cbor::decode(inception)?;
-
-        let mut all_signers = vec![];
-        let inception: IdInception = (&pinception).try_into()?;
-
-        // Timestamp check
-        //
-        if inception.timestamp < TIMESTAMP {
-            return Err(IdInceptionError::InvalidTimestamp);
-        }
-
-        // Signer check
-        //
-        let total_signers = inception.signers.len() as u8;
-        if total_signers < inception.threshold {
-            return Err(IdInceptionError::ThresholdNotMatch);
-        }
-        let mut signers = vec![];
-        for signer in &inception.signers {
-            let signer_id = Identifier::from_str(signer.id.as_str())?;
-            if signer_id.kind != "signer" {
-                return Err(IdInceptionError::InvalidSignerKind(signer.id.clone()));
-            }
-            signer_id.ensure(&signer.public_key)?;
-            if signers.contains(signer) {
-                return Err(IdInceptionError::DublicateSigner(signer.id.clone()));
-            }
-            all_signers.push(signer.id.clone());
-            signers.push(signer.to_owned());
-        }
-
-        // Next Signer check
-        //
-        let total_next_signers = inception.next_signers.len() as u8;
-        if total_next_signers < inception.next_threshold {
-            return Err(IdInceptionError::NextThresholdNotMatch);
-        }
-        let mut next_signers = vec![];
-        for next_signer in &inception.next_signers {
-            let next_signer_id = Identifier::from_str(next_signer.as_str())?;
-            if next_signer_id.kind != "signer" {
-                return Err(IdInceptionError::InvalidNextSignerKind(next_signer.clone()));
-            }
-            if next_signers.contains(next_signer) {
-                return Err(IdInceptionError::DublicateNextSigner(next_signer.clone()));
-            }
-            all_signers.push(next_signer.clone());
-            next_signers.push(next_signer.to_owned());
-        }
-
-        let mut claims = vec![];
-        for claim in &inception.claims {
-            claims.push(claim.to_owned());
-        }
-
-        let id_state = IdState {
-            id: pinception.id.clone(),
-            event_id: pinception.id.clone(),
-            event_timestamp: inception.timestamp,
-            threshold: inception.threshold,
-            signers: signers,
-            next_threshold: inception.next_threshold,
-            next_signers: next_signers,
-            all_signers: all_signers,
-            claims: claims,
-            next_id: None,
-            previous_id: None,
-        };
-        let id_state_bytes = cbor::encode(&id_state);
-
-        Ok(id_state_bytes)
-    }
-
 
 impl TryFrom<&PersistedIdInception> for IdInception {
     type Error = IdInceptionError;
@@ -111,6 +37,80 @@ impl TryFrom<&PersistedIdInception> for IdInception {
         let inception: IdInception = cbor::decode(&value.payload)?;
         Ok(inception)
     }
+}
+
+pub(crate) fn verify(inception: &[u8]) -> Result<Vec<u8>, IdInceptionError> {
+    let pinception: PersistedIdInception = cbor::decode(inception)?;
+
+    let mut all_signers = vec![];
+    let inception: IdInception = (&pinception).try_into()?;
+
+    // Timestamp check
+    //
+    if inception.timestamp < TIMESTAMP {
+        return Err(IdInceptionError::InvalidTimestamp);
+    }
+
+    // Signer check
+    //
+    let total_signers = inception.signers.len() as u8;
+    if total_signers < inception.threshold {
+        return Err(IdInceptionError::ThresholdNotMatch);
+    }
+    let mut signers = vec![];
+    for signer in &inception.signers {
+        let signer_id = Identifier::from_str(signer.id.as_str())?;
+        if signer_id.kind != "signer" {
+            return Err(IdInceptionError::InvalidSignerKind(signer.id.clone()));
+        }
+        signer_id.ensure(&signer.public_key)?;
+        if signers.contains(signer) {
+            return Err(IdInceptionError::DublicateSigner(signer.id.clone()));
+        }
+        all_signers.push(signer.id.clone());
+        signers.push(signer.to_owned());
+    }
+
+    // Next Signer check
+    //
+    let total_next_signers = inception.next_signers.len() as u8;
+    if total_next_signers < inception.next_threshold {
+        return Err(IdInceptionError::NextThresholdNotMatch);
+    }
+    let mut next_signers = vec![];
+    for next_signer in &inception.next_signers {
+        let next_signer_id = Identifier::from_str(next_signer.as_str())?;
+        if next_signer_id.kind != "signer" {
+            return Err(IdInceptionError::InvalidNextSignerKind(next_signer.clone()));
+        }
+        if next_signers.contains(next_signer) {
+            return Err(IdInceptionError::DublicateNextSigner(next_signer.clone()));
+        }
+        all_signers.push(next_signer.clone());
+        next_signers.push(next_signer.to_owned());
+    }
+
+    let mut claims = vec![];
+    for claim in &inception.claims {
+        claims.push(claim.to_owned());
+    }
+
+    let id_state = IdState {
+        id: pinception.id.clone(),
+        event_id: pinception.id.clone(),
+        event_timestamp: inception.timestamp,
+        threshold: inception.threshold,
+        signers: signers,
+        next_threshold: inception.next_threshold,
+        next_signers: next_signers,
+        all_signers: all_signers,
+        claims: claims,
+        next_id: None,
+        previous_id: None,
+    };
+    let id_state_bytes = cbor::encode(&id_state);
+
+    Ok(id_state_bytes)
 }
 
 #[cfg(test)]
@@ -152,7 +152,9 @@ mod tests {
         };
         let pinception_bytes = cbor::encode(&pinception);
         let result = verify(&pinception_bytes);
-        eprintln!("Result: {:#?}", result);
         assert!(result.is_ok());
+        let result: IdState = cbor::decode(& result.unwrap()).unwrap();
+        eprintln!("Result: {:#?}", result);
+
     }
 }

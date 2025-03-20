@@ -29,10 +29,38 @@ pub enum IdInceptionError {
     InvalidNextSignerKind(String),
     #[error("Invalid claim: {0}")]
     InvalidClaim(String),
-    #[error("Other error: {0}")]
-    Other(String),
     #[error("Common error:\n {0}")]
     CommonError(#[from] CommonError),
     #[error("Common error:\n {0}")]
     IdentifierError(#[from] IdentifierError),
+}
+
+#[derive(Debug, Error)]
+pub enum IdEventError {
+    #[error("Invalid timestamp")]
+    InvalidTimestamp,
+    #[error("Invalid event id: {0}")]
+    InvalidEventId(String),
+    #[error("Invalid payload")]
+    InvalidPayload,
+    #[error("Payload and id do not match")]
+    PayloadAndIdNotMatch,
+    #[error("Previous not match")]
+    PreviousNotMatch,
+    #[error("Threshold not match")]
+    ThresholdNotMatch,
+    #[error("Next threshold not match")]
+    NextThresholdNotMatch,
+    #[error("Lack of minimum proofs")]
+    LackOfMinProofs,
+    #[error("Invalid proof: {0}")]
+    InvalidProof(String),
+    #[error("Invalid signer: {0}")]
+    InvalidSigner(String),
+    #[error("Invalid next signer: {0}")]
+    InvalidNextSigner(String),
+    #[error("Invalid claim: {0}")]
+    InvalidClaim(String),
+    #[error("Invalid delegation id: {0}")]
+    InvalidDelegationId(String),
 }
