@@ -1,11 +1,10 @@
-use exports::idp2p::p2p::message_handler::Guest;
-
 extern crate alloc;
 
-pub mod entry;
+pub mod model;
 pub mod error;
-pub mod message;
-pub mod types;
+pub mod pubsub;
+
+use exports::idp2p::p2p::message_handler::Guest;
 
 wit_bindgen::generate!({
     world: "idp2p-p2p",

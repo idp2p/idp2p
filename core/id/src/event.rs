@@ -1,5 +1,3 @@
-use alloc::collections::BTreeSet;
-
 use alloc::str::FromStr;
 use alloc::string::String;
 use alloc::vec::Vec;
@@ -9,7 +7,7 @@ use crate::{
     types::{IdClaimEvent, IdSigner, IdState},
     TIMESTAMP,
 };
-use idp2p_common::{cbor, ed25519, identifier::Identifier};
+use idp2p_common::{cbor, identifier::Identifier};
 use serde::{Deserialize, Serialize};
 use IdEventKind::*;
 

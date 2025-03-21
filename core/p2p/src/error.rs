@@ -2,7 +2,7 @@
 use thiserror::Error;
 
 #[derive(Error, Debug)]
-pub enum HandleError {
+pub enum HandlePubsubMessageError {
     #[error("Identity not found: {0}")]
     IdNotFound(String),
     #[error("Peer not found: {0}")]
