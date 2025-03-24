@@ -20,7 +20,7 @@ export!(GuestComponent);
 impl Guest for GuestComponent {
     #[doc = " Verifies an initial identity inception event."]
     fn verify_inception(incepiton: Vec<u8>) -> Result<Vec<u8>, String> {
-        Ok(crate::inception::verify(&incepiton).map_err(|e| e.to_string())?)
+        Ok(crate::inception::verify(&incepiton[6..]).map_err(|e| e.to_string())?)
     }
 
     #[doc = " Verifies an identity update event against the existing identity state."]

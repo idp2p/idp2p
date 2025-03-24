@@ -100,11 +100,11 @@ pub(crate) fn verify(inception: &[u8]) -> Result<Vec<u8>, IdInceptionError> {
         event_id: pinception.id.clone(),
         event_timestamp: inception.timestamp,
         threshold: inception.threshold,
-        signers: signers,
+        signers,
         next_threshold: inception.next_threshold,
-        next_signers: next_signers,
-        all_signers: all_signers,
-        claims: claims,
+        next_signers,
+        all_signers,
+        claims,
         next_id: None,
         previous_id: None,
     };
@@ -153,8 +153,7 @@ mod tests {
         let pinception_bytes = cbor::encode(&pinception);
         let result = verify(&pinception_bytes);
         assert!(result.is_ok());
-        let result: IdState = cbor::decode(& result.unwrap()).unwrap();
+        let result: IdState = cbor::decode(&result.unwrap()).unwrap();
         eprintln!("Result: {:#?}", result);
-
     }
 }

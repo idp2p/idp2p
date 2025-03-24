@@ -6,4 +6,5 @@ world idp2p-id {
 
     /// Verifies an identity update event against the existing identity state.
     export verify-event: func(state: list<u8>, event: list<u8>) -> result<list<u8>, string>;
+
 }
