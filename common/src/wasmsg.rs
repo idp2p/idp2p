@@ -2,7 +2,7 @@ use alloc::{string::String, vec::Vec};
 
 use crate::error::CommonError;
 
-// Versioned message structure
+// WASM message structure
 #[derive(Debug, PartialEq)]
 pub struct Wasmsg {
     id: u16,

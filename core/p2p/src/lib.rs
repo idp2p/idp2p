@@ -1,10 +1,16 @@
 extern crate alloc;
 
+use alloc::{string::String, vec::Vec};
+
+mod key;
+mod error;
+mod pubsub;
+mod request;
+mod response;
 pub mod model;
-pub mod error;
-pub mod pubsub;
 
 use exports::idp2p::p2p::message_handler::Guest;
+use idp2p::p2p::types::{P2pError, P2pEvent};
 
 wit_bindgen::generate!({
     world: "idp2p-p2p",
@@ -16,15 +22,15 @@ struct GuestComponent;
 export!(GuestComponent);
 
 impl Guest for GuestComponent {
-    fn handle_pubsub(topic: String, payload: Vec<u8>) -> Result<(), String> {
+    fn handle_pubsub(topic: String, payload: Vec<u8>) -> Result<Vec<P2pEvent>, P2pError> {
         todo!()
     }
 
-    fn handle_request(payload: Vec<u8>) -> Result<(), String> {
+    fn handle_request(payload: Vec<u8>) -> Result<Vec<P2pEvent>, P2pError> {
         todo!()
     }
 
-    fn handle_response(payload: Vec<u8>) -> Result<(), String> {
+    fn handle_response(payload: Vec<u8>) -> Result<Vec<P2pEvent>, P2pError> {
         todo!()
     }
 }

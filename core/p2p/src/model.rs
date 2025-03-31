@@ -1,3 +1,4 @@
+use alloc::{string::String, vec::Vec};
 use idp2p_id::types::IdState;
 use serde::{Deserialize, Serialize};
 
@@ -14,7 +15,6 @@ pub enum IdMessageDirection {
     To,
 }
 
-
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct IdEntry {
     pub kind: IdEntryKind,
@@ -24,9 +24,26 @@ pub struct IdEntry {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct IdMessage {
+pub struct PendingResolve {
     pub id: String,
-    pub from: String,
-    pub to: Vec<String>,  // If empty for all followers
+    pub challenge: Vec<u8>,
+    pub verifier: Vec<u8>,
+    pub providers: Vec<String>,
+    pub timestamp: u64,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct PendingMessage {
+    pub id: String,
     pub payload: Vec<u8>,
+    pub direction: IdMessageDirection,
+    pub providers: Vec<String>,
+    pub timestamp: u64,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct PersistedMessage {
+    pub id: String,
+    pub payload: Vec<u8>,
+    pub timestamp: u64,
 }

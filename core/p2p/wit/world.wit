@@ -1,37 +1,58 @@
 package idp2p:p2p;
 
-interface store {
-    get: func(key: string) -> result<list<u8>, string>;
-    put: func(key: string, value: list<u8>) -> result<list<u8>, string>;
-    exists: func(key: string) -> result<bool, string>;
+interface types {
+   record p2p-error {
+       code: string,
+       message: string,
+   }
+
+   record p2p-publish-event {
+       topic: string,
+       payload: list<u8>
+   }
+
+   record p2p-request-event {
+       peer: string,
+       payload: list<u8>
+   }
+
+   record p2p-response-event {
+       payload: list<u8>
+   }
+
+   record p2p-put-event {
+       key: string,
+       value: list<u8>
+   }
+   
+   variant p2p-event {
+       publish(p2p-publish-event),
+       request(p2p-request-event),
+       response(p2p-response-event),
+       put(p2p-put-event)
+   }
 }
 
-interface id-verifier {
+interface p2p-host {
+    use types.{p2p-error};
+    /// Gets a value from the store.
+    get: func(key: string) -> result<option<list<u8>>, p2p-error>;
+    /// Checks if a key exists in the store.
+    exists: func(key: string) -> result<bool, p2p-error>;
     /// Verifies an initial identity inception event.
-    verify-inception: func(component: string, incepiton: list<u8>) -> result<list<u8>, string>;
+    verify-inception: func(component: string, incepiton: list<u8>) -> result<list<u8>, p2p-error>;
     /// Verifies an identity update event against the existing identity state.
-    verify-event: func(component: string, state: list<u8>, event: list<u8>) -> result<list<u8>, string>;
-}
-
-interface message-sender {
-    publish: func(topic: string, payload: list<u8>) -> result<_, string>;
-    request: func(peer: string, payload: list<u8>) -> result<_, string>;
-    response: func(payload: list<u8>) -> result<_, string>;
+    verify-event: func(component: string, state: list<u8>, event: list<u8>) -> result<list<u8>, p2p-error>;
 }
 
 interface message-handler {
-    handle-pubsub: func(topic: string, payload: list<u8>) -> result<_, string>;
-    handle-request: func(payload: list<u8>) -> result<_, string>;
-    handle-response: func(payload: list<u8>) -> result<_, string>;
-}
-
-interface signer {
-    sign: func(req: list<u8>) -> result<list<u8>, string>;
+    use types.{p2p-event, p2p-error};
+    handle-pubsub: func(topic: string, payload: list<u8>) -> result<list<p2p-event>, p2p-error>;
+    handle-request: func(payload: list<u8>) -> result<list<p2p-event>, p2p-error>;
+    handle-response: func(payload: list<u8>) -> result<list<p2p-event>, p2p-error>;
 }
 
 world idp2p-p2p {    
-    import store;
-    import id-verifier;
-    import message-sender;
+    import p2p-host;
     export message-handler;
 }

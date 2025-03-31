@@ -1,9 +1,9 @@
 [package]
 name = "idp2p"
-edition = "2021"
+edition = "2024"
 
 [workspace]
-edition = "2021"
+edition = "2024"
 members = [
     "common",
     "core/id",

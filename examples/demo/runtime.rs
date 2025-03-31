@@ -3,10 +3,10 @@ use std::{
     sync::{Arc, Mutex},
 };
 
-use idp2p::p2p::{self, id_verifier};
+use idp2p::p2p::{self, types::{P2pError, P2pEvent}};
 use wasmtime::{
-    component::{bindgen, Component, Linker},
     Config, Engine, Store,
+    component::{Component, Linker, bindgen},
 };
 
 bindgen!({
@@ -31,13 +31,13 @@ struct P2pState {
 
 struct IdState;
 
-impl p2p::id_verifier::Host for HostComponent {
+impl p2p::p2p_host::Host for HostComponent {
     #[doc = " Verifies an initial identity inception event."]
     fn verify_inception(
         &mut self,
         component: String,
         incepiton: Vec<u8>,
-    ) -> Result<Vec<u8>, String> {
+    ) -> Result<Vec<u8>, P2pError> {
         todo!()
     }
 
@@ -47,7 +47,17 @@ impl p2p::id_verifier::Host for HostComponent {
         component: String,
         state: Vec<u8>,
         event: Vec<u8>,
-    ) -> Result<Vec<u8>, String> {
+    ) -> Result<Vec<u8>, P2pError> {
+        todo!()
+    }
+
+    #[doc = " Gets a value from the store."]
+    fn get(&mut self, key: String) -> Result<Option<Vec<u8>>, P2pError> {
+        todo!()
+    }
+
+    #[doc = " Checks if a key exists in the store."]
+    fn exists(&mut self, key: String) -> Result<bool, P2pError> {
         todo!()
     }
 }
@@ -72,7 +82,7 @@ impl WasmRuntime {
 
         // Create and set up linker
         let mut p2p_linker = Linker::new(&engine);
-        p2p::id_verifier::add_to_linker(&mut p2p_linker, |state: &mut P2pState| &mut state.host)?;
+        p2p::p2p_host::add_to_linker(&mut p2p_linker, |state: &mut P2pState| &mut state.host)?;
 
         let id_linker = Linker::new(&engine);
 
@@ -96,7 +106,12 @@ impl WasmRuntime {
         })
     }
 
-    pub fn handle_pubsub_message(&self, runtime: Arc<Self>, topic: &str, msg: &[u8]) -> anyhow::Result<()> {
+    pub fn handle_pubsub_message(
+        &self,
+        runtime: Arc<Self>,
+        topic: &str,
+        msg: &[u8],
+    ) -> anyhow::Result<Vec<P2pEvent>> {
         // Create a new store with the secondary result
         let mut store = Store::new(
             &self.engine,
@@ -104,24 +119,38 @@ impl WasmRuntime {
                 host: HostComponent { runtime },
             },
         );
-        let comp = self.p2p_components.lock().unwrap().get("k").unwrap().to_owned();
+        let comp = self
+            .p2p_components
+            .lock()
+            .unwrap()
+            .get("k")
+            .unwrap()
+            .to_owned();
         // Instantiate and call the primary component
-        let (p2p, _) =
-            Idp2pP2p::instantiate(&mut store, &comp, &self.p2p_linker)?;
-        Ok(p2p.interface0.call_handle_pubsub(&mut store, topic, msg).unwrap().unwrap())
+        let (p2p, _) = Idp2pP2p::instantiate(&mut store, &comp, &self.p2p_linker)?;
+        Ok(p2p
+            .interface0
+            .call_handle_pubsub(&mut store, topic, msg)
+            .unwrap()
+            .unwrap())
     }
 
     fn verify_inception(&self, inception: &[u8]) -> anyhow::Result<()> {
         // Create a new store with the secondary result
         let mut store = Store::new(&self.engine, IdState);
-        let comp = self.id_components.lock().unwrap().get("k").unwrap().to_owned();
+        let comp = self
+            .id_components
+            .lock()
+            .unwrap()
+            .get("k")
+            .unwrap()
+            .to_owned();
         // Instantiate and call the primary component
-        let (verifier, _) = Idp2pId::instantiate(
-            &mut store,
-            &comp,
-            &self.id_linker,
-        )?;
-        verifier.call_verify_inception(&mut store, inception).unwrap().unwrap();
+        let (verifier, _) = Idp2pId::instantiate(&mut store, &comp, &self.id_linker)?;
+        verifier
+            .call_verify_inception(&mut store, inception)
+            .unwrap()
+            .unwrap();
         Ok(())
     }
 }
