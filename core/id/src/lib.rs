@@ -3,7 +3,7 @@ extern crate alloc;
 mod error;
 pub mod event;
 pub mod inception;
-pub mod types;
+pub mod state;
 
 const TIMESTAMP: i64 = 1735689600;
 
@@ -25,6 +25,6 @@ impl Guest for GuestComponent {
 
     #[doc = " Verifies an identity update event against the existing identity state."]
     fn verify_event(state: Vec<u8>, event: Vec<u8>) -> Result<Vec<u8>, String> {
-        todo!()
+        Ok(crate::event::verify(&state, &event[6..]).map_err(|e| e.to_string())?)
     }
 }

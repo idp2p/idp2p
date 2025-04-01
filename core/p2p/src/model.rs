@@ -1,5 +1,5 @@
 use alloc::{string::String, vec::Vec};
-use idp2p_id::types::IdState;
+use idp2p_id::state::IdState;
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
