@@ -6,9 +6,9 @@ macro_rules! id_key {
 }
 
 #[macro_export]
-macro_rules! id_events_key {
+macro_rules! id_providers_key {
     ($id:expr) => {
-        &format!("/id/{}/events", $id)
+        &format!("/id/{}/providers", $id)
     };
 }
 
@@ -23,13 +23,6 @@ macro_rules! id_messages_key {
 macro_rules! id_peers_key {
     ($id:expr) => {
         &format!("/id/{}/peers", $id)
-    };
-}
-
-#[macro_export] 
-macro_rules! id_pending_resolve_key {
-    ($id:expr) => {
-        &format!("/id/{}/pending/resolve", $id)
     };
 }
 

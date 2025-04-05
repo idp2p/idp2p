@@ -1,0 +1,11 @@
+interface p2p-host {
+    use types.{p2p-error};
+    /// Gets a value from the store.
+    get: func(key: string) -> result<option<list<u8>>, p2p-error>;
+    /// Checks if a key exists in the store.
+    exists: func(key: string) -> result<bool, p2p-error>;
+    /// Verifies an initial identity inception event.
+    verify-inception: func(component: string, incepiton: list<u8>) -> result<list<u8>, p2p-error>;
+    /// Verifies an identity update event against the existing identity state.
+    verify-event: func(component: string, state: list<u8>, event: list<u8>) -> result<list<u8>, p2p-error>;
+}

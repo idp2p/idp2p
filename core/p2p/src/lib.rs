@@ -2,11 +2,11 @@ extern crate alloc;
 
 use alloc::{string::String, vec::Vec};
 
-mod key;
 mod error;
-mod pubsub;
-mod request;
-mod response;
+mod key;
+mod message;
+mod command;
+
 pub mod model;
 
 use exports::idp2p::p2p::message_handler::Guest;
@@ -23,7 +23,7 @@ export!(GuestComponent);
 
 impl Guest for GuestComponent {
     fn handle_pubsub(topic: String, payload: Vec<u8>) -> Result<Vec<P2pEvent>, P2pError> {
-        todo!()
+        message::handle_pubsub_message(&topic, &payload).map_err(|e| e.into())
     }
 
     fn handle_request(payload: Vec<u8>) -> Result<Vec<P2pEvent>, P2pError> {

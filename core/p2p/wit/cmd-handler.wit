@@ -1,0 +1,7 @@
+interface command-handler {
+    use types.{p2p-event, p2p-error};
+    handle-create-id: func(id: string, inception: list<u8>) -> result<list<p2p-event>, p2p-error>;
+    handle-update-id: func(id: string, event: list<u8>) -> result<list<p2p-event>, p2p-error>;
+    handle-resolve-id: func(id: string) -> result<list<p2p-event>, p2p-error>;
+    handle-send-message: func(id: string, message: list<u8>) -> result<list<p2p-event>, p2p-error>;
+}

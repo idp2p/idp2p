@@ -1,49 +1,42 @@
+use alloc::collections::BTreeMap;
+
 use alloc::{string::String, vec::Vec};
 use idp2p_id::state::IdState;
 use serde::{Deserialize, Serialize};
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
-pub enum IdEntryKind {
-    Owner,
-    Client,
-    Following,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub enum IdMessageDirection {
-    From,
-    To,
-}
-
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct IdEntry {
-    pub kind: IdEntryKind,
+    pub id: String,
     pub state: IdState,
     pub inception: Vec<u8>,
-    pub last_event: Vec<u8>,
+    pub events: BTreeMap<String, Vec<u8>>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct PendingResolve {
+pub struct IdNode {
     pub id: String,
-    pub challenge: Vec<u8>,
-    pub verifier: Vec<u8>,
     pub providers: Vec<String>,
-    pub timestamp: u64,
+}
+
+pub struct IdClient {
+    pub id: String,
+    pub node_id: String,
+    pub followers: Vec<String>,
+    pub pending_messages: Vec<PendingMessage>,
+    pub inbound_messages: Vec<InboundMessage>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct PendingMessage {
     pub id: String,
     pub payload: Vec<u8>,
-    pub direction: IdMessageDirection,
     pub providers: Vec<String>,
-    pub timestamp: u64,
+    pub timestamp: i64,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct PersistedMessage {
+pub struct InboundMessage {
     pub id: String,
     pub payload: Vec<u8>,
-    pub timestamp: u64,
+    pub timestamp: i64,
 }

@@ -6,6 +6,8 @@ use alloc::string::String;
 pub enum IdInceptionError {
     #[error("Invalid timestamp")]
     InvalidTimestamp,
+    #[error("Invalid version")]
+    UnsupportedVersion,
     #[error("Invalid id: {0}")]
     InvalidId(String),
     #[error("Invalid payload")]
@@ -40,6 +42,8 @@ pub enum IdInceptionError {
 pub enum IdEventError {
     #[error("Invalid timestamp")]
     InvalidTimestamp,
+    #[error("Invalid version")]
+    UnsupportedVersion,
     #[error("Invalid event id: {0}")]
     InvalidEventId(String),
     #[error("Invalid payload")]

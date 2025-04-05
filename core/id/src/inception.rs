@@ -2,10 +2,10 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use alloc::str::FromStr;
 
-use idp2p_common::{cbor, identifier::Identifier};
+use idp2p_common::{cbor, identifier::Identifier, wasmsg::Wasmsg};
 use serde::{Deserialize, Serialize};
 
-use crate::{TIMESTAMP, error::IdInceptionError, state::IdState};
+use crate::{error::IdInceptionError, state::IdState, TIMESTAMP, VERSION};
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct IdInception {
@@ -38,7 +38,11 @@ impl TryFrom<&PersistedIdInception> for IdInception {
 }
 
 pub(crate) fn verify(inception: &[u8]) -> Result<Vec<u8>, IdInceptionError> {
-    let pinception: PersistedIdInception = cbor::decode(inception)?;
+    let ver = Wasmsg::from_bytes(&inception)?;
+    if ver != VERSION {
+        return Err(IdInceptionError::UnsupportedVersion);
+    }
+    let pinception: PersistedIdInception = cbor::decode(&inception[5..])?;
 
     let inception: IdInception = (&pinception).try_into()?;
 

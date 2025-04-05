@@ -4,9 +4,9 @@ use alloc::str::FromStr;
 use alloc::string::String;
 use alloc::vec::Vec;
 
-use crate::{TIMESTAMP, error::IdEventError, state::IdState};
+use crate::{error::IdEventError, state::IdState, TIMESTAMP, VERSION};
 use IdEventKind::*;
-use idp2p_common::{cbor, ed25519, identifier::Identifier};
+use idp2p_common::{cbor, ed25519, identifier::Identifier, wasmsg::Wasmsg};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -71,6 +71,10 @@ impl TryFrom<&PersistedIdEvent> for IdEvent {
 }
 
 pub(crate) fn verify(state: &[u8], payload: &[u8]) -> Result<Vec<u8>, IdEventError> {
+    let ver = Wasmsg::from_bytes(&payload)?;
+    if ver != VERSION {
+        return Err(IdEventError::UnsupportedVersion);
+    }
     let mut state: IdState = cbor::decode(state)?;
     let pevent: PersistedIdEvent = cbor::decode(payload)?;
     let event: IdEvent = (&pevent).try_into()?;
