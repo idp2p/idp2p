@@ -1,0 +1,6 @@
+interface error {
+    record idp2p-error {
+        code: string,
+        message: string,
+    }
+}

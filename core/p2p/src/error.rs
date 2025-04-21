@@ -1,8 +1,6 @@
 use alloc::string::String;
 use thiserror::Error;
 
-use crate::idp2p::p2p::types::P2pError;
-
 #[derive(Error, Debug)]
 pub enum HandlePubsubMessageError {
     #[error("Identity not found: {0}")]
@@ -14,7 +12,7 @@ pub enum HandlePubsubMessageError {
     #[error("Common error")]
     CommonError(#[from] idp2p_common::error::CommonError),
     #[error("Host error")]
-    HostError(#[from] crate::idp2p::p2p::types::P2pError),
+    HostError(#[from] crate::idp2p::p2p::error::Idp2pError),
     #[error("Identifier error")]
     IdError(#[from] idp2p_common::identifier::IdentifierError),
     #[error("Unknown error")]
@@ -31,7 +29,7 @@ pub enum HandleRequestError {
     Other(#[from] core::fmt::Error),
 }
 
-impl From<HandlePubsubMessageError> for P2pError {
+impl From<HandlePubsubMessageError> for crate::idp2p::p2p::error::Idp2pError {
     fn from(value: HandlePubsubMessageError) -> Self {
         todo!()
     }

@@ -1,6 +1,0 @@
-interface message-handler {
-    use types.{p2p-event, p2p-error};
-    handle-pubsub: func(topic: string, payload: list<u8>) -> result<list<p2p-event>, p2p-error>;
-    handle-request: func(payload: list<u8>) -> result<list<p2p-event>, p2p-error>;
-    handle-response: func(payload: list<u8>) -> result<list<p2p-event>, p2p-error>;
-}

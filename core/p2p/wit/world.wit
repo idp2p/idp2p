@@ -1,6 +1,12 @@
 package idp2p:p2p;
 
+interface message-handler {
+    use error.{idp2p-error};
+    handle-message: func(payload: list<u8>) -> result<_, idp2p-error>;
+}
+
 world idp2p-p2p {    
-    import p2p-host;
+    import idp2p-store;
+    import p2p-sender;
     export message-handler;
 }

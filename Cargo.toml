@@ -35,8 +35,9 @@ idp2p-common = { path = "./common" }
 idp2p-id = { path = "./core/id" }
 idp2p-p2p = { path = "./core/p2p" }
 color-eyre = "0"
-tui-input = "0"
-ratatui = { version = "0", features = ["all-widgets"]}
+iocraft = "0"
+smol = "0"
+surf = { version = "2", default-features = false, features = ["h1-client"] }
 
 [profile]
 
