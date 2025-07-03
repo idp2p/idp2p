@@ -15,8 +15,14 @@ pub enum CommonError {
     SignatureVerifyError,
     #[error("Invalid versioned message")]
     InvalidVersionedMessage,
-    #[error("Multihash error:\n {0}")]
-    MultihashError(#[from] multihash::Error),
+    #[error("Payload hash does not match the CID hash")]
+    PayloadHashMismatch,
+    #[error("Unsupported hash algorithm: {0}. Expected SHA2-256")]
+    UnsupportedHashAlgorithm(u64),
+    #[error("Invalid CID: {0}")]
+    Multihash(#[from] cid::multihash::Error),
+    #[error("Decode error:\n {0}")]
+    BaseError(#[from] cid::multibase::Error),
     #[error("Formatting error:\n {0}")]
     Other(#[from] core::fmt::Error),
 }

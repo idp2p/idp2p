@@ -3,7 +3,7 @@ use std::{
     sync::{Arc, Mutex},
 };
 
-use idp2p::p2p::{self, types::{P2pError, P2pEvent}};
+//use idp2p::p2p::{self, types::{P2pError, P2pEvent}};
 use wasmtime::{
     Config, Engine, Store,
     component::{Component, Linker, bindgen},

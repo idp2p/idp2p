@@ -15,6 +15,7 @@ pub struct IdEntry {
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct PeerEntry {
     pub id: String,
+    pub peer_id: String,
     pub providers: Vec<String>,
     pub inbound_messages: Vec<InboundMessage>,
     pub outbound_messages: Vec<OutboundMessage>,

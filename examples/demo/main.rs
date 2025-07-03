@@ -1,6 +1,6 @@
-use structopt::StructOpt;
+/*use structopt::StructOpt;
 use tracing_subscriber::EnvFilter;
-/*use futures::{channel::mpsc, SinkExt, StreamExt};
+use futures::{channel::mpsc, SinkExt, StreamExt};
 use idp2p_common::identifier::Id;
 use idp2p_p2p::{
     handler::{IdMessageHandler, IdMessageHandlerCommand}, model::IdEntryKind, verifier::IdVerifierImpl
@@ -15,7 +15,7 @@ mod app;
 mod network;
 mod store;
 mod user;
-mod utils;*/
+mod utils;
 
 mod runtime;
 mod codec;
@@ -24,18 +24,18 @@ mod codec;
 struct Opt {
     #[structopt(short = "i", long = "id")]
     name: String,
-}
+}*/
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     dotenv::dotenv().ok();
-    let opt = Opt::from_args();
+    /*let opt = Opt::from_args();
     color_eyre::install().map_err(anyhow::Error::msg)?;
     tracing_subscriber::fmt()
         .with_env_filter(EnvFilter::from_default_env())
         .try_init()
         .unwrap();
-    /*let store = Arc::new(InMemoryKvStore::new());
+    let store = Arc::new(InMemoryKvStore::new());
 
     let (handler_cmd_sender, handler_cmd_receiver) = mpsc::channel(0);
     let (app_event_sender, app_event_receiver) = mpsc::channel(0);

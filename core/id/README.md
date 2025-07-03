@@ -1,7 +1,11 @@
 [!TODO]
 
-- Multisig recovery minimum signer
-- Handle verify_event
+- Witness
+- Keys(authentication, key-agreement, assertion-method)
+- Peers
+- Mediators
+- Delegations(revoke, recovery, ancestor)
+
 
 `/idp2p/id/{major}/{minor}/{cid}`
 
@@ -47,5 +51,9 @@ Examples:
 
 - `/idp2p/id/1/0/bafkreieq5jui4j25lacwomsqgjeswwl3y5zcdrresptwgmfylxo2depppq`
 
-
+```json
+{
+    "inception": "(self:3 || external-\"abc\") && self:6",
+}
+```
 

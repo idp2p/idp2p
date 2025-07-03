@@ -4,14 +4,13 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-hex = { workspace = true }
 thiserror = { workspace = true }
 regex = { workspace = true }
-sha2 = { workspace = true }
 cid = { workspace = true }
+sha2 = { workspace = true }
 ciborium = { workspace = true }
-multihash = { workspace = true }
 serde = { workspace = true }
+serde_with = { workspace = true }
 chrono = { workspace = true }
 semver = { workspace = true }
 ed25519-dalek = { workspace = true }

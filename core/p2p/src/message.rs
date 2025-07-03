@@ -12,6 +12,56 @@ pub enum IdMessageKind {
         inception: Vec<u8>,
         events: BTreeMap<String, Vec<u8>>,
     },
+    Join(String),
+    Update {
+        id: String,
+        event: Vec<u8>,
+    },
+    Resolve(String),
+    IdRequest(String),
+    IdResponse {
+        id: String,
+        inception: Vec<u8>,
+        events: BTreeMap<String, Vec<u8>>,
+    },
+    NotifyEvent(Vec<u8>),
+}
+
+pub fn handle_message(payload: &[u8]) -> Result<(), HandlePubsubMessageError> {
+    let kind: IdMessageKind = cbor::decode(&payload[5..])?;
+    match kind {
+        IdMessageKind::Create {
+            id,
+            inception,
+            events,
+        } => {
+            // verify id inception and store it
+            // subscribe to {id}
+            // subscribe to {id}-self
+        },
+        IdMessageKind::Join(peer_id) => todo!(),
+        IdMessageKind::Update { id, event } => todo!(),
+        IdMessageKind::Resolve(_) => todo!(),
+        IdMessageKind::IdRequest(_) => todo!(),
+        IdMessageKind::IdResponse {
+            id,
+            inception,
+            events,
+        } => todo!(),
+        IdMessageKind::NotifyEvent(items) => todo!()
+    }
+    Ok(())
+}
+/*
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum IdMessageKind {
+    Create {
+        id: String,
+        inception: Vec<u8>,
+        events: BTreeMap<String, Vec<u8>>,
+    },
+    Join(String),
     Update {
         id: String,
         event: Vec<u8>,
@@ -38,37 +88,6 @@ pub enum IdMessageKind {
     },
     MessageResponse(Vec<u8>),
 }
-
-pub fn handle_message(payload: &[u8]) -> Result<(), HandlePubsubMessageError> {
-    let kind: IdMessageKind = cbor::decode(&payload[5..])?;
-    match kind {
-        IdMessageKind::Create {
-            id,
-            inception,
-            events,
-        } => {
-            
-        },
-        IdMessageKind::Update { id, event } => todo!(),
-        IdMessageKind::Resolve(_) => todo!(),
-        IdMessageKind::SendMessage { id, payload } => todo!(),
-        IdMessageKind::IdRequest(_) => todo!(),
-        IdMessageKind::IdResponse {
-            id,
-            inception,
-            events,
-        } => todo!(),
-        IdMessageKind::NotifyEvent(items) => todo!(),
-        IdMessageKind::NotifyMessage { id, providers } => todo!(),
-        IdMessageKind::MessageRequest {
-            peer_id,
-            message_id,
-        } => todo!(),
-        IdMessageKind::MessageResponse(items) => todo!(),
-    }
-    Ok(())
-}
-/*
 pub(crate) fn handle_create_id(
     id: String,
     inception: &[u8],

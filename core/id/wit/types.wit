@@ -1,0 +1,77 @@
+interface id-types {
+    type bytes = list<u8>;
+    type event-rule = list<list<event-rule-expr>>;
+
+    variant event-rule-id-kind {
+        current,
+        other(string),
+    }
+
+    record event-rule-expr {
+        id: event-rule-id-kind,
+        threshold: u8,
+    }    
+
+    record id-config {
+        rotation-rule: event-rule,
+        interaction-rule: event-rule,
+        revocation-rule: event-rule,
+        migration-rule: event-rule, 
+    }
+
+    record id-proof {
+        id: string,
+        kid: string,        
+        sig: bytes,
+    }
+
+    record id-signer {
+        id: string,        
+        pk: bytes,
+    }
+
+    record id-claim {
+        key: string,
+        value: list<bytes>,
+    }
+
+    record persisted-id {
+        id: string,
+        inception: persisted-id-inception,
+        events: list<persisted-id-event>,    
+    }
+
+    record persisted-id-inception {
+        id: string,
+        version: string,
+        payload: bytes,
+    }
+
+    record persisted-id-event {
+        id: string,
+        version: string,
+        payload: bytes,
+        proofs: list<id-proof>,
+    }
+
+    record id-state {
+        // Identifier 
+        id: string,
+        // Previous id
+        previous-id: option<string>,
+        // Current config
+        config: id-config,
+        // Last event id
+        event-id: string,
+        // Last event time
+        event-timestamp: s64,
+        // Current signers
+        signers: list<id-signer>,
+        // CID codec should be 0xed 
+        next-signers: list<string>,
+        // All actions
+        claims: list<id-claim>,
+        // All keys
+        all-signers: list<string>,
+    }        
+}

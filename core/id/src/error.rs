@@ -1,6 +1,6 @@
-use idp2p_common::{error::CommonError, identifier::IdentifierError};
-use thiserror::Error;
 use alloc::string::String;
+use idp2p_common::error::CommonError;
+use thiserror::Error;
 
 #[derive(Debug, Error)]
 pub enum IdInceptionError {
@@ -32,10 +32,10 @@ pub enum IdInceptionError {
     InvalidNextSignerKind(String),
     #[error("Invalid claim: {0}")]
     InvalidClaim(String),
+    #[error("Invalid CID: {0}")]
+    Cid(#[from] cid::Error),
     #[error("Common error:\n {0}")]
-    CommonError(#[from] CommonError),
-    #[error("Identifier error:\n {0}")]
-    IdentifierError(#[from] IdentifierError),
+    CommonError(#[from] CommonError)
 }
 
 #[derive(Debug, Error)]
@@ -59,10 +59,7 @@ pub enum IdEventError {
     #[error("Lack of minimum proofs")]
     LackOfMinProofs,
     #[error("Invalid proof: {kid}, {reason}")]
-    InvalidProof {
-       kid: String,
-       reason: String
-    },
+    InvalidProof { kid: String, reason: String },
     #[error("Invalid signer: {0}")]
     InvalidSigner(String),
     #[error("Invalid next signer: {0}")]
@@ -73,12 +70,13 @@ pub enum IdEventError {
     InvalidDelegationId(String),
     #[error("Common error:\n {0}")]
     CommonError(#[from] CommonError),
-    #[error("Identifier error:\n {0}")]
-    IdentifierError(#[from] IdentifierError),
 }
 
 impl IdEventError {
     pub fn invalid_proof(kid: &str, reason: &str) -> Self {
-        Self::InvalidProof { kid: kid.to_owned(), reason: reason.to_owned() }
+        Self::InvalidProof {
+            kid: kid.to_owned(),
+            reason: reason.to_owned(),
+        }
     }
 }

@@ -2,36 +2,30 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use alloc::str::FromStr;
 
-use idp2p_common::{cbor, identifier::Identifier, wasmsg::Wasmsg};
+use cid::Cid;
+use idp2p_common::{cbor, cid::CidExt};
 use serde::{Deserialize, Serialize};
 
-use crate::{error::IdInceptionError, state::IdState, TIMESTAMP, VERSION};
+use crate::{
+    error::IdInceptionError,
+    types::{IdConfig, PersistedIdInception},
+};
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct IdInception {
+    pub config: IdConfig,
     pub timestamp: i64,
-    pub threshold: u8,
-    pub next_threshold: u8,
     pub signers: BTreeMap<String, Vec<u8>>,
     pub next_signers: BTreeSet<String>,
     pub claims: BTreeMap<String, Vec<u8>>,
-}
-
-#[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct PersistedIdInception {
-    pub id: String,
-    pub payload: Vec<u8>,
 }
 
 impl TryFrom<&PersistedIdInception> for IdInception {
     type Error = IdInceptionError;
 
     fn try_from(value: &PersistedIdInception) -> Result<Self, Self::Error> {
-        let id = Identifier::from_str(value.id.as_str())?;
-        if id.kind != "id" {
-            return Err(IdInceptionError::InvalidId(value.id.clone()));
-        }
-        id.ensure(&value.payload)?;
+        let cid = Cid::from_str(&value.id)?;
+        cid.ensure(&value.payload)?;
         let inception: IdInception = cbor::decode(&value.payload)?;
         Ok(inception)
     }
@@ -106,8 +100,10 @@ pub(crate) fn verify(inception: &[u8]) -> Result<Vec<u8>, IdInceptionError> {
         id_state.next_signers.insert(next_signer.to_owned());
     }
 
-    for (claim_key, claim_event ) in &inception.claims {
-        id_state.claims.insert(claim_key.to_owned(), vec![claim_event.to_owned()]);
+    for (claim_key, claim_event) in &inception.claims {
+        id_state
+            .claims
+            .insert(claim_key.to_owned(), vec![claim_event.to_owned()]);
     }
 
     let id_state_bytes = cbor::encode(&id_state);
