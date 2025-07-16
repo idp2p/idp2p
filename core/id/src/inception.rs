@@ -7,17 +7,24 @@ use idp2p_common::{cbor, cid::CidExt};
 use serde::{Deserialize, Serialize};
 
 use crate::{
+    TIMESTAMP, VERSION,
+    did::PersistedIdInception,
     error::IdInceptionError,
-    types::{IdConfig, PersistedIdInception},
+    state::{EventRule, IdSigner, IdState},
 };
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct IdInception {
-    pub config: IdConfig,
     pub timestamp: i64,
+    pub previous_id: Option<String>,
+    pub rotation_rule: EventRule,
+    pub interaction_rule: EventRule,
+    pub revocation_rule: EventRule,
+    pub migration_rule: EventRule,
     pub signers: BTreeMap<String, Vec<u8>>,
+    pub current_signers: BTreeSet<String>,
     pub next_signers: BTreeSet<String>,
-    pub claims: BTreeMap<String, Vec<u8>>,
+    pub claim_events: BTreeMap<String, Vec<u8>>,
 }
 
 impl TryFrom<&PersistedIdInception> for IdInception {
@@ -31,14 +38,12 @@ impl TryFrom<&PersistedIdInception> for IdInception {
     }
 }
 
-pub(crate) fn verify(inception: &[u8]) -> Result<Vec<u8>, IdInceptionError> {
-    let ver = Wasmsg::from_bytes(&inception)?;
-    if ver != VERSION {
+pub(crate) fn verify(pinception: &PersistedIdInception) -> Result<Vec<u8>, IdInceptionError> {
+    if pinception.version != VERSION {
         return Err(IdInceptionError::UnsupportedVersion);
     }
-    let pinception: PersistedIdInception = cbor::decode(&inception[5..])?;
 
-    let inception: IdInception = (&pinception).try_into()?;
+    let inception: IdInception = (pinception).try_into()?;
 
     // Timestamp check
     //
@@ -46,63 +51,34 @@ pub(crate) fn verify(inception: &[u8]) -> Result<Vec<u8>, IdInceptionError> {
         return Err(IdInceptionError::InvalidTimestamp);
     }
 
-    // Signer check
-    //
-    let total_signers = inception.signers.len() as u8;
-    if total_signers < inception.threshold {
-        return Err(IdInceptionError::ThresholdNotMatch);
-    }
+    // Inception rule check
 
     let mut id_state = IdState {
         id: pinception.id.clone(),
         event_id: pinception.id.clone(),
         event_timestamp: inception.timestamp,
-        threshold: inception.threshold,
-        next_threshold: inception.next_threshold,
-        signers: BTreeMap::new(),
-        next_signers: BTreeSet::new(),
-        all_signers: BTreeSet::new(),
-        claims: BTreeMap::new(),
-        next_id: None,
-        previous_id: None,
+        previous_id: inception.previous_id.clone(),
+        rotation_rule: inception.rotation_rule.clone(),
+        interaction_rule: inception.interaction_rule.clone(),
+        revocation_rule: inception.revocation_rule.clone(),
+        migration_rule: inception.migration_rule.clone(),
+        signers: inception
+            .signers
+            .iter()
+            .map(|(k, v)| (k.clone(), IdSigner::new(v)))
+            .collect(),
+        current_signers: inception.current_signers.clone(),
+        next_signers: inception.next_signers.clone(),
+        claim_events: inception
+            .claim_events
+            .iter()
+            .map(|(k, v)| (k.clone(), vec![v.clone()]))
+            .collect(),
     };
 
-    for (signer_kid, signer_pk) in &inception.signers {
-        let signer_id = Identifier::from_str(signer_kid)?;
-        if signer_id.kind != "signer" {
-            return Err(IdInceptionError::InvalidSignerKind(signer_id.to_string()));
-        }
-        signer_id.ensure(&signer_pk)?;
-        if id_state.signers.contains_key(signer_kid) {
-            return Err(IdInceptionError::DublicateSigner(signer_id.to_string()));
-        }
-        id_state.all_signers.insert(signer_id.to_string());
+    for (claim_key, claim_event) in &inception.claim_events {
         id_state
-            .signers
-            .insert(signer_kid.to_string(), signer_pk.to_owned());
-    }
-
-    // Next Signer check
-    //
-    let total_next_signers = inception.next_signers.len() as u8;
-    if total_next_signers < inception.next_threshold {
-        return Err(IdInceptionError::NextThresholdNotMatch);
-    }
-    for next_signer in &inception.next_signers {
-        let next_signer_id = Identifier::from_str(next_signer)?;
-        if next_signer_id.kind != "signer" {
-            return Err(IdInceptionError::InvalidNextSignerKind(next_signer.clone()));
-        }
-        if id_state.next_signers.contains(next_signer) {
-            return Err(IdInceptionError::DublicateNextSigner(next_signer.clone()));
-        }
-        id_state.all_signers.insert(next_signer.to_owned());
-        id_state.next_signers.insert(next_signer.to_owned());
-    }
-
-    for (claim_key, claim_event) in &inception.claims {
-        id_state
-            .claims
+            .claim_events
             .insert(claim_key.to_owned(), vec![claim_event.to_owned()]);
     }
 
@@ -122,9 +98,7 @@ mod tests {
     fn create_signer() -> (String, Vec<u8>) {
         let mut csprng = OsRng;
         let signing_key: SigningKey = SigningKey::generate(&mut csprng);
-        let id = Identifier::new("signer", ED_CODE, signing_key.as_bytes())
-            .unwrap()
-            .to_string();
+        let id = Cid::create(ED_CODE, signing_key.as_bytes()).unwrap().to_string(); 
         (id, signing_key.to_bytes().to_vec())
     }
 
@@ -138,21 +112,28 @@ mod tests {
         next_signers.insert(kid);
         let inception = IdInception {
             timestamp: 1735689600,
-            threshold: 1,
-            signers: signers,
-            next_threshold: 1,
             next_signers: next_signers,
-            claims: BTreeMap::new(),
+            previous_id: None,
+            rotation_rule: vec![],
+            interaction_rule: vec![],
+            revocation_rule: vec![],
+            migration_rule: vec![],
+            signers: signers,
+            current_signers: BTreeSet::new(),
+            claim_events: BTreeMap::new(),
         };
         let inception_bytes = cbor::encode(&inception);
-        let id = Identifier::new("id", CBOR_CODE, inception_bytes.as_slice()).unwrap();
+        let id = Cid::create(CBOR_CODE, inception_bytes.as_slice()).unwrap().to_string();
         eprintln!("ID: {}", id.to_string());
         let pinception = PersistedIdInception {
             id: id.to_string(),
             payload: inception_bytes,
+            previous_id: None,
+            version: VERSION.to_string(),
+            timestamp: TIMESTAMP,
+            proofs: vec![],
         };
-        let pinception_bytes = cbor::encode(&pinception);
-        let result = verify(&pinception_bytes);
+        let result = verify(&pinception);
         assert!(result.is_ok());
         let result: IdState = cbor::decode(&result.unwrap()).unwrap();
         eprintln!("Result: {:#?}", result);

@@ -1,21 +1,22 @@
 extern crate alloc;
-mod error;
+pub mod error;
 pub mod inception;
-pub mod types;
+pub mod did;
+pub mod state;
 const TIMESTAMP: i64 = 1735689600;
-
+const VERSION: &'static str = "1.0.0";
 /*mod did;
 pub mod event;
 pub mod state;
 
-const VERSION: (u16, u16) = (1, 0);*/
+*/
 
 wit_bindgen::generate!({
     world: "idp2p-id",
     generate_unused_types: true,
     additional_derives: [PartialEq, Eq, Hash, Clone, serde::Serialize, serde::Deserialize],
     with: {
-        "idp2p:id/id-types": crate::types,
+        "idp2p:id/did": crate::did,
     }
 });
 
@@ -25,12 +26,17 @@ export!(GuestComponent);
 
 impl Guest for GuestComponent {
     #[doc = " Verifies an initial identity inception event."]
-    fn verify_inception(_incepiton: PersistedIdInception) -> Result<IdState, String> {
+    fn verify_inception(_incepiton: PersistedIdInception) -> Result<Vec<u8>, String> {
         todo!()
     }
 
     #[doc = " Verifies an identity update event against the existing identity state."]
-    fn verify_event(_state: IdState, _event: PersistedIdEvent) -> Result<IdState, String> {
+    fn verify_event(_state: Vec<u8>, _event: PersistedIdEvent) -> Result<Vec<u8>, String> {
+        todo!()
+    }
+    
+    #[doc = " Verifies an identity proof."]
+    fn verify_proof(proof: IdProof,) -> Result<bool, String> {
         todo!()
     }
     /*#[doc = " Verifies an initial identity inception event."]

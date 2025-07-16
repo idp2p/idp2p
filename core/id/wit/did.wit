@@ -1,0 +1,34 @@
+interface did {
+    type bytes = list<u8>;
+
+    record id-proof {
+        id: string,
+        kid: string,        
+        sig: bytes,
+    }
+
+    record persisted-id-inception {
+        id: string,
+        version: string,
+        previous-id: option<string>,
+        payload: bytes,
+        timestamp: s64,
+        proofs: list<id-proof>,
+    } 
+
+    record persisted-id-event {
+        id: string,
+        version: string,
+        kind: string,
+        previous: string,
+        payload: bytes,
+        timestamp: s64,
+        proofs: list<id-proof>,
+    } 
+
+    record persisted-id {
+        id: string,
+        inception: persisted-id-inception,
+        events: list<persisted-id-event>,    
+    }   
+}

@@ -1,17 +1,19 @@
 package idp2p:id;
 
 world idp2p-id {
-    use id-types.{persisted-id-inception, persisted-id-event, id-state};
+    use did.{persisted-id-inception, persisted-id-event, id-proof};
 
     import verifier: interface {
-        use id-types.{id-proof};
+        use did.{id-proof};
         verify-proof: func(proof: id-proof) -> result<bool, string>;
     } 
 
     /// Verifies an initial identity inception event.
-    export verify-inception: func(incepiton: persisted-id-inception) -> result<id-state, string>;
+    export verify-inception: func(incepiton: persisted-id-inception) -> result<list<u8>, string>;
 
     /// Verifies an identity update event against the existing identity state.
-    export verify-event: func(state: id-state, event: persisted-id-event) -> result<id-state, string>;
+    export verify-event: func(state: list<u8>, event: persisted-id-event) -> result<list<u8>, string>;
 
+    /// Verifies an identity proof.
+    export verify-proof: func(proof: id-proof) -> result<bool, string>;
 }
