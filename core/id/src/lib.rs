@@ -3,7 +3,7 @@ pub mod error;
 pub mod inception;
 pub mod did;
 pub mod state;
-const TIMESTAMP: i64 = 1735689600;
+const RELEASE_DATE: &'static str = "2022-01-01";
 const VERSION: &'static str = "1.0.0";
 /*mod did;
 pub mod event;
@@ -26,8 +26,8 @@ export!(GuestComponent);
 
 impl Guest for GuestComponent {
     #[doc = " Verifies an initial identity inception event."]
-    fn verify_inception(_incepiton: PersistedIdInception) -> Result<Vec<u8>, String> {
-        todo!()
+    fn verify_inception(incepiton: PersistedIdInception) -> Result<Vec<u8>, String> {
+        inception::verify(&incepiton).map_err(|e| e.to_string())
     }
 
     #[doc = " Verifies an identity update event against the existing identity state."]

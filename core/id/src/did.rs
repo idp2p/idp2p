@@ -2,11 +2,19 @@ use idp2p_common::bytes::Bytes;
 use serde::{Deserialize, Serialize};
 use serde_with::serde_as;
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum IdKeyKind {
+    CurrentKey,
+    NextKey,
+    DelegationKey(String),
+}
+
 #[serde_as]
 #[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
-pub struct IdProof {
-    pub id: String,
+pub struct PersistedIdProof {
+    pub kind: IdKeyKind,
     pub kid: String,
+    pub timestamp: i64,
     #[serde_as(as = "Bytes")]
     pub sig: Vec<u8>,
 }
@@ -20,7 +28,7 @@ pub struct PersistedIdInception {
     pub previous_id: Option<String>,
     #[serde_as(as = "Bytes")]
     pub payload: Vec<u8>,
-    pub proofs: Vec<IdProof>,
+    pub proofs: Vec<PersistedIdProof>,
 }
 
 #[serde_as]
@@ -33,5 +41,5 @@ pub struct PersistedIdEvent {
     pub kind: String,
     #[serde_as(as = "Bytes")]
     pub payload: Vec<u8>,
-    pub proofs: Vec<IdProof>,
+    pub proofs: Vec<PersistedIdProof>,
 }

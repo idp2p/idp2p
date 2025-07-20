@@ -51,6 +51,9 @@ pub(crate) fn verify(pinception: &PersistedIdInception) -> Result<Vec<u8>, IdInc
         return Err(IdInceptionError::InvalidTimestamp);
     }
 
+    for proof in &pinception.proofs {
+        
+    }
     // Inception rule check
 
     let mut id_state = IdState {
@@ -83,8 +86,10 @@ pub(crate) fn verify(pinception: &PersistedIdInception) -> Result<Vec<u8>, IdInc
     }
 
     let id_state_bytes = cbor::encode(&id_state);
-
-    Ok(id_state_bytes)
+    let mut result: Vec<u8> = Vec::with_capacity(id_state_bytes.len() + 2);
+    result.extend_from_slice(0u16.to_be_bytes().as_slice());
+    result.extend_from_slice(&id_state_bytes);
+    Ok(result)
 }
 
 #[cfg(test)]

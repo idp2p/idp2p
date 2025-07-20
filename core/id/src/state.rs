@@ -4,16 +4,11 @@ use serde::{Deserialize, Serialize};
 use serde_with::serde_as;
 use idp2p_common::bytes::Bytes;
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub enum KeyKind {
-    CurrentKey,
-    NextKey,
-    DelegationKey(String),
-}
+use crate::did::IdKeyKind;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct EventRuleItem {
-    pub key_kind: KeyKind,
+    pub kind: IdKeyKind,
     pub threshold: u8,
 }
 
@@ -80,3 +75,5 @@ pub struct IdState {
     /// Claim events
     pub claim_events: BTreeMap<String, Vec<Vec<u8>>>, 
 }
+
+

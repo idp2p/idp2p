@@ -16,8 +16,10 @@ pub enum IdEventKind {
 
     /// Should be signed with next keys
     Rotation {
-        threshold: u8,
-        next_threshold: u8,
+        interaction_rule: Option<EventRule>,
+        rotation_rule: Option<EventRule>,
+        revocation_rule: Option<EventRule>,
+        migration_rule: Option<EventRule>,
         signers: BTreeMap<String, Vec<u8>>,
         next_signers: BTreeSet<String>,
     },
@@ -38,14 +40,6 @@ pub struct IdEvent {
 
     /// Event payload
     pub payload: IdEventKind,
-}
-
-#[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct IdEventTimestamp {
-    pub id: String,
-    pub kid: String,
-    pub timestamp: i64,
-    pub proof: Vec<u8>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
