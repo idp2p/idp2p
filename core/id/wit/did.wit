@@ -20,7 +20,7 @@ interface did {
     record persisted-id-inception {
         id: string,
         version: string,
-        previous-id: option<string>,
+        prior-id: option<string>,
         payload: bytes,
         timestamp: s64,
         proofs: list<persisted-id-proof>,

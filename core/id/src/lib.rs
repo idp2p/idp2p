@@ -3,7 +3,7 @@ pub mod error;
 pub mod inception;
 pub mod did;
 pub mod state;
-const RELEASE_DATE: &'static str = "2022-01-01";
+const RELEASE_DATE: i64 = 1577836800; // unix timestamp in seconds(UTC) 2025-01-01;
 const VERSION: &'static str = "1.0.0";
 /*mod did;
 pub mod event;
@@ -36,7 +36,7 @@ impl Guest for GuestComponent {
     }
     
     #[doc = " Verifies an identity proof."]
-    fn verify_proof(proof: IdProof,) -> Result<bool, String> {
+    fn verify_proof(proof: PersistedIdProof,) -> Result<bool, String> {
         todo!()
     }
     /*#[doc = " Verifies an initial identity inception event."]

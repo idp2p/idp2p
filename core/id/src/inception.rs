@@ -7,7 +7,7 @@ use idp2p_common::{cbor, cid::CidExt};
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    TIMESTAMP, VERSION,
+    RELEASE_DATE, VERSION,
     did::PersistedIdInception,
     error::IdInceptionError,
     state::{EventRule, IdSigner, IdState},
@@ -16,6 +16,7 @@ use crate::{
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct IdInception {
     pub timestamp: i64,
+    #[serde(skip_serializing_if = "Option::is_none", default)]
     pub previous_id: Option<String>,
     pub rotation_rule: EventRule,
     pub interaction_rule: EventRule,
@@ -24,6 +25,7 @@ pub struct IdInception {
     pub signers: BTreeMap<String, Vec<u8>>,
     pub current_signers: BTreeSet<String>,
     pub next_signers: BTreeSet<String>,
+    #[serde(skip_serializing_if = "BTreeMap::is_empty", default)]
     pub claim_events: BTreeMap<String, Vec<u8>>,
 }
 
@@ -47,7 +49,7 @@ pub(crate) fn verify(pinception: &PersistedIdInception) -> Result<Vec<u8>, IdInc
 
     // Timestamp check
     //
-    if inception.timestamp < TIMESTAMP {
+    if inception.timestamp < RELEASE_DATE {
         return Err(IdInceptionError::InvalidTimestamp);
     }
 
@@ -133,9 +135,9 @@ mod tests {
         let pinception = PersistedIdInception {
             id: id.to_string(),
             payload: inception_bytes,
-            previous_id: None,
+            prior_id: None,
             version: VERSION.to_string(),
-            timestamp: TIMESTAMP,
+            timestamp: RELEASE_DATE,
             proofs: vec![],
         };
         let result = verify(&pinception);
