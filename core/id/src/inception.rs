@@ -8,7 +8,6 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     RELEASE_DATE, VERSION,
-    did::PersistedIdInception,
     error::IdInceptionError,
     state::{EventRule, IdSigner, IdState},
 };
@@ -17,7 +16,7 @@ use crate::{
 pub struct IdInception {
     pub timestamp: i64,
     #[serde(skip_serializing_if = "Option::is_none", default)]
-    pub previous_id: Option<String>,
+    pub prior_id: Option<String>,
     pub rotation_rule: EventRule,
     pub interaction_rule: EventRule,
     pub revocation_rule: EventRule,
@@ -62,7 +61,7 @@ pub(crate) fn verify(pinception: &PersistedIdInception) -> Result<Vec<u8>, IdInc
         id: pinception.id.clone(),
         event_id: pinception.id.clone(),
         event_timestamp: inception.timestamp,
-        previous_id: inception.previous_id.clone(),
+        prior_id: inception.prior_id.clone(),
         rotation_rule: inception.rotation_rule.clone(),
         interaction_rule: inception.interaction_rule.clone(),
         revocation_rule: inception.revocation_rule.clone(),
@@ -120,7 +119,7 @@ mod tests {
         let inception = IdInception {
             timestamp: 1735689600,
             next_signers: next_signers,
-            previous_id: None,
+            prior_id: None,
             rotation_rule: vec![],
             interaction_rule: vec![],
             revocation_rule: vec![],

@@ -4,7 +4,16 @@ use serde::{Deserialize, Serialize};
 use serde_with::serde_as;
 use idp2p_common::bytes::Bytes;
 
-use crate::did::IdKeyKind;
+#[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
+#[serde(tag = "type", content = "id")]
+pub enum IdKeyKind {
+    #[serde(rename = "current-key")]
+    CurrentKey,
+    #[serde(rename = "next-key")]
+    NextKey,
+    #[serde(rename = "delegation-key")]
+    DelegationKey(String),
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct EventRuleItem {
@@ -43,7 +52,7 @@ pub struct IdState {
     pub id: String,
 
     /// Previous id
-    pub previous_id: Option<String>,
+    pub prior_id: Option<String>,
     
     /// Rotation rule
     pub rotation_rule: EventRule,

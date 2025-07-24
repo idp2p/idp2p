@@ -11,3 +11,4 @@ pub mod cbor;
 pub mod bytes;
 pub mod error;
 pub mod cid;
+pub mod wasmsg;
