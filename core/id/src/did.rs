@@ -60,14 +60,45 @@ pub struct PersistedId {
     pub events: Vec<PersistedIdEvent>,
 }
 
+#[serde_as]
+#[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
+struct Wasmsg {
+    pub id: String,
+    pub protocol: String,
+    pub version: String,
+    #[serde_as(as = "Bytes")]
+    pub payload: Vec<u8>,
+}
+
+#[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
+struct IdEvent {
+    message: Wasmsg,
+    proofs: Vec<Wasmsg>,
+}
+
+#[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
+struct Id {
+    id: String,
+    inception: Wasmsg,
+    #[serde(skip_serializing_if = "Vec::is_empty", default)]
+    events: Vec<Wasmsg>,
+}
+
+
+/*
+id
+inception: Wasmsg
+
+*/
+
 // write tests for idkeykind and print json of idkeykind
 
 mod tests {
-    use super::IdKeyKind;
+    use crate::did::IdKeyKind;
 
     #[test]
     fn test_idkeykind() {
-        let idkeykind = serde_json::to_string_pretty(&IdKeyKind::CurrentKey).unwrap();
+        let idkeykind = serde_json::to_string_pretty(&IdKeyKind::DelegationKey("test".to_string())).unwrap();
         print!("{idkeykind}");
     }
 }

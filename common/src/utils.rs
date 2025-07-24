@@ -1,4 +1,4 @@
-use alloc::{string::String, vec::Vec};
+use alloc::{string::{String, ToString}, vec::Vec};
 use cid::multibase::{self, Base};
 use sha2::{Digest, Sha256};
 
@@ -9,7 +9,7 @@ pub fn encode<T: AsRef<[u8]>>(input: T) -> String {
 }
 
 pub fn decode(input: &str) -> Result<Vec<u8>, CommonError> {
-    Ok(multibase::decode(input)?.1)
+    Ok(multibase::decode(input).map_err(|_| CommonError::DecodeError("Invalid CID".to_string()))?.1)
 }
 
 pub fn sha256_hash(content: &[u8]) -> [u8; 32] {

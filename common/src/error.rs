@@ -21,8 +21,6 @@ pub enum CommonError {
     UnsupportedHashAlgorithm(u64),
     #[error("Invalid CID: {0}")]
     Multihash(#[from] cid::multihash::Error),
-    #[error("Decode error:\n {0}")]
-    BaseError(#[from] cid::multibase::Error),
     #[error("Formatting error:\n {0}")]
     Other(#[from] core::fmt::Error),
 }
