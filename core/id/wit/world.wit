@@ -1,21 +1,18 @@
-package idp2p:wasmsg;
+package idp2p:id;
 
-interface types {
-    record wasmsg {
-        id: string,
-        protocol: string,
-        body: list<u8>
-    }    
-}
+world idp2p-verifier {
+    use types.{persisted-id-event, persisted-id-proof};
 
-world idp2p-wasmsg {
-    use types.{wasmsg};
+    import host: interface {
+        use types.{persisted-id-proof};
 
-    import caller: interface {
-        use types.{wasmsg};
-        
-        call: func(msg: wasmsg) -> result<list<u8>, string>;
-    } 
+        verify-proof: func(proof: persisted-id-proof) -> result<bool, string>;
+    }
 
-    export handle: func(input: list<u8>) -> result<list<u8>, string>;
+    export verify-proof: func(proof: persisted-id-proof) -> result<bool, string>;
+
+    export verify-inception: func(inception: persisted-id-event) -> result<list<u8>, string>;
+
+    export verify-event: func(state: list<u8>, event: persisted-id-event) -> result<list<u8>, string>;
+
 }

@@ -3,6 +3,8 @@ pub mod error;
 //pub mod inception;
 pub mod did;
 pub mod state;
+pub mod types;
+pub mod handler;
 const RELEASE_DATE: i64 = 1577836800; // unix timestamp in seconds(UTC) 2025-01-01;
 const VERSION: &'static str = "1.0.0";
 

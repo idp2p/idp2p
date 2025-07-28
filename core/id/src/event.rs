@@ -11,6 +11,18 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub enum IdEventKind {
+    Inception {
+        prior_id: Option<String>,
+        rotation_rule: EventRule,
+        interaction_rule: EventRule,
+        revocation_rule: EventRule,
+        migration_rule: EventRule,
+        signers: BTreeMap<String, Vec<u8>>,
+        current_signers: BTreeSet<String>,
+        next_signers: BTreeSet<String>,
+        #[serde(skip_serializing_if = "BTreeMap::is_empty", default)]
+        claim_events: BTreeMap<String, Vec<u8>>,
+    },
     /// Should be signed with current keys
     Interaction(BTreeMap<String, Vec<u8>>),
 
@@ -36,7 +48,7 @@ pub struct IdEvent {
     pub timestamp: i64,
 
     /// Previous event id
-    pub previous: String,
+    pub previous: Option<String>,
 
     /// Event payload
     pub payload: IdEventKind,
@@ -46,7 +58,7 @@ pub struct IdEvent {
 pub struct PersistedIdEvent {
     id: String,
     payload: Vec<u8>,
-    proofs: BTreeMap<String, Vec<u8>>
+    proofs: BTreeMap<String, Vec<u8>>,
 }
 
 impl TryFrom<&PersistedIdEvent> for IdEvent {
@@ -105,7 +117,7 @@ pub(crate) fn verify(state: &[u8], payload: &[u8]) -> Result<Vec<u8>, IdEventErr
                 state.claims.entry(claim_key).or_insert(vec![claim_event]);
             }
         }
-        Rotation{
+        Rotation {
             threshold,
             next_threshold,
             signers,
@@ -135,7 +147,7 @@ pub(crate) fn verify(state: &[u8], payload: &[u8]) -> Result<Vec<u8>, IdEventErr
                 ed25519::verify(&signer_pk, &pevent.payload, &proof_sig)?;
             }
             state.next_id = Some(next_id);
-        },
+        }
         _ => {}
     }
     state.event_id = pevent.id.clone();

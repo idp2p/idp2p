@@ -1,47 +1,5 @@
-use idp2p_common::{bytes::Bytes, wasmsg::Wasmsg};
+use idp2p_common::wasmsg::Wasmsg;
 use serde::{Deserialize, Serialize};
-use serde_with::serde_as;
-
-#[serde_as]
-#[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
-pub struct IdProof {
-    pub kid: String,
-    pub timestamp: i64,
-    #[serde_as(as = "Bytes")]
-    pub sig: Vec<u8>,
-}
-
-#[serde_as]
-#[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
-pub enum PersistedIdProof {
-    CurrentKey(IdProof),
-    NextKey(IdProof),
-    DelegationKey {
-        id: String,
-        proof: Wasmsg
-    },
-}
-
-#[serde_as]
-#[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
-pub struct PersistedIdEvent {
-    id: String,
-    #[serde_as(as = "Bytes")]
-    payload: Vec<u8>,
-    #[serde(skip_serializing_if = "Vec::is_empty", default)]
-    proofs: Vec<PersistedIdProof>,
-}
-
-#[serde_as]
-#[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
-pub enum InputKind {
-    #[serde(rename = "verify-inception")]
-    VerifyInception(PersistedIdEvent),
-    #[serde(rename = "verify-event")]
-    VerifyEvent(PersistedIdEvent),
-    #[serde(rename = "verify-proof")]
-    VerifyProof(IdProof),
-}
 
 #[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
 pub struct PersistedId {
@@ -51,23 +9,23 @@ pub struct PersistedId {
     events: Vec<Wasmsg>,
 }
 
-
-
-/*
-id
-inception: Wasmsg
-
-
-
-// write tests for idkeykind and print json of idkeykind
-
 mod tests {
-    use crate::did::IdKeyKind;
+    use crate::did::*;
 
     #[test]
-    fn test_idkeykind() {
-        let idkeykind =
-            serde_json::to_string_pretty(&IdKeyKind::DelegationKey("test".to_string())).unwrap();
-        print!("{idkeykind}");
+    fn did_encode() {
+        let did = PersistedId {
+            id: "bavetds76cgrdgsbcf7er4kvc4emfq".to_string(),
+            inception: Wasmsg {
+                id: "bavetds76cgrdgsbcf7er4kvc4emfq".to_string(),
+                protocol: "/idp2p/id".to_string(),
+                version: "ba3tknc6h7n7lcw".to_string(),
+                body: vec![0x00, 0x07, 0x12, 0x15, 0x00, 0x00, 0x00, 0x00],
+            },
+            events: vec![],
+        };
+
+        let encoded = serde_json::to_string_pretty(&did).unwrap();
+        println!("{}", encoded);
     }
-}*/
+}
