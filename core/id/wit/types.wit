@@ -1,0 +1,29 @@
+interface types {
+   record persisted-id-proof {
+      id: string,
+      version: string,
+      key-kind: key-kind,
+      key-id: string,
+      timestamp: string,
+      signature: list<u8>
+   }
+
+   variant key-kind {
+      current-key,
+      next-key,
+      delegation-key
+   }
+
+   record persisted-id-event {
+      id: string,
+      version: string,
+      payload: list<u8>,
+      proofs: list<persisted-id-proof>
+   }
+
+   record persisted-id {
+      id: string,
+      inception: persisted-id-event,
+      events: list<persisted-id-event>
+   }
+}
