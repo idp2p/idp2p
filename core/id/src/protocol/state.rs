@@ -1,34 +1,33 @@
-use std::collections::{BTreeMap, BTreeSet};
-
+use super::{IdEventRule, IdSigner};
+use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
-
-use crate::types::{EventRule, IdSigner};
+use std::collections::{BTreeMap, BTreeSet};
 
 #[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
 pub struct IdState {
     /// Identifier
     pub id: String,
 
-    /// Previous id
-    pub prior_id: Option<String>,
-
-    /// Rotation rule
-    pub rotation_rule: EventRule,
-
-    /// Interaction rule
-    pub interaction_rule: EventRule,
-
-    /// Revocation rule
-    pub revocation_rule: EventRule,
-
-    /// Migration rule
-    pub migration_rule: EventRule,
-
     /// Last event id
     pub event_id: String,
 
     /// Last event time
-    pub event_timestamp: i64,
+    pub event_timestamp: DateTime<Utc>,
+
+    /// Previous id
+    pub prior_id: Option<String>,
+
+    /// Rotation rule
+    pub rotation_rule: IdEventRule,
+
+    /// Interaction rule
+    pub interaction_rule: IdEventRule,
+
+    /// Revocation rule
+    pub revocation_rule: IdEventRule,
+
+    /// Migration rule
+    pub migration_rule: IdEventRule,
 
     /// Signers
     pub signers: BTreeMap<String, IdSigner>,

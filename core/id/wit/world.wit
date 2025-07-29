@@ -6,10 +6,10 @@ world idp2p-verifier {
     import host: interface {
         use types.{persisted-id-proof};
 
-        verify-proof: func(proof: persisted-id-proof) -> result<bool, string>;
+        verify-proof: func(event-time: string, proof: persisted-id-proof) -> result<bool, string>;
     }
 
-    export verify-proof: func(proof: persisted-id-proof) -> result<bool, string>;
+    export verify-proof: func(event-time: string, proof: persisted-id-proof) -> result<bool, string>;
 
     export verify-inception: func(inception: persisted-id-event) -> result<list<u8>, string>;
 

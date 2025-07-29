@@ -1,20 +1,19 @@
 extern crate alloc;
 pub mod error;
 //pub mod inception;
-pub mod did;
-pub mod state;
+//pub mod did;
+//pub mod state;
+//pub mod handler;
+pub mod protocol;
 pub mod types;
-pub mod handler;
-const RELEASE_DATE: i64 = 1577836800; // unix timestamp in seconds(UTC) 2025-01-01;
+const RELEASE_DATE: &str = "2026-01-01T00:00:00Z"; // unix timestamp in seconds(UTC) 2025-01-01;
 const VERSION: &'static str = "1.0.0";
 
-
-
 wit_bindgen::generate!({
-    world: "idp2p-wasmsg",
+    world: "idp2p-verifier",
     additional_derives: [PartialEq, Eq, Hash, Clone, serde::Serialize, serde::Deserialize],
     with: {
-        "idp2p:wasmsg/types": idp2p_common::wasmsg,
+        "idp2p:id/types": crate::types,
     }
 });
 
@@ -23,10 +22,15 @@ struct GuestComponent;
 export!(GuestComponent);
 
 impl Guest for GuestComponent {
-    #[doc = "Handle the message"]
-    fn handle(input: Vec<u8>) -> Result<Vec<u8>, String> {
-        
+    fn verify_proof(event_time: String, proof: PersistedIdProof) -> Result<bool, String> {
         todo!()
-        //Ok(crate::inception::verify(&inception).map_err(|e| e.to_string())?)
+    }
+
+    fn verify_inception(inception: PersistedIdEvent) -> Result<_rt::Vec<u8>, String> {
+        todo!()
+    }
+
+    fn verify_event(state: Vec<u8>, event: PersistedIdEvent) -> Result<Vec<u8>, String> {
+        todo!()
     }
 }

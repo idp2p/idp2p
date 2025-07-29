@@ -1,26 +1,22 @@
 use std::collections::{BTreeMap, BTreeSet};
 
+use super::{IdEventRule, IdSigner, state::IdState};
+use crate::{error::IdInceptionError, types::{IdKeyType, PersistedIdEvent}, RELEASE_DATE, VERSION};
 use alloc::str::FromStr;
-
+use chrono::{DateTime, Utc};
 use cid::Cid;
 use idp2p_common::{cbor, cid::CidExt};
 use serde::{Deserialize, Serialize};
 
-use crate::{
-    RELEASE_DATE, VERSION,
-    error::IdInceptionError,
-    state::{EventRule, IdSigner, IdState},
-};
-
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct IdInception {
-    pub timestamp: i64,
+    pub timestamp: DateTime<Utc>,
     #[serde(skip_serializing_if = "Option::is_none", default)]
     pub prior_id: Option<String>,
-    pub rotation_rule: EventRule,
-    pub interaction_rule: EventRule,
-    pub revocation_rule: EventRule,
-    pub migration_rule: EventRule,
+    pub rotation_rule: IdEventRule,
+    pub interaction_rule: IdEventRule,
+    pub revocation_rule: IdEventRule,
+    pub migration_rule: IdEventRule,
     pub signers: BTreeMap<String, Vec<u8>>,
     pub current_signers: BTreeSet<String>,
     pub next_signers: BTreeSet<String>,
@@ -28,10 +24,10 @@ pub struct IdInception {
     pub claim_events: BTreeMap<String, Vec<u8>>,
 }
 
-impl TryFrom<&PersistedIdInception> for IdInception {
+impl TryFrom<&PersistedIdEvent> for IdInception {
     type Error = IdInceptionError;
 
-    fn try_from(value: &PersistedIdInception) -> Result<Self, Self::Error> {
+    fn try_from(value: &PersistedIdEvent) -> Result<Self, Self::Error> {
         let cid = Cid::from_str(&value.id)?;
         cid.ensure(&value.payload)?;
         let inception: IdInception = cbor::decode(&value.payload)?;
@@ -39,7 +35,7 @@ impl TryFrom<&PersistedIdInception> for IdInception {
     }
 }
 
-pub(crate) fn verify(pinception: &PersistedIdInception) -> Result<Vec<u8>, IdInceptionError> {
+pub(crate) fn verify(pinception: &PersistedIdEvent) -> Result<Vec<u8>, IdInceptionError> {
     if pinception.version != VERSION {
         return Err(IdInceptionError::UnsupportedVersion);
     }
@@ -48,12 +44,16 @@ pub(crate) fn verify(pinception: &PersistedIdInception) -> Result<Vec<u8>, IdInc
 
     // Timestamp check
     //
-    if inception.timestamp < RELEASE_DATE {
+    let release_date: DateTime<Utc> = RELEASE_DATE.parse().expect("Invalid date format");
+    if inception.timestamp < release_date {
         return Err(IdInceptionError::InvalidTimestamp);
     }
 
     for proof in &pinception.proofs {
-        
+        match proof.key_type {
+            IdKeyType::DelegationKey => todo!(),
+            _ => panic!("")
+        }
     }
     // Inception rule check
 
@@ -104,7 +104,9 @@ mod tests {
     fn create_signer() -> (String, Vec<u8>) {
         let mut csprng = OsRng;
         let signing_key: SigningKey = SigningKey::generate(&mut csprng);
-        let id = Cid::create(ED_CODE, signing_key.as_bytes()).unwrap().to_string(); 
+        let id = Cid::create(ED_CODE, signing_key.as_bytes())
+            .unwrap()
+            .to_string();
         (id, signing_key.to_bytes().to_vec())
     }
 
@@ -117,7 +119,7 @@ mod tests {
         signers.insert(kid.clone(), pk);
         next_signers.insert(kid);
         let inception = IdInception {
-            timestamp: 1735689600,
+            timestamp: Utc::now(),
             next_signers: next_signers,
             prior_id: None,
             rotation_rule: vec![],
@@ -129,14 +131,14 @@ mod tests {
             claim_events: BTreeMap::new(),
         };
         let inception_bytes = cbor::encode(&inception);
-        let id = Cid::create(CBOR_CODE, inception_bytes.as_slice()).unwrap().to_string();
+        let id = Cid::create(CBOR_CODE, inception_bytes.as_slice())
+            .unwrap()
+            .to_string();
         eprintln!("ID: {}", id.to_string());
-        let pinception = PersistedIdInception {
+        let pinception = PersistedIdEvent {
             id: id.to_string(),
             payload: inception_bytes,
-            prior_id: None,
             version: VERSION.to_string(),
-            timestamp: RELEASE_DATE,
             proofs: vec![],
         };
         let result = verify(&pinception);

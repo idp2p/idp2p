@@ -2,83 +2,70 @@ use idp2p_common::bytes::Bytes;
 use serde::{Deserialize, Serialize};
 use serde_with::serde_as;
 
-/// Represents the kind of key required for an event.
-///
-/// This enum defines the different types of keys that can be used for event validation.
-/// Each variant corresponds to a specific type of key, such as the current key, the next key, or a delegation key.
-///
-/// Example:
-/// ```
-/// let kind = IdKeyKind::CurrentKey;
-/// ```
 #[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
-#[serde(tag = "type", content = "id")]
-pub enum IdKeyKind {
+pub enum IdKeyType {
     #[serde(rename = "current-key")]
     CurrentKey,
     #[serde(rename = "next-key")]
     NextKey,
     #[serde(rename = "delegation-key")]
-    DelegationKey(String),
+    DelegationKey,
 }
 
-/// Event rule item
-///
-/// Represents an item in an event rule.
-///
-/// Each item specifies the kind of key required and the threshold for that kind.
-///
-/// Example:
-/// ```
-/// let item = EventRuleItem { kind: IdKeyKind::CurrentKey, threshold: 1 };
-/// ```
-#[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
-pub struct EventRuleItem {
-    pub kind: IdKeyKind,
-    pub threshold: u8,
-}
-
-/// Event rule
-///
-/// Represents a rule for event validation.
-///
-/// Each rule is a array of items which specify authorization requirements.
-/// At least one item in the vector must be satisfied in order to add an event.
-/// Each authorization requirement is a vector of EventRuleItem which specifies the kind of key required and the threshold for that kind.
-/// All items in the vector must be satisfied.
-///
-/// Example:
-/// ```
-/// let rule = vec![
-///     vec![EventRuleItem { kind: IdKeyKind::CurrentKey, threshold: 1 }, EventRuleItem { kind: IdKeyKind::NextKey, threshold: 2 }],
-/// ];
-/// ```
-pub type EventRule = Vec<Vec<EventRuleItem>>;
-
-/// Signer
-///
-/// Represents a signer of an identifier.
 #[serde_as]
 #[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
-pub struct IdSigner {
-    /// Public key of the signer.
+pub struct PersistedIdProof {
+    pub id: String,
+    pub version: String,
+    pub key_type: IdKeyType,
+    pub key_id: String,
     #[serde_as(as = "Bytes")]
-    pub public_key: Vec<u8>,
-    /// Valid from timestamp.
-    pub valid_from: i64,
-    /// Valid to timestamp.
-    pub valid_to: Option<i64>,
+    pub signature: Vec<u8>,
 }
 
-impl IdSigner {
-    pub fn new(public_key: &[u8]) -> Self {
-        Self {
-            public_key: public_key.to_vec(),
-            valid_from: chrono::Utc::now().timestamp(),
-            valid_to: None,
-        }
-    }
-    pub fn is_valid(&self, now: i64) -> bool {
-        self.valid_from <= now && (self.valid_to.is_none() || self.valid_to.unwrap() >= now)
+#[serde_as]
+#[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
+pub struct PersistedIdEvent {
+    pub id: String,
+    pub version: String,
+    #[serde_as(as = "Bytes")]
+    pub payload: Vec<u8>,
+    #[serde(skip_serializing_if = "Vec::is_empty", default)]
+    pub proofs: Vec<PersistedIdProof>,
+}
+
+#[serde_as]
+#[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
+pub struct PersistedId {
+    pub id: String,
+    pub inception: PersistedIdEvent,
+    #[serde(skip_serializing_if = "Vec::is_empty", default)]
+    pub events: Vec<PersistedIdEvent>,
+}
+
+mod tests {
+    use crate::types::*;
+
+    #[test]
+    fn did_encode() {
+        let did = PersistedId {
+            id: "bavetds76cgrdgsbcf7er4kvc4emfq".to_string(),
+            inception: PersistedIdEvent {
+                id: "bavetds76cgrdgsbcf7er4kvc4emfq".to_string(),
+                version: "ba3tknc6h7n7lcw".to_string(),
+                payload: vec![0x00, 0x07, 0x12, 0x15, 0x00, 0x00, 0x00, 0x00],
+                proofs: vec![PersistedIdProof {
+                    id: "bavetds76cgrdgsbcf7er4kvc4emfq".to_string(),
+                    version: "ba3tknc6h7n7lcw".to_string(),
+                    key_type: IdKeyType::CurrentKey,
+                    key_id: "badsfkjdfkdskfkld".to_string(),
+                    signature: vec![0x00, 0x07, 0x12, 0x15, 0x00, 0x00, 0x00, 0x00],
+                }],
+            },
+            events: vec![],
+        };
+
+        let encoded = serde_json::to_string_pretty(&did).unwrap();
+        println!("{}", encoded);
     }
 }

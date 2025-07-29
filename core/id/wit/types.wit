@@ -1,17 +1,16 @@
 interface types {
-   record persisted-id-proof {
-      id: string,
-      version: string,
-      key-kind: key-kind,
-      key-id: string,
-      timestamp: string,
-      signature: list<u8>
-   }
-
-   variant key-kind {
+   variant id-key-type {
       current-key,
       next-key,
       delegation-key
+   }
+
+   record persisted-id-proof {
+      id: string,
+      version: string,
+      key-type: id-key-type,
+      key-id: string,
+      signature: list<u8>
    }
 
    record persisted-id-event {
