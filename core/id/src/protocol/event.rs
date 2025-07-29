@@ -1,22 +1,22 @@
 use std::collections::{BTreeMap, BTreeSet};
 
-use alloc::str::FromStr;
 use alloc::string::String;
 use alloc::vec::Vec;
+use chrono::{DateTime, Utc};
 
-use crate::{TIMESTAMP, VERSION, error::IdEventError, state::IdState};
+use crate::{error::IdEventError, protocol::{state::IdState, IdEventRule}, types::PersistedIdEvent, RELEASE_DATE, VERSION};
 use IdEventKind::*;
-use idp2p_common::{cbor, ed25519, identifier::Identifier, wasmsg::Wasmsg};
+use idp2p_common::{cbor, ed25519};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub enum IdEventKind {
     Inception {
         prior_id: Option<String>,
-        rotation_rule: EventRule,
-        interaction_rule: EventRule,
-        revocation_rule: EventRule,
-        migration_rule: EventRule,
+        rotation_rule: IdEventRule,
+        interaction_rule: IdEventRule,
+        revocation_rule: IdEventRule,
+        migration_rule: IdEventRule,
         signers: BTreeMap<String, Vec<u8>>,
         current_signers: BTreeSet<String>,
         next_signers: BTreeSet<String>,
@@ -28,10 +28,10 @@ pub enum IdEventKind {
 
     /// Should be signed with next keys
     Rotation {
-        interaction_rule: Option<EventRule>,
-        rotation_rule: Option<EventRule>,
-        revocation_rule: Option<EventRule>,
-        migration_rule: Option<EventRule>,
+        interaction_rule: Option<IdEventRule>,
+        rotation_rule: Option<IdEventRule>,
+        revocation_rule: Option<IdEventRule>,
+        migration_rule: Option<IdEventRule>,
         signers: BTreeMap<String, Vec<u8>>,
         next_signers: BTreeSet<String>,
     },
@@ -45,34 +45,27 @@ pub enum IdEventKind {
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct IdEvent {
     /// Timestamp of event
-    pub timestamp: i64,
+    pub timestamp: DateTime<Utc>,
 
     /// Previous event id
-    pub previous: Option<String>,
+    pub previous: String,
 
-    /// Event payload
-    pub payload: IdEventKind,
-}
-
-#[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct PersistedIdEvent {
-    id: String,
-    payload: Vec<u8>,
-    proofs: BTreeMap<String, Vec<u8>>,
+    /// Event body
+    pub body: IdEventKind,
 }
 
 impl TryFrom<&PersistedIdEvent> for IdEvent {
     type Error = IdEventError;
 
     fn try_from(value: &PersistedIdEvent) -> Result<Self, Self::Error> {
-        let id = Identifier::from_str(value.id.as_str())
+        /*let id = Identifier::from_str(value.id.as_str())
             .map_err(|e| IdEventError::InvalidEventId(e.to_string()))?;
         id.ensure(&value.payload)
             .map_err(|e| IdEventError::InvalidEventId(e.to_string()))?;
 
         if id.kind != "event" {
             return Err(IdEventError::InvalidEventId(id.to_string()));
-        }
+        }*/
 
         let event: IdEvent =
             cbor::decode(&value.payload).map_err(|_| IdEventError::InvalidPayload)?;
@@ -81,14 +74,11 @@ impl TryFrom<&PersistedIdEvent> for IdEvent {
 }
 
 pub(crate) fn verify(state: &[u8], payload: &[u8]) -> Result<Vec<u8>, IdEventError> {
-    let ver = Wasmsg::from_bytes(&payload)?;
-    if ver != VERSION {
-        return Err(IdEventError::UnsupportedVersion);
-    }
+
     let mut state: IdState = cbor::decode(state)?;
     let pevent: PersistedIdEvent = cbor::decode(payload)?;
     let event: IdEvent = (&pevent).try_into()?;
-
+/* 
     // Timestamp check
     if event.timestamp < TIMESTAMP {
         return Err(IdEventError::InvalidTimestamp);
@@ -149,7 +139,7 @@ pub(crate) fn verify(state: &[u8], payload: &[u8]) -> Result<Vec<u8>, IdEventErr
             state.next_id = Some(next_id);
         }
         _ => {}
-    }
+    }*/
     state.event_id = pevent.id.clone();
     let id_state_bytes = cbor::encode(&state);
 
