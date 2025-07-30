@@ -22,7 +22,7 @@ struct GuestComponent;
 export!(GuestComponent);
 
 impl Guest for GuestComponent {
-    fn verify_proof(event_time: String, proof: PersistedIdProof) -> Result<bool, String> {
+    fn verify_proof(event_time: String, state: Vec<u8>, proof: IdProof) -> Result<bool, String> {
         todo!()
     }
 

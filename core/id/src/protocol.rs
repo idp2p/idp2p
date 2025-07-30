@@ -23,8 +23,8 @@ pub enum IdKeyRule {
     CurrentKey,
     #[serde(rename = "next-key")]
     NextKey,
-    #[serde(rename = "delegation-key")]
-    DelegationKey(String),
+    #[serde(rename = "delegate-key")]
+    DelegateKey(String),
 }
 
 /// Event rule item

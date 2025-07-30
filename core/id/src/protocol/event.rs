@@ -11,18 +11,6 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub enum IdEventKind {
-    Inception {
-        prior_id: Option<String>,
-        rotation_rule: IdEventRule,
-        interaction_rule: IdEventRule,
-        revocation_rule: IdEventRule,
-        migration_rule: IdEventRule,
-        signers: BTreeMap<String, Vec<u8>>,
-        current_signers: BTreeSet<String>,
-        next_signers: BTreeSet<String>,
-        #[serde(skip_serializing_if = "BTreeMap::is_empty", default)]
-        claim_events: BTreeMap<String, Vec<u8>>,
-    },
     /// Should be signed with current keys
     Interaction(BTreeMap<String, Vec<u8>>),
 

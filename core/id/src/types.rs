@@ -3,21 +3,29 @@ use serde::{Deserialize, Serialize};
 use serde_with::serde_as;
 
 #[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
-pub enum IdKeyType {
+#[serde(tag = "type")]
+pub enum PersistedIdProof {
     #[serde(rename = "current-key")]
-    CurrentKey,
+    CurrentKey(IdEventProof),
     #[serde(rename = "next-key")]
-    NextKey,
-    #[serde(rename = "delegation-key")]
-    DelegationKey,
+    NextKey(IdEventProof),
+    #[serde(rename = "delegate-key")]
+    DelegateKey(IdProof),
 }
 
 #[serde_as]
 #[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
-pub struct PersistedIdProof {
+pub struct IdEventProof {
+    pub key_id: String,
+    #[serde_as(as = "Bytes")]
+    pub signature: Vec<u8>,
+}
+
+#[serde_as]
+#[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
+pub struct IdProof {
     pub id: String,
     pub version: String,
-    pub key_type: IdKeyType,
     pub key_id: String,
     #[serde_as(as = "Bytes")]
     pub signature: Vec<u8>,
@@ -54,13 +62,16 @@ mod tests {
                 id: "bavetds76cgrdgsbcf7er4kvc4emfq".to_string(),
                 version: "ba3tknc6h7n7lcw".to_string(),
                 payload: vec![0x00, 0x07, 0x12, 0x15, 0x00, 0x00, 0x00, 0x00],
-                proofs: vec![PersistedIdProof {
+                proofs: vec![PersistedIdProof::DelegateKey(IdProof {
                     id: "bavetds76cgrdgsbcf7er4kvc4emfq".to_string(),
                     version: "ba3tknc6h7n7lcw".to_string(),
-                    key_type: IdKeyType::CurrentKey,
                     key_id: "badsfkjdfkdskfkld".to_string(),
                     signature: vec![0x00, 0x07, 0x12, 0x15, 0x00, 0x00, 0x00, 0x00],
-                }],
+                }),
+                PersistedIdProof::NextKey(IdEventProof {
+                    key_id: "badsfkjdfkdskfkld".to_string(),
+                    signature: vec![0x00, 0x07, 0x12, 0x15, 0x00, 0x00, 0x00, 0x00],
+                })],
             },
             events: vec![],
         };

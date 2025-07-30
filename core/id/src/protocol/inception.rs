@@ -1,7 +1,7 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use super::{IdEventRule, IdSigner, state::IdState};
-use crate::{error::IdInceptionError, types::{IdKeyType, PersistedIdEvent}, RELEASE_DATE, VERSION};
+use crate::{error::IdInceptionError, types::{PersistedIdEvent, PersistedIdProof}, RELEASE_DATE, VERSION};
 use alloc::str::FromStr;
 use chrono::{DateTime, Utc};
 use cid::Cid;
@@ -50,9 +50,14 @@ pub(crate) fn verify(pinception: &PersistedIdEvent) -> Result<Vec<u8>, IdIncepti
     }
 
     for proof in &pinception.proofs {
-        match proof.key_type {
-            IdKeyType::DelegationKey => todo!(),
-            _ => panic!("")
+        match proof {
+            PersistedIdProof::CurrentKey(proof) => {
+                
+            },
+            PersistedIdProof::DelegateKey(proof) => {
+                let _ = crate::host::verify_proof("event_time", &vec![], proof).unwrap();
+            }
+            _ => todo!(),
         }
     }
     // Inception rule check
@@ -66,6 +71,7 @@ pub(crate) fn verify(pinception: &PersistedIdEvent) -> Result<Vec<u8>, IdIncepti
         interaction_rule: inception.interaction_rule.clone(),
         revocation_rule: inception.revocation_rule.clone(),
         migration_rule: inception.migration_rule.clone(),
+        delegates: BTreeSet::new(),
         signers: inception
             .signers
             .iter()

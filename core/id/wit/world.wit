@@ -1,15 +1,15 @@
 package idp2p:id;
 
 world idp2p-verifier {
-    use types.{persisted-id-event, persisted-id-proof};
+    use types.{persisted-id-event, id-proof};
 
     import host: interface {
-        use types.{persisted-id-proof};
+        use types.{id-proof};
 
-        verify-proof: func(event-time: string, proof: persisted-id-proof) -> result<bool, string>;
+        verify-proof: func(timestamp: string, payload: list<u8>, proof: id-proof) -> result<bool, string>;
     }
 
-    export verify-proof: func(event-time: string, proof: persisted-id-proof) -> result<bool, string>;
+    export verify-proof: func(timestamp: string, payload: list<u8>, proof: id-proof) -> result<bool, string>;
 
     export verify-inception: func(inception: persisted-id-event) -> result<list<u8>, string>;
 

@@ -1,16 +1,20 @@
 interface types {
-   variant id-key-type {
-      current-key,
-      next-key,
-      delegation-key
-   }
-
-   record persisted-id-proof {
-      id: string,
-      version: string,
-      key-type: id-key-type,
+   record id-event-proof {
       key-id: string,
       signature: list<u8>
+   }
+
+   record id-proof {
+      id: string,
+      version: string,
+      key-id: string,
+      signature: list<u8>
+   }
+
+   variant persisted-id-proof {
+       current-key(id-event-proof),
+       next-key(id-event-proof),
+       delegate-key(id-proof)
    }
 
    record persisted-id-event {
