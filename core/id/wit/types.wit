@@ -1,20 +1,11 @@
 interface types {
-   record id-event-proof {
-      key-id: string,
-      signature: list<u8>
-   }
-
-   record id-proof {
+   record persisted-id-proof {
       id: string,
       version: string,
       key-id: string,
+      cryptosuite: string,
+      issued-at: s64,
       signature: list<u8>
-   }
-
-   variant persisted-id-proof {
-       current-key(id-event-proof),
-       next-key(id-event-proof),
-       delegate-key(id-proof)
    }
 
    record persisted-id-event {

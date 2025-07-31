@@ -1,7 +1,11 @@
 use std::collections::{BTreeMap, BTreeSet};
 
-use super::{IdEventRule, IdSigner, state::IdState};
-use crate::{error::IdInceptionError, types::{PersistedIdEvent, PersistedIdProof}, RELEASE_DATE, VERSION};
+use super::{ IdSigner, state::IdState};
+use crate::{
+    VALID_FROM, VERSION,
+    error::IdInceptionError,
+    types::{PersistedIdEvent, PersistedIdProof},
+};
 use alloc::str::FromStr;
 use chrono::{DateTime, Utc};
 use cid::Cid;
@@ -10,13 +14,13 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct IdInception {
+    pub version: String,
     pub timestamp: DateTime<Utc>,
     #[serde(skip_serializing_if = "Option::is_none", default)]
     pub prior_id: Option<String>,
-    pub rotation_rule: IdEventRule,
-    pub interaction_rule: IdEventRule,
-    pub revocation_rule: IdEventRule,
-    pub migration_rule: IdEventRule,
+    pub threshold: u8,
+    pub next_threshold: u8,
+    pub delegates: BTreeSet<String>,
     pub signers: BTreeMap<String, Vec<u8>>,
     pub current_signers: BTreeSet<String>,
     pub next_signers: BTreeSet<String>,
@@ -28,6 +32,9 @@ impl TryFrom<&PersistedIdEvent> for IdInception {
     type Error = IdInceptionError;
 
     fn try_from(value: &PersistedIdEvent) -> Result<Self, Self::Error> {
+        if value.version != VERSION {
+            return Err(IdInceptionError::UnsupportedVersion);
+        }
         let cid = Cid::from_str(&value.id)?;
         cid.ensure(&value.payload)?;
         let inception: IdInception = cbor::decode(&value.payload)?;
@@ -36,42 +43,27 @@ impl TryFrom<&PersistedIdEvent> for IdInception {
 }
 
 pub(crate) fn verify(pinception: &PersistedIdEvent) -> Result<Vec<u8>, IdInceptionError> {
-    if pinception.version != VERSION {
-        return Err(IdInceptionError::UnsupportedVersion);
-    }
-
     let inception: IdInception = (pinception).try_into()?;
 
     // Timestamp check
     //
-    let release_date: DateTime<Utc> = RELEASE_DATE.parse().expect("Invalid date format");
-    if inception.timestamp < release_date {
+    let valid_from: DateTime<Utc> = VALID_FROM.parse().expect("Invalid date format");
+    if inception.timestamp < valid_from {
         return Err(IdInceptionError::InvalidTimestamp);
     }
 
     for proof in &pinception.proofs {
-        match proof {
-            PersistedIdProof::CurrentKey(proof) => {
-                
-            },
-            PersistedIdProof::DelegateKey(proof) => {
-                let _ = crate::host::verify_proof("event_time", &vec![], proof).unwrap();
-            }
-            _ => todo!(),
-        }
+        let _ = crate::host::verify_proof(&vec![], proof).unwrap();
     }
-    // Inception rule check
 
     let mut id_state = IdState {
         id: pinception.id.clone(),
         event_id: pinception.id.clone(),
         event_timestamp: inception.timestamp,
         prior_id: inception.prior_id.clone(),
-        rotation_rule: inception.rotation_rule.clone(),
-        interaction_rule: inception.interaction_rule.clone(),
-        revocation_rule: inception.revocation_rule.clone(),
-        migration_rule: inception.migration_rule.clone(),
-        delegates: BTreeSet::new(),
+        threshold: inception.threshold,
+        next_threshold: inception.next_threshold,
+        delegates: inception.delegates,
         signers: inception
             .signers
             .iter()
@@ -125,13 +117,13 @@ mod tests {
         signers.insert(kid.clone(), pk);
         next_signers.insert(kid);
         let inception = IdInception {
+            version: String::new(),
             timestamp: Utc::now(),
             next_signers: next_signers,
             prior_id: None,
-            rotation_rule: vec![],
-            interaction_rule: vec![],
-            revocation_rule: vec![],
-            migration_rule: vec![],
+            threshold: 1,
+            next_threshold: 1,
+            delegates: BTreeSet::new(),
             signers: signers,
             current_signers: BTreeSet::new(),
             claim_events: BTreeMap::new(),

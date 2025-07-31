@@ -7,59 +7,6 @@ mod state;
 mod inception;
 mod event;
 
-/// Represents the kind of key required for an event.
-///
-/// This enum defines the different types of keys that can be used for event validation.
-/// Each variant corresponds to a specific type of key, such as the current key, the next key, or a delegation key.
-///
-/// Example:
-/// ```
-/// let kind = IdKeyKind::CurrentKey;
-/// ```
-#[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
-#[serde(tag = "type", content = "id")]
-pub enum IdKeyRule {
-    #[serde(rename = "current-key")]
-    CurrentKey,
-    #[serde(rename = "next-key")]
-    NextKey,
-    #[serde(rename = "delegate-key")]
-    DelegateKey(String),
-}
-
-/// Event rule item
-///
-/// Represents an item in an event rule.
-///
-/// Each item specifies the kind of key required and the threshold for that kind.
-///
-/// Example:
-/// ```
-/// let item = IdEventRuleItem { kind: IdKeyRule::CurrentKey, threshold: 1 };
-/// ```
-#[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
-pub struct IdEventRuleItem {
-    pub key_rule: IdKeyRule,
-    pub threshold: u8,
-}
-
-/// Event rule
-///
-/// Represents a rule for event validation.
-///
-/// Each rule is a array of items which specify authorization requirements.
-/// At least one item in the vector must be satisfied in order to add an event.
-/// Each authorization requirement is a vector of EventRuleItem which specifies the kind of key required and the threshold for that kind.
-/// All items in the vector must be satisfied.
-///
-/// Example:
-/// ```
-/// let rule = vec![
-///     vec![EventRuleItem { kind: IdKeyKind::CurrentKey, threshold: 1 }, EventRuleItem { kind: IdKeyKind::NextKey, threshold: 2 }],
-/// ];
-/// ```
-pub type IdEventRule = Vec<Vec<IdEventRuleItem>>;
-
 /// Signer
 ///
 /// Represents a signer of an identifier.

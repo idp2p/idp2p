@@ -4,7 +4,9 @@ use alloc::string::String;
 use alloc::vec::Vec;
 use chrono::{DateTime, Utc};
 
-use crate::{error::IdEventError, protocol::{state::IdState, IdEventRule}, types::PersistedIdEvent, RELEASE_DATE, VERSION};
+use crate::{
+    VALID_FROM, VERSION, error::IdEventError, protocol::state::IdState, types::PersistedIdEvent,
+};
 use IdEventKind::*;
 use idp2p_common::{cbor, ed25519};
 use serde::{Deserialize, Serialize};
@@ -16,15 +18,20 @@ pub enum IdEventKind {
 
     /// Should be signed with next keys
     Rotation {
-        interaction_rule: Option<IdEventRule>,
-        rotation_rule: Option<IdEventRule>,
-        revocation_rule: Option<IdEventRule>,
-        migration_rule: Option<IdEventRule>,
+        threshold: Option<u8>,
+        next_threshold: Option<u8>, 
         signers: BTreeMap<String, Vec<u8>>,
         next_signers: BTreeSet<String>,
     },
 
+    /// Should be signed with next keys
     Revocation {
+        details: Option<String>,
+        signers: BTreeMap<String, Vec<u8>>,
+    },
+
+    /// Should be signed with next keys
+    Migration {
         details: Option<String>,
         signers: BTreeMap<String, Vec<u8>>,
     },
@@ -32,6 +39,9 @@ pub enum IdEventKind {
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct IdEvent {
+    /// e.g. 1.0.baccdfjdkfjkdjf
+    pub version: String,
+    
     /// Timestamp of event
     pub timestamp: DateTime<Utc>,
 
@@ -62,11 +72,10 @@ impl TryFrom<&PersistedIdEvent> for IdEvent {
 }
 
 pub(crate) fn verify(state: &[u8], payload: &[u8]) -> Result<Vec<u8>, IdEventError> {
-
     let mut state: IdState = cbor::decode(state)?;
     let pevent: PersistedIdEvent = cbor::decode(payload)?;
     let event: IdEvent = (&pevent).try_into()?;
-/* 
+    /*
     // Timestamp check
     if event.timestamp < TIMESTAMP {
         return Err(IdEventError::InvalidTimestamp);

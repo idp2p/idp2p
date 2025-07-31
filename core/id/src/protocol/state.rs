@@ -1,4 +1,4 @@
-use super::{IdEventRule, IdSigner};
+use super::IdSigner;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, BTreeSet};
@@ -17,17 +17,9 @@ pub struct IdState {
     /// Previous id
     pub prior_id: Option<String>,
 
-    /// Rotation rule
-    pub rotation_rule: IdEventRule,
-
-    /// Interaction rule
-    pub interaction_rule: IdEventRule,
-
-    /// Revocation rule
-    pub revocation_rule: IdEventRule,
-
-    /// Migration rule
-    pub migration_rule: IdEventRule,
+    pub threshold: u8,
+    
+    pub next_threshold: u8,
 
     /// Signers
     pub signers: BTreeMap<String, IdSigner>,

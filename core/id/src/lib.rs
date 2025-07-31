@@ -1,13 +1,9 @@
 extern crate alloc;
 pub mod error;
-//pub mod inception;
-//pub mod did;
-//pub mod state;
-//pub mod handler;
 pub mod protocol;
 pub mod types;
-const RELEASE_DATE: &str = "2026-01-01T00:00:00Z"; // unix timestamp in seconds(UTC) 2025-01-01;
-const VERSION: &'static str = "1.0.0";
+const VALID_FROM: &str = "2026-01-01T00:00:00Z";
+const VERSION: &'static str = "1.0";
 
 wit_bindgen::generate!({
     world: "idp2p-verifier",
@@ -22,11 +18,11 @@ struct GuestComponent;
 export!(GuestComponent);
 
 impl Guest for GuestComponent {
-    fn verify_proof(event_time: String, state: Vec<u8>, proof: IdProof) -> Result<bool, String> {
+    fn verify_proof(payload: Vec<u8>, proof: PersistedIdProof) -> Result<bool, String> {
         todo!()
     }
 
-    fn verify_inception(inception: PersistedIdEvent) -> Result<_rt::Vec<u8>, String> {
+    fn verify_inception(inception: PersistedIdEvent) -> Result<Vec<u8>, String> {
         todo!()
     }
 
