@@ -1,11 +1,11 @@
-use std::collections::{BTreeMap, BTreeSet};
+use std::{collections::{BTreeMap, BTreeSet}, env};
 
 use alloc::string::String;
 use alloc::vec::Vec;
 use chrono::{DateTime, Utc};
 
 use crate::{
-    VALID_FROM, VERSION, error::IdEventError, protocol::state::IdState, types::PersistedIdEvent,
+    VALID_FROM, VERSION, error::IdEventError, protocol::state::IdState, types::IdEventEnvelope,
 };
 use IdEventKind::*;
 use idp2p_common::{cbor, ed25519};
@@ -52,10 +52,10 @@ pub struct IdEvent {
     pub body: IdEventKind,
 }
 
-impl TryFrom<&PersistedIdEvent> for IdEvent {
+impl TryFrom<&IdEventEnvelope> for IdEvent {
     type Error = IdEventError;
 
-    fn try_from(value: &PersistedIdEvent) -> Result<Self, Self::Error> {
+    fn try_from(value: &IdEventEnvelope) -> Result<Self, Self::Error> {
         /*let id = Identifier::from_str(value.id.as_str())
             .map_err(|e| IdEventError::InvalidEventId(e.to_string()))?;
         id.ensure(&value.payload)
@@ -71,10 +71,9 @@ impl TryFrom<&PersistedIdEvent> for IdEvent {
     }
 }
 
-pub(crate) fn verify(state: &[u8], payload: &[u8]) -> Result<Vec<u8>, IdEventError> {
+pub(crate) fn verify(state: &[u8], envelope: &IdEventEnvelope) -> Result<Vec<u8>, IdEventError> {
     let mut state: IdState = cbor::decode(state)?;
-    let pevent: PersistedIdEvent = cbor::decode(payload)?;
-    let event: IdEvent = (&pevent).try_into()?;
+    let event: IdEvent = envelope.try_into()?;
     /*
     // Timestamp check
     if event.timestamp < TIMESTAMP {
@@ -137,7 +136,7 @@ pub(crate) fn verify(state: &[u8], payload: &[u8]) -> Result<Vec<u8>, IdEventErr
         }
         _ => {}
     }*/
-    state.event_id = pevent.id.clone();
+    state.event_id = envelope.id.clone();
     let id_state_bytes = cbor::encode(&state);
 
     Ok(id_state_bytes)

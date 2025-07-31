@@ -4,7 +4,7 @@ use super::{ IdSigner, state::IdState};
 use crate::{
     VALID_FROM, VERSION,
     error::IdInceptionError,
-    types::{PersistedIdEvent, PersistedIdProof},
+    types::{IdEventEnvelope, IdProofEnvelope},
 };
 use alloc::str::FromStr;
 use chrono::{DateTime, Utc};
@@ -28,10 +28,10 @@ pub struct IdInception {
     pub claim_events: BTreeMap<String, Vec<u8>>,
 }
 
-impl TryFrom<&PersistedIdEvent> for IdInception {
+impl TryFrom<&IdEventEnvelope> for IdInception {
     type Error = IdInceptionError;
 
-    fn try_from(value: &PersistedIdEvent) -> Result<Self, Self::Error> {
+    fn try_from(value: &IdEventEnvelope) -> Result<Self, Self::Error> {
         if value.version != VERSION {
             return Err(IdInceptionError::UnsupportedVersion);
         }
@@ -42,8 +42,8 @@ impl TryFrom<&PersistedIdEvent> for IdInception {
     }
 }
 
-pub(crate) fn verify(pinception: &PersistedIdEvent) -> Result<Vec<u8>, IdInceptionError> {
-    let inception: IdInception = (pinception).try_into()?;
+pub(crate) fn verify(envelope: &IdEventEnvelope) -> Result<Vec<u8>, IdInceptionError> {
+    let inception: IdInception = (envelope).try_into()?;
 
     // Timestamp check
     //
@@ -52,13 +52,13 @@ pub(crate) fn verify(pinception: &PersistedIdEvent) -> Result<Vec<u8>, IdIncepti
         return Err(IdInceptionError::InvalidTimestamp);
     }
 
-    for proof in &pinception.proofs {
+    for proof in &envelope.proofs {
         let _ = crate::host::verify_proof(&vec![], proof).unwrap();
     }
 
     let mut id_state = IdState {
-        id: pinception.id.clone(),
-        event_id: pinception.id.clone(),
+        id: envelope.id.clone(),
+        event_id: envelope.id.clone(),
         event_timestamp: inception.timestamp,
         prior_id: inception.prior_id.clone(),
         threshold: inception.threshold,
@@ -133,7 +133,7 @@ mod tests {
             .unwrap()
             .to_string();
         eprintln!("ID: {}", id.to_string());
-        let pinception = PersistedIdEvent {
+        let pinception = IdEventEnvelope {
             id: id.to_string(),
             payload: inception_bytes,
             version: VERSION.to_string(),

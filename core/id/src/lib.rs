@@ -18,15 +18,15 @@ struct GuestComponent;
 export!(GuestComponent);
 
 impl Guest for GuestComponent {
-    fn verify_proof(payload: Vec<u8>, proof: PersistedIdProof) -> Result<bool, String> {
+    fn verify_proof(payload: Vec<u8>, proof: IdProofEnvelope) -> Result<bool, String> {
         todo!()
     }
 
-    fn verify_inception(inception: PersistedIdEvent) -> Result<Vec<u8>, String> {
+    fn verify_inception(inception: IdEventEnvelope) -> Result<Vec<u8>, String> {
         todo!()
     }
 
-    fn verify_event(state: Vec<u8>, event: PersistedIdEvent) -> Result<Vec<u8>, String> {
+    fn verify_event(state: Vec<u8>, event: IdEventEnvelope) -> Result<Vec<u8>, String> {
         todo!()
     }
 }

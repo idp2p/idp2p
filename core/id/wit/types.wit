@@ -1,23 +1,23 @@
 interface types {
-   record persisted-id-proof {
+   record id-proof-envelope {
       id: string,
+      purpose: string,
       version: string,
       key-id: string,
-      cryptosuite: string,
-      issued-at: s64,
+      created-at: s64,
       signature: list<u8>
    }
 
-   record persisted-id-event {
+   record id-event-envelope {
       id: string,
       version: string,
       payload: list<u8>,
-      proofs: list<persisted-id-proof>
+      proofs: list<id-proof-envelope>
    }
 
-   record persisted-id {
+   record id {
       id: string,
-      inception: persisted-id-event,
-      events: list<persisted-id-event>
+      inception: id-event-envelope,
+      events: list<id-event-envelope>
    }
 }
