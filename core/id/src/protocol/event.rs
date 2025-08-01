@@ -39,9 +39,6 @@ pub enum IdEventKind {
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct IdEvent {
-    /// e.g. 1.0.baccdfjdkfjkdjf
-    pub version: String,
-    
     /// Timestamp of event
     pub timestamp: DateTime<Utc>,
 

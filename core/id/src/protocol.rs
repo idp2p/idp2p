@@ -22,6 +22,39 @@ pub struct IdSigner {
     pub valid_to: Option<DateTime<Utc>>,
 }
 
+#[serde_as]
+#[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
+pub struct IdProof {
+    // The identity who creates proof
+    pub id: String,
+
+    // The key which signs the data
+    pub key_id: String,
+
+    // Proof purpose
+    pub purpose: String,
+
+    // Proof time
+    pub created_at: i64,
+
+    // Bytes of signature
+    #[serde_as(as = "Bytes")]
+    pub signature: Vec<u8>,
+}
+
+#[serde_as]
+#[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
+pub struct IdSignature {
+    // The key which signs the data
+    pub key_id: String,
+    // Proof time
+    pub created_at: i64,
+    // Bytes of signature
+    #[serde_as(as = "Bytes")]
+    pub bytes: Vec<u8>,
+}
+
+
 impl IdSigner {
     pub fn new(public_key: &[u8]) -> Self {
         Self {

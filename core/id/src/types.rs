@@ -2,36 +2,35 @@ use idp2p_common::bytes::Bytes;
 use serde::{Deserialize, Serialize};
 use serde_with::serde_as;
 
-#[serde_as]
+
 #[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
-pub struct IdProofEnvelope {
-    pub id: String,
-    pub purpose: String,
-    pub version: String,
-    pub created_at: i64,
-    pub key_id: String,
-    #[serde_as(as = "Bytes")]
-    pub signature: Vec<u8>,
+pub struct IdEnvelope {
+    pub method: u16,
+    pub major: u16,
+    pub minor: u16,
+    pub patch: [u8; 32],
+    pub payload: Vec<u8>,
 }
 
 #[serde_as]
 #[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
-pub struct IdEventEnvelope {
+pub struct PersistedIdEvent {
     pub id: String,
-    pub version: String,
     #[serde_as(as = "Bytes")]
     pub payload: Vec<u8>,
     #[serde(skip_serializing_if = "Vec::is_empty", default)]
-    pub proofs: Vec<IdProofEnvelope>,
+    #[serde_as(as = "Vec<Bytes>")]
+    pub signatures: Vec<Vec<u8>>,
+    pub proofs: Vec<IdEnvelope>
 }
 
 #[serde_as]
 #[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
-pub struct Id {
+pub struct PersistedId {
     pub id: String,
-    pub inception: IdEventEnvelope,
+    pub inception: IdEnvelope,
     #[serde(skip_serializing_if = "Vec::is_empty", default)]
-    pub events: Vec<IdEventEnvelope>,
+    pub events: Vec<IdEnvelope>,
 }
 
 mod tests {

@@ -14,7 +14,6 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct IdInception {
-    pub version: String,
     pub timestamp: DateTime<Utc>,
     #[serde(skip_serializing_if = "Option::is_none", default)]
     pub prior_id: Option<String>,
@@ -117,7 +116,6 @@ mod tests {
         signers.insert(kid.clone(), pk);
         next_signers.insert(kid);
         let inception = IdInception {
-            version: String::new(),
             timestamp: Utc::now(),
             next_signers: next_signers,
             prior_id: None,

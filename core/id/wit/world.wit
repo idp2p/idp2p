@@ -1,18 +1,17 @@
 package idp2p:id;
 
 world idp2p-verifier {
-    use types.{id-event-envelope, id-proof-envelope};
+    use types.{persisted-id-event, id-envelope};
 
     import host: interface {
-        use types.{id-proof-envelope};
+        use types.{id-envelope};
 
-        verify-proof: func(payload: list<u8>, proof: id-proof-envelope) -> result<bool, string>;
+        verify-proof: func(payload: list<u8>, proof: id-envelope) -> result<bool, string>;
     }
 
-    export verify-proof: func(payload: list<u8>, proof: id-proof-envelope) -> result<bool, string>;
+    export verify-proof: func(payload: list<u8>, proof: id-envelope) -> result<bool, string>;
 
-    export verify-inception: func(inception: id-event-envelope) -> result<list<u8>, string>;
+    export verify-inception: func(event: persisted-id-event) -> result<list<u8>, string>;
 
-    export verify-event: func(state: list<u8>, event: id-event-envelope) -> result<list<u8>, string>;
-
+    export verify-event: func(state: list<u8>, event: persisted-id-event) -> result<list<u8>, string>;
 }
