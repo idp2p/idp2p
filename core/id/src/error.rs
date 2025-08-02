@@ -34,6 +34,8 @@ pub enum IdInceptionError {
     InvalidClaim(String),
     #[error("Invalid CID: {0}")]
     Cid(#[from] cid::Error),
+    #[error("JSON error")]
+    Json(#[from] serde_json::Error),
     #[error("Common error:\n {0}")]
     CommonError(#[from] CommonError)
 }

@@ -1,4 +1,4 @@
-#![no_std]
+#![cfg_attr(not(test), no_std)]
 extern crate alloc;
 
 pub const ED_CODE: u64 = 0xed;
@@ -11,3 +11,4 @@ pub mod cbor;
 pub mod bytes;
 pub mod error;
 pub mod cid;
+pub mod envelope;

@@ -1,10 +1,8 @@
 use std::collections::{BTreeMap, BTreeSet};
 
-use super::{ IdSigner, state::IdState};
+use super::{ signer::IdSigner, state::IdState};
 use crate::{
-    VALID_FROM, VERSION,
-    error::IdInceptionError,
-    types::{IdEventEnvelope, IdProofEnvelope},
+    error::IdInceptionError, model::envelope::IdEventEnvelope, VALID_FROM, VERSION
 };
 use alloc::str::FromStr;
 use chrono::{DateTime, Utc};
@@ -31,9 +29,6 @@ impl TryFrom<&IdEventEnvelope> for IdInception {
     type Error = IdInceptionError;
 
     fn try_from(value: &IdEventEnvelope) -> Result<Self, Self::Error> {
-        if value.version != VERSION {
-            return Err(IdInceptionError::UnsupportedVersion);
-        }
         let cid = Cid::from_str(&value.id)?;
         cid.ensure(&value.payload)?;
         let inception: IdInception = cbor::decode(&value.payload)?;
@@ -52,7 +47,8 @@ pub(crate) fn verify(envelope: &IdEventEnvelope) -> Result<Vec<u8>, IdInceptionE
     }
 
     for proof in &envelope.proofs {
-        let _ = crate::host::verify_proof(&vec![], proof).unwrap();
+        let proof = serde_json::to_vec(proof)?;
+        let _ = crate::host::verify_proof(&vec![], &proof).unwrap();
     }
 
     let mut id_state = IdState {
@@ -134,7 +130,7 @@ mod tests {
         let pinception = IdEventEnvelope {
             id: id.to_string(),
             payload: inception_bytes,
-            version: VERSION.to_string(),
+            signatures: vec![],
             proofs: vec![],
         };
         let result = verify(&pinception);

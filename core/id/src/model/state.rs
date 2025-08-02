@@ -1,4 +1,4 @@
-use super::IdSigner;
+use super::signer::IdSigner;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, BTreeSet};

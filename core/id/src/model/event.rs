@@ -5,7 +5,7 @@ use alloc::vec::Vec;
 use chrono::{DateTime, Utc};
 
 use crate::{
-    VALID_FROM, VERSION, error::IdEventError, protocol::state::IdState, types::IdEventEnvelope,
+    error::IdEventError, protocol::state::{self, IdState}, types::PersistedIdEvent, VALID_FROM, VERSION
 };
 use IdEventKind::*;
 use idp2p_common::{cbor, ed25519};
@@ -49,10 +49,10 @@ pub struct IdEvent {
     pub body: IdEventKind,
 }
 
-impl TryFrom<&IdEventEnvelope> for IdEvent {
+impl TryFrom<&PersistedIdEvent> for IdEvent {
     type Error = IdEventError;
 
-    fn try_from(value: &IdEventEnvelope) -> Result<Self, Self::Error> {
+    fn try_from(value: &PersistedIdEvent) -> Result<Self, Self::Error> {
         /*let id = Identifier::from_str(value.id.as_str())
             .map_err(|e| IdEventError::InvalidEventId(e.to_string()))?;
         id.ensure(&value.payload)
@@ -68,9 +68,9 @@ impl TryFrom<&IdEventEnvelope> for IdEvent {
     }
 }
 
-pub(crate) fn verify(state: &[u8], envelope: &IdEventEnvelope) -> Result<Vec<u8>, IdEventError> {
+pub(crate) fn verify(pevent: &PersistedIdEvent, state: &IdState ) -> Result<Vec<u8>, IdEventError> {
     let mut state: IdState = cbor::decode(state)?;
-    let event: IdEvent = envelope.try_into()?;
+    let event: IdEvent = pevent.try_into()?;
     /*
     // Timestamp check
     if event.timestamp < TIMESTAMP {
