@@ -12,7 +12,7 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct IdInception {
-    pub timestamp: DateTime<Utc>,
+    pub timestamp: i64,
     #[serde(skip_serializing_if = "Option::is_none", default)]
     pub prior_id: Option<String>,
     pub threshold: u8,
@@ -42,19 +42,19 @@ pub(crate) fn verify(envelope: &IdEventEnvelope) -> Result<Vec<u8>, IdInceptionE
     // Timestamp check
     //
     let valid_from: DateTime<Utc> = VALID_FROM.parse().expect("Invalid date format");
-    if inception.timestamp < valid_from {
+    if inception.timestamp < valid_from.timestamp() {
         return Err(IdInceptionError::InvalidTimestamp);
     }
 
     for proof in &envelope.proofs {
         let proof = serde_json::to_vec(proof)?;
-        let _ = crate::host::verify_proof(&vec![], &proof).unwrap();
+        let _ = crate::host::call(&proof, None).unwrap();
     }
 
     let mut id_state = IdState {
         id: envelope.id.clone(),
         event_id: envelope.id.clone(),
-        event_timestamp: inception.timestamp,
+        event_timestamp: DateTime::from_timestamp_nanos(inception.timestamp),
         prior_id: inception.prior_id.clone(),
         threshold: inception.threshold,
         next_threshold: inception.next_threshold,
@@ -112,7 +112,7 @@ mod tests {
         signers.insert(kid.clone(), pk);
         next_signers.insert(kid);
         let inception = IdInception {
-            timestamp: Utc::now(),
+            timestamp: Utc::now().timestamp(),
             next_signers: next_signers,
             prior_id: None,
             threshold: 1,
@@ -129,6 +129,7 @@ mod tests {
         eprintln!("ID: {}", id.to_string());
         let pinception = IdEventEnvelope {
             id: id.to_string(),
+            created_at: Utc::now(),
             payload: inception_bytes,
             signatures: vec![],
             proofs: vec![],

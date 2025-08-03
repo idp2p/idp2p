@@ -13,15 +13,7 @@ struct GuestComponent;
 export!(GuestComponent);
 
 impl Guest for GuestComponent {
-    fn verify_proof(proof: Vec<u8>, message: Vec<u8>) -> Result<bool, String> {
-        todo!()
-    }
-
-    fn verify_inception(inception: Vec<u8>) -> Result<Vec<u8>, String> {
-        todo!()
-    }
-
-    fn verify_event(event: Vec<u8>, state: Vec<u8>) -> Result<Vec<u8>, String> {
+    fn handle(message: Vec<u8>, state: Option<Vec<u8>>) -> Result<Vec<u8>, String> {
         todo!()
     }
 }

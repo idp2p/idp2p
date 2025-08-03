@@ -1,3 +1,4 @@
+use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use serde_with::serde_as;
 use idp2p_common::bytes::Bytes;
@@ -26,7 +27,7 @@ pub struct IdProof {
     pub purpose: String,
 
     // Proof time
-    pub created_at: i64,
+    pub created_at: DateTime<Utc>,
 
     // Bytes of signature
     #[serde_as(as = "Bytes")]
@@ -39,7 +40,7 @@ pub struct IdSignature {
     // The key which signs the data
     pub key_id: String,
     // Proof time
-    pub created_at: i64,
+    pub created_at: DateTime<Utc>,
     // Bytes of signature
     #[serde_as(as = "Bytes")]
     pub bytes: Vec<u8>,
@@ -49,6 +50,7 @@ pub struct IdSignature {
 #[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
 pub struct IdEventEnvelope {
     pub id: String,
+    pub created_at: DateTime<Utc>,
     #[serde_as(as = "Bytes")]
     pub payload: Vec<u8>,
     pub signatures: Vec<IdSignature>,

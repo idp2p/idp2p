@@ -2,6 +2,7 @@ package idp2p:wasmlib;
 
 world idp2p-wasmlib {
     import host: interface {
+        get: func(key: string) -> result<list<u8>, string>;
         call: func(envelope: list<u8>, state: option<list<u8>>) -> result<list<u8>, string>;
     }
     export handle: func(envelope: list<u8>, state: option<list<u8>>) -> result<list<u8>, string>;

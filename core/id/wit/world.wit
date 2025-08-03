@@ -2,12 +2,8 @@ package idp2p:id;
 
 world idp2p-verifier {
     import host: interface {
-        verify-proof: func(payload: list<u8>, proof: list<u8>) -> result<bool, string>;
+        get: func(key: string) -> result<option<list<u8>>, string>;
+        call: func(envelope: list<u8>, state: option<list<u8>>) -> result<list<u8>, string>;
     }
-
-    export verify-proof: func(payload: list<u8>, proof: list<u8>) -> result<bool, string>;
-
-    export verify-inception: func(event: list<u8>) -> result<list<u8>, string>;
-
-    export verify-event: func(state: list<u8>, event: list<u8>) -> result<list<u8>, string>;
+    export handle: func(envelope: list<u8>, state: option<list<u8>>) -> result<list<u8>, string>;
 }
