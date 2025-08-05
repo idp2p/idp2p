@@ -1,11 +1,28 @@
-package idp2p:wasmlib;
+package idp2p:behaviour;
 
-world idp2p-wasmlib {
+world idp2p-lib {
     import host: interface {
-        get: func(key: string) -> result<list<u8>, string>;
-        call: func(envelope: list<u8>, state: option<list<u8>>) -> result<list<u8>, string>;
+        get: func(key: string) -> result<option<list<u8>>, idp2p-error>;
+        call: func(message: list<u8>, state: option<list<u8>>) -> result<list<u8>, idp2p-error>;
     }
-    export handle: func(envelope: list<u8>, state: option<list<u8>>) -> result<list<u8>, string>;
+    export handle: func(message: list<u8>, state: option<list<u8>>) -> result<list<u8>, idp2p-error>;
+}
+
+world idp2p-message-handler {
+    import host: interface {
+        get: func(key: string) -> result<option<list<u8>>, idp2p-error>;
+        put: func(key: string, value: list<u8>) -> result<_, idp2p-error>;
+        publish: func(topic: string, payload: list<u8>) -> result<_, idp2p-error>;
+        subscribe: func(topic: string) -> result<_, idp2p-error>;
+        request: func(addr: string, payload: list<u8>) -> result<_, idp2p-error>;
+        response: func(payload: list<u8>) -> result<_, idp2p-error>;
+        call: func(message: list<u8>, state: option<list<u8>>) -> result<list<u8>, idp2p-error>;
+    }
+    export handle: func(message: list<u8>) -> result<_, idp2p-error>;
+}
+
+world idp2p-event-handler {
+    export handle: func(message: list<u8>) -> result<_, idp2p-error>;
 }
 
 

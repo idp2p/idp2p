@@ -1,6 +1,10 @@
-interface error {
+interface types {
     record idp2p-error {
         code: string,
-        message: string,
+        message: string
     }
+}
+
+interface wasmsg-lib {
+
 }
