@@ -1,6 +1,8 @@
 extern crate alloc;
+
 pub mod error;
 pub mod model;
+
 const VALID_FROM: &str = "2026-01-01T00:00:00Z";
 const VERSION: &'static str = "1.0";
 

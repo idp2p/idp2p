@@ -1,25 +1,33 @@
-use std::{collections::{BTreeMap, BTreeSet}, env};
+use std::{
+    collections::{BTreeMap, BTreeSet},
+    env,
+};
 
+use crate::{
+    VALID_FROM, VERSION,
+    error::IdEventError,
+    model::{envelope::IdEventEnvelope, state::IdState},
+};
+use IdEventKind::*;
+use alloc::str::FromStr;
 use alloc::string::String;
 use alloc::vec::Vec;
 use chrono::{DateTime, Utc};
-
-use crate::{
-    error::IdEventError, protocol::state::{self, IdState}, types::PersistedIdEvent, VALID_FROM, VERSION
-};
-use IdEventKind::*;
-use idp2p_common::{cbor, ed25519};
+use cid::Cid;
+use idp2p_common::{cbor, cid::CidExt, ed25519};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub enum IdEventKind {
     /// Should be signed with current keys
-    Interaction(BTreeMap<String, Vec<u8>>),
+    Interaction {
+        claim_events: BTreeMap<String, Vec<u8>>,
+    },
 
     /// Should be signed with next keys
     Rotation {
         threshold: Option<u8>,
-        next_threshold: Option<u8>, 
+        next_threshold: Option<u8>,
         signers: BTreeMap<String, Vec<u8>>,
         next_signers: BTreeSet<String>,
     },
@@ -40,7 +48,10 @@ pub enum IdEventKind {
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct IdEvent {
     /// Timestamp of event
-    pub timestamp: DateTime<Utc>,
+    pub timestamp: i64,
+
+    // The compoenent
+    pub component: Vec<u8>,
 
     /// Previous event id
     pub previous: String,
@@ -49,39 +60,24 @@ pub struct IdEvent {
     pub body: IdEventKind,
 }
 
-impl TryFrom<&PersistedIdEvent> for IdEvent {
-    type Error = IdEventError;
+pub(crate) fn verify(
+    envelope: &IdEventEnvelope,
+    state: &mut IdState,
+) -> Result<Vec<u8>, IdEventError> {
+    let cid = Cid::from_str(&envelope.id)?;
+    cid.ensure(&envelope.payload)?;
+    let event: IdEvent = cbor::decode(&envelope.payload)?;
 
-    fn try_from(value: &PersistedIdEvent) -> Result<Self, Self::Error> {
-        /*let id = Identifier::from_str(value.id.as_str())
-            .map_err(|e| IdEventError::InvalidEventId(e.to_string()))?;
-        id.ensure(&value.payload)
-            .map_err(|e| IdEventError::InvalidEventId(e.to_string()))?;
-
-        if id.kind != "event" {
-            return Err(IdEventError::InvalidEventId(id.to_string()));
-        }*/
-
-        let event: IdEvent =
-            cbor::decode(&value.payload).map_err(|_| IdEventError::InvalidPayload)?;
-        Ok(event)
-    }
-}
-
-pub(crate) fn verify(pevent: &PersistedIdEvent, state: &IdState ) -> Result<Vec<u8>, IdEventError> {
-    let mut state: IdState = cbor::decode(state)?;
-    let event: IdEvent = pevent.try_into()?;
-    /*
     // Timestamp check
-    if event.timestamp < TIMESTAMP {
+    let valid_from: DateTime<Utc> = VALID_FROM.parse().expect("Invalid date format");
+    if event.timestamp < valid_from.timestamp() {
         return Err(IdEventError::InvalidTimestamp);
     }
-
     // Previous event check
     if event.previous != state.event_id {
         return Err(IdEventError::PreviousNotMatch);
     }
-
+  /*
     match event.payload {
         Interaction(claims) => {
             if (pevent.proofs.len() as u8) < state.threshold {

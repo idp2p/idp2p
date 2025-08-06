@@ -1,9 +1,7 @@
 use std::collections::{BTreeMap, BTreeSet};
 
-use super::{ signer::IdSigner, state::IdState};
-use crate::{
-    error::IdInceptionError, model::envelope::IdEventEnvelope, VALID_FROM, VERSION
-};
+use super::{signer::IdSigner, state::IdState};
+use crate::{VALID_FROM, VERSION, error::IdEventError, model::envelope::IdEventEnvelope};
 use alloc::str::FromStr;
 use chrono::{DateTime, Utc};
 use cid::Cid;
@@ -25,25 +23,16 @@ pub struct IdInception {
     pub claim_events: BTreeMap<String, Vec<u8>>,
 }
 
-impl TryFrom<&IdEventEnvelope> for IdInception {
-    type Error = IdInceptionError;
-
-    fn try_from(value: &IdEventEnvelope) -> Result<Self, Self::Error> {
-        let cid = Cid::from_str(&value.id)?;
-        cid.ensure(&value.payload)?;
-        let inception: IdInception = cbor::decode(&value.payload)?;
-        Ok(inception)
-    }
-}
-
-pub(crate) fn verify(envelope: &IdEventEnvelope) -> Result<Vec<u8>, IdInceptionError> {
-    let inception: IdInception = (envelope).try_into()?;
+pub(crate) fn verify(envelope: &IdEventEnvelope) -> Result<Vec<u8>, IdEventError> {
+    let cid = Cid::from_str(&envelope.id)?;
+    cid.ensure(&envelope.payload)?;
+    let inception: IdInception = cbor::decode(&envelope.payload)?;
 
     // Timestamp check
     //
     let valid_from: DateTime<Utc> = VALID_FROM.parse().expect("Invalid date format");
     if inception.timestamp < valid_from.timestamp() {
-        return Err(IdInceptionError::InvalidTimestamp);
+        return Err(IdEventError::InvalidTimestamp);
     }
 
     for proof in &envelope.proofs {

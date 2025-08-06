@@ -2,7 +2,7 @@ use alloc::string::String;
 use idp2p_common::error::CommonError;
 use thiserror::Error;
 
-#[derive(Debug, Error)]
+/*#[derive(Debug, Error)]
 pub enum IdInceptionError {
     #[error("Invalid timestamp")]
     InvalidTimestamp,
@@ -38,6 +38,12 @@ pub enum IdInceptionError {
     Json(#[from] serde_json::Error),
     #[error("Common error:\n {0}")]
     CommonError(#[from] CommonError)
+}*/
+
+#[derive(Debug, Error)]
+pub enum IdError {
+    #[error("JSON error")]
+    Json(#[from] serde_json::Error),
 }
 
 #[derive(Debug, Error)]
@@ -70,6 +76,10 @@ pub enum IdEventError {
     InvalidClaim(String),
     #[error("Invalid delegation id: {0}")]
     InvalidDelegationId(String),
+    #[error("Invalid CID: {0}")]
+    Cid(#[from] cid::Error),
+    #[error("JSON error")]
+    Json(#[from] serde_json::Error),
     #[error("Common error:\n {0}")]
     CommonError(#[from] CommonError),
 }

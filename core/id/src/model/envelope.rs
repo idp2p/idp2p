@@ -2,7 +2,8 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use serde_with::serde_as;
 use idp2p_common::bytes::Bytes;
-use crate::model::state::IdState;
+
+use crate::error::IdError;
 
 #[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
 pub struct IdEnvelope {
@@ -65,5 +66,22 @@ pub enum IdValueKind {
     Inception(IdEventEnvelope),
     Event(IdEventEnvelope),
     Proof(IdProof),
-    State(IdState),
+}
+
+impl TryFrom<&Vec<u8>> for IdEnvelope {
+    type Error = IdError;
+
+    fn try_from(value: &Vec<u8>) -> Result<Self, Self::Error> {
+        todo!()
+    }
+}
+
+pub fn handle_message(message: Vec<u8>, state: Option<Vec<u8>>) -> Result<Vec<u8>, IdError> {
+    let en: IdEnvelope = serde_json::from_slice(&message)?;
+    match en.body {
+        IdValueKind::Inception(id_event_envelope) => todo!(),
+        IdValueKind::Event(id_event_envelope) => todo!(),
+        IdValueKind::Proof(id_proof) => todo!(),
+    }
+    todo!()
 }
