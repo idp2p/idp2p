@@ -17,15 +17,17 @@ pub struct IdState {
     /// Previous id
     pub prior_id: Option<String>,
 
+    // Current threshold
     pub threshold: u8,
     
+    // Next threshold
     pub next_threshold: u8,
 
     /// Signers
     pub signers: BTreeMap<String, IdSigner>,
 
-    /// Delegates
-    pub delegates: BTreeSet<String>,
+    /// Delegators
+    pub delegators: BTreeSet<String>,
 
     /// Current signers
     pub current_signers: BTreeSet<String>,

@@ -1,7 +1,7 @@
 use chrono::{DateTime, Utc};
+use idp2p_common::bytes::Bytes;
 use serde::{Deserialize, Serialize};
 use serde_with::serde_as;
-use idp2p_common::bytes::Bytes;
 
 use crate::error::IdError;
 
@@ -12,20 +12,14 @@ pub struct IdEnvelope {
     /// 1.0
     pub version: String,
     // json value
-    pub body: IdValueKind,
+    pub body: IdEnvelopeKind,
 }
 
 #[serde_as]
 #[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
 pub struct IdProof {
-    // The identity who creates proof
-    pub id: String,
-
     // The key which signs the data
     pub key_id: String,
-
-    // Proof purpose
-    pub purpose: String,
 
     // Proof time
     pub created_at: DateTime<Utc>,
@@ -33,18 +27,21 @@ pub struct IdProof {
     // Bytes of signature
     #[serde_as(as = "Bytes")]
     pub signature: Vec<u8>,
+
+    pub kind: IdProofKind
 }
 
 #[serde_as]
 #[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
-pub struct IdSignature {
-    // The key which signs the data
-    pub key_id: String,
-    // Proof time
-    pub created_at: DateTime<Utc>,
-    // Bytes of signature
-    #[serde_as(as = "Bytes")]
-    pub bytes: Vec<u8>,
+pub enum IdProofKind {
+    Raw,
+    Envelope {
+        // The identity who creates proof
+        id: String,
+
+        // Proof purpose
+        purpose: String,
+    },
 }
 
 #[serde_as]
@@ -54,15 +51,12 @@ pub struct IdEventEnvelope {
     pub created_at: DateTime<Utc>,
     #[serde_as(as = "Bytes")]
     pub payload: Vec<u8>,
-    pub signatures: Vec<IdSignature>,
-    #[serde(skip_serializing_if = "Vec::is_empty", default)]
-    pub proofs: Vec<IdProof>
+    pub proofs: Vec<IdProof>,
 }
-
 
 #[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
 #[serde(tag = "type", content = "value")]
-pub enum IdValueKind {
+pub enum IdEnvelopeKind {
     Inception(IdEventEnvelope),
     Event(IdEventEnvelope),
     Proof(IdProof),
@@ -79,9 +73,8 @@ impl TryFrom<&Vec<u8>> for IdEnvelope {
 pub fn handle_message(message: Vec<u8>, state: Option<Vec<u8>>) -> Result<Vec<u8>, IdError> {
     let en: IdEnvelope = serde_json::from_slice(&message)?;
     match en.body {
-        IdValueKind::Inception(id_event_envelope) => todo!(),
-        IdValueKind::Event(id_event_envelope) => todo!(),
-        IdValueKind::Proof(id_proof) => todo!(),
+        IdEnvelopeKind::Inception(id_event_envelope) => todo!(),
+        IdEnvelopeKind::Event(id_event_envelope) => todo!(),
+        IdEnvelopeKind::Proof(id_proof) => todo!(),
     }
-    todo!()
 }

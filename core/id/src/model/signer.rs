@@ -18,6 +18,18 @@ pub struct IdSigner {
     pub valid_to: Option<DateTime<Utc>>,
 }
 
+#[serde_as]
+#[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
+pub struct IdProof {
+    // The key which signs the data
+    pub key_id: String,
+    // Proof time
+    pub created_at: DateTime<Utc>,
+    // Bytes of signature
+    #[serde_as(as = "Bytes")]
+    pub bytes: Vec<u8>,
+}
+
 
 
 impl IdSigner {

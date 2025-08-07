@@ -15,9 +15,8 @@ pub struct IdInception {
     pub prior_id: Option<String>,
     pub threshold: u8,
     pub next_threshold: u8,
-    pub delegates: BTreeSet<String>,
+    pub delegators: BTreeSet<String>,
     pub signers: BTreeMap<String, Vec<u8>>,
-    pub current_signers: BTreeSet<String>,
     pub next_signers: BTreeSet<String>,
     #[serde(skip_serializing_if = "BTreeMap::is_empty", default)]
     pub claim_events: BTreeMap<String, Vec<u8>>,
@@ -47,13 +46,15 @@ pub(crate) fn verify(envelope: &IdEventEnvelope) -> Result<Vec<u8>, IdEventError
         prior_id: inception.prior_id.clone(),
         threshold: inception.threshold,
         next_threshold: inception.next_threshold,
-        delegates: inception.delegates,
+        delegators: inception.delegators,
         signers: inception
             .signers
             .iter()
             .map(|(k, v)| (k.clone(), IdSigner::new(v)))
             .collect(),
-        current_signers: inception.current_signers.clone(),
+        current_signers: inception.signers.iter()
+            .map(|(k, ..)| (k.clone()))
+            .collect(),
         next_signers: inception.next_signers.clone(),
         claim_events: inception
             .claim_events
@@ -106,9 +107,8 @@ mod tests {
             prior_id: None,
             threshold: 1,
             next_threshold: 1,
-            delegates: BTreeSet::new(),
+            delegators: BTreeSet::new(),
             signers: signers,
-            current_signers: BTreeSet::new(),
             claim_events: BTreeMap::new(),
         };
         let inception_bytes = cbor::encode(&inception);
@@ -120,7 +120,6 @@ mod tests {
             id: id.to_string(),
             created_at: Utc::now(),
             payload: inception_bytes,
-            signatures: vec![],
             proofs: vec![],
         };
         let result = verify(&pinception);

@@ -26,21 +26,18 @@ pub enum IdEventKind {
 
     /// Should be signed with next keys
     Rotation {
+        /// The number of signers in state.next_signers should match the min next_threshold
+        /// The totat number of signers should match the current threshold
+        signers: BTreeMap<String, Vec<u8>>,
         threshold: Option<u8>,
         next_threshold: Option<u8>,
-        signers: BTreeMap<String, Vec<u8>>,
         next_signers: BTreeSet<String>,
     },
 
     /// Should be signed with next keys
     Revocation {
         details: Option<String>,
-        signers: BTreeMap<String, Vec<u8>>,
-    },
-
-    /// Should be signed with next keys
-    Migration {
-        details: Option<String>,
+        /// Each signer should be in state.next_signers 
         signers: BTreeMap<String, Vec<u8>>,
     },
 }
@@ -77,10 +74,15 @@ pub(crate) fn verify(
     if event.previous != state.event_id {
         return Err(IdEventError::PreviousNotMatch);
     }
-  /*
-    match event.payload {
-        Interaction(claims) => {
-            if (pevent.proofs.len() as u8) < state.threshold {
+  
+    match event.body {
+        Interaction { claim_events } => {
+            // Check threshold
+            // Verify signatures
+            // Verify proofs
+            //  
+
+            /*if (pevent.proofs.len() as u8) < state.threshold {
                 return Err(IdEventError::LackOfMinProofs);
             }
             for (proof_kid, proof_sig) in pevent.proofs {
@@ -94,7 +96,7 @@ pub(crate) fn verify(
 
             for (claim_key, claim_event) in claims {
                 state.claims.entry(claim_key).or_insert(vec![claim_event]);
-            }
+            }*/
         }
         Rotation {
             threshold,
@@ -106,29 +108,29 @@ pub(crate) fn verify(
             if total_signers < state.next_threshold {
                 return Err(IdEventError::NextThresholdNotMatch);
             }
-            for (proof_kid, proof_sig) in pevent.proofs {
+            /*for (proof_kid, proof_sig) in pevent.proofs {
                 let signer_pk = signers
                     .get(&proof_kid)
                     .ok_or_else(|| IdEventError::invalid_proof(&proof_kid, "not_found"))?;
 
                 ed25519::verify(&signer_pk, &pevent.payload, &proof_sig)?;
-            }
+            }*/
             state.next_signers = next_signers;
-            state.threshold = threshold;
-            state.next_threshold = next_threshold;
+            //state.threshold = threshold;
+            //state.next_threshold = next_threshold;
         }
-        Migration { next_id, signers } => {
-            for (proof_kid, proof_sig) in pevent.proofs {
+        Revocation { details, signers } => {
+            /*for (proof_kid, proof_sig) in pevent.proofs {
                 let signer_pk = signers
                     .get(&proof_kid)
                     .ok_or_else(|| IdEventError::invalid_proof(&proof_kid, "not_found"))?;
 
                 ed25519::verify(&signer_pk, &pevent.payload, &proof_sig)?;
             }
-            state.next_id = Some(next_id);
+            state.next_id = Some(next_id);*/
         }
         _ => {}
-    }*/
+    }
     state.event_id = envelope.id.clone();
     let id_state_bytes = cbor::encode(&state);
 
