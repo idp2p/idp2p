@@ -15,7 +15,7 @@ pub struct IdInception {
     pub prior_id: Option<String>,
     pub threshold: u8,
     pub next_threshold: u8,
-    pub delegators: BTreeSet<String>,
+    pub delegators: BTreeMap<String, BTreeSet<String>>,
     pub signers: BTreeMap<String, Vec<u8>>,
     pub next_signers: BTreeSet<String>,
     #[serde(skip_serializing_if = "BTreeMap::is_empty", default)]
@@ -107,7 +107,7 @@ mod tests {
             prior_id: None,
             threshold: 1,
             next_threshold: 1,
-            delegators: BTreeSet::new(),
+            delegators: BTreeMap::new(),
             signers: signers,
             claim_events: BTreeMap::new(),
         };

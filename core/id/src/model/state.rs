@@ -27,7 +27,7 @@ pub struct IdState {
     pub signers: BTreeMap<String, IdSigner>,
 
     /// Delegators
-    pub delegators: BTreeSet<String>,
+    pub delegators: BTreeMap<String, BTreeSet<String>>,
 
     /// Current signers
     pub current_signers: BTreeSet<String>,
