@@ -16,6 +16,8 @@ export!(GuestComponent);
 
 impl Guest for GuestComponent {
     fn handle(message: Vec<u8>, state: Option<Vec<u8>>) -> Result<Vec<u8>, String> {
-        todo!()
+        // Route the incoming message to the ID envelope handler.
+        // Any domain errors are converted to a string for the host.
+        crate::model::envelope::handle_message(message, state).map_err(|e| e.to_string())
     }
 }

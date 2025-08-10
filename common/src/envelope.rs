@@ -18,7 +18,7 @@ mod tests {
     #[test]
     fn test() {
         let env = WasmEnvelope {
-            protocol: "idp2p:id".to_string(),
+            protocol: "id".to_string(),
             version: "1.0".to_string(),
             r#type: "event".to_string(),
             value: json!({
@@ -33,7 +33,7 @@ mod tests {
                 ],
                 "proofs": [
                     {
-                        "protocol": "idp2p:id",
+                        "protocol": "id",
                         "version": "1.0",
                         "type": "proof",
                         "value": { 

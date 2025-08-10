@@ -14,7 +14,7 @@ use alloc::string::String;
 use alloc::vec::Vec;
 use chrono::{DateTime, Utc};
 use cid::Cid;
-use idp2p_common::{cbor, cid::CidExt, ed25519};
+use idp2p_common::{cbor, cid::CidExt, ed25519, CBOR_CODE};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -62,7 +62,7 @@ pub(crate) fn verify(
     state: &mut IdState,
 ) -> Result<Vec<u8>, IdEventError> {
     let cid = Cid::from_str(&envelope.id)?;
-    cid.ensure(&envelope.payload)?;
+    cid.ensure(&envelope.payload, vec![CBOR_CODE])?;
     let event: IdEvent = cbor::decode(&envelope.payload)?;
 
     // Timestamp check

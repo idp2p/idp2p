@@ -1,5 +1,5 @@
 mod signer;
-mod envelope;
+pub mod envelope;
 mod state;
 mod inception;
 mod event;

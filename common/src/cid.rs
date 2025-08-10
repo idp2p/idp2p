@@ -1,15 +1,16 @@
+use alloc::vec::Vec;
 use cid::Cid;
 use cid::multihash::Multihash;
 
 use crate::{error::CommonError, utils::sha256_hash, SHA2_256_CODE};
 
 pub trait CidExt {
-    fn ensure(&self, input: &[u8]) -> Result<(), CommonError>;
+    fn ensure(&self, input: &[u8], codecs: Vec<u64>) -> Result<(), CommonError>;
     fn create(code: u64, input: &[u8]) -> Result<Cid, CommonError>;
 }
 
 impl CidExt for Cid {
-    fn ensure(&self, input: &[u8]) -> Result<(), CommonError> {
+    fn ensure(&self, input: &[u8], codecs: Vec<u64>) -> Result<(), CommonError> {
         match self.hash().code() {
             SHA2_256_CODE => {
                 let input_digest = sha256_hash(input);
@@ -18,6 +19,9 @@ impl CidExt for Cid {
                 }
             }
             _ => return Err(CommonError::UnsupportedHashAlgorithm(self.hash().code())),
+        }
+        if !codecs.contains(&self.codec()) {
+            return Err(CommonError::UnsupportedCodec(self.codec()));
         }
         Ok(())
     }

@@ -1,11 +1,11 @@
-use std::collections::{BTreeMap, BTreeSet};
+use alloc::collections::{BTreeMap, BTreeSet};
 
 use super::{signer::IdSigner, state::IdState};
-use crate::{VALID_FROM, VERSION, error::IdEventError, model::envelope::IdEventEnvelope};
+use crate::{VALID_FROM, error::IdEventError, model::envelope::IdEventEnvelope};
 use alloc::str::FromStr;
-use chrono::{DateTime, Utc};
+use chrono::{DateTime, TimeZone, Utc};
 use cid::Cid;
-use idp2p_common::{cbor, cid::CidExt};
+use idp2p_common::{ED_CODE, cbor, cid::CidExt};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -24,7 +24,7 @@ pub struct IdInception {
 
 pub(crate) fn verify(envelope: &IdEventEnvelope) -> Result<Vec<u8>, IdEventError> {
     let cid = Cid::from_str(&envelope.id)?;
-    cid.ensure(&envelope.payload)?;
+    cid.ensure(&envelope.payload, vec![ED_CODE])?;
     let inception: IdInception = cbor::decode(&envelope.payload)?;
 
     // Timestamp check
@@ -34,15 +34,72 @@ pub(crate) fn verify(envelope: &IdEventEnvelope) -> Result<Vec<u8>, IdEventError
         return Err(IdEventError::InvalidTimestamp);
     }
 
-    for proof in &envelope.proofs {
-        let proof = serde_json::to_vec(proof)?;
-        let _ = crate::host::call(&proof, None).unwrap();
+    // Validate signer thresholds
+    let total_signers = inception.signers.len() as u8;
+    if inception.threshold == 0 || total_signers < inception.threshold {
+        return Err(IdEventError::ThresholdNotMatch);
+    }
+
+    let total_next_signers = inception.next_signers.len() as u8;
+    if inception.next_threshold == 0 || total_next_signers < inception.next_threshold {
+        return Err(IdEventError::NextThresholdNotMatch);
+    }
+
+    // Validate signer key ids and key material
+    for (kid, pk) in &inception.signers {
+        // Ensure KID is a valid CID and codec matches ED25519
+        let parsed = Cid::from_str(kid)?;
+        if parsed.codec() != ED_CODE {
+            return Err(IdEventError::InvalidSigner(kid.clone()));
+        }
+        // Ensure KID matches the provided public key bytes
+        let expected = Cid::create(ED_CODE, pk)?;
+        if expected.to_string() != *kid {
+            return Err(IdEventError::InvalidSigner(kid.clone()));
+        }
+    }
+
+    // Validate next signer ids
+    for next_kid in &inception.next_signers {
+        let parsed = Cid::from_str(next_kid)
+            .map_err(|_| IdEventError::InvalidNextSigner(next_kid.clone()))?;
+        if parsed.codec() != ED_CODE {
+            return Err(IdEventError::InvalidNextSigner(next_kid.clone()));
+        }
+    }
+
+    // Validate delegators and their key references
+    for (delegation_id, keys) in &inception.delegators {
+        let _ = Cid::from_str(delegation_id)
+            .map_err(|_| IdEventError::InvalidDelegationId(delegation_id.clone()))?;
+        for k in keys {
+            let parsed = Cid::from_str(k).map_err(|_| IdEventError::InvalidSigner(k.clone()))?;
+            if parsed.codec() != ED_CODE {
+                return Err(IdEventError::InvalidSigner(k.clone()));
+            }
+        }
+    }
+
+    // Verify delegator proofs via host and ensure they correspond to declared delegators
+    for proof in &envelope.delegator_proofs {
+        // Must correspond to a declared delegator id if any are present
+        if !inception.delegators.is_empty() && !inception.delegators.contains_key(&proof.id) {
+            return Err(IdEventError::InvalidDelegationId(proof.id.clone()));
+        }
+        let proof_bytes = serde_json::to_vec(proof)?;
+        match crate::host::call(&proof_bytes, None) {
+            Ok(_) => {}
+            Err(_) => return Err(IdEventError::InvalidDelegationId(proof.id.clone())),
+        }
     }
 
     let mut id_state = IdState {
         id: envelope.id.clone(),
         event_id: envelope.id.clone(),
-        event_timestamp: DateTime::from_timestamp_nanos(inception.timestamp),
+        event_timestamp: Utc
+            .timestamp_micros(inception.timestamp)
+            .single()
+            .ok_or(IdEventError::InvalidTimestamp)?,
         prior_id: inception.prior_id.clone(),
         threshold: inception.threshold,
         next_threshold: inception.next_threshold,
@@ -52,7 +109,9 @@ pub(crate) fn verify(envelope: &IdEventEnvelope) -> Result<Vec<u8>, IdEventError
             .iter()
             .map(|(k, v)| (k.clone(), IdSigner::new(v)))
             .collect(),
-        current_signers: inception.signers.iter()
+        current_signers: inception
+            .signers
+            .iter()
             .map(|(k, ..)| (k.clone()))
             .collect(),
         next_signers: inception.next_signers.clone(),
@@ -70,10 +129,7 @@ pub(crate) fn verify(envelope: &IdEventEnvelope) -> Result<Vec<u8>, IdEventError
     }
 
     let id_state_bytes = cbor::encode(&id_state);
-    let mut result: Vec<u8> = Vec::with_capacity(id_state_bytes.len() + 2);
-    result.extend_from_slice(0u16.to_be_bytes().as_slice());
-    result.extend_from_slice(&id_state_bytes);
-    Ok(result)
+    Ok(id_state_bytes)
 }
 
 #[cfg(test)]
@@ -120,7 +176,8 @@ mod tests {
             id: id.to_string(),
             created_at: Utc::now(),
             payload: inception_bytes,
-            proofs: vec![],
+            proofs: BTreeMap::new(),
+            delegator_proofs: vec![],
         };
         let result = verify(&pinception);
         assert!(result.is_ok());

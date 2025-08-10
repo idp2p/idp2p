@@ -44,6 +44,8 @@ pub enum IdInceptionError {
 pub enum IdError {
     #[error("JSON error")]
     Json(#[from] serde_json::Error),
+    #[error("Other error: {0}")]
+    Other(String),
 }
 
 #[derive(Debug, Error)]
@@ -90,5 +92,17 @@ impl IdEventError {
             kid: kid.to_owned(),
             reason: reason.to_owned(),
         }
+    }
+}
+
+impl From<CommonError> for IdError {
+    fn from(value: CommonError) -> Self {
+        IdError::Other(value.to_string())
+    }
+}
+
+impl From<IdEventError> for IdError {
+    fn from(value: IdEventError) -> Self {
+        IdError::Other(value.to_string())
     }
 }
