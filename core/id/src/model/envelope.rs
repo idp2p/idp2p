@@ -12,7 +12,7 @@ use idp2p_common::cbor;
 
 #[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
 pub struct IdEnvelope {
-    /// idp2p:id
+    /// id
     pub protocol: String,
     /// 1.0
     pub version: String,
@@ -44,11 +44,10 @@ pub struct IdProofEnvelope {
 #[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
 pub struct IdEventEnvelope {
     pub id: String,
-    pub created_at: DateTime<Utc>,
     #[serde_as(as = "Bytes")]
     pub payload: Vec<u8>,
     pub proofs: BTreeMap<String, Vec<u8>>,
-    pub delegator_proofs: Vec<IdProofEnvelope>,
+    pub delegator_proofs: Vec<IdEnvelope>,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
@@ -70,7 +69,7 @@ impl TryFrom<&Vec<u8>> for IdEnvelope {
 pub fn handle_message(message: Vec<u8>, state: Option<Vec<u8>>) -> Result<Vec<u8>, IdError> {
     let en: IdEnvelope = serde_json::from_slice(&message)?;
     // Basic envelope checks
-    if en.protocol != "idp2p:id" {
+    if en.protocol != "id" {
         return Err(IdError::Other("unsupported protocol".into()));
     }
     if en.version != VERSION {

@@ -8,6 +8,14 @@ use cid::Cid;
 use idp2p_common::{ED_CODE, cbor, cid::CidExt};
 use serde::{Deserialize, Serialize};
 
+macro_rules! ensure {
+    ($cond:expr, $error:expr) => {
+        if !($cond) {
+            return Err($error);
+        }
+    };
+}
+
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct IdInception {
     pub timestamp: i64,
@@ -15,29 +23,52 @@ pub struct IdInception {
     pub prior_id: Option<String>,
     pub threshold: u8,
     pub next_threshold: u8,
-    pub delegators: BTreeMap<String, BTreeSet<String>>,
     pub signers: BTreeMap<String, Vec<u8>>,
     pub next_signers: BTreeSet<String>,
+    #[serde(skip_serializing_if = "BTreeMap::is_empty", default)]
+    // Key means the id of delegator
+    // Value means the events required
+    pub delegators: BTreeMap<String, BTreeSet<String>>,
     #[serde(skip_serializing_if = "BTreeMap::is_empty", default)]
     pub claim_events: BTreeMap<String, Vec<u8>>,
 }
 
 pub(crate) fn verify(envelope: &IdEventEnvelope) -> Result<Vec<u8>, IdEventError> {
-    let cid = Cid::from_str(&envelope.id)?;
-    cid.ensure(&envelope.payload, vec![ED_CODE])?;
+    let id = Cid::from_str(&envelope.id)?;
+    id.ensure(&envelope.payload, vec![ED_CODE])?;
     let inception: IdInception = cbor::decode(&envelope.payload)?;
 
     // Timestamp check
     //
     let valid_from: DateTime<Utc> = VALID_FROM.parse().expect("Invalid date format");
-    if inception.timestamp < valid_from.timestamp() {
-        return Err(IdEventError::InvalidTimestamp);
+    let total_signers = inception.signers.len() as u8;
+    let total_signatures = envelope.proofs.len() as u8;
+
+    ensure!(
+        inception.timestamp > valid_from.timestamp(),
+        IdEventError::InvalidTimestamp
+    );
+
+    ensure!(
+        total_signers >= total_signatures,
+        IdEventError::ThresholdNotMatch
+    );
+
+    ensure!(
+        total_signatures >= inception.threshold,
+        IdEventError::ThresholdNotMatch
+    );
+
+    ensure!(inception.threshold >= 1, IdEventError::ThresholdNotMatch);
+
+    // Validate signer key ids and key material
+    for (kid, pk) in &inception.signers {
+        let kid = Cid::from_str(kid)?;
+        kid.ensure(pk, vec![ED_CODE])?;
     }
 
-    // Validate signer thresholds
-    let total_signers = inception.signers.len() as u8;
-    if inception.threshold == 0 || total_signers < inception.threshold {
-        return Err(IdEventError::ThresholdNotMatch);
+    for (kid, sig) in &envelope.proofs {
+       ensure!(inception.signers.contains_key(kid), IdEventError::ThresholdNotMatch);
     }
 
     let total_next_signers = inception.next_signers.len() as u8;
@@ -45,53 +76,39 @@ pub(crate) fn verify(envelope: &IdEventEnvelope) -> Result<Vec<u8>, IdEventError
         return Err(IdEventError::NextThresholdNotMatch);
     }
 
-    // Validate signer key ids and key material
-    for (kid, pk) in &inception.signers {
-        // Ensure KID is a valid CID and codec matches ED25519
-        let parsed = Cid::from_str(kid)?;
-        if parsed.codec() != ED_CODE {
-            return Err(IdEventError::InvalidSigner(kid.clone()));
-        }
-        // Ensure KID matches the provided public key bytes
-        let expected = Cid::create(ED_CODE, pk)?;
-        if expected.to_string() != *kid {
-            return Err(IdEventError::InvalidSigner(kid.clone()));
-        }
-    }
-
     // Validate next signer ids
-    for next_kid in &inception.next_signers {
-        let parsed = Cid::from_str(next_kid)
-            .map_err(|_| IdEventError::InvalidNextSigner(next_kid.clone()))?;
-        if parsed.codec() != ED_CODE {
-            return Err(IdEventError::InvalidNextSigner(next_kid.clone()));
-        }
+    for next_kid_str in &inception.next_signers {
+        let next_kid = Cid::from_str(next_kid_str)?;
+        ensure!(
+            next_kid.codec() == ED_CODE,
+            IdEventError::InvalidNextSigner(next_kid_str.clone())
+        );
     }
 
-    // Validate delegators and their key references
-    for (delegation_id, keys) in &inception.delegators {
-        let _ = Cid::from_str(delegation_id)
-            .map_err(|_| IdEventError::InvalidDelegationId(delegation_id.clone()))?;
-        for k in keys {
-            let parsed = Cid::from_str(k).map_err(|_| IdEventError::InvalidSigner(k.clone()))?;
-            if parsed.codec() != ED_CODE {
-                return Err(IdEventError::InvalidSigner(k.clone()));
-            }
-        }
-    }
+    /*// Validate delegators and their key references
+     for (delegation_id, keys) in &inception.delegators {
+         let _ = Cid::from_str(delegation_id)
+             .map_err(|_| IdEventError::InvalidDelegationId(delegation_id.clone()))?;
+         for k in keys {
+             let parsed = Cid::from_str(k).map_err(|_| IdEventError::InvalidSigner(k.clone()))?;
+             if parsed.codec() != ED_CODE {
+                 return Err(IdEventError::InvalidSigner(k.clone()));
+             }
+         }
+     }
 
-    // Verify delegator proofs via host and ensure they correspond to declared delegators
+     // Verify delegator proofs via host and ensure they correspond to declared delegators
     for proof in &envelope.delegator_proofs {
-        // Must correspond to a declared delegator id if any are present
-        if !inception.delegators.is_empty() && !inception.delegators.contains_key(&proof.id) {
-            return Err(IdEventError::InvalidDelegationId(proof.id.clone()));
-        }
-        let proof_bytes = serde_json::to_vec(proof)?;
-        match crate::host::call(&proof_bytes, None) {
-            Ok(_) => {}
-            Err(_) => return Err(IdEventError::InvalidDelegationId(proof.id.clone())),
-        }
-    }
+         // Must correspond to a declared delegator id if any are present
+         if !inception.delegators.is_empty() && !inception.delegators.contains_key(&proof.id) {
+             return Err(IdEventError::InvalidDelegationId(proof.id.clone()));
+         }
+         let proof_bytes = serde_json::to_vec(proof)?;
+         match crate::host::call(&proof_bytes, None) {
+             Ok(_) => {}
+             Err(_) => return Err(IdEventError::InvalidDelegationId(proof.id.clone())),
+         }
+     }*/
 
     let mut id_state = IdState {
         id: envelope.id.clone(),
@@ -174,7 +191,6 @@ mod tests {
         eprintln!("ID: {}", id.to_string());
         let pinception = IdEventEnvelope {
             id: id.to_string(),
-            created_at: Utc::now(),
             payload: inception_bytes,
             proofs: BTreeMap::new(),
             delegator_proofs: vec![],
