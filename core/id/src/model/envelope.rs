@@ -46,8 +46,10 @@ pub struct IdEventEnvelope {
     pub id: String,
     #[serde_as(as = "Bytes")]
     pub payload: Vec<u8>,
+    // Key means kid, value means signature
     pub proofs: BTreeMap<String, Vec<u8>>,
-    pub delegator_proofs: Vec<IdEnvelope>,
+    // Key means id, value means signature
+    pub delegator_proofs: BTreeMap<String, IdEnvelope>,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
