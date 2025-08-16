@@ -1,0 +1,62 @@
+interface types {
+    record id-state {
+        id: string,
+        prior-id: option<string>,
+        event-id: string,
+        event-timestamp: string,
+        threshold: u8,
+        next-threshold: u8,
+        signers: list<id-signer>,
+        current-signers: list<string>,
+        next-signers: list<string>,
+        delegators: list<id-delegator>,
+        claim-events: list<id-claim-event>
+    }
+
+    record id-claim-event {
+        id: string,
+        created-at: string,
+        payload: list<u8>,
+    }
+
+    record id-signer {
+        id: string,
+        public-key: list<u8>,
+        valid-from: string,
+        valid-until: option<string>
+    }
+
+    record id-delegator {
+        id: string,
+        restrictions: list<string>
+    }
+
+    record id-proof {
+        id: string,
+        version: string,
+        purpose: string,
+        key-id: string,
+        created-at: string,
+        signature: list<u8>
+    }
+
+    record id-event-proof {
+        created-at: string,
+        key-id: string,
+        signature: list<u8>
+    }
+
+    record id-event-envelope {
+        id: string,
+        version: string,
+        payload: list<u8>,
+        proofs: list<id-event-proof>,
+        delegated-proofs: list<id-proof>
+    }
+
+    record persisted-id {
+        id: string,
+        inception: id-event-envelope,
+        events: list<id-event-envelope>
+    }
+}
