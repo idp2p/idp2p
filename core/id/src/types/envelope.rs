@@ -25,9 +25,6 @@ pub struct IdProof {
     // Proof version
     pub version: String,
 
-    // Proof purpose
-    pub purpose: String,
-
     // The key which signs the data
     pub key_id: String,
 

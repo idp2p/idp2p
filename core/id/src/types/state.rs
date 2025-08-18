@@ -5,15 +5,14 @@ use idp2p_common::bytes::Bytes;
 use crate::IdSigner;
 
 #[serde_as]
-#[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Hash, Serialize, Deserialize)]
 pub struct IdDelegator {
-    pub id: String,
-    
+    pub id: String,    
     pub restrictions: Vec<String>,
 }
 
 #[serde_as]
-#[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Hash, Serialize, Deserialize)]
 pub struct IdClaimEvent {
     pub id: String,
     pub created_at: String,
@@ -55,4 +54,45 @@ pub struct IdState {
 
     /// Claim events
     pub claim_events: Vec<IdClaimEvent>,
+}
+
+
+impl Eq for IdDelegator {}
+
+impl PartialEq for IdDelegator {
+    fn eq(&self, other: &Self) -> bool {
+        self.id == other.id
+    }
+}
+
+impl Ord for IdDelegator {
+    fn cmp(&self, other: &Self) -> core::cmp::Ordering {
+        self.id.cmp(&other.id)
+    }
+}
+
+impl PartialOrd for IdDelegator {
+    fn partial_cmp(&self, other: &Self) -> Option<core::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Eq for IdClaimEvent {}
+
+impl PartialEq for IdClaimEvent {
+    fn eq(&self, other: &Self) -> bool {
+        self.id == other.id
+    }
+}
+
+impl Ord for IdClaimEvent {
+    fn cmp(&self, other: &Self) -> core::cmp::Ordering {
+        self.id.cmp(&other.id)
+    }
+}
+
+impl PartialOrd for IdClaimEvent {
+    fn partial_cmp(&self, other: &Self) -> Option<core::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
 }

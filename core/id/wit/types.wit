@@ -34,7 +34,6 @@ interface types {
     record id-proof {
         id: string,
         version: string,
-        purpose: string,
         key-id: string,
         created-at: string,
         signature: list<u8>

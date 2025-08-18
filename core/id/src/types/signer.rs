@@ -7,7 +7,7 @@ use idp2p_common::bytes::Bytes;
 ///
 /// Represents a signer of an identifier.
 #[serde_as]
-#[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Hash, Serialize, Deserialize)]
 pub struct IdSigner {
     pub id: String,
     /// Public key of the signer.
@@ -32,4 +32,23 @@ impl IdSigner {
         let valid_from = self.valid_from.parse().map_err(op)
         self.valid_from <= now && (self.valid_until.is_none() || self.valid_until.unwrap() >= now)
     }*/
+}
+
+impl Eq for IdSigner {}
+impl PartialEq for IdSigner {
+    fn eq(&self, other: &Self) -> bool {
+        self.id == other.id
+    }
+}
+
+impl Ord for IdSigner {
+    fn cmp(&self, other: &Self) -> core::cmp::Ordering {
+        self.id.cmp(&other.id)
+    }
+}
+
+impl PartialOrd for IdSigner {
+    fn partial_cmp(&self, other: &Self) -> Option<core::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
 }

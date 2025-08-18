@@ -1,9 +1,9 @@
-use alloc::collections::{BTreeMap, BTreeSet};
+use alloc::collections::BTreeSet;
 
-use super::{signer::IdSigner, state::IdState};
-use crate::{VALID_FROM, error::IdEventError, model::envelope::IdEventEnvelope};
+use crate::types::{IdClaimEvent, IdDelegator, IdEventEnvelope, IdSigner, IdState};
+use crate::{VALID_FROM, error::IdEventError};
 use alloc::str::FromStr;
-use chrono::{DateTime, TimeZone, Utc};
+use chrono::{DateTime, SecondsFormat, TimeZone, Utc};
 use cid::Cid;
 use idp2p_common::{ED_CODE, cbor, cid::CidExt};
 use serde::{Deserialize, Serialize};
@@ -23,17 +23,15 @@ pub struct IdInception {
     pub prior_id: Option<String>,
     pub threshold: u8,
     pub next_threshold: u8,
-    pub signers: BTreeMap<String, Vec<u8>>,
+    pub signers: BTreeSet<IdSigner>,
     pub next_signers: BTreeSet<String>,
-    #[serde(skip_serializing_if = "BTreeMap::is_empty", default)]
-    // Key means the id of delegator
-    // Value means the events required
-    pub delegators: BTreeMap<String, BTreeSet<String>>,
-    #[serde(skip_serializing_if = "BTreeMap::is_empty", default)]
-    pub claim_events: BTreeMap<String, Vec<u8>>,
+    #[serde(skip_serializing_if = "BTreeSet::is_empty", default)]
+    pub delegators: BTreeSet<IdDelegator>,
+    #[serde(skip_serializing_if = "BTreeSet::is_empty", default)]
+    pub claim_events: BTreeSet<IdClaimEvent>,
 }
 
-pub(crate) fn verify(envelope: &IdEventEnvelope) -> Result<Vec<u8>, IdEventError> {
+pub(crate) fn verify(envelope: &IdEventEnvelope) -> Result<IdState, IdEventError> {
     let id = Cid::from_str(&envelope.id)?;
     id.ensure(&envelope.payload, vec![ED_CODE])?;
     let inception: IdInception = cbor::decode(&envelope.payload)?;
@@ -63,14 +61,15 @@ pub(crate) fn verify(envelope: &IdEventEnvelope) -> Result<Vec<u8>, IdEventError
     ensure!(inception.threshold >= 1, IdEventError::ThresholdNotMatch);
 
     // Validate signer key ids and proofs
-    for (kid_str, pk) in &inception.signers {
-        let kid = Cid::from_str(kid_str)?;
-        kid.ensure(pk, vec![ED_CODE])?;
-        let sig = envelope
+    for signer in &inception.signers {
+        let kid = Cid::from_str(&signer.id)?;
+        kid.ensure(&signer.public_key, vec![ED_CODE])?;
+        let proof = envelope
             .proofs
-            .get(kid_str)
+            .iter()
+            .find(|p| p.key_id == signer.id)
             .ok_or(IdEventError::ThresholdNotMatch)?;
-        idp2p_common::ed25519::verify(pk, &envelope.payload, sig)?;
+        idp2p_common::ed25519::verify(&signer.public_key, &envelope.payload, &proof.signature)?;
     }
 
     ensure!(
@@ -92,11 +91,20 @@ pub(crate) fn verify(envelope: &IdEventEnvelope) -> Result<Vec<u8>, IdEventError
     let filtered_keys: Vec<&String> = inception
         .delegators
         .iter()
-        .filter(|(key, operations)| operations.iter().any(|op| op.contains("inception")))
-        .map(|(key, _)| key)
+        .filter(|delegator| {
+            delegator
+                .restrictions
+                .iter()
+                .any(|op| op.contains("inception"))
+        })
+        .map(|delegator| &delegator.id)
         .collect();
     for delegator in filtered_keys {
-        let proof = envelope.delegator_proofs.get(delegator).ok_or(IdEventError::NextThresholdNotMatch)?;
+        let proof = envelope
+            .delegated_proofs
+            .iter()
+            .find(|p| p.id == *delegator)
+            .ok_or(IdEventError::NextThresholdNotMatch)?;
     }
 
     /* // Verify delegator proofs via host and ensure they correspond to declared delegators
@@ -112,43 +120,29 @@ pub(crate) fn verify(envelope: &IdEventEnvelope) -> Result<Vec<u8>, IdEventError
          }
      }*/
 
-    let mut id_state = IdState {
+    let id_state = IdState {
         id: envelope.id.clone(),
         event_id: envelope.id.clone(),
         event_timestamp: Utc
             .timestamp_micros(inception.timestamp)
             .single()
-            .ok_or(IdEventError::InvalidTimestamp)?,
+            .ok_or(IdEventError::InvalidTimestamp)?
+            .to_rfc3339_opts(SecondsFormat::Secs, true),
         prior_id: inception.prior_id.clone(),
         threshold: inception.threshold,
         next_threshold: inception.next_threshold,
-        delegators: inception.delegators,
-        signers: inception
-            .signers
-            .iter()
-            .map(|(k, v)| (k.clone(), IdSigner::new(v)))
-            .collect(),
+        delegators: inception.delegators.into_iter().collect(),
+        signers: inception.signers.clone().into_iter().collect(),
         current_signers: inception
             .signers
-            .iter()
-            .map(|(k, ..)| (k.clone()))
+            .into_iter()
+            .map(|signer| signer.id)
             .collect(),
-        next_signers: inception.next_signers.clone(),
-        claim_events: inception
-            .claim_events
-            .iter()
-            .map(|(k, v)| (k.clone(), vec![v.clone()]))
-            .collect(),
+        next_signers: inception.next_signers.into_iter().collect(),
+        claim_events: inception.claim_events.into_iter().collect(),
     };
 
-    for (claim_key, claim_event) in &inception.claim_events {
-        id_state
-            .claim_events
-            .insert(claim_key.to_owned(), vec![claim_event.to_owned()]);
-    }
-
-    let id_state_bytes = cbor::encode(&id_state);
-    Ok(id_state_bytes)
+    Ok(id_state)
 }
 
 #[cfg(test)]
@@ -171,10 +165,10 @@ mod tests {
     #[test]
     fn test_verify_inception() {
         let (kid, pk) = create_signer();
-        let mut signers = BTreeMap::new();
+        let mut signers = BTreeSet::new();
         let mut next_signers = BTreeSet::new();
 
-        signers.insert(kid.clone(), pk);
+        signers.insert(IdSigner::new(&kid, &pk));
         next_signers.insert(kid);
         let inception = IdInception {
             timestamp: Utc::now().timestamp(),
@@ -182,9 +176,9 @@ mod tests {
             prior_id: None,
             threshold: 1,
             next_threshold: 1,
-            delegators: BTreeMap::new(),
+            delegators: BTreeSet::new(),
             signers: signers,
-            claim_events: BTreeMap::new(),
+            claim_events: BTreeSet::new(),
         };
         let inception_bytes = cbor::encode(&inception);
         let id = Cid::create(CBOR_CODE, inception_bytes.as_slice())
@@ -193,13 +187,14 @@ mod tests {
         eprintln!("ID: {}", id.to_string());
         let pinception = IdEventEnvelope {
             id: id.to_string(),
+            version: "1.0".into(),
             payload: inception_bytes,
-            proofs: BTreeMap::new(),
-            delegator_proofs: BTreeMap::new(),
+            proofs: Vec::new(),
+            delegated_proofs: Vec::new(),
         };
         let result = verify(&pinception);
         assert!(result.is_ok());
-        let result: IdState = cbor::decode(&result.unwrap()).unwrap();
+        let result: IdState = result.unwrap();
         eprintln!("Result: {:#?}", result);
     }
 }
