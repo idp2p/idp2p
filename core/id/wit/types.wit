@@ -48,6 +48,7 @@ interface types {
     record id-event-envelope {
         id: string,
         version: string,
+        // created-at: string,
         payload: list<u8>,
         proofs: list<id-event-proof>,
         delegated-proofs: list<id-proof>

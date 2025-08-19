@@ -1,4 +1,6 @@
 use alloc::collections::BTreeSet;
+use ciborium::cbor;
+use idp2p_common::ed25519;
 
 use crate::types::{IdClaimEvent, IdDelegator, IdEventEnvelope, IdSigner, IdState};
 use crate::{VALID_FROM, error::IdEventError};
@@ -18,6 +20,10 @@ macro_rules! ensure {
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct IdInception {
+    /*
+    version
+    patch
+    */
     pub timestamp: i64,
     #[serde(skip_serializing_if = "Option::is_none", default)]
     pub prior_id: Option<String>,
@@ -69,7 +75,21 @@ pub(crate) fn verify(envelope: &IdEventEnvelope) -> Result<IdState, IdEventError
             .iter()
             .find(|p| p.key_id == signer.id)
             .ok_or(IdEventError::ThresholdNotMatch)?;
-        idp2p_common::ed25519::verify(&signer.public_key, &envelope.payload, &proof.signature)?;
+        let created_at: DateTime<Utc> = proof.created_at.parse().expect("msg");
+        // protected header
+        let data = cbor!({
+            "key_id" => signer.id.clone(),
+            "created_at" => created_at.timestamp(),
+            "payload" => envelope.payload,
+        })
+        .expect("msg")
+        .as_bytes()
+        .unwrap()
+        .to_vec();
+        match kid.codec() {
+            ED_CODE => ed25519::verify(&signer.public_key, &data, &proof.signature)?,
+            _ => panic!(""),
+        }
     }
 
     ensure!(
@@ -88,7 +108,7 @@ pub(crate) fn verify(envelope: &IdEventEnvelope) -> Result<IdState, IdEventError
 
     // Validate delegators and proofs
 
-    let filtered_keys: Vec<&String> = inception
+    let filtered_delegators: Vec<&String> = inception
         .delegators
         .iter()
         .filter(|delegator| {
@@ -99,12 +119,25 @@ pub(crate) fn verify(envelope: &IdEventEnvelope) -> Result<IdState, IdEventError
         })
         .map(|delegator| &delegator.id)
         .collect();
-    for delegator in filtered_keys {
+    for delegator in filtered_delegators {
         let proof = envelope
             .delegated_proofs
             .iter()
             .find(|p| p.id == *delegator)
             .ok_or(IdEventError::NextThresholdNotMatch)?;
+        let created_at: DateTime<Utc> = proof.created_at.parse().expect("msg");
+        let data = cbor!({
+            "id" => proof.id.clone(),
+            "key_id" => proof.key_id.clone(),
+            "version" => proof.version.clone(),
+            "created_at" => created_at.timestamp(),
+            "payload" => envelope.payload,
+        })
+        .expect("msg")
+        .as_bytes()
+        .expect("msg")
+        .to_vec();
+
     }
 
     /* // Verify delegator proofs via host and ensure they correspond to declared delegators

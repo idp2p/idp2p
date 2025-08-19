@@ -3,7 +3,7 @@ use alloc::{string::ToString, vec::Vec};
 use crate::error::CommonError;
 
 pub fn encode<T: serde::Serialize>(value: &T) -> Vec<u8> {
-    let mut bytes = Vec::new();
+    let mut bytes = Vec::new(); 
     ciborium::ser::into_writer(&value, &mut bytes).expect("Failed to serialize");
     bytes
 }

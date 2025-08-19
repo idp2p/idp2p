@@ -71,6 +71,7 @@ serde = { version = "1", default-features = false, features = [
     "alloc",
 ] }
 ciborium = { version = "0", default-features = false }
+coset = { version = "0", default-features = false }
 serde_json = { version = "1", default-features = false, features = ["alloc"] }
 serde_with = "3"
 ed25519-dalek = { version = "2", default-features = false, features = ["alloc", "rand_core"] }
