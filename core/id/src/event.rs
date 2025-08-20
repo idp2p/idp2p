@@ -21,7 +21,7 @@ use serde::{Deserialize, Serialize};
 pub enum IdEventKind {
     /// Should be signed with current keys
     Interaction {
-        claim_events: BTreeMap<String, Vec<u8>>,
+        claim_events: BTreeMap<String, Vec<u8>>
     },
 
     /// Should be signed with next keys
@@ -31,6 +31,7 @@ pub enum IdEventKind {
         signers: BTreeMap<String, Vec<u8>>,
         threshold: Option<u8>,
         next_threshold: Option<u8>,
+        providers: Option<BTreeSet<String>>,
         next_signers: BTreeSet<String>,
     },
 

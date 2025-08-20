@@ -10,6 +10,7 @@ interface types {
         current-signers: list<string>,
         next-signers: list<string>,
         delegators: list<id-delegator>,
+        providers: list<string>,
         claim-events: list<id-claim-event>
     }
 
@@ -40,8 +41,8 @@ interface types {
     }
 
     record id-event-proof {
-        created-at: string,
         key-id: string,
+        created-at: string,
         signature: list<u8>
     }
 

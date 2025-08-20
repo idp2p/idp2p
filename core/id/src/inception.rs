@@ -3,6 +3,7 @@ use ciborium::cbor;
 use idp2p_common::ed25519;
 
 use crate::types::{IdClaimEvent, IdDelegator, IdEventEnvelope, IdSigner, IdState};
+use crate::VERSION;
 use crate::{VALID_FROM, error::IdEventError};
 use alloc::str::FromStr;
 use chrono::{DateTime, SecondsFormat, TimeZone, Utc};
@@ -20,10 +21,8 @@ macro_rules! ensure {
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct IdInception {
-    /*
-    version
-    patch
-    */
+    pub version: String,
+    pub patch: Cid,
     pub timestamp: i64,
     #[serde(skip_serializing_if = "Option::is_none", default)]
     pub prior_id: Option<String>,
@@ -33,11 +32,13 @@ pub struct IdInception {
     pub next_signers: BTreeSet<String>,
     #[serde(skip_serializing_if = "BTreeSet::is_empty", default)]
     pub delegators: BTreeSet<IdDelegator>,
+    pub providers: BTreeSet<String>,
     #[serde(skip_serializing_if = "BTreeSet::is_empty", default)]
     pub claim_events: BTreeSet<IdClaimEvent>,
 }
 
 pub(crate) fn verify(envelope: &IdEventEnvelope) -> Result<IdState, IdEventError> {
+    ensure!(envelope.version == VERSION, IdEventError::ThresholdNotMatch);
     let id = Cid::from_str(&envelope.id)?;
     id.ensure(&envelope.payload, vec![ED_CODE])?;
     let inception: IdInception = cbor::decode(&envelope.payload)?;
@@ -63,7 +64,7 @@ pub(crate) fn verify(envelope: &IdEventEnvelope) -> Result<IdState, IdEventError
         total_signatures >= inception.threshold,
         IdEventError::ThresholdNotMatch
     );
-
+    ensure!(inception.version == VERSION, IdEventError::ThresholdNotMatch);
     ensure!(inception.threshold >= 1, IdEventError::ThresholdNotMatch);
 
     // Validate signer key ids and proofs
@@ -137,7 +138,6 @@ pub(crate) fn verify(envelope: &IdEventEnvelope) -> Result<IdState, IdEventError
         .as_bytes()
         .expect("msg")
         .to_vec();
-
     }
 
     /* // Verify delegator proofs via host and ensure they correspond to declared delegators
@@ -172,6 +172,7 @@ pub(crate) fn verify(envelope: &IdEventEnvelope) -> Result<IdState, IdEventError
             .map(|signer| signer.id)
             .collect(),
         next_signers: inception.next_signers.into_iter().collect(),
+        providers: inception.providers.into_iter().collect(),
         claim_events: inception.claim_events.into_iter().collect(),
     };
 
@@ -203,14 +204,17 @@ mod tests {
 
         signers.insert(IdSigner::new(&kid, &pk));
         next_signers.insert(kid);
-        let inception = IdInception {
+        let inception = IdInception {            
+            version: "1.0".into(),
+            patch: Cid::default(),
             timestamp: Utc::now().timestamp(),
             next_signers: next_signers,
             prior_id: None,
             threshold: 1,
             next_threshold: 1,
             delegators: BTreeSet::new(),
-            signers: signers,
+            signers: signers,       
+            providers: BTreeSet::new(),
             claim_events: BTreeSet::new(),
         };
         let inception_bytes = cbor::encode(&inception);

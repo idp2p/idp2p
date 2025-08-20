@@ -43,14 +43,17 @@ pub struct IdState {
     /// Signers
     pub signers: Vec<IdSigner>,
 
-    /// Delegators
-    pub delegators: Vec<IdDelegator>,
-
     /// Current signers
     pub current_signers: Vec<String>,
 
     /// CID codec should be 0xed
     pub next_signers: Vec<String>,
+
+     /// Delegators
+    pub delegators: Vec<IdDelegator>,
+
+     /// Delegators
+    pub providers: Vec<String>,
 
     /// Claim events
     pub claim_events: Vec<IdClaimEvent>,
