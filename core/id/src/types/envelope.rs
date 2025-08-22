@@ -41,6 +41,7 @@ pub struct IdProof {
 pub struct IdEventEnvelope {
     pub id: String,
     pub version: String,
+    pub created_at: String,
     #[serde_as(as = "Bytes")]
     pub payload: Vec<u8>,
     // Key means kid, value means signature

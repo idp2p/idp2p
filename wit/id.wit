@@ -1,0 +1,17 @@
+package idp2p:core;
+
+world idp2p-verifier {
+    use types.{id-event-envelope, id-state, id-proof, id-signer};
+
+    import host: interface {
+        use types.{id-proof};
+        verify-proof: func(proof: id-proof, data: list<u8>) -> result<bool, string>;
+    }
+
+    /// Verifies an initial identity inception event.
+    export verify-inception: func(inception: id-event-envelope) -> result<id-state, string>; 
+    /// Verifies an identity update event against the existing identity state.
+    export verify-event: func(state: id-state, event: id-event-envelope) -> result<id-state, string>;
+    /// Verifies an identity proof.
+    export verify-proof: func(signer: id-signer, proof: id-proof, data: list<u8>) -> result<bool, string>;   
+}

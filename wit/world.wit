@@ -1,0 +1,3 @@
+world idp2p-message-handler {
+    export handle: func(message: list<u8>) -> result<_, idp2p-error>;
+}

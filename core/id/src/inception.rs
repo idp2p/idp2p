@@ -24,6 +24,8 @@ pub struct IdInception {
     pub version: String,
     pub patch: Cid,
     pub timestamp: i64,
+    #[serde(skip_serializing_if = "BTreeSet::is_empty", default)]
+    pub aka: BTreeSet<String>,
     #[serde(skip_serializing_if = "Option::is_none", default)]
     pub prior_id: Option<String>,
     pub threshold: u8,
@@ -32,7 +34,6 @@ pub struct IdInception {
     pub next_signers: BTreeSet<String>,
     #[serde(skip_serializing_if = "BTreeSet::is_empty", default)]
     pub delegators: BTreeSet<IdDelegator>,
-    pub providers: BTreeSet<String>,
     #[serde(skip_serializing_if = "BTreeSet::is_empty", default)]
     pub claim_events: BTreeSet<IdClaimEvent>,
 }
@@ -138,6 +139,7 @@ pub(crate) fn verify(envelope: &IdEventEnvelope) -> Result<IdState, IdEventError
         .as_bytes()
         .expect("msg")
         .to_vec();
+        crate::host::verify_proof(&proof, &data).map_err(|_| IdEventError::ThresholdNotMatch)?;
     }
 
     /* // Verify delegator proofs via host and ensure they correspond to declared delegators
@@ -161,6 +163,7 @@ pub(crate) fn verify(envelope: &IdEventEnvelope) -> Result<IdState, IdEventError
             .single()
             .ok_or(IdEventError::InvalidTimestamp)?
             .to_rfc3339_opts(SecondsFormat::Secs, true),
+        aka: inception.aka.into_iter().collect(),
         prior_id: inception.prior_id.clone(),
         threshold: inception.threshold,
         next_threshold: inception.next_threshold,
@@ -172,7 +175,6 @@ pub(crate) fn verify(envelope: &IdEventEnvelope) -> Result<IdState, IdEventError
             .map(|signer| signer.id)
             .collect(),
         next_signers: inception.next_signers.into_iter().collect(),
-        providers: inception.providers.into_iter().collect(),
         claim_events: inception.claim_events.into_iter().collect(),
     };
 
@@ -208,13 +210,13 @@ mod tests {
             version: "1.0".into(),
             patch: Cid::default(),
             timestamp: Utc::now().timestamp(),
-            next_signers: next_signers,
             prior_id: None,
+            aka: BTreeSet::new(),
             threshold: 1,
             next_threshold: 1,
+            signers: signers,   
+            next_signers: next_signers,    
             delegators: BTreeSet::new(),
-            signers: signers,       
-            providers: BTreeSet::new(),
             claim_events: BTreeSet::new(),
         };
         let inception_bytes = cbor::encode(&inception);
@@ -225,6 +227,7 @@ mod tests {
         let pinception = IdEventEnvelope {
             id: id.to_string(),
             version: "1.0".into(),
+            created_at: Utc::now().to_rfc3339(),
             payload: inception_bytes,
             proofs: Vec::new(),
             delegated_proofs: Vec::new(),

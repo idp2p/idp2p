@@ -1,7 +1,7 @@
 interface types {
     record id-state {
         id: string,
-        aka: list<string>,
+        aka: list<u8>,
         prior-id: option<string>,
         event-id: string,
         event-timestamp: string,
@@ -49,7 +49,7 @@ interface types {
     record id-event-envelope {
         id: string,
         version: string,
-        // created-at: string,
+        created-at: string,
         payload: list<u8>,
         proofs: list<id-event-proof>,
         delegated-proofs: list<id-proof>

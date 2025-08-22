@@ -26,12 +26,12 @@ pub enum IdEventKind {
 
     /// Should be signed with next keys
     Rotation {
+        threshold: Option<u8>,
+        next_threshold: Option<u8>,
+        aka: BTreeSet<String>,
         /// The number of signers in state.next_signers should match the min next_threshold
         /// The totat number of signers should match the current threshold
         signers: BTreeMap<String, Vec<u8>>,
-        threshold: Option<u8>,
-        next_threshold: Option<u8>,
-        providers: Option<BTreeSet<String>>,
         next_signers: BTreeSet<String>,
     },
 

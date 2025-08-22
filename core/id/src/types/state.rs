@@ -31,6 +31,9 @@ pub struct IdState {
     /// Last event time
     pub event_timestamp: String,
 
+    /// Also known as
+    pub aka: Vec<String>,
+
     /// Previous id
     pub prior_id: Option<String>,
 
@@ -51,9 +54,6 @@ pub struct IdState {
 
      /// Delegators
     pub delegators: Vec<IdDelegator>,
-
-     /// Delegators
-    pub providers: Vec<String>,
 
     /// Claim events
     pub claim_events: Vec<IdClaimEvent>,

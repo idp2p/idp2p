@@ -28,13 +28,13 @@ impl Guest for GuestComponent {
     
     #[doc = " Verifies an identity update event against the existing identity state."]
     #[allow(async_fn_in_trait)]
-    fn verify_event(state:IdState, event:IdEventEnvelope,) -> Result<IdState, String> {
+    fn verify_event(state: IdState, event: IdEventEnvelope,) -> Result<IdState, String> {
         todo!()
     }
     
     #[doc = " Verifies an identity proof."]
     #[allow(async_fn_in_trait)]
-    fn verify_proof(signer:IdSigner, proof:IdProof, data: Vec<u8>) -> Result<bool, String> {
+    fn verify_proof(signer: IdSigner, proof: IdProof, data: Vec<u8>) -> Result<bool, String> {
         todo!()
     }
 }
