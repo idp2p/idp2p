@@ -1,19 +1,15 @@
 interface types {
-    record id-state {
-        id: string,
-        aka: list<u8>,
-        prior-id: option<string>,
-        event-id: string,
-        event-timestamp: string,
-        threshold: u8,
-        next-threshold: u8,
-        signers: list<id-signer>,
-        current-signers: list<string>,
-        next-signers: list<string>,
-        delegators: list<id-delegator>,
-        claim-events: list<id-claim-event>
+    record idp2p-error-param {
+        key: string,
+        value: string
     }
 
+    record idp2p-error {
+        code: string,
+        message: string,
+        details: list<idp2p-error-param>
+    }
+    
     record id-claim-event {
         id: string,
         created-at: string,
@@ -32,12 +28,19 @@ interface types {
         restrictions: list<string>
     }
 
-    record id-proof {
+    record id-state {
         id: string,
-        version: string,
-        key-id: string,
-        created-at: string,
-        signature: list<u8>
+        aka: list<u8>,
+        prior-id: option<string>,
+        event-id: string,
+        event-timestamp: string,
+        threshold: u8,
+        next-threshold: u8,
+        signers: list<id-signer>,
+        current-signers: list<string>,
+        next-signers: list<string>,
+        delegators: list<id-delegator>,
+        claim-events: list<id-claim-event>
     }
 
     record id-event-proof {
@@ -46,7 +49,7 @@ interface types {
         signature: list<u8>
     }
 
-    record id-event-envelope {
+    record id-event-receipt {
         id: string,
         version: string,
         created-at: string,
@@ -55,9 +58,19 @@ interface types {
         delegated-proofs: list<id-proof>
     }
 
+    
+    record id-proof {
+        id: string,
+        purpose: string,
+        version: string,
+        key-id: string,
+        created-at: string,
+        signature: list<u8>
+    }
+
     record did {
         id: string,
-        inception: id-event-envelope,
-        events: list<id-event-envelope>
+        inception: id-event-receipt,
+        events: list<id-event-receipt>
     }
 }

@@ -2,7 +2,7 @@ use alloc::collections::BTreeSet;
 use ciborium::cbor;
 use idp2p_common::ed25519;
 
-use crate::types::{IdClaimEvent, IdDelegator, IdEventEnvelope, IdSigner, IdState};
+use crate::types::{IdClaimEvent, IdDelegator, IdEventReceipt, IdSigner, IdState};
 use crate::VERSION;
 use crate::{VALID_FROM, error::IdEventError};
 use alloc::str::FromStr;
@@ -38,18 +38,18 @@ pub struct IdInception {
     pub claim_events: BTreeSet<IdClaimEvent>,
 }
 
-pub(crate) fn verify(envelope: &IdEventEnvelope) -> Result<IdState, IdEventError> {
-    ensure!(envelope.version == VERSION, IdEventError::ThresholdNotMatch);
-    let id = Cid::from_str(&envelope.id)?;
-    id.ensure(&envelope.payload, vec![ED_CODE])?;
-    let inception: IdInception = cbor::decode(&envelope.payload)?;
+pub(crate) fn verify(receipt: &IdEventReceipt) -> Result<IdState, IdEventError> {
+    ensure!(receipt.version == VERSION, IdEventError::ThresholdNotMatch);
+    let id = Cid::from_str(&receipt.id)?;
+    id.ensure(&receipt.payload, vec![ED_CODE])?;
+    let inception: IdInception = cbor::decode(&receipt.payload)?;
 
     // Timestamp check
     //
     let valid_from: DateTime<Utc> = VALID_FROM.parse().expect("Invalid date format");
     let total_signers = inception.signers.len() as u8;
     let total_next_signers = inception.next_signers.len() as u8;
-    let total_signatures = envelope.proofs.len() as u8;
+    let total_signatures = receipt.proofs.len() as u8;
 
     ensure!(
         inception.timestamp > valid_from.timestamp(),
@@ -72,7 +72,7 @@ pub(crate) fn verify(envelope: &IdEventEnvelope) -> Result<IdState, IdEventError
     for signer in &inception.signers {
         let kid = Cid::from_str(&signer.id)?;
         kid.ensure(&signer.public_key, vec![ED_CODE])?;
-        let proof = envelope
+        let proof = receipt
             .proofs
             .iter()
             .find(|p| p.key_id == signer.id)
@@ -82,7 +82,7 @@ pub(crate) fn verify(envelope: &IdEventEnvelope) -> Result<IdState, IdEventError
         let data = cbor!({
             "key_id" => signer.id.clone(),
             "created_at" => created_at.timestamp(),
-            "payload" => envelope.payload,
+            "payload" => receipt.payload,
         })
         .expect("msg")
         .as_bytes()
@@ -122,7 +122,7 @@ pub(crate) fn verify(envelope: &IdEventEnvelope) -> Result<IdState, IdEventError
         .map(|delegator| &delegator.id)
         .collect();
     for delegator in filtered_delegators {
-        let proof = envelope
+        let proof = receipt
             .delegated_proofs
             .iter()
             .find(|p| p.id == *delegator)
@@ -133,7 +133,7 @@ pub(crate) fn verify(envelope: &IdEventEnvelope) -> Result<IdState, IdEventError
             "key_id" => proof.key_id.clone(),
             "version" => proof.version.clone(),
             "created_at" => created_at.timestamp(),
-            "payload" => envelope.payload,
+            "payload" => receipt.payload,
         })
         .expect("msg")
         .as_bytes()
@@ -156,8 +156,8 @@ pub(crate) fn verify(envelope: &IdEventEnvelope) -> Result<IdState, IdEventError
      }*/
 
     let id_state = IdState {
-        id: envelope.id.clone(),
-        event_id: envelope.id.clone(),
+        id: receipt.id.clone(),
+        event_id: receipt.id.clone(),
         event_timestamp: Utc
             .timestamp_micros(inception.timestamp)
             .single()
@@ -224,7 +224,7 @@ mod tests {
             .unwrap()
             .to_string();
         eprintln!("ID: {}", id.to_string());
-        let pinception = IdEventEnvelope {
+        let pinception = IdEventReceipt {
             id: id.to_string(),
             version: "1.0".into(),
             created_at: Utc::now().to_rfc3339(),

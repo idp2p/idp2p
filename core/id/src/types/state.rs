@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 use serde_with::serde_as;
 use idp2p_common::bytes::Bytes;
 
-use crate::IdSigner;
+use super::IdSigner;
 
 #[serde_as]
 #[derive(Debug, Clone, Hash, Serialize, Deserialize)]

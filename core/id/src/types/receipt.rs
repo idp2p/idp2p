@@ -25,6 +25,9 @@ pub struct IdProof {
     // Proof version
     pub version: String,
 
+    // Proof purpose
+    pub purpose: String,
+
     // The key which signs the data
     pub key_id: String,
 
@@ -38,7 +41,7 @@ pub struct IdProof {
 
 #[serde_as]
 #[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
-pub struct IdEventEnvelope {
+pub struct IdEventReceipt {
     pub id: String,
     pub version: String,
     pub created_at: String,

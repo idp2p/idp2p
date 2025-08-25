@@ -1,3 +1,20 @@
+package idp2p:core;
+
 world idp2p-message-handler {
+    use types.{idp2p-error};
+
+    import store;
+    import id-verifier;
+    import p2p-sender;
+
     export handle: func(message: list<u8>) -> result<_, idp2p-error>;
+}
+
+world idp2p-id-verifier {
+    use types.{idp2p-error};
+    import host: interface {
+        use types.{id-proof};
+        verify-proof: func(proof: id-proof, data: list<u8>) -> result<bool, string>;
+    }
+    export id-verifier;
 }
