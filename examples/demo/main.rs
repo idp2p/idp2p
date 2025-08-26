@@ -25,7 +25,7 @@ struct Opt {
     #[structopt(short = "i", long = "id")]
     name: String,
 }*/
-
+mod store;
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     dotenv::dotenv().ok();

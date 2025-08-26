@@ -7,6 +7,7 @@ extern crate alloc;
 
 pub mod error;
 pub mod inception;
+pub mod event;
 pub mod types;
 
 const VALID_FROM: &str = "2026-01-01T00:00:00Z";

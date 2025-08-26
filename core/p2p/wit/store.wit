@@ -1,9 +1,0 @@
-interface idp2p-store {
-    use error.{idp2p-error};
-    /// Gets a value from the store.
-    get: func(key: string) -> result<option<list<u8>>, idp2p-error>;
-    /// Put a value in the store.
-    put: func(key: string, value: list<u8>) -> result<_, idp2p-error>;
-    /// Checks if a key exists in the store.
-    exists: func(key: string) -> result<bool, idp2p-error>;
-}

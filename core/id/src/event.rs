@@ -4,9 +4,7 @@ use std::{
 };
 
 use crate::{
-    VALID_FROM, VERSION,
-    error::IdEventError,
-    model::{envelope::IdEventEnvelope, state::IdState},
+    error::IdEventError, types::{IdEventReceipt, IdState}, VALID_FROM, VERSION
 };
 use IdEventKind::*;
 use alloc::str::FromStr;
@@ -28,7 +26,7 @@ pub enum IdEventKind {
     Rotation {
         threshold: Option<u8>,
         next_threshold: Option<u8>,
-        aka: BTreeSet<String>,
+        aka: Option<BTreeSet<String>>,
         /// The number of signers in state.next_signers should match the min next_threshold
         /// The totat number of signers should match the current threshold
         signers: BTreeMap<String, Vec<u8>>,
@@ -49,7 +47,7 @@ pub struct IdEvent {
     pub timestamp: i64,
 
     // The compoenent
-    pub component: Vec<u8>,
+    pub component: Cid,
 
     /// Previous event id
     pub previous: String,
@@ -59,12 +57,13 @@ pub struct IdEvent {
 }
 
 pub(crate) fn verify(
-    envelope: &IdEventEnvelope,
+    receipt: &IdEventReceipt,
     state: &mut IdState,
-) -> Result<Vec<u8>, IdEventError> {
-    let cid = Cid::from_str(&envelope.id)?;
-    cid.ensure(&envelope.payload, vec![CBOR_CODE])?;
-    let event: IdEvent = cbor::decode(&envelope.payload)?;
+) -> Result<IdState, IdEventError> {
+    let mut state = state.to_owned();
+    let cid = Cid::from_str(&receipt.id)?;
+    cid.ensure(&receipt.payload, vec![CBOR_CODE])?;
+    let event: IdEvent = cbor::decode(&receipt.payload)?;
 
     // Timestamp check
     let valid_from: DateTime<Utc> = VALID_FROM.parse().expect("Invalid date format");
@@ -102,6 +101,7 @@ pub(crate) fn verify(
         Rotation {
             threshold,
             next_threshold,
+            aka,
             signers,
             next_signers,
         } => {
@@ -116,7 +116,7 @@ pub(crate) fn verify(
 
                 ed25519::verify(&signer_pk, &pevent.payload, &proof_sig)?;
             }*/
-            state.next_signers = next_signers;
+            state.next_signers = next_signers.into_iter().collect();
             //state.threshold = threshold;
             //state.next_threshold = next_threshold;
         }
@@ -132,8 +132,7 @@ pub(crate) fn verify(
         }
         _ => {}
     }
-    state.event_id = envelope.id.clone();
-    let id_state_bytes = cbor::encode(&state);
+    state.event_id = receipt.id.clone();
 
-    Ok(id_state_bytes)
+    Ok(state)
 }
