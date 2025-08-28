@@ -2,22 +2,44 @@ use serde::{Deserialize, Serialize};
 use serde_with::serde_as;
 use idp2p_common::bytes::Bytes;
 
-use super::IdSigner;
-
+/// It is useful when an identity needs to delegate some functions
+/// Examples:
+/// Controller, Corporotional ID, Rotation Security, Mediator, Peer ... 
 #[serde_as]
 #[derive(Debug, Clone, Hash, Serialize, Deserialize)]
 pub struct IdDelegator {
     pub id: String,    
-    pub restrictions: Vec<String>,
+    pub scope: Vec<String>,
+    /// Valid from timestamp.
+    pub valid_from: String,
+    /// Valid to timestamp.
+    pub valid_until: Option<String>,
 }
 
 #[serde_as]
 #[derive(Debug, Clone, Hash, Serialize, Deserialize)]
-pub struct IdClaimEvent {
+pub struct IdClaim {
+    pub r#type: String,
     pub id: String,
-    pub created_at: String,
     #[serde_as(as = "Bytes")]
     pub payload: Vec<u8>,
+    /// Valid from timestamp.
+    pub valid_from: String,
+    /// Valid to timestamp.
+    pub valid_until: Option<String>,
+}
+
+#[serde_as]
+#[derive(Debug, Clone, Hash, Serialize, Deserialize)]
+pub struct IdSigner {
+    pub id: String,
+    /// Public key of the signer.
+    #[serde_as(as = "Bytes")]
+    pub public_key: Vec<u8>,
+    /// Valid from timestamp.
+    pub valid_from: String,
+    /// Valid to timestamp.
+    pub valid_until: Option<String>,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
@@ -55,47 +77,6 @@ pub struct IdState {
      /// Delegators
     pub delegators: Vec<IdDelegator>,
 
-    /// Claim events
-    pub claim_events: Vec<IdClaimEvent>,
-}
-
-
-impl Eq for IdDelegator {}
-
-impl PartialEq for IdDelegator {
-    fn eq(&self, other: &Self) -> bool {
-        self.id == other.id
-    }
-}
-
-impl Ord for IdDelegator {
-    fn cmp(&self, other: &Self) -> core::cmp::Ordering {
-        self.id.cmp(&other.id)
-    }
-}
-
-impl PartialOrd for IdDelegator {
-    fn partial_cmp(&self, other: &Self) -> Option<core::cmp::Ordering> {
-        Some(self.cmp(other))
-    }
-}
-
-impl Eq for IdClaimEvent {}
-
-impl PartialEq for IdClaimEvent {
-    fn eq(&self, other: &Self) -> bool {
-        self.id == other.id
-    }
-}
-
-impl Ord for IdClaimEvent {
-    fn cmp(&self, other: &Self) -> core::cmp::Ordering {
-        self.id.cmp(&other.id)
-    }
-}
-
-impl PartialOrd for IdClaimEvent {
-    fn partial_cmp(&self, other: &Self) -> Option<core::cmp::Ordering> {
-        Some(self.cmp(other))
-    }
+    /// Claims
+    pub claims: Vec<IdClaim>,
 }

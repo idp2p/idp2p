@@ -35,7 +35,7 @@ pub struct IdInception {
     #[serde(skip_serializing_if = "BTreeSet::is_empty", default)]
     pub delegators: BTreeSet<IdDelegator>,
     #[serde(skip_serializing_if = "BTreeSet::is_empty", default)]
-    pub claim_events: BTreeSet<IdClaimEvent>,
+    pub claims: BTreeSet<IdClaim>,
 }
 
 pub(crate) fn verify(receipt: &IdEventReceipt) -> Result<IdState, IdEventError> {
@@ -115,7 +115,7 @@ pub(crate) fn verify(receipt: &IdEventReceipt) -> Result<IdState, IdEventError> 
         .iter()
         .filter(|delegator| {
             delegator
-                .restrictions
+                .scope
                 .iter()
                 .any(|op| op.contains("inception"))
         })
@@ -142,19 +142,6 @@ pub(crate) fn verify(receipt: &IdEventReceipt) -> Result<IdState, IdEventError> 
         crate::host::verify_proof(&proof, &data).map_err(|_| IdEventError::ThresholdNotMatch)?;
     }
 
-    /* // Verify delegator proofs via host and ensure they correspond to declared delegators
-    for proof in &envelope.delegator_proofs {
-         // Must correspond to a declared delegator id if any are present
-         if !inception.delegators.is_empty() && !inception.delegators.contains_key(&proof.id) {
-             return Err(IdEventError::InvalidDelegationId(proof.id.clone()));
-         }
-         let proof_bytes = serde_json::to_vec(proof)?;
-         match crate::host::call(&proof_bytes, None) {
-             Ok(_) => {}
-             Err(_) => return Err(IdEventError::InvalidDelegationId(proof.id.clone())),
-         }
-     }*/
-
     let id_state = IdState {
         id: receipt.id.clone(),
         event_id: receipt.id.clone(),
@@ -175,7 +162,7 @@ pub(crate) fn verify(receipt: &IdEventReceipt) -> Result<IdState, IdEventError> 
             .map(|signer| signer.id)
             .collect(),
         next_signers: inception.next_signers.into_iter().collect(),
-        claim_events: inception.claim_events.into_iter().collect(),
+        claims: inception.claims.into_iter().collect(),
     };
 
     Ok(id_state)

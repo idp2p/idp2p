@@ -25,7 +25,7 @@ interface types {
 
     record id-delegator {
         id: string,
-        restrictions: list<string>
+        scope: list<string>
     }
 
     record id-state {
