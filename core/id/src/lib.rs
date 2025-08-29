@@ -1,14 +1,13 @@
 use crate::{
     exports::idp2p::core::id_verifier::Guest,
-    types::{IdEventReceipt, IdProof, IdSigner, IdState, Idp2pError},
+    types::{IdEventReceipt, IdProofReceipt, IdSigner, IdState, Idp2pError},
 };
 
 extern crate alloc;
 
 pub mod error;
-pub mod inception;
-pub mod event;
 pub mod types;
+pub mod verifier;
 
 const VALID_FROM: &str = "2026-01-01T00:00:00Z";
 const VERSION: &'static str = "1.0";
@@ -42,7 +41,7 @@ impl Guest for GuestComponent {
 
     #[doc = " Verifies an identity proof."]
     #[allow(async_fn_in_trait)]
-    fn verify_proof(signer: IdSigner, proof: IdProof, data: Vec<u8>) -> Result<bool, Idp2pError> {
+    fn verify_proof(proof: IdProofReceipt, signer: IdSigner, data: Vec<u8>) -> Result<bool, Idp2pError> {
         todo!()
     }
 }

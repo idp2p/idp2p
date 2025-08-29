@@ -6,7 +6,7 @@ use idp2p_common::bytes::Bytes;
 /// Examples:
 /// Controller, Corporotional ID, Rotation Security, Mediator, Peer ... 
 #[serde_as]
-#[derive(Debug, Clone, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
 pub struct IdDelegator {
     pub id: String,    
     pub scope: Vec<String>,
@@ -17,12 +17,12 @@ pub struct IdDelegator {
 }
 
 #[serde_as]
-#[derive(Debug, Clone, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
 pub struct IdClaim {
-    pub r#type: String,
+    pub kind: String,
     pub id: String,
     #[serde_as(as = "Bytes")]
-    pub payload: Vec<u8>,
+    pub value: Vec<u8>,
     /// Valid from timestamp.
     pub valid_from: String,
     /// Valid to timestamp.
@@ -30,7 +30,7 @@ pub struct IdClaim {
 }
 
 #[serde_as]
-#[derive(Debug, Clone, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
 pub struct IdSigner {
     pub id: String,
     /// Public key of the signer.

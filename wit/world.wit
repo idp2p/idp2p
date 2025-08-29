@@ -13,8 +13,8 @@ world idp2p-message-handler {
 world idp2p-id-verifier {
     use types.{idp2p-error};
     import host: interface {
-        use types.{id-proof};
-        verify-proof: func(proof: id-proof, data: list<u8>) -> result<bool, string>;
+        use types.{id-proof-receipt};
+        verify-proof: func(proof: id-proof-receipt, data: list<u8>) -> result<bool, string>;
     }
     export id-verifier;
 }

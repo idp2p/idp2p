@@ -1,13 +1,13 @@
-use alloc::collections::BTreeSet;
-use ciborium::cbor;
-use idp2p_common::ed25519;
-
-use crate::types::{IdClaimEvent, IdDelegator, IdEventReceipt, IdSigner, IdState};
+use super::{IdClaim, IdDelegator, IdSigner};
 use crate::VERSION;
+use crate::types::{IdEventReceipt, IdState};
 use crate::{VALID_FROM, error::IdEventError};
+use alloc::collections::BTreeSet;
 use alloc::str::FromStr;
 use chrono::{DateTime, SecondsFormat, TimeZone, Utc};
+use ciborium::cbor;
 use cid::Cid;
+use idp2p_common::ed25519;
 use idp2p_common::{ED_CODE, cbor, cid::CidExt};
 use serde::{Deserialize, Serialize};
 
@@ -65,7 +65,10 @@ pub(crate) fn verify(receipt: &IdEventReceipt) -> Result<IdState, IdEventError> 
         total_signatures >= inception.threshold,
         IdEventError::ThresholdNotMatch
     );
-    ensure!(inception.version == VERSION, IdEventError::ThresholdNotMatch);
+    ensure!(
+        inception.version == VERSION,
+        IdEventError::ThresholdNotMatch
+    );
     ensure!(inception.threshold >= 1, IdEventError::ThresholdNotMatch);
 
     // Validate signer key ids and proofs
@@ -113,12 +116,7 @@ pub(crate) fn verify(receipt: &IdEventReceipt) -> Result<IdState, IdEventError> 
     let filtered_delegators: Vec<&String> = inception
         .delegators
         .iter()
-        .filter(|delegator| {
-            delegator
-                .scope
-                .iter()
-                .any(|op| op.contains("inception"))
-        })
+        .filter(|delegator| delegator.scope.iter().any(|op| op.contains("inception")))
         .map(|delegator| &delegator.id)
         .collect();
     for delegator in filtered_delegators {
@@ -141,28 +139,41 @@ pub(crate) fn verify(receipt: &IdEventReceipt) -> Result<IdState, IdEventError> 
         .to_vec();
         crate::host::verify_proof(&proof, &data).map_err(|_| IdEventError::ThresholdNotMatch)?;
     }
-
-    let id_state = IdState {
-        id: receipt.id.clone(),
-        event_id: receipt.id.clone(),
-        event_timestamp: Utc
+    let timestamp = Utc
             .timestamp_micros(inception.timestamp)
             .single()
             .ok_or(IdEventError::InvalidTimestamp)?
-            .to_rfc3339_opts(SecondsFormat::Secs, true),
+            .to_rfc3339_opts(SecondsFormat::Secs, true); 
+    let id_state = IdState {
+        id: receipt.id.clone(),
+        event_id: receipt.id.clone(),
+        event_timestamp: timestamp.clone(),
         aka: inception.aka.into_iter().collect(),
         prior_id: inception.prior_id.clone(),
         threshold: inception.threshold,
         next_threshold: inception.next_threshold,
-        delegators: inception.delegators.into_iter().collect(),
-        signers: inception.signers.clone().into_iter().collect(),
+        delegators: inception
+            .delegators
+            .into_iter()
+            .map(|s| s.to_state(&timestamp))
+            .collect(),
+        signers: inception
+            .signers
+            .clone()
+            .into_iter()
+            .map(|s| s.to_state(&timestamp))
+            .collect(),
         current_signers: inception
             .signers
             .into_iter()
             .map(|signer| signer.id)
             .collect(),
         next_signers: inception.next_signers.into_iter().collect(),
-        claims: inception.claims.into_iter().collect(),
+        claims: inception
+            .claims
+            .into_iter()
+            .map(|s| s.to_state(&timestamp))
+            .collect(),
     };
 
     Ok(id_state)
@@ -191,9 +202,12 @@ mod tests {
         let mut signers = BTreeSet::new();
         let mut next_signers = BTreeSet::new();
 
-        signers.insert(IdSigner::new(&kid, &pk));
+        signers.insert(IdSigner {
+            id: kid.clone(),
+            public_key: pk,
+        });
         next_signers.insert(kid);
-        let inception = IdInception {            
+        let inception = IdInception {
             version: "1.0".into(),
             patch: Cid::default(),
             timestamp: Utc::now().timestamp(),
@@ -201,10 +215,10 @@ mod tests {
             aka: BTreeSet::new(),
             threshold: 1,
             next_threshold: 1,
-            signers: signers,   
-            next_signers: next_signers,    
+            signers: signers,
+            next_signers: next_signers,
             delegators: BTreeSet::new(),
-            claim_events: BTreeSet::new(),
+            claims: BTreeSet::new(),
         };
         let inception_bytes = cbor::encode(&inception);
         let id = Cid::create(CBOR_CODE, inception_bytes.as_slice())

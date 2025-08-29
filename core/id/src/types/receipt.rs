@@ -4,7 +4,7 @@ use idp2p_common::bytes::Bytes;
 
 #[serde_as]
 #[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
-pub struct IdEventProof {
+pub struct IdProof {
     // The key which signs the data
     pub key_id: String,
 
@@ -18,7 +18,7 @@ pub struct IdEventProof {
 
 #[serde_as]
 #[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
-pub struct IdProof {
+pub struct IdProofReceipt {
     // The identity who creates proof
     pub id: String,
 
@@ -48,7 +48,7 @@ pub struct IdEventReceipt {
     #[serde_as(as = "Bytes")]
     pub payload: Vec<u8>,
     // Key means kid, value means signature
-    pub proofs: Vec<IdEventProof>,
+    pub proofs: Vec<IdProof>,
     // Key means id, value means signature
-    pub delegated_proofs: Vec<IdProof>,
+    pub delegated_proofs: Vec<IdProofReceipt>,
 }

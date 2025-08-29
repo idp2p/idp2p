@@ -10,10 +10,12 @@ interface types {
         details: list<idp2p-error-param>
     }
     
-    record id-claim-event {
+    record id-claim {
         id: string,
-        created-at: string,
-        payload: list<u8>,
+        kind: string,
+        value: list<u8>,
+        valid-from: string,
+        valid-until: option<string>
     }
 
     record id-signer {
@@ -25,7 +27,9 @@ interface types {
 
     record id-delegator {
         id: string,
-        scope: list<string>
+        scope: list<string>,
+        valid-from: string,
+        valid-until: option<string>
     }
 
     record id-state {
@@ -40,10 +44,10 @@ interface types {
         current-signers: list<string>,
         next-signers: list<string>,
         delegators: list<id-delegator>,
-        claim-events: list<id-claim-event>
+        claims: list<id-claim>
     }
 
-    record id-event-proof {
+    record id-proof {
         key-id: string,
         created-at: string,
         signature: list<u8>
@@ -54,12 +58,12 @@ interface types {
         version: string,
         created-at: string,
         payload: list<u8>,
-        proofs: list<id-event-proof>,
-        delegated-proofs: list<id-proof>
+        proofs: list<id-proof>,
+        delegated-proofs: list<id-proof-receipt>
     }
 
     
-    record id-proof {
+    record id-proof-receipt {
         id: string,
         purpose: string,
         version: string,
