@@ -62,7 +62,7 @@ impl InMemoryKvStore {
 
 pub struct InMemoryIdStore(pub Arc<InMemoryKvStore>);
 
-impl IdStore for InMemoryIdStore {
+/*impl IdStore for InMemoryIdStore {
     async fn get_id(&self, id: &str) -> Result<Option<IdEntry2>, HandleError> {
         let id_key = format!("/identities/{}", id);
         let id = self.0.get(&id_key).await?;
@@ -86,4 +86,4 @@ impl IdStore for InMemoryIdStore {
         self.0.set(&msg_key, msg).await?;
         Ok(())
     }
-}
+}*/

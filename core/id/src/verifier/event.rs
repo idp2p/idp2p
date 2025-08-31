@@ -1,47 +1,51 @@
-use std::{
-    collections::{BTreeMap, BTreeSet},
-    env,
-};
+use alloc::collections::{BTreeMap, BTreeSet};
 
 use crate::{
-    error::IdEventError, types::{IdEventReceipt, IdState}, VALID_FROM, VERSION
+    VALID_FROM, VERSION,
+    types::{IdEventReceipt, IdState},
+    verifier::{IdClaim, IdDelegator, IdSigner},
 };
+use super::error::IdEventError;
 use IdEventKind::*;
 use alloc::str::FromStr;
 use alloc::string::String;
 use alloc::vec::Vec;
 use chrono::{DateTime, Utc};
 use cid::Cid;
-use idp2p_common::{cbor, cid::CidExt, ed25519, CBOR_CODE};
+use idp2p_common::{CBOR_CODE, cbor, cid::CidExt, ed25519};
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
 pub enum IdEventKind {
     /// Should be signed with current keys
     Interaction {
-        claim_events: BTreeMap<String, Vec<u8>>
+        new_claims: BTreeSet<IdClaim>,
+        new_aka: BTreeSet<String>,
+        new_delegators: BTreeSet<IdDelegator>,
+        revoked_claims: BTreeSet<IdClaim>,
+        revoked_aka: BTreeSet<String>,
+        revoked_delegators: BTreeSet<IdDelegator>,
     },
 
     /// Should be signed with next keys
     Rotation {
         threshold: Option<u8>,
         next_threshold: Option<u8>,
-        aka: Option<BTreeSet<String>>,
         /// The number of signers in state.next_signers should match the min next_threshold
         /// The totat number of signers should match the current threshold
-        signers: BTreeMap<String, Vec<u8>>,
+        signers: BTreeSet<IdSigner>,
         next_signers: BTreeSet<String>,
     },
 
     /// Should be signed with next keys
     Revocation {
         details: Option<String>,
-        /// Each signer should be in state.next_signers 
+        /// Each signer should be in state.next_signers
         signers: BTreeMap<String, Vec<u8>>,
     },
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
 pub struct IdEvent {
     /// Timestamp of event
     pub timestamp: i64,
@@ -74,13 +78,20 @@ pub(crate) fn verify(
     if event.previous != state.event_id {
         return Err(IdEventError::PreviousNotMatch);
     }
-  
+
     match event.body {
-        Interaction { claim_events } => {
+        Interaction {
+            new_claims,
+            new_aka,
+            new_delegators,
+            revoked_claims,
+            revoked_aka,
+            revoked_delegators,
+        } => {
             // Check threshold
             // Verify signatures
             // Verify proofs
-            //  
+            //
 
             /*if (pevent.proofs.len() as u8) < state.threshold {
                 return Err(IdEventError::LackOfMinProofs);
@@ -101,7 +112,6 @@ pub(crate) fn verify(
         Rotation {
             threshold,
             next_threshold,
-            aka,
             signers,
             next_signers,
         } => {

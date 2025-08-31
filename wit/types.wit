@@ -1,13 +1,7 @@
 interface types {
-    record idp2p-error-param {
-        key: string,
-        value: string
-    }
-
     record idp2p-error {
         code: string,
         message: string,
-        details: list<idp2p-error-param>
     }
     
     record id-claim {

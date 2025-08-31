@@ -1,14 +1,16 @@
-use super::{IdClaim, IdDelegator, IdSigner};
-use crate::VERSION;
-use crate::types::{IdEventReceipt, IdState};
-use crate::{VALID_FROM, error::IdEventError};
+use super::{IdClaim, IdDelegator, IdSigner, error::IdEventError};
+use crate::{
+    VALID_FROM, VERSION,
+    types::{IdEventReceipt, IdState},
+};
+
 use alloc::collections::BTreeSet;
 use alloc::str::FromStr;
 use chrono::{DateTime, SecondsFormat, TimeZone, Utc};
 use ciborium::cbor;
 use cid::Cid;
-use idp2p_common::ed25519;
-use idp2p_common::{ED_CODE, cbor, cid::CidExt};
+use idp2p_common::{CBOR_CODE, ed25519};
+use idp2p_common::{ED_CODE, cbor, cid::CidExt, error::CommonError};
 use serde::{Deserialize, Serialize};
 
 macro_rules! ensure {
@@ -19,7 +21,7 @@ macro_rules! ensure {
     };
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
 pub struct IdInception {
     pub version: String,
     pub patch: Cid,
@@ -39,14 +41,16 @@ pub struct IdInception {
 }
 
 pub(crate) fn verify(receipt: &IdEventReceipt) -> Result<IdState, IdEventError> {
-    ensure!(receipt.version == VERSION, IdEventError::ThresholdNotMatch);
+    ensure!(receipt.version == VERSION, IdEventError::UnsupportedVersion);
     let id = Cid::from_str(&receipt.id)?;
-    id.ensure(&receipt.payload, vec![ED_CODE])?;
-    let inception: IdInception = cbor::decode(&receipt.payload)?;
+    id.ensure(&receipt.payload, vec![CBOR_CODE])?;
+    let inception: IdInception =
+        cbor::decode(&receipt.payload).map_err(|e| CommonError::DecodeError(e.to_string()))?;
 
     // Timestamp check
     //
-    let valid_from: DateTime<Utc> = VALID_FROM.parse().expect("Invalid date format");
+    let valid_from: DateTime<Utc> =
+        VALID_FROM.parse().map_err(|_| IdEventError::InvalidTimestamp)?;
     let total_signers = inception.signers.len() as u8;
     let total_next_signers = inception.next_signers.len() as u8;
     let total_signatures = receipt.proofs.len() as u8;
@@ -58,17 +62,14 @@ pub(crate) fn verify(receipt: &IdEventReceipt) -> Result<IdState, IdEventError> 
 
     ensure!(
         total_signers >= total_signatures,
-        IdEventError::ThresholdNotMatch
+        IdEventError::LackOfMinProofs
     );
 
     ensure!(
         total_signatures >= inception.threshold,
-        IdEventError::ThresholdNotMatch
+        IdEventError::LackOfMinProofs
     );
-    ensure!(
-        inception.version == VERSION,
-        IdEventError::ThresholdNotMatch
-    );
+    ensure!(inception.version == VERSION, IdEventError::UnsupportedVersion);
     ensure!(inception.threshold >= 1, IdEventError::ThresholdNotMatch);
 
     // Validate signer key ids and proofs
@@ -79,21 +80,28 @@ pub(crate) fn verify(receipt: &IdEventReceipt) -> Result<IdState, IdEventError> 
             .proofs
             .iter()
             .find(|p| p.key_id == signer.id)
-            .ok_or(IdEventError::ThresholdNotMatch)?;
-        let created_at: DateTime<Utc> = proof.created_at.parse().expect("msg");
+            .ok_or(IdEventError::LackOfMinProofs)?;
+        let created_at: DateTime<Utc> = proof
+            .created_at
+            .parse()
+            .map_err(|_| IdEventError::invalid_proof(&signer.id, "Invalid created_at"))?;
         // protected header
         let data = cbor!({
             "key_id" => signer.id.clone(),
             "created_at" => created_at.timestamp(),
             "payload" => receipt.payload,
         })
-        .expect("msg")
+        .map_err(|e| CommonError::EncodeError)?
         .as_bytes()
-        .unwrap()
+        .ok_or(CommonError::EncodeError)?
         .to_vec();
         match kid.codec() {
             ED_CODE => ed25519::verify(&signer.public_key, &data, &proof.signature)?,
-            _ => panic!(""),
+            _ => {
+                return Err(IdEventError::InvalidSigner(
+                    "Unsupported key type".to_string(),
+                ))
+            }
         }
     }
 
@@ -124,8 +132,11 @@ pub(crate) fn verify(receipt: &IdEventReceipt) -> Result<IdState, IdEventError> 
             .delegated_proofs
             .iter()
             .find(|p| p.id == *delegator)
-            .ok_or(IdEventError::NextThresholdNotMatch)?;
-        let created_at: DateTime<Utc> = proof.created_at.parse().expect("msg");
+            .ok_or(IdEventError::LackOfMinProofs)?;
+        let created_at: DateTime<Utc> = proof
+            .created_at
+            .parse()
+            .map_err(|_| IdEventError::invalid_proof(&proof.id, "Invalid created_at"))?;
         let data = cbor!({
             "id" => proof.id.clone(),
             "key_id" => proof.key_id.clone(),
@@ -133,17 +144,18 @@ pub(crate) fn verify(receipt: &IdEventReceipt) -> Result<IdState, IdEventError> 
             "created_at" => created_at.timestamp(),
             "payload" => receipt.payload,
         })
-        .expect("msg")
+        .map_err(|_| CommonError::EncodeError)?
         .as_bytes()
-        .expect("msg")
+        .ok_or(CommonError::EncodeError)?
         .to_vec();
-        crate::host::verify_proof(&proof, &data).map_err(|_| IdEventError::ThresholdNotMatch)?;
+        crate::host::verify_proof(&proof, &data)
+            .map_err(|_| IdEventError::invalid_proof(&proof.id, "Delegated proof verification failed"))?;
     }
     let timestamp = Utc
-            .timestamp_micros(inception.timestamp)
-            .single()
-            .ok_or(IdEventError::InvalidTimestamp)?
-            .to_rfc3339_opts(SecondsFormat::Secs, true); 
+        .timestamp_micros(inception.timestamp)
+        .single()
+        .ok_or(IdEventError::InvalidTimestamp)?
+        .to_rfc3339_opts(SecondsFormat::Secs, true);
     let id_state = IdState {
         id: receipt.id.clone(),
         event_id: receipt.id.clone(),
@@ -234,6 +246,7 @@ mod tests {
             delegated_proofs: Vec::new(),
         };
         let result = verify(&pinception);
+        eprintln!("Result: {:#?}", result);
         assert!(result.is_ok());
         let result: IdState = result.unwrap();
         eprintln!("Result: {:#?}", result);

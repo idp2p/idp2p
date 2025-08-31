@@ -2,6 +2,7 @@ use serde::{Deserialize, Serialize};
 use idp2p_common::bytes::Bytes;
 use serde_with::serde_as;
 
+pub mod error;
 pub mod inception;
 pub mod event;
 

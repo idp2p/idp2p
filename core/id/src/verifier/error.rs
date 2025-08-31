@@ -1,17 +1,9 @@
 use alloc::string::String;
 use idp2p_common::error::CommonError;
+use strum_macros::AsRefStr;
 use thiserror::Error;
 
-
-#[derive(Debug, Error)]
-pub enum IdError {
-    #[error("JSON error")]
-    Json(#[from] serde_json::Error),
-    #[error("Other error: {0}")]
-    Other(String),
-}
-
-#[derive(Debug, Error)]
+#[derive(Debug, Error, AsRefStr)]
 pub enum IdEventError {
     #[error("Invalid timestamp")]
     InvalidTimestamp,
@@ -58,14 +50,4 @@ impl IdEventError {
     }
 }
 
-impl From<CommonError> for IdError {
-    fn from(value: CommonError) -> Self {
-        IdError::Other(value.to_string())
-    }
-}
 
-impl From<IdEventError> for IdError {
-    fn from(value: IdEventError) -> Self {
-        IdError::Other(value.to_string())
-    }
-}

@@ -32,8 +32,6 @@ tracing-subscriber = { workspace = true, features = ["env-filter"] }
 idp2p-common = { path = "./common" }
 idp2p-id = { path = "./core/id" }
 color-eyre = "0"
-iocraft = "0"
-smol = "0"
 surf = { version = "2", default-features = false, features = ["h1-client"] }
 
 [profile]
@@ -85,3 +83,5 @@ chrono = { version = "0", default-features = false, features = [
 futures = "0"
 trait-variant="0"
 async-trait = "0"
+strum = "0"
+strum_macros = "0"
