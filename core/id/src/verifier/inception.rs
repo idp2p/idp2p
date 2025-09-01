@@ -1,4 +1,4 @@
-use super::{IdClaim, IdDelegator, IdSigner, error::IdEventError};
+use super::{claim::IdClaim, delegator::IdDelegator, signer::IdSigner, error::IdEventError};
 use crate::{
     VALID_FROM, VERSION,
     types::{IdEventReceipt, IdState},
@@ -47,8 +47,6 @@ pub(crate) fn verify(receipt: &IdEventReceipt) -> Result<IdState, IdEventError> 
     let inception: IdInception =
         cbor::decode(&receipt.payload).map_err(|e| CommonError::DecodeError(e.to_string()))?;
 
-    // Timestamp check
-    //
     let valid_from: DateTime<Utc> =
         VALID_FROM.parse().map_err(|_| IdEventError::InvalidTimestamp)?;
     let total_signers = inception.signers.len() as u8;

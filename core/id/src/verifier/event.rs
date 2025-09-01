@@ -3,7 +3,7 @@ use alloc::collections::{BTreeMap, BTreeSet};
 use crate::{
     VALID_FROM, VERSION,
     types::{IdEventReceipt, IdState},
-    verifier::{IdClaim, IdDelegator, IdSigner},
+    verifier::{claim::IdClaim, delegator::IdDelegator, signer::IdSigner},
 };
 use super::error::IdEventError;
 use IdEventKind::*;
@@ -29,10 +29,10 @@ pub enum IdEventKind {
 
     /// Should be signed with next keys
     Rotation {
+        /// The total number of signers should match the current threshold
         threshold: Option<u8>,
+        /// The total number of signers in state.next_signers should match the min next_threshold 
         next_threshold: Option<u8>,
-        /// The number of signers in state.next_signers should match the min next_threshold
-        /// The totat number of signers should match the current threshold
         signers: BTreeSet<IdSigner>,
         next_signers: BTreeSet<String>,
     },
