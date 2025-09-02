@@ -1,5 +1,4 @@
 use serde::{Deserialize, Serialize};
-use idp2p_common::bytes::Bytes;
 use serde_with::serde_as;
 
 #[serde_as]

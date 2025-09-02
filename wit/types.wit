@@ -56,7 +56,6 @@ interface types {
         delegated-proofs: list<id-proof-receipt>
     }
 
-    
     record id-proof-receipt {
         id: string,
         purpose: string,

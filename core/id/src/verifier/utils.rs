@@ -1,5 +1,5 @@
-use alloc::str::FromStr;
-use chrono::{DateTime, Utc};
+use alloc::{str::FromStr, string::String};
+use chrono::{DateTime, SecondsFormat, TimeZone, Utc};
 use ciborium::cbor;
 use cid::Cid;
 use idp2p_common::{ED_CODE, cid::CidExt, ed25519, error::CommonError};
@@ -8,12 +8,36 @@ use crate::types::IdEventReceipt;
 
 use super::{error::IdEventError, signer::IdSigner};
 
+pub(crate) struct Timestamp(pub i64);
+
+impl TryFrom<Timestamp> for String {
+    type Error = IdEventError;
+
+    fn try_from(value: Timestamp) -> Result<Self, Self::Error> {
+        Ok(Utc
+            .timestamp_micros(value.0)
+            .single()
+            .ok_or(IdEventError::InvalidTimestamp)?
+            .to_rfc3339_opts(SecondsFormat::Secs, true))
+    }
+}
+
+impl TryFrom<Timestamp> for DateTime<Utc> {
+    type Error = IdEventError;
+
+    fn try_from(value: Timestamp) -> Result<Self, Self::Error> {
+        Utc.timestamp_micros(value.0)
+            .single()
+            .ok_or(IdEventError::InvalidTimestamp)
+    }
+}
+
 pub(crate) fn verify_proofs(
+    receipt: &IdEventReceipt,
     signers: Vec<IdSigner>,
-    receipt: IdEventReceipt,
 ) -> Result<(), IdEventError> {
     // Validate signer key ids and proofs
-    for signer in &signers {
+    for signer in signers {
         let kid = Cid::from_str(&signer.id)?;
         kid.ensure(&signer.public_key, vec![ED_CODE])?;
         let proof = receipt
@@ -31,7 +55,7 @@ pub(crate) fn verify_proofs(
             "created_at" => created_at.timestamp(),
             "payload" => receipt.payload,
         })
-        .map_err(|e| CommonError::EncodeError)?
+        .map_err(|_| CommonError::EncodeError)?
         .as_bytes()
         .ok_or(CommonError::EncodeError)?
         .to_vec();
@@ -44,30 +68,14 @@ pub(crate) fn verify_proofs(
             }
         }
     }
+    Ok(())
+}
 
-    /*ensure!(
-        total_next_signers >= inception.next_threshold,
-        IdEventError::NextThresholdNotMatch
-    );
-
-    // Validate next signer ids
-    for next_kid_str in &inception.next_signers {
-        let next_kid = Cid::from_str(next_kid_str)?;
-        ensure!(
-            next_kid.codec() == ED_CODE,
-            IdEventError::InvalidNextSigner(next_kid_str.clone())
-        );
-    }
-
-    // Validate delegators and proofs
-
-    let filtered_delegators: Vec<&String> = inception
-        .delegators
-        .iter()
-        .filter(|delegator| delegator.scope.iter().any(|op| op.contains("inception")))
-        .map(|delegator| &delegator.id)
-        .collect();
-    for delegator in filtered_delegators {
+pub fn verify_delegation_proofs(
+    receipt: &IdEventReceipt,
+    delegators: &Vec<String>,
+) -> Result<(), IdEventError> {
+    for delegator in delegators {
         let proof = receipt
             .delegated_proofs
             .iter()
@@ -88,13 +96,9 @@ pub(crate) fn verify_proofs(
         .as_bytes()
         .ok_or(CommonError::EncodeError)?
         .to_vec();
-        crate::host::verify_proof(&proof, &data)
-            .map_err(|_| IdEventError::invalid_proof(&proof.id, "Delegated proof verification failed"))?;
+        crate::host::verify_proof(&proof, &data).map_err(|_| {
+            IdEventError::invalid_proof(&proof.id, "Delegated proof verification failed")
+        })?;
     }
-    let timestamp = Utc
-        .timestamp_micros(inception.timestamp)
-        .single()
-        .ok_or(IdEventError::InvalidTimestamp)?
-        .to_rfc3339_opts(SecondsFormat::Secs, true);*/
     Ok(())
 }

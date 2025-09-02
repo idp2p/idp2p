@@ -1,16 +1,20 @@
-use super::{claim::IdClaim, delegator::IdDelegator, signer::IdSigner, error::IdEventError};
+use super::{
+    claim::IdClaim,
+    delegator::IdDelegator,
+    error::IdEventError,
+    signer::IdSigner,
+    utils::{verify_delegation_proofs, verify_proofs},
+};
 use crate::{
     VALID_FROM, VERSION,
     types::{IdEventReceipt, IdState},
 };
 
 use alloc::collections::BTreeSet;
-use alloc::str::FromStr;
+use alloc::{str::FromStr, string::String};
 use chrono::{DateTime, SecondsFormat, TimeZone, Utc};
-use ciborium::cbor;
 use cid::Cid;
-use idp2p_common::{CBOR_CODE, ed25519};
-use idp2p_common::{ED_CODE, cbor, cid::CidExt, error::CommonError};
+use idp2p_common::{CBOR_CODE, ED_CODE, cbor, cid::CidExt, error::CommonError};
 use serde::{Deserialize, Serialize};
 
 macro_rules! ensure {
@@ -47,8 +51,9 @@ pub(crate) fn verify(receipt: &IdEventReceipt) -> Result<IdState, IdEventError> 
     let inception: IdInception =
         cbor::decode(&receipt.payload).map_err(|e| CommonError::DecodeError(e.to_string()))?;
 
-    let valid_from: DateTime<Utc> =
-        VALID_FROM.parse().map_err(|_| IdEventError::InvalidTimestamp)?;
+    let valid_from: DateTime<Utc> = VALID_FROM
+        .parse()
+        .map_err(|_| IdEventError::InvalidTimestamp)?;
     let total_signers = inception.signers.len() as u8;
     let total_next_signers = inception.next_signers.len() as u8;
     let total_signatures = receipt.proofs.len() as u8;
@@ -67,42 +72,14 @@ pub(crate) fn verify(receipt: &IdEventReceipt) -> Result<IdState, IdEventError> 
         total_signatures >= inception.threshold,
         IdEventError::LackOfMinProofs
     );
-    ensure!(inception.version == VERSION, IdEventError::UnsupportedVersion);
+    ensure!(
+        inception.version == VERSION,
+        IdEventError::UnsupportedVersion
+    );
     ensure!(inception.threshold >= 1, IdEventError::ThresholdNotMatch);
 
     // Validate signer key ids and proofs
-    for signer in &inception.signers {
-        let kid = Cid::from_str(&signer.id)?;
-        kid.ensure(&signer.public_key, vec![ED_CODE])?;
-        let proof = receipt
-            .proofs
-            .iter()
-            .find(|p| p.key_id == signer.id)
-            .ok_or(IdEventError::LackOfMinProofs)?;
-        let created_at: DateTime<Utc> = proof
-            .created_at
-            .parse()
-            .map_err(|_| IdEventError::invalid_proof(&signer.id, "Invalid created_at"))?;
-        // protected header
-        let data = cbor!({
-            "key_id" => signer.id.clone(),
-            "created_at" => created_at.timestamp(),
-            "payload" => receipt.payload,
-        })
-        .map_err(|e| CommonError::EncodeError)?
-        .as_bytes()
-        .ok_or(CommonError::EncodeError)?
-        .to_vec();
-        match kid.codec() {
-            ED_CODE => ed25519::verify(&signer.public_key, &data, &proof.signature)?,
-            _ => {
-                return Err(IdEventError::InvalidSigner(
-                    "Unsupported key type".to_string(),
-                ))
-            }
-        }
-    }
-
+    verify_proofs(&receipt, inception.signers.clone().into_iter().collect())?;
     ensure!(
         total_next_signers >= inception.next_threshold,
         IdEventError::NextThresholdNotMatch
@@ -119,36 +96,13 @@ pub(crate) fn verify(receipt: &IdEventReceipt) -> Result<IdState, IdEventError> 
 
     // Validate delegators and proofs
 
-    let filtered_delegators: Vec<&String> = inception
+    let filtered_delegators: Vec<String> = inception
         .delegators
         .iter()
         .filter(|delegator| delegator.scope.iter().any(|op| op.contains("inception")))
-        .map(|delegator| &delegator.id)
+        .map(|delegator| delegator.id.to_owned())
         .collect();
-    for delegator in filtered_delegators {
-        let proof = receipt
-            .delegated_proofs
-            .iter()
-            .find(|p| p.id == *delegator)
-            .ok_or(IdEventError::LackOfMinProofs)?;
-        let created_at: DateTime<Utc> = proof
-            .created_at
-            .parse()
-            .map_err(|_| IdEventError::invalid_proof(&proof.id, "Invalid created_at"))?;
-        let data = cbor!({
-            "id" => proof.id.clone(),
-            "key_id" => proof.key_id.clone(),
-            "version" => proof.version.clone(),
-            "created_at" => created_at.timestamp(),
-            "payload" => receipt.payload,
-        })
-        .map_err(|_| CommonError::EncodeError)?
-        .as_bytes()
-        .ok_or(CommonError::EncodeError)?
-        .to_vec();
-        crate::host::verify_proof(&proof, &data)
-            .map_err(|_| IdEventError::invalid_proof(&proof.id, "Delegated proof verification failed"))?;
-    }
+    verify_delegation_proofs(&receipt, &filtered_delegators)?;
     let timestamp = Utc
         .timestamp_micros(inception.timestamp)
         .single()
