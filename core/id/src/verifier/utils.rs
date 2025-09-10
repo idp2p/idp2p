@@ -2,7 +2,7 @@ use alloc::{str::FromStr, string::String};
 use chrono::{DateTime, SecondsFormat, TimeZone, Utc};
 use ciborium::cbor;
 use cid::Cid;
-use idp2p_common::{ED_CODE, cid::CidExt, ed25519, error::CommonError};
+use idp2p_common::{cid::CidExt, ed25519, error::CommonError, CBOR_CODE, ED_CODE};
 
 use crate::types::IdEventReceipt;
 
@@ -77,7 +77,7 @@ pub fn verify_delegation_proofs(
 ) -> Result<(), IdEventError> {
     for delegator in delegators {
         let proof = receipt
-            .delegated_proofs
+            .external_proofs
             .iter()
             .find(|p| p.id == *delegator)
             .ok_or(IdEventError::LackOfMinProofs)?;
@@ -85,12 +85,14 @@ pub fn verify_delegation_proofs(
             .created_at
             .parse()
             .map_err(|_| IdEventError::invalid_proof(&proof.id, "Invalid created_at"))?;
+        let cid = Cid::try_from(proof.content_id.clone())?; 
+        cid.ensure(&receipt.payload, vec![CBOR_CODE])?;
         let data = cbor!({
             "id" => proof.id.clone(),
             "key_id" => proof.key_id.clone(),
             "version" => proof.version.clone(),
             "created_at" => created_at.timestamp(),
-            "payload" => receipt.payload,
+            "content_id" => proof.content_id,
         })
         .map_err(|_| CommonError::EncodeError)?
         .as_bytes()

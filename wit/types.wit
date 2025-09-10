@@ -4,10 +4,16 @@ interface types {
         message: string,
     }
     
+    variant id-claim-value {
+        none,
+        text(string),
+        bytes(list<u8>)
+    }
+
     record id-claim {
         id: string,
         kind: string,
-        value: list<u8>,
+        value: id-claim-value,
         valid-from: string,
         valid-until: option<string>
     }
@@ -19,16 +25,8 @@ interface types {
         valid-until: option<string>
     }
 
-    record id-delegator {
-        id: string,
-        scope: list<string>,
-        valid-from: string,
-        valid-until: option<string>
-    }
-
     record id-state {
         id: string,
-        aka: list<u8>,
         prior-id: option<string>,
         event-id: string,
         event-timestamp: string,
@@ -37,7 +35,6 @@ interface types {
         signers: list<id-signer>,
         current-signers: list<string>,
         next-signers: list<string>,
-        delegators: list<id-delegator>,
         claims: list<id-claim>
     }
 
@@ -53,7 +50,7 @@ interface types {
         created-at: string,
         payload: list<u8>,
         proofs: list<id-proof>,
-        delegated-proofs: list<id-proof-receipt>
+        external-proofs: list<id-proof-receipt>
     }
 
     record id-proof-receipt {
@@ -62,6 +59,7 @@ interface types {
         version: string,
         key-id: string,
         created-at: string,
+        content-id: list<u8>,
         signature: list<u8>
     }
 

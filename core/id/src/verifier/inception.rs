@@ -1,6 +1,5 @@
 use super::{
     claim::IdClaim,
-    delegator::IdDelegator,
     error::IdEventError,
     signer::IdSigner,
     utils::{verify_delegation_proofs, verify_proofs},
@@ -30,16 +29,12 @@ pub struct IdInception {
     pub version: String,
     pub patch: Cid,
     pub timestamp: i64,
-    #[serde(skip_serializing_if = "BTreeSet::is_empty", default)]
-    pub aka: BTreeSet<String>,
     #[serde(skip_serializing_if = "Option::is_none", default)]
     pub prior_id: Option<String>,
     pub threshold: u8,
     pub next_threshold: u8,
     pub signers: BTreeSet<IdSigner>,
     pub next_signers: BTreeSet<String>,
-    #[serde(skip_serializing_if = "BTreeSet::is_empty", default)]
-    pub delegators: BTreeSet<IdDelegator>,
     #[serde(skip_serializing_if = "BTreeSet::is_empty", default)]
     pub claims: BTreeSet<IdClaim>,
 }
@@ -97,10 +92,10 @@ pub(crate) fn verify(receipt: &IdEventReceipt) -> Result<IdState, IdEventError> 
     // Validate delegators and proofs
 
     let filtered_delegators: Vec<String> = inception
-        .delegators
+        .claims
         .iter()
-        .filter(|delegator| delegator.scope.iter().any(|op| op.contains("inception")))
-        .map(|delegator| delegator.id.to_owned())
+        .filter(|claim| claim.kind == "/idp2p/event-delegator")
+        .map(|claim| claim.id.to_owned())
         .collect();
     verify_delegation_proofs(&receipt, &filtered_delegators)?;
     let timestamp = Utc
@@ -112,15 +107,9 @@ pub(crate) fn verify(receipt: &IdEventReceipt) -> Result<IdState, IdEventError> 
         id: receipt.id.clone(),
         event_id: receipt.id.clone(),
         event_timestamp: timestamp.clone(),
-        aka: inception.aka.into_iter().collect(),
         prior_id: inception.prior_id.clone(),
         threshold: inception.threshold,
         next_threshold: inception.next_threshold,
-        delegators: inception
-            .delegators
-            .into_iter()
-            .map(|s| s.to_state(&timestamp))
-            .collect(),
         signers: inception
             .signers
             .clone()
@@ -176,12 +165,10 @@ mod tests {
             patch: Cid::default(),
             timestamp: Utc::now().timestamp(),
             prior_id: None,
-            aka: BTreeSet::new(),
             threshold: 1,
             next_threshold: 1,
             signers: signers,
             next_signers: next_signers,
-            delegators: BTreeSet::new(),
             claims: BTreeSet::new(),
         };
         let inception_bytes = cbor::encode(&inception);
@@ -195,7 +182,7 @@ mod tests {
             created_at: Utc::now().to_rfc3339(),
             payload: inception_bytes,
             proofs: Vec::new(),
-            delegated_proofs: Vec::new(),
+            external_proofs: Vec::new(),
         };
         let result = verify(&pinception);
         eprintln!("Result: {:#?}", result);

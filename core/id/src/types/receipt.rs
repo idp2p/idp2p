@@ -34,6 +34,10 @@ pub struct IdProofReceipt {
     // Proof time
     pub created_at: String,
 
+    // Proof content hash
+    #[serde_as(as = "Bytes")]
+    pub content_id: Vec<u8>,
+
     // Bytes of signature
     #[serde_as(as = "Bytes")]
     pub signature: Vec<u8>,
@@ -50,5 +54,5 @@ pub struct IdEventReceipt {
     // Key means kid, value means signature
     pub proofs: Vec<IdProof>,
     // Key means id, value means signature
-    pub delegated_proofs: Vec<IdProofReceipt>,
+    pub external_proofs: Vec<IdProofReceipt>,
 }

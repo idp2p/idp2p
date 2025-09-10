@@ -1,28 +1,23 @@
+use idp2p_common::bytes::Bytes;
 use serde::{Deserialize, Serialize};
 use serde_with::serde_as;
-use idp2p_common::bytes::Bytes;
 
-/// It is useful when an identity needs to delegate some functions
-/// Examples:
-/// Controller, Corporotional ID, Rotation Security, Mediator, Peer ... 
 #[serde_as]
 #[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
-pub struct IdDelegator {
-    pub id: String,    
-    pub scope: Vec<String>,
-    /// Valid from timestamp.
-    pub valid_from: String,
-    /// Valid to timestamp.
-    pub valid_until: Option<String>,
+pub enum IdClaimValue {
+    None,
+    Text(String),
+    Bytes(#[serde_as(as = "Bytes")] Vec<u8>),
 }
 
-#[serde_as]
+/// It is useful when an identity needs claims
+/// Examples:
+/// Controller, Corporotional ID, Rotation Security, Mediator, Peer ...
 #[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
 pub struct IdClaim {
     pub kind: String,
     pub id: String,
-    #[serde_as(as = "Bytes")]
-    pub value: Vec<u8>,
+    pub value: IdClaimValue,
     /// Valid from timestamp.
     pub valid_from: String,
     /// Valid to timestamp.
@@ -53,15 +48,12 @@ pub struct IdState {
     /// Last event time
     pub event_timestamp: String,
 
-    /// Also known as
-    pub aka: Vec<String>,
-
     /// Previous id
     pub prior_id: Option<String>,
 
     // Current threshold
     pub threshold: u8,
-    
+
     // Next threshold
     pub next_threshold: u8,
 
@@ -73,9 +65,6 @@ pub struct IdState {
 
     /// CID codec should be 0xed
     pub next_signers: Vec<String>,
-
-     /// Delegators
-    pub delegators: Vec<IdDelegator>,
 
     /// Claims
     pub claims: Vec<IdClaim>,

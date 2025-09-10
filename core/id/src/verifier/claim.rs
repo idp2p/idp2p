@@ -1,6 +1,7 @@
 use serde::{Deserialize, Serialize};
-use idp2p_common::bytes::Bytes;
 use serde_with::serde_as;
+
+use crate::types::IdClaimValue;
 
 
 #[serde_as]
@@ -8,8 +9,7 @@ use serde_with::serde_as;
 pub struct IdClaim {
     pub kind: String,
     pub id: String,
-    #[serde_as(as = "Bytes")]
-    pub value: Vec<u8>
+    pub value: IdClaimValue
 }
 
 impl IdClaim {

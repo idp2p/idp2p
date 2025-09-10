@@ -3,7 +3,7 @@ use alloc::collections::{BTreeMap, BTreeSet};
 use crate::{
     VALID_FROM, VERSION,
     types::{IdEventReceipt, IdState},
-    verifier::{claim::IdClaim, delegator::IdDelegator, signer::IdSigner},
+    verifier::{claim::IdClaim, signer::IdSigner},
 };
 use super::error::IdEventError;
 use IdEventKind::*;
@@ -20,11 +20,7 @@ pub enum IdEventKind {
     /// Should be signed with current keys
     Interaction {
         new_claims: BTreeSet<IdClaim>,
-        new_aka: BTreeSet<String>,
-        new_delegators: BTreeSet<IdDelegator>,
         revoked_claims: BTreeSet<IdClaim>,
-        revoked_aka: BTreeSet<String>,
-        revoked_delegators: BTreeSet<IdDelegator>,
     },
 
     /// Should be signed with next keys
@@ -82,11 +78,7 @@ pub(crate) fn verify(
     match event.body {
         Interaction {
             new_claims,
-            new_aka,
-            new_delegators,
             revoked_claims,
-            revoked_aka,
-            revoked_delegators,
         } => {
             // Check threshold
             // Verify signatures
