@@ -134,32 +134,45 @@ pub(crate) fn verify(receipt: &IdEventReceipt) -> Result<IdState, IdEventError> 
 
 #[cfg(test)]
 mod tests {
-    use ed25519_dalek::SigningKey;
+    use ed25519_dalek::{ed25519::signature::SignerMut, SigningKey, VerifyingKey};
     use idp2p_common::{CBOR_CODE, ED_CODE};
     use rand::rngs::OsRng;
+    use crate::types::IdProof;
 
     use super::*;
 
-    fn create_signer() -> (String, Vec<u8>) {
+    fn create_signer() -> (String, VerifyingKey, SigningKey) {
         let mut csprng = OsRng;
         let signing_key: SigningKey = SigningKey::generate(&mut csprng);
-        let id = Cid::create(ED_CODE, signing_key.as_bytes())
+         let verifying_key = signing_key.verifying_key();
+    
+        let id = Cid::create(ED_CODE, verifying_key.as_bytes())
             .unwrap()
             .to_string();
-        (id, signing_key.to_bytes().to_vec())
+        (id, verifying_key, signing_key)
     }
 
     #[test]
     fn test_verify_inception() {
-        let (kid, pk) = create_signer();
+        let signer1 = create_signer();
+        let signer2 = create_signer();
+        let next_signer1 = create_signer();
+        let next_signer2 = create_signer();
+
         let mut signers = BTreeSet::new();
         let mut next_signers = BTreeSet::new();
 
         signers.insert(IdSigner {
-            id: kid.clone(),
-            public_key: pk,
+            id: signer1.0.clone(),
+            public_key: signer1.1.as_bytes().to_vec(),
         });
-        next_signers.insert(kid);
+        signers.insert(IdSigner {
+            id: signer2.0.clone(),
+            public_key: signer2.1.as_bytes().to_vec(),
+        });
+
+        next_signers.insert(next_signer1.0);
+        next_signers.insert(next_signer2.0);
         let inception = IdInception {
             version: "1.0".into(),
             patch: Cid::default(),
@@ -167,11 +180,23 @@ mod tests {
             prior_id: None,
             threshold: 1,
             next_threshold: 1,
-            signers: signers,
+            signers: signers.clone(),
             next_signers: next_signers,
             claims: BTreeSet::new(),
         };
         let inception_bytes = cbor::encode(&inception);
+        let created_at = Utc::now();
+       
+        let proof1 = IdProof {
+            key_id: signer1.0.clone(),
+            created_at: created_at.clone().to_rfc3339(),
+            signature: signer1.clone().2.sign(&inception_bytes).to_vec(),
+        };
+         let proof2 = IdProof {
+            key_id: signer2.0.clone(),
+            created_at: created_at.clone().to_rfc3339(),
+            signature: signer2.clone().2.sign(&inception_bytes).to_vec(),
+        };
         let id = Cid::create(CBOR_CODE, inception_bytes.as_slice())
             .unwrap()
             .to_string();
@@ -181,13 +206,13 @@ mod tests {
             version: "1.0".into(),
             created_at: Utc::now().to_rfc3339(),
             payload: inception_bytes,
-            proofs: Vec::new(),
+            proofs: vec![proof1, proof2],
             external_proofs: Vec::new(),
         };
         let result = verify(&pinception);
         eprintln!("Result: {:#?}", result);
         assert!(result.is_ok());
-        let result: IdState = result.unwrap();
-        eprintln!("Result: {:#?}", result);
+        let result: String = serde_json::to_string_pretty(&result.unwrap()).unwrap();
+        eprintln!("Result: {result}");
     }
 }

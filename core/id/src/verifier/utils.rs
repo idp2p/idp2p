@@ -45,22 +45,9 @@ pub(crate) fn verify_proofs(
             .iter()
             .find(|p| p.key_id == signer.id)
             .ok_or(IdEventError::LackOfMinProofs)?;
-        let created_at: DateTime<Utc> = proof
-            .created_at
-            .parse()
-            .map_err(|_| IdEventError::invalid_proof(&signer.id, "Invalid created_at"))?;
-        // protected header
-        let data = cbor!({
-            "key_id" => signer.id.clone(),
-            "created_at" => created_at.timestamp(),
-            "payload" => receipt.payload,
-        })
-        .map_err(|_| CommonError::EncodeError)?
-        .as_bytes()
-        .ok_or(CommonError::EncodeError)?
-        .to_vec();
+
         match kid.codec() {
-            ED_CODE => ed25519::verify(&signer.public_key, &data, &proof.signature)?,
+            ED_CODE => ed25519::verify(&signer.public_key, &receipt.payload, &proof.signature)?,
             _ => {
                 return Err(IdEventError::InvalidSigner(
                     "Unsupported key type".to_string(),
@@ -94,11 +81,9 @@ pub fn verify_delegation_proofs(
             "created_at" => created_at.timestamp(),
             "content_id" => proof.content_id,
         })
-        .map_err(|_| CommonError::EncodeError)?
-        .as_bytes()
-        .ok_or(CommonError::EncodeError)?
-        .to_vec();
-        crate::host::verify_proof(&proof, &data).map_err(|_| {
+        .map_err(|_| CommonError::EncodeError)?;
+        let data_bytes = idp2p_common::cbor::encode(&data);
+        crate::host::verify_proof(&proof, &data_bytes).map_err(|_| {
             IdEventError::invalid_proof(&proof.id, "Delegated proof verification failed")
         })?;
     }
