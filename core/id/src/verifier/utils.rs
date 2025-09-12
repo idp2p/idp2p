@@ -36,7 +36,6 @@ pub(crate) fn verify_proofs(
     receipt: &IdEventReceipt,
     signers: Vec<IdSigner>,
 ) -> Result<(), IdEventError> {
-    // Validate signer key ids and proofs
     for signer in signers {
         let kid = Cid::from_str(&signer.id)?;
         kid.ensure(&signer.public_key, vec![ED_CODE])?;
@@ -76,8 +75,9 @@ pub fn verify_delegation_proofs(
         cid.ensure(&receipt.payload, vec![CBOR_CODE])?;
         let data = cbor!({
             "id" => proof.id.clone(),
-            "key_id" => proof.key_id.clone(),
+            "purpose" => "delegation",
             "version" => proof.version.clone(),
+            "key_id" => proof.key_id.clone(),
             "created_at" => created_at.timestamp(),
             "content_id" => proof.content_id,
         })

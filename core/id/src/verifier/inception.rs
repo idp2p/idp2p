@@ -73,8 +73,6 @@ pub(crate) fn verify(receipt: &IdEventReceipt) -> Result<IdState, IdEventError> 
     );
     ensure!(inception.threshold >= 1, IdEventError::ThresholdNotMatch);
 
-    // Validate signer key ids and proofs
-    verify_proofs(&receipt, inception.signers.clone().into_iter().collect())?;
     ensure!(
         total_next_signers >= inception.next_threshold,
         IdEventError::NextThresholdNotMatch
@@ -89,20 +87,12 @@ pub(crate) fn verify(receipt: &IdEventReceipt) -> Result<IdState, IdEventError> 
         );
     }
 
-    // Validate delegators and proofs
-
-    let filtered_delegators: Vec<String> = inception
-        .claims
-        .iter()
-        .filter(|claim| claim.kind == "/idp2p/event-delegator")
-        .map(|claim| claim.id.to_owned())
-        .collect();
-    verify_delegation_proofs(&receipt, &filtered_delegators)?;
     let timestamp = Utc
         .timestamp_micros(inception.timestamp)
         .single()
         .ok_or(IdEventError::InvalidTimestamp)?
         .to_rfc3339_opts(SecondsFormat::Secs, true);
+    receipt.verify_proofs(&inception.signers)?;
     let id_state = IdState {
         id: receipt.id.clone(),
         event_id: receipt.id.clone(),

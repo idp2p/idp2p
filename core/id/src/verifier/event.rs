@@ -1,19 +1,26 @@
 use alloc::collections::{BTreeMap, BTreeSet};
 
+use super::error::IdEventError;
 use crate::{
     VALID_FROM, VERSION,
     types::{IdEventReceipt, IdState},
     verifier::{claim::IdClaim, signer::IdSigner},
 };
-use super::error::IdEventError;
 use IdEventKind::*;
 use alloc::str::FromStr;
 use alloc::string::String;
-use alloc::vec::Vec;
-use chrono::{DateTime, Utc};
+use chrono::{DateTime, SecondsFormat, TimeZone, Utc};
 use cid::Cid;
-use idp2p_common::{CBOR_CODE, cbor, cid::CidExt, ed25519};
+use idp2p_common::{CBOR_CODE, cbor, cid::CidExt};
 use serde::{Deserialize, Serialize};
+
+macro_rules! ensure {
+    ($cond:expr, $error:expr) => {
+        if !($cond) {
+            return Err($error);
+        }
+    };
+}
 
 #[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
 pub enum IdEventKind {
@@ -26,18 +33,27 @@ pub enum IdEventKind {
     /// Should be signed with next keys
     Rotation {
         /// The total number of signers should match the current threshold
-        threshold: Option<u8>,
-        /// The total number of signers in state.next_signers should match the min next_threshold 
-        next_threshold: Option<u8>,
+        threshold: u8,
+        /// The total number of next_signers should match the next_threshold
+        next_threshold: u8,
+        /// The total number of signers should be greater than or equal state.next_signers and threshold.
+        /// The new signers might be added when the threshold increased
+        /// All the state.next_signers should be inside this list
         signers: BTreeSet<IdSigner>,
+        /// The total number of next_signers should be greater than or equal next_threshold
         next_signers: BTreeSet<String>,
     },
 
     /// Should be signed with next keys
     Revocation {
-        details: Option<String>,
-        /// Each signer should be in state.next_signers
-        signers: BTreeMap<String, Vec<u8>>,
+        /// Each signer should be exactly match state.next_signers
+        signers: BTreeSet<IdSigner>,
+    },
+    /// Should be signed with next keys
+    Migration {
+        /// Each signer should be exactly match state.next_signers
+        signers: BTreeSet<IdSigner>,
+        next_id_hash: String,
     },
 }
 
@@ -74,32 +90,29 @@ pub(crate) fn verify(
     if event.previous != state.event_id {
         return Err(IdEventError::PreviousNotMatch);
     }
-
+    let timestamp = Utc
+        .timestamp_micros(event.timestamp)
+        .single()
+        .ok_or(IdEventError::InvalidTimestamp)?
+        .to_rfc3339_opts(SecondsFormat::Secs, true);
+    let mut proof_signers = BTreeSet::new();
     match event.body {
         Interaction {
             new_claims,
             revoked_claims,
         } => {
-            // Check threshold
-            // Verify signatures
-            // Verify proofs
-            //
-
-            /*if (pevent.proofs.len() as u8) < state.threshold {
-                return Err(IdEventError::LackOfMinProofs);
+            for claim in new_claims {
+                state.claims.push(claim.to_state(&timestamp));
             }
-            for (proof_kid, proof_sig) in pevent.proofs {
-                let signer_pk = state
-                    .signers
-                    .get(&proof_kid)
-                    .ok_or_else(|| IdEventError::invalid_proof(&proof_kid, "not_found"))?;
-
-                ed25519::verify(signer_pk, &pevent.payload, &proof_sig)?;
-            }
-
-            for (claim_key, claim_event) in claims {
-                state.claims.entry(claim_key).or_insert(vec![claim_event]);
-            }*/
+            
+            proof_signers = state
+                .signers
+                .iter()
+                .map(|s| IdSigner {
+                    id: s.id.clone(),
+                    public_key: s.public_key.clone(),
+                })
+                .collect();
         }
         Rotation {
             threshold,
@@ -108,33 +121,40 @@ pub(crate) fn verify(
             next_signers,
         } => {
             let total_signers = signers.len() as u8;
-            if total_signers < state.next_threshold {
-                return Err(IdEventError::NextThresholdNotMatch);
+            let total_next_signers = next_signers.len() as u8;
+            ensure!(total_signers >= threshold, IdEventError::ThresholdNotMatch);
+            ensure!(
+                total_signers >= state.next_threshold,
+                IdEventError::NextThresholdNotMatch
+            );
+            for signer_id in state.next_signers {
+                ensure!(
+                    signers.iter().any(|s| s.id == signer_id),
+                    IdEventError::ThresholdNotMatch
+                );
             }
-            /*for (proof_kid, proof_sig) in pevent.proofs {
-                let signer_pk = signers
-                    .get(&proof_kid)
-                    .ok_or_else(|| IdEventError::invalid_proof(&proof_kid, "not_found"))?;
-
-                ed25519::verify(&signer_pk, &pevent.payload, &proof_sig)?;
-            }*/
+            ensure!(
+                total_next_signers >= next_threshold,
+                IdEventError::NextThresholdNotMatch
+            );
             state.next_signers = next_signers.into_iter().collect();
-            //state.threshold = threshold;
-            //state.next_threshold = next_threshold;
+            state.threshold = threshold;
+            state.next_threshold = next_threshold;
+            proof_signers = signers;
         }
-        Revocation { details, signers } => {
-            /*for (proof_kid, proof_sig) in pevent.proofs {
-                let signer_pk = signers
-                    .get(&proof_kid)
-                    .ok_or_else(|| IdEventError::invalid_proof(&proof_kid, "not_found"))?;
-
-                ed25519::verify(&signer_pk, &pevent.payload, &proof_sig)?;
-            }
-            state.next_id = Some(next_id);*/
+        Revocation { signers } => {
+            proof_signers = signers;
+        }
+        Migration { signers, next_id_hash } => {
+            proof_signers = signers;
         }
         _ => {}
     }
+    receipt.verify_proofs(&proof_signers)?;
     state.event_id = receipt.id.clone();
-
+    state.signers = proof_signers
+        .into_iter()
+        .map(|s| s.to_state(&timestamp))
+        .collect();
     Ok(state)
 }

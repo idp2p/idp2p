@@ -21,6 +21,7 @@ pub struct IdClaim {
     /// Valid from timestamp.
     pub valid_from: String,
     /// Valid to timestamp.
+    #[serde(skip_serializing_if = "Option::is_none", default)]
     pub valid_until: Option<String>,
 }
 
@@ -34,6 +35,7 @@ pub struct IdSigner {
     /// Valid from timestamp.
     pub valid_from: String,
     /// Valid to timestamp.
+    #[serde(skip_serializing_if = "Option::is_none", default)]
     pub valid_until: Option<String>,
 }
 
@@ -49,6 +51,7 @@ pub struct IdState {
     pub event_timestamp: String,
 
     /// Previous id
+    #[serde(skip_serializing_if = "Option::is_none", default)]
     pub prior_id: Option<String>,
 
     // Current threshold
@@ -67,5 +70,6 @@ pub struct IdState {
     pub next_signers: Vec<String>,
 
     /// Claims
+    #[serde(skip_serializing_if = "Vec::is_empty", default)]
     pub claims: Vec<IdClaim>,
 }
