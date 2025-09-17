@@ -3,7 +3,7 @@ interface types {
         code: string,
         message: string,
     }
-    
+
     variant id-claim-value {
         none,
         text(string),
@@ -28,6 +28,7 @@ interface types {
     record id-state {
         id: string,
         prior-id: option<string>,
+        next-id: option<string>,
         event-id: string,
         event-timestamp: string,
         threshold: u8,
@@ -35,7 +36,9 @@ interface types {
         signers: list<id-signer>,
         current-signers: list<string>,
         next-signers: list<string>,
-        claims: list<id-claim>
+        claims: list<id-claim>,
+        revoked: bool,
+        revoked-at: option<string>
     }
 
     record id-proof {

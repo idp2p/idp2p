@@ -54,6 +54,10 @@ pub struct IdState {
     #[serde(skip_serializing_if = "Option::is_none", default)]
     pub prior_id: Option<String>,
 
+    /// Next id cid
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub next_id: Option<String>,  
+
     // Current threshold
     pub threshold: u8,
 
@@ -72,4 +76,9 @@ pub struct IdState {
     /// Claims
     #[serde(skip_serializing_if = "Vec::is_empty", default)]
     pub claims: Vec<IdClaim>,
+
+    pub revoked: bool,
+
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub revoked_at: Option<String>
 }

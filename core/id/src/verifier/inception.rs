@@ -98,6 +98,7 @@ pub(crate) fn verify(receipt: &IdEventReceipt) -> Result<IdState, IdEventError> 
         event_id: receipt.id.clone(),
         event_timestamp: timestamp.clone(),
         prior_id: inception.prior_id.clone(),
+        next_id: None,
         threshold: inception.threshold,
         next_threshold: inception.next_threshold,
         signers: inception
@@ -117,6 +118,8 @@ pub(crate) fn verify(receipt: &IdEventReceipt) -> Result<IdState, IdEventError> 
             .into_iter()
             .map(|s| s.to_state(&timestamp))
             .collect(),
+        revoked: false,
+        revoked_at: None,
     };
 
     Ok(id_state)

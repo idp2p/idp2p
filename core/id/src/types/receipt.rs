@@ -67,6 +67,9 @@ pub struct IdEventReceipt {
 
 impl IdEventReceipt {
     pub fn verify_proofs(&self, signers: &BTreeSet<IdSigner>) -> Result<(), IdEventError> {
+        for proof in &self.proofs {
+            
+        }
         for signer in signers {
             let kid = Cid::from_str(&signer.id)?;
             kid.ensure(&signer.public_key, vec![ED_CODE])?;
