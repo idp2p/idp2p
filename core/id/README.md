@@ -63,3 +63,35 @@ Examples:
 }
 ```
 
+## Verification Rules (Current)
+
+- Timestamps
+  - All event and inception timestamps are seconds since Unix epoch.
+  - `VALID_FROM` is compared in seconds; events must be at or after this boundary.
+  - `state.event_timestamp` updates to the verified event’s time (RFC3339, seconds precision) on every event.
+
+- Proofs
+  - Signatures are Ed25519 over the CBOR payload; `receipt.id` must be the CID of that payload.
+  - Interaction
+    - Requires at least `state.threshold` proofs in `receipt.proofs`.
+    - Proofs are checked against allowed signers (currently all `state.signers`).
+  - Rotation
+    - Let `all_signers = revealed_signers ∪ new_signers`.
+    - Requires `all_signers.len() == receipt.proofs.len()` and `all_signers.len() >= threshold`.
+    - `revealed_signers.len() >= state.next_threshold`, and all revealed must be in `state.next_signers`.
+    - `next_signers.len() >= next_threshold`, and each next signer CID must be ED25519.
+    - On success: updates `state.threshold`, `state.next_threshold`, `state.next_signers`.
+  - Revocation
+    - Requires `revealed_signers.len() == receipt.proofs.len()` and `revealed_signers.len() >= state.next_threshold`.
+    - All revealed must be in `state.next_signers`.
+    - On success: sets `state.revoked = true` and `state.revoked_at` to event time.
+  - Migration
+    - Same proof requirements as Revocation on `revealed_signers`.
+    - On success: sets `state.next_id`.
+
+- Claims (Interaction)
+  - `new_claims` add claim values if they don’t duplicate existing `(key,id)` pairs.
+  - `revoked_claims` set `valid_until` for existing `(key,id)` values; if not found, returns `InvalidClaim`.
+
+Notes
+- These rules reflect the current implementation and tests in `core/id/src/verifier`. If policy needs to be tightened (e.g., Interaction proofs restricted to `current_signers`), update code and tests accordingly.

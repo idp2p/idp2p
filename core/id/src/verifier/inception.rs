@@ -1,11 +1,9 @@
 use super::{
-    claim::IdClaimCreateEvent,
-    error::IdEventError,
-    signer::IdSigner,
-    utils::{verify_delegation_proofs, verify_proofs},
+    claim::IdClaimCreateEvent, error::IdEventError, signer::IdSigner,
+    utils::verify_delegation_proofs,
 };
 use crate::{
-    types::{IdEventReceipt, IdState}, VALID_FROM, VERSION
+    types::{IdEventReceipt, IdState}, verifier::utils::Timestamp, VALID_FROM, VERSION
 };
 
 use alloc::collections::BTreeSet;
@@ -52,6 +50,7 @@ pub(crate) fn verify(receipt: &IdEventReceipt) -> Result<IdState, IdEventError> 
     let total_next_signers = inception.next_signers.len() as u8;
     let total_signatures = receipt.proofs.len() as u8;
 
+    // Compare seconds to seconds
     ensure!(
         inception.timestamp > valid_from.timestamp(),
         IdEventError::InvalidTimestamp
@@ -86,11 +85,7 @@ pub(crate) fn verify(receipt: &IdEventReceipt) -> Result<IdState, IdEventError> 
         );
     }
 
-    let timestamp = Utc
-        .timestamp_micros(inception.timestamp)
-        .single()
-        .ok_or(IdEventError::InvalidTimestamp)?
-        .to_rfc3339_opts(SecondsFormat::Secs, true);
+    let timestamp: String = String::try_from(Timestamp(inception.timestamp))?;
     receipt.verify_proofs(&inception.signers)?;
     let mut id_state = IdState {
         id: receipt.id.clone(),
@@ -124,18 +119,18 @@ pub(crate) fn verify(receipt: &IdEventReceipt) -> Result<IdState, IdEventError> 
 
 #[cfg(test)]
 mod tests {
-    use ed25519_dalek::{ed25519::signature::SignerMut, SigningKey, VerifyingKey};
+    use crate::types::IdProof;
+    use ed25519_dalek::{SigningKey, VerifyingKey, ed25519::signature::SignerMut};
     use idp2p_common::{CBOR_CODE, ED_CODE};
     use rand::rngs::OsRng;
-    use crate::types::IdProof;
 
     use super::*;
 
     fn create_signer() -> (String, VerifyingKey, SigningKey) {
         let mut csprng = OsRng;
         let signing_key: SigningKey = SigningKey::generate(&mut csprng);
-         let verifying_key = signing_key.verifying_key();
-    
+        let verifying_key = signing_key.verifying_key();
+
         let id = Cid::create(ED_CODE, verifying_key.as_bytes())
             .unwrap()
             .to_string();
@@ -176,13 +171,13 @@ mod tests {
         };
         let inception_bytes = cbor::encode(&inception);
         let created_at = Utc::now();
-       
+
         let proof1 = IdProof {
             key_id: signer1.0.clone(),
             created_at: created_at.clone().to_rfc3339(),
             signature: signer1.clone().2.sign(&inception_bytes).to_vec(),
         };
-         let proof2 = IdProof {
+        let proof2 = IdProof {
             key_id: signer2.0.clone(),
             created_at: created_at.clone().to_rfc3339(),
             signature: signer2.clone().2.sign(&inception_bytes).to_vec(),

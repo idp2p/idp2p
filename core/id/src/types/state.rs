@@ -115,6 +115,7 @@ impl IdState {
             // Find existing value with the given id
             if let Some(value) = claim.values.iter_mut().find(|v| v.id == event.id) {
                 value.valid_until = Some(valid_until.to_string());
+                return Ok(());
             }
         }
         Err(IdEventError::InvalidClaim(event.key.to_string()))

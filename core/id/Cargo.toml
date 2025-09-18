@@ -4,7 +4,10 @@ version = "0.1.0"
 edition = "2024"
 
 [lib]
-crate-type = ["lib", "cdylib"]
+crate-type = ["lib"]
+
+[target.'cfg(target_arch = "wasm32")'.lib]
+crate-type = ["cdylib"]
 
 [dev-dependencies]
 rand = { workspace = true }
