@@ -1,12 +1,11 @@
 use super::{
-    claim::IdClaim,
+    claim::IdClaimCreateEvent,
     error::IdEventError,
     signer::IdSigner,
     utils::{verify_delegation_proofs, verify_proofs},
 };
 use crate::{
-    VALID_FROM, VERSION,
-    types::{IdEventReceipt, IdState},
+    types::{IdEventReceipt, IdState}, VALID_FROM, VERSION
 };
 
 use alloc::collections::BTreeSet;
@@ -36,7 +35,7 @@ pub struct IdInception {
     pub signers: BTreeSet<IdSigner>,
     pub next_signers: BTreeSet<String>,
     #[serde(skip_serializing_if = "BTreeSet::is_empty", default)]
-    pub claims: BTreeSet<IdClaim>,
+    pub claims: BTreeSet<IdClaimCreateEvent>,
 }
 
 pub(crate) fn verify(receipt: &IdEventReceipt) -> Result<IdState, IdEventError> {
@@ -93,7 +92,7 @@ pub(crate) fn verify(receipt: &IdEventReceipt) -> Result<IdState, IdEventError> 
         .ok_or(IdEventError::InvalidTimestamp)?
         .to_rfc3339_opts(SecondsFormat::Secs, true);
     receipt.verify_proofs(&inception.signers)?;
-    let id_state = IdState {
+    let mut id_state = IdState {
         id: receipt.id.clone(),
         event_id: receipt.id.clone(),
         event_timestamp: timestamp.clone(),
@@ -113,15 +112,13 @@ pub(crate) fn verify(receipt: &IdEventReceipt) -> Result<IdState, IdEventError> 
             .map(|signer| signer.id)
             .collect(),
         next_signers: inception.next_signers.into_iter().collect(),
-        claims: inception
-            .claims
-            .into_iter()
-            .map(|s| s.to_state(&timestamp))
-            .collect(),
+        claims: vec![],
         revoked: false,
         revoked_at: None,
     };
-
+    for event in inception.claims {
+        id_state.add_claim(event, &timestamp);
+    }
     Ok(id_state)
 }
 

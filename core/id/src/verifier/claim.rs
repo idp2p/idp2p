@@ -1,44 +1,79 @@
 use serde::{Deserialize, Serialize};
 use serde_with::serde_as;
 
-use crate::types::IdClaimValue;
-
+use crate::types::{IdClaim, IdClaimValue};
 
 #[serde_as]
 #[derive(Debug, Clone, Hash, Serialize, Deserialize)]
-pub struct IdClaim {
-    pub kind: String,
+pub struct IdClaimCreateEvent {
+    pub key: String,
     pub id: String,
-    pub value: IdClaimValue
+    pub payload: Option<Vec<u8>>,
 }
 
-impl IdClaim {
-    pub fn to_state(&self, valid_from: &str) -> crate::types::IdClaim {
-        crate::types::IdClaim {
-            kind: self.kind.to_owned(),
-            id: self.id.to_owned(),
-            value: self.value.to_owned(),
+#[serde_as]
+#[derive(Debug, Clone, Hash, Serialize, Deserialize)]
+pub struct IdClaimRevokeEvent {
+    pub key: String,
+    pub id: String,
+}
+
+impl IdClaimCreateEvent {
+    pub fn to_state(&self, valid_from: &str) -> IdClaimValue {
+        IdClaimValue {
+            id: self.id.to_string(),
+            payload: self.payload.clone(),
             valid_from: valid_from.to_owned(),
             valid_until: None,
         }
     }
+
+    fn get_unique_id(&self) -> String {
+        format!("{}/{}", self.key, self.id)
+    }
 }
 
-impl Eq for IdClaim {}
+impl Eq for IdClaimCreateEvent {}
 
-impl PartialEq for IdClaim {
+impl PartialEq for IdClaimCreateEvent {
     fn eq(&self, other: &Self) -> bool {
-        self.id == other.id
+        self.get_unique_id() == other.get_unique_id()
     }
 }
 
-impl Ord for IdClaim {
+impl Ord for IdClaimCreateEvent {
     fn cmp(&self, other: &Self) -> core::cmp::Ordering {
-        self.id.cmp(&other.id)
+        self.get_unique_id().cmp(&other.get_unique_id())
     }
 }
 
-impl PartialOrd for IdClaim {
+impl PartialOrd for IdClaimCreateEvent {
+    fn partial_cmp(&self, other: &Self) -> Option<core::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl IdClaimRevokeEvent {
+    fn get_unique_id(&self) -> String {
+        format!("{}/{}", self.key, self.id)
+    }
+}
+
+impl Eq for IdClaimRevokeEvent {}
+
+impl PartialEq for IdClaimRevokeEvent {
+    fn eq(&self, other: &Self) -> bool {
+        self.get_unique_id() == other.get_unique_id()
+    }
+}
+
+impl Ord for IdClaimRevokeEvent {
+    fn cmp(&self, other: &Self) -> core::cmp::Ordering {
+        self.get_unique_id().cmp(&other.get_unique_id())
+    }
+}
+
+impl PartialOrd for IdClaimRevokeEvent {
     fn partial_cmp(&self, other: &Self) -> Option<core::cmp::Ordering> {
         Some(self.cmp(other))
     }

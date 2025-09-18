@@ -4,18 +4,17 @@ interface types {
         message: string,
     }
 
-    variant id-claim-value {
-        none,
-        text(string),
-        bytes(list<u8>)
+    record id-claim-value {
+        id: string,
+        payload: option<list<u8>>,
+        valid-from: string,
+        valid-until: option<string>
     }
 
     record id-claim {
-        id: string,
-        kind: string,
-        value: id-claim-value,
-        valid-from: string,
-        valid-until: option<string>
+        // agreements, assertions, authentications, delegators, mediators, peers, ...
+        key: string,
+        values: list<id-claim-value>
     }
 
     record id-signer {

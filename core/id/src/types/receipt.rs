@@ -6,7 +6,7 @@ use idp2p_common::{CBOR_CODE, ED_CODE, bytes::Bytes, cid::CidExt, ed25519};
 use serde::{Deserialize, Serialize};
 use serde_with::serde_as;
 
-use crate::{verifier::signer::IdSigner, verifier::error::IdEventError};
+use crate::{verifier::error::IdEventError, verifier::signer::IdSigner};
 
 #[serde_as]
 #[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
@@ -68,17 +68,13 @@ pub struct IdEventReceipt {
 impl IdEventReceipt {
     pub fn verify_proofs(&self, signers: &BTreeSet<IdSigner>) -> Result<(), IdEventError> {
         for proof in &self.proofs {
-            
-        }
-        for signer in signers {
-            let kid = Cid::from_str(&signer.id)?;
-            kid.ensure(&signer.public_key, vec![ED_CODE])?;
-            let proof = self
-                .proofs
+            let kid = Cid::from_str(&proof.key_id)?;
+            let signer = signers
                 .iter()
-                .find(|p| p.key_id == signer.id)
+                .find(|s| s.id == proof.key_id)
                 .ok_or(IdEventError::LackOfMinProofs)?;
-
+            kid.ensure(&signer.public_key, vec![ED_CODE])?;
+           
             match kid.codec() {
                 ED_CODE => ed25519::verify(&signer.public_key, &self.payload, &proof.signature)?,
                 _ => {
