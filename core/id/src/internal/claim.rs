@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use serde_with::serde_as;
 
-use crate::types::{IdClaim, IdClaimValue};
+use crate::types::IdClaimValue;
 
 #[serde_as]
 #[derive(Debug, Clone, Hash, Serialize, Deserialize)]

@@ -1,4 +1,4 @@
-use crate::verifier::error::IdEventError;
+use crate::internal::error::IdEventError;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Hash, Serialize, Deserialize)]

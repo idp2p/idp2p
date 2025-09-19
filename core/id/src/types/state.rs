@@ -2,7 +2,7 @@ use idp2p_common::bytes::Bytes;
 use serde::{Deserialize, Serialize};
 use serde_with::serde_as;
 
-use crate::verifier::{
+use crate::internal::{
     claim::{IdClaimCreateEvent, IdClaimRevokeEvent},
     error::IdEventError,
 };

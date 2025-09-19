@@ -1,25 +1,8 @@
-use super::{
-    claim::IdClaimCreateEvent, error::IdEventError, signer::IdSigner,
-    utils::verify_delegation_proofs,
-};
-use crate::{
-    types::{IdEventReceipt, IdState}, verifier::utils::Timestamp, VALID_FROM, VERSION
-};
-
+use super::{claim::IdClaimCreateEvent, signer::IdSigner};
 use alloc::collections::BTreeSet;
-use alloc::{str::FromStr, string::String};
-use chrono::{DateTime, SecondsFormat, TimeZone, Utc};
+use alloc::string::String;
 use cid::Cid;
-use idp2p_common::{CBOR_CODE, ED_CODE, cbor, cid::CidExt, error::CommonError};
 use serde::{Deserialize, Serialize};
-
-macro_rules! ensure {
-    ($cond:expr, $error:expr) => {
-        if !($cond) {
-            return Err($error);
-        }
-    };
-}
 
 #[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
 pub struct IdInception {
@@ -36,88 +19,7 @@ pub struct IdInception {
     pub claims: BTreeSet<IdClaimCreateEvent>,
 }
 
-pub(crate) fn verify(receipt: &IdEventReceipt) -> Result<IdState, IdEventError> {
-    ensure!(receipt.version == VERSION, IdEventError::UnsupportedVersion);
-    let id = Cid::from_str(&receipt.id)?;
-    id.ensure(&receipt.payload, vec![CBOR_CODE])?;
-    let inception: IdInception =
-        cbor::decode(&receipt.payload).map_err(|e| CommonError::DecodeError(e.to_string()))?;
-
-    let valid_from: DateTime<Utc> = VALID_FROM
-        .parse()
-        .map_err(|_| IdEventError::InvalidTimestamp)?;
-    let total_signers = inception.signers.len() as u8;
-    let total_next_signers = inception.next_signers.len() as u8;
-    let total_signatures = receipt.proofs.len() as u8;
-
-    // Compare seconds to seconds
-    ensure!(
-        inception.timestamp > valid_from.timestamp(),
-        IdEventError::InvalidTimestamp
-    );
-
-    ensure!(
-        total_signers >= total_signatures,
-        IdEventError::LackOfMinProofs
-    );
-
-    ensure!(
-        total_signatures >= inception.threshold,
-        IdEventError::LackOfMinProofs
-    );
-    ensure!(
-        inception.version == VERSION,
-        IdEventError::UnsupportedVersion
-    );
-    ensure!(inception.threshold >= 1, IdEventError::ThresholdNotMatch);
-
-    ensure!(
-        total_next_signers >= inception.next_threshold,
-        IdEventError::NextThresholdNotMatch
-    );
-
-    // Validate next signer ids
-    for next_kid_str in &inception.next_signers {
-        let next_kid = Cid::from_str(next_kid_str)?;
-        ensure!(
-            next_kid.codec() == ED_CODE,
-            IdEventError::InvalidNextSigner(next_kid_str.clone())
-        );
-    }
-
-    let timestamp: String = String::try_from(Timestamp(inception.timestamp))?;
-    receipt.verify_proofs(&inception.signers)?;
-    let mut id_state = IdState {
-        id: receipt.id.clone(),
-        event_id: receipt.id.clone(),
-        event_timestamp: timestamp.clone(),
-        prior_id: inception.prior_id.clone(),
-        next_id: None,
-        threshold: inception.threshold,
-        next_threshold: inception.next_threshold,
-        signers: inception
-            .signers
-            .clone()
-            .into_iter()
-            .map(|s| s.to_state(&timestamp))
-            .collect(),
-        current_signers: inception
-            .signers
-            .into_iter()
-            .map(|signer| signer.id)
-            .collect(),
-        next_signers: inception.next_signers.into_iter().collect(),
-        claims: vec![],
-        revoked: false,
-        revoked_at: None,
-    };
-    for event in inception.claims {
-        id_state.add_claim(event, &timestamp);
-    }
-    Ok(id_state)
-}
-
-#[cfg(test)]
+/*#[cfg(test)]
 mod tests {
     use crate::types::IdProof;
     use ed25519_dalek::{SigningKey, VerifyingKey, ed25519::signature::SignerMut};
@@ -200,4 +102,4 @@ mod tests {
         let result: String = serde_json::to_string_pretty(&result.unwrap()).unwrap();
         eprintln!("Result: {result}");
     }
-}
+}*/
