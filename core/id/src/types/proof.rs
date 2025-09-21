@@ -23,9 +23,6 @@ pub struct IdProofReceipt {
     // The identity who creates proof
     pub id: String,
 
-    // Proof version
-    pub version: String,
-
     // Proof purpose
     pub purpose: String,
 
@@ -34,10 +31,6 @@ pub struct IdProofReceipt {
 
     // Proof time
     pub created_at: String,
-
-    // Proof content hash
-    #[serde_as(as = "Bytes")]
-    pub content_id: Vec<u8>,
 
     // Bytes of signature
     #[serde_as(as = "Bytes")]

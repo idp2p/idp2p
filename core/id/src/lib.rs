@@ -1,6 +1,6 @@
 use crate::{
     exports::idp2p::core::id_verifier::Guest,
-    types::{IdEventReceipt, IdProofReceipt, IdSigner, IdState, Idp2pError},
+    types::{IdEventReceipt, IdState, Idp2pError},
 };
 
 extern crate alloc;
@@ -36,15 +36,5 @@ impl Guest for GuestComponent {
     fn verify_event(state: IdState, receipt: IdEventReceipt) -> Result<IdState, Idp2pError> {
         let mut state = state.clone();
         Ok(receipt.verify_event(&mut state)?)
-    }
-
-    #[doc = " Verifies an identity proof."]
-    #[allow(async_fn_in_trait)]
-    fn verify_proof(
-        proof: IdProofReceipt,
-        signer: IdSigner,
-        data: Vec<u8>,
-    ) -> Result<bool, Idp2pError> {
-        todo!()
     }
 }

@@ -35,6 +35,7 @@ interface types {
         signers: list<id-signer>,
         current-signers: list<string>,
         next-signers: list<string>,
+        delegators: list<string>,
         claims: list<id-claim>,
         revoked: bool,
         revoked-at: option<string>
@@ -52,16 +53,14 @@ interface types {
         created-at: string,
         payload: list<u8>,
         proofs: list<id-proof>,
-        external-proofs: list<id-proof-receipt>
+        delegation-proofs: list<id-proof-receipt>
     }
 
     record id-proof-receipt {
         id: string,
         purpose: string,
-        version: string,
         key-id: string,
         created-at: string,
-        content-id: list<u8>,
         signature: list<u8>
     }
 

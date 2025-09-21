@@ -16,6 +16,8 @@ pub struct IdInception {
     pub signers: BTreeSet<IdSigner>,
     pub next_signers: BTreeSet<String>,
     #[serde(skip_serializing_if = "BTreeSet::is_empty", default)]
+    pub delegators: BTreeSet<String>,
+    #[serde(skip_serializing_if = "BTreeSet::is_empty", default)]
     pub claims: BTreeSet<IdClaimCreateEvent>,
 }
 

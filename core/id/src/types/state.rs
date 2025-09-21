@@ -77,6 +77,10 @@ pub struct IdState {
     /// CID codec should be 0xed
     pub next_signers: Vec<String>,
 
+    /// Delegators
+    #[serde(skip_serializing_if = "Vec::is_empty", default)]
+    pub delegators: Vec<String>,
+
     /// Claims
     #[serde(skip_serializing_if = "Vec::is_empty", default)]
     pub claims: Vec<IdClaim>,
