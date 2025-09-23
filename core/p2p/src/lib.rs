@@ -1,16 +1,11 @@
 extern crate alloc;
 
-use alloc::vec::Vec;
-use exports::idp2p::p2p::message_handler::Guest;
-use idp2p::p2p::error::Idp2pError;
-
 mod error;
-mod message;
-
-pub mod model;
+mod model;
 
 wit_bindgen::generate!({
-    world: "idp2p-p2p",
+    path: "../../wit",
+    world: "idp2p-message-handler",
     additional_derives: [PartialEq, Eq, Hash, Clone, serde::Serialize, serde::Deserialize],
 });
 
@@ -19,7 +14,8 @@ struct GuestComponent;
 export!(GuestComponent);
 
 impl Guest for GuestComponent {
-    fn handle_message(payload: Vec<u8>) -> Result<(), Idp2pError> {
+    fn handle(message: _rt::Vec<u8>) -> Result<(), Idp2pError> {
+        let message: String = serde_json::from_slice(&message).unwrap();
         todo!()
     }
 }

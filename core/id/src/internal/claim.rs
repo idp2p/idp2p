@@ -4,7 +4,7 @@ use serde_with::serde_as;
 use crate::types::IdClaimValue;
 
 #[serde_as]
-#[derive(Debug, Clone, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Hash, Serialize, Deserialize, Eq, PartialEq)]
 pub struct IdClaimCreateEvent {
     pub key: String,
     pub id: String,
@@ -12,7 +12,7 @@ pub struct IdClaimCreateEvent {
 }
 
 #[serde_as]
-#[derive(Debug, Clone, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Hash, Serialize, Deserialize, Eq, PartialEq)]
 pub struct IdClaimRevokeEvent {
     pub key: String,
     pub id: String,
@@ -33,14 +33,6 @@ impl IdClaimCreateEvent {
     }
 }
 
-impl Eq for IdClaimCreateEvent {}
-
-impl PartialEq for IdClaimCreateEvent {
-    fn eq(&self, other: &Self) -> bool {
-        self.get_unique_id() == other.get_unique_id()
-    }
-}
-
 impl Ord for IdClaimCreateEvent {
     fn cmp(&self, other: &Self) -> core::cmp::Ordering {
         self.get_unique_id().cmp(&other.get_unique_id())
@@ -56,14 +48,6 @@ impl PartialOrd for IdClaimCreateEvent {
 impl IdClaimRevokeEvent {
     fn get_unique_id(&self) -> String {
         format!("{}/{}", self.key, self.id)
-    }
-}
-
-impl Eq for IdClaimRevokeEvent {}
-
-impl PartialEq for IdClaimRevokeEvent {
-    fn eq(&self, other: &Self) -> bool {
-        self.get_unique_id() == other.get_unique_id()
     }
 }
 

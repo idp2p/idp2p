@@ -10,6 +10,7 @@ regex = { workspace = true }
 sha2 = { workspace = true }
 ciborium = { workspace = true }
 serde = { workspace = true }
+serde_json = { workspace = true }
 chrono = { workspace = true }
 idp2p-common = { path = "../../common" }
 idp2p-id = { path = "../id" }

@@ -3,7 +3,7 @@ use idp2p_common::bytes::Bytes;
 use serde_with::serde_as;
 
 #[serde_as]
-#[derive(Debug, Clone, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Hash, Serialize, Deserialize, Eq, PartialEq)]
 pub struct IdSigner {
     pub id: String,
     /// Public key of the signer.
@@ -20,14 +20,6 @@ impl IdSigner {
             valid_from: valid_from.to_owned(),
             valid_until: None,
         }
-    }
-}
-
-impl Eq for IdSigner {}
-
-impl PartialEq for IdSigner {
-    fn eq(&self, other: &Self) -> bool {
-        self.id == other.id
     }
 }
 

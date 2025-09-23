@@ -63,10 +63,4 @@ interface types {
         created-at: string,
         signature: list<u8>
     }
-
-    record did {
-        id: string,
-        inception: id-event-receipt,
-        events: list<id-event-receipt>
-    }
 }

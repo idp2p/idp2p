@@ -35,12 +35,23 @@ pub struct IdEventReceipt {
     pub created_at: String,
     #[serde_as(as = "Bytes")]
     pub payload: Vec<u8>,
-    // Key means kid, value means signature
     #[serde(skip_serializing_if = "Vec::is_empty", default)]
     pub proofs: Vec<IdProof>,
-    // Key means id, value means signature
     #[serde(skip_serializing_if = "Vec::is_empty", default)]
     pub delegation_proofs: Vec<IdProofReceipt>,
+}
+
+
+impl Ord for IdEventReceipt {
+    fn cmp(&self, other: &Self) -> core::cmp::Ordering {
+        self.id.cmp(&other.id)
+    }
+}
+
+impl PartialOrd for IdEventReceipt {
+    fn partial_cmp(&self, other: &Self) -> Option<core::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
 }
 
 impl IdEventReceipt {

@@ -11,15 +11,11 @@ pub enum HandlePubsubMessageError {
     ProviderNotFound(String),
     #[error("Common error")]
     CommonError(#[from] idp2p_common::error::CommonError),
-    #[error("Host error")]
-    HostError(#[from] crate::idp2p::p2p::error::Idp2pError),
-    #[error("Identifier error")]
-    IdError(#[from] idp2p_common::identifier::IdentifierError),
     #[error("Unknown error")]
     Other(#[from] core::fmt::Error),
 }
 
-#[derive(Error, Debug)]
+/*#[derive(Error, Debug)]
 pub enum HandleRequestError {
     #[error("Common error")]
     CommonError(#[from] idp2p_common::error::CommonError),
@@ -33,4 +29,4 @@ impl From<HandlePubsubMessageError> for crate::idp2p::p2p::error::Idp2pError {
     fn from(value: HandlePubsubMessageError) -> Self {
         todo!()
     }
-}
+}*/

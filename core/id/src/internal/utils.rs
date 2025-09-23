@@ -1,12 +1,7 @@
-use alloc::{str::FromStr, string::String};
+use alloc::string::String;
 use chrono::{DateTime, SecondsFormat, TimeZone, Utc};
-use ciborium::cbor;
-use cid::Cid;
-use idp2p_common::{CBOR_CODE, ED_CODE, cid::CidExt, ed25519, error::CommonError};
 
-use crate::types::IdEventReceipt;
-
-use super::{error::IdEventError, signer::IdSigner};
+use super::error::IdEventError;
 
 // Wrapper for seconds-since-epoch timestamps
 pub(crate) struct Timestamp(pub i64);

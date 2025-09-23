@@ -26,13 +26,11 @@ export!(GuestComponent);
 
 impl Guest for GuestComponent {
     #[doc = " Verifies an initial identity inception event."]
-    #[allow(async_fn_in_trait)]
     fn verify_inception(receipt: IdEventReceipt) -> Result<IdState, Idp2pError> {
         Ok(receipt.verify_inception()?)
     }
 
     #[doc = " Verifies an identity update event against the existing identity state."]
-    #[allow(async_fn_in_trait)]
     fn verify_event(state: IdState, receipt: IdEventReceipt) -> Result<IdState, Idp2pError> {
         let mut state = state.clone();
         Ok(receipt.verify_event(&mut state)?)
