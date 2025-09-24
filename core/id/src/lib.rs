@@ -7,6 +7,7 @@ extern crate alloc;
 
 pub mod types;
 pub mod internal;
+pub mod did;
 
 const VALID_FROM: &str = "2025-01-01T00:00:00Z";
 const VERSION: &'static str = "1.0";
