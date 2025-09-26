@@ -19,6 +19,8 @@ pub enum CommonError {
     PayloadHashMismatch,
     #[error("Unsupported hash algorithm: {0}. Expected SHA2-256")]
     UnsupportedHashAlgorithm(u64),
+    #[error("Invalid ID: {0}")]
+    InvalidIdentifier(String),
     #[error("Unsupported codec: {0}. Expected raw")]
     UnsupportedCodec(u64),
     #[error("Invalid CID: {0}")]

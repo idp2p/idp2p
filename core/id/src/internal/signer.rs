@@ -6,7 +6,6 @@ use serde_with::serde_as;
 #[derive(Debug, Clone, Hash, Serialize, Deserialize, Eq, PartialEq)]
 pub struct IdSigner {
     pub id: String,
-    /// Public key of the signer.
     #[serde_as(as = "Bytes")]
     pub public_key: Vec<u8>
 }

@@ -12,7 +12,6 @@ interface types {
     }
 
     record id-claim {
-        // agreements, assertions, authentications, delegators, mediators, peers, ...
         key: string,
         values: list<id-claim-value>
     }
@@ -41,26 +40,20 @@ interface types {
         revoked-at: option<string>
     }
 
-    record id-proof {
-        key-id: string,
-        created-at: string,
-        signature: list<u8>
-    }
-
     record id-event-receipt {
         id: string,
         version: string,
         created-at: string,
         payload: list<u8>,
-        proofs: list<id-proof>,
-        delegation-proofs: list<id-proof-receipt>
+        proofs: list<data-integrity-proof>,
     }
 
-    record id-proof-receipt {
-        id: string,
-        purpose: string,
-        key-id: string,
-        created-at: string,
-        signature: list<u8>
+    record data-integrity-proof {
+        typ: string,
+        cryptosuite: string,
+        created: string,
+        verification-method: string,
+        proof-purpose: string,
+        proof-value: list<u8>
     }
 }

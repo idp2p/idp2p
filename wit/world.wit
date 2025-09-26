@@ -12,8 +12,8 @@ world idp2p-message-handler {
 
 world idp2p-id-verifier {
     import host: interface {
-        use types.{id-proof-receipt, idp2p-error};
-        verify-proof: func(proof: id-proof-receipt, data: list<u8>) -> result<bool, idp2p-error>;
+        use types.{data-integrity-proof, idp2p-error};
+        verify-proof: func(proof: data-integrity-proof, data: list<u8>) -> result<bool, idp2p-error>;
     }
     export id-verifier;
 }

@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use alloc::{string::String, vec::Vec, string::ToString};
 
 use super::vm::{VerificationMethod, VerificationMethodItem};
 
@@ -25,6 +26,20 @@ pub struct IdDoc {
     pub assertion_method: Vec<VerificationMethodItem>,
     #[serde(skip_serializing_if = "Vec::is_empty", default)]
     pub key_agreement: Vec<VerificationMethodItem>,
+}
+
+impl IdDoc {
+    pub fn new(id: &str) -> Self {
+        Self {
+            context: "https://www.w3.org/ns/did/v1.1".into(),
+            id: id.to_string(),
+            controller: Some(id.into()),
+            verification_method: Vec::new(),
+            authentication: Vec::new(),
+            assertion_method: Vec::new(),
+            key_agreement: Vec::new(),
+        }
+    }
 }
 
 impl From<&str> for StringOrArray {

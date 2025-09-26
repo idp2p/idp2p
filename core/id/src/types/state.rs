@@ -1,4 +1,4 @@
-use idp2p_common::bytes::Bytes;
+use idp2p_common::{bytes::Bytes, did::doc::IdDoc};
 use serde::{Deserialize, Serialize};
 use serde_with::serde_as;
 
@@ -11,17 +11,15 @@ use crate::internal::{
 #[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
 pub struct IdClaimValue {
     pub id: String,
-    /// Valid from timestamp.
+    pub payload: Option<Vec<u8>>,
     pub valid_from: String,
-    /// Valid to timestamp.
     #[serde(skip_serializing_if = "Option::is_none", default)]
     pub valid_until: Option<String>,
-    pub payload: Option<Vec<u8>>,
 }
 
 /// It is useful when an identity needs claims
 /// Examples:
-/// Controller, Corporotional ID, Rotation Security, Mediator, Peer ...
+/// Authentication, AssertionMethod, KeyAgreement, Mediator, Peer ...
 #[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
 pub struct IdClaim {
     pub key: String,
@@ -123,5 +121,11 @@ impl IdState {
             }
         }
         Err(IdEventError::InvalidClaim(event.key.to_string()))
+    }
+
+    pub fn to_doc(&self) -> Result<IdDoc, ()> {
+        let doc = IdDoc::new(&self.id);
+        for claim in self.claims.iter().filter(|c| c.key == "authentication") {}
+        Ok(doc)
     }
 }
