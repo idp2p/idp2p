@@ -1,7 +1,10 @@
+use alloc::vec::Vec;
+
 extern crate alloc;
 
 mod error;
 mod model;
+mod handler;
 
 wit_bindgen::generate!({
     path: "../../wit",
@@ -14,8 +17,7 @@ struct GuestComponent;
 export!(GuestComponent);
 
 impl Guest for GuestComponent {
-    fn handle(message: _rt::Vec<u8>) -> Result<(), Idp2pError> {
-        let message: String = serde_json::from_slice(&message).unwrap();
-        todo!()
+    fn handle(message: Vec<u8>) -> Result<(), Idp2pError> {
+        handler::handle(message)
     }
 }

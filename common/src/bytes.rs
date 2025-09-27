@@ -1,4 +1,4 @@
-use serde::{Deserialize, Deserializer, Serializer};
+use serde::{de::Error as DeError, Deserialize, Deserializer, Serializer};
 use serde_with::{DeserializeAs, SerializeAs};
 use alloc::{string::String, vec::Vec};
 
@@ -25,10 +25,10 @@ impl<'de> DeserializeAs<'de, Vec<u8>> for Bytes {
         D: Deserializer<'de>,
     {
         if deserializer.is_human_readable() {
-            let s = String::deserialize(deserializer).unwrap();
-            return Ok(decode(&s).unwrap());
-        }else{
-            let b = Vec::deserialize(deserializer).unwrap();
+            let s = String::deserialize(deserializer)?;
+            return decode(&s).map_err(|e| D::Error::custom(format!("{}", e)));
+        } else {
+            let b = Vec::deserialize(deserializer)?;
             return Ok(b);
         }
     }

@@ -26,6 +26,7 @@ struct Opt {
     name: String,
 }*/
 mod store;
+mod network;
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     dotenv::dotenv().ok();

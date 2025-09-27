@@ -1,4 +1,4 @@
-use idp2p_common::{bytes::Bytes, did::doc::IdDoc};
+use idp2p_common::bytes::Bytes;
 use serde::{Deserialize, Serialize};
 use serde_with::serde_as;
 
@@ -79,7 +79,6 @@ pub struct IdState {
     #[serde(skip_serializing_if = "Vec::is_empty", default)]
     pub delegators: Vec<String>,
 
-    /// Claims
     #[serde(skip_serializing_if = "Vec::is_empty", default)]
     pub claims: Vec<IdClaim>,
 
@@ -121,11 +120,5 @@ impl IdState {
             }
         }
         Err(IdEventError::InvalidClaim(event.key.to_string()))
-    }
-
-    pub fn to_doc(&self) -> Result<IdDoc, ()> {
-        let doc = IdDoc::new(&self.id);
-        for claim in self.claims.iter().filter(|c| c.key == "authentication") {}
-        Ok(doc)
     }
 }

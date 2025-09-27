@@ -45,15 +45,15 @@ interface types {
         version: string,
         created-at: string,
         payload: list<u8>,
-        proofs: list<data-integrity-proof>,
+        proofs: list<id-proof>,
     }
 
-    record data-integrity-proof {
-        typ: string,
-        cryptosuite: string,
+    record id-proof {
+        id: string,
+        did: string,
+        key-id: string,
         created: string,
-        verification-method: string,
-        proof-purpose: string,
-        proof-value: list<u8>
+        purpose: string,
+        signature: list<u8>
     }
 }

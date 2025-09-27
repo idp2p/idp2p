@@ -3,18 +3,19 @@ use alloc::str::FromStr;
 use chrono::{DateTime, Utc};
 use cid::Cid;
 use idp2p_common::{
-    bytes::Bytes, cid::CidExt, error::CommonError, verification::{ed25519, proof::DataIntegrityProof}, CBOR_CODE, ED_CODE
+    CBOR_CODE, ED_CODE, bytes::Bytes, cid::CidExt, error::CommonError, verification::ed25519,
 };
 use serde::{Deserialize, Serialize};
 use serde_with::serde_as;
 
 use crate::{
     VALID_FROM, VERSION,
+    host::verify_proof,
     internal::{
         error::IdEventError, event::IdEvent, inception::IdInception, signer::IdSigner,
         utils::Timestamp,
     },
-    types::IdState,
+    types::{IdProof, IdState},
 };
 
 macro_rules! ensure {
@@ -34,7 +35,7 @@ pub struct IdEventReceipt {
     #[serde_as(as = "Bytes")]
     pub payload: Vec<u8>,
     #[serde(skip_serializing_if = "Vec::is_empty", default)]
-    pub proofs: Vec<DataIntegrityProof>,
+    pub proofs: Vec<IdProof>,
 }
 
 impl Ord for IdEventReceipt {
@@ -50,55 +51,28 @@ impl PartialOrd for IdEventReceipt {
 }
 
 impl IdEventReceipt {
-    pub fn verify_proofs(&self, signers: &BTreeSet<IdSigner>) -> Result<(), IdEventError> {
-        for proof in &self.proofs {
-            let kid = Cid::from_str(&proof.verification_method)?;
-            let signer = signers
-                .iter()
-                .find(|s| s.id == proof.verification_method)
-                .ok_or(IdEventError::LackOfMinProofs)?;
-            kid.ensure(&signer.public_key, vec![ED_CODE])?;
-
-            match kid.codec() {
-                ED_CODE => ed25519::verify(&signer.public_key, &self.payload, &proof.proof_value)?,
-                _ => {
-                    return Err(IdEventError::InvalidSigner(
-                        "Unsupported key type".to_string(),
-                    ));
-                }
+    fn verify_proofs(&self, signers: &BTreeSet<IdSigner>) -> Result<(), IdEventError> {
+        for proof in self.proofs.iter() {
+            let mut seen: BTreeSet<String> = BTreeSet::new();
+            if !seen.insert(proof.id.clone()) {
+                return Err(IdEventError::invalid_proof(
+                    &proof.key_id,
+                    "duplicate proof",
+                ));
+            }
+            if proof.purpose != "id-delegation" {
+                crate::host::verify_proof(&proof, &self.payload)
+                    .map_err(|e| IdEventError::invalid_proof(&proof.key_id, &e.code))?;
+            } else {
+                ensure!(
+                    proof.purpose == "id-inception",
+                    IdEventError::InvalidPayload
+                );
+                proof.verify(&self.payload, &signers)?;
             }
         }
         Ok(())
     }
-
-    /*fn verify_delegation_proofs(
-        receipt: &IdEventReceipt,
-        delegators: &Vec<String>,
-    ) -> Result<(), IdEventError> {
-        for delegator in delegators {
-            let proof = receipt
-                .delegation_proofs
-                .iter()
-                .find(|p| p.id == *delegator)
-                .ok_or(IdEventError::LackOfMinProofs)?;
-            let created_at: DateTime<Utc> = proof
-                .created_at
-                .parse()
-                .map_err(|_| IdEventError::invalid_proof(&proof.id, "Invalid created_at"))?;
-            let data = cbor!({
-                "id" => proof.id.clone(),
-                "purpose" => "delegation",
-                "key_id" => proof.key_id.clone(),
-                "created_at" => created_at.timestamp(),
-                "payload" => receipt.payload.clone(),
-            })
-            .map_err(|_| CommonError::EncodeError)?;
-            let data_bytes = idp2p_common::cbor::encode(&data);
-            crate::host::verify_proof(&proof, &data_bytes)
-                .map_err(|e| IdEventError::invalid_proof(&proof.key_id, &e.code))?;
-        }
-        Ok(())
-    }*/
 
     pub fn verify_inception(&self) -> Result<IdState, IdEventError> {
         ensure!(self.version == VERSION, IdEventError::UnsupportedVersion);
@@ -151,6 +125,7 @@ impl IdEventReceipt {
 
         let timestamp: String = String::try_from(Timestamp(inception.timestamp))?;
         self.verify_proofs(&inception.signers)?;
+       
         let mut id_state = IdState {
             id: self.id.clone(),
             event_id: self.id.clone(),
@@ -191,7 +166,9 @@ impl IdEventReceipt {
         ensure!(event.version == VERSION, IdEventError::UnsupportedVersion);
 
         // Timestamp check (seconds)
-        let valid_from: DateTime<Utc> = VALID_FROM.parse().expect("Invalid date format");
+        let valid_from: DateTime<Utc> = VALID_FROM
+            .parse()
+            .map_err(|_| IdEventError::InvalidTimestamp)?;
         ensure!(
             event.timestamp >= valid_from.timestamp(),
             IdEventError::InvalidTimestamp
@@ -365,21 +342,22 @@ mod tests {
         (id, verifying_key, signing_key)
     }
 
-    fn sign_receipt(payload: &[u8], kid: &str, sk: &SigningKey) -> DataIntegrityProof {
+    fn sign_receipt(payload: &[u8], creator: &str, kid: &str, sk: &SigningKey) -> IdProof {
         let signature = sk.sign(payload);
-        DataIntegrityProof {
-            typ: "DataIntegrityProof".into(),
-            cryptosuite: "".into(),
+        let id = Cid::create(CBOR_CODE, payload).unwrap().to_string();
+        IdProof {
+            id: id,
+            did: creator.into(),
+            key_id: kid.into(),
             created: Utc::now().to_rfc3339(),
-            verification_method: kid.into(),
-            proof_purpose: "id-inception".into(),
-            proof_value: signature.to_vec(),
+            purpose: "id-inception".into(),
+            signature: signature.to_vec(),
         }
     }
 
     fn base_state_with_signer(id: &str, pubkey: &[u8]) -> IdState {
         IdState {
-            id: "did:idp2p:test".into(),
+            id: "test".into(),
             event_id: "prev".into(),
             event_timestamp: Utc::now().to_rfc3339(),
             prior_id: None,
@@ -422,7 +400,7 @@ mod tests {
             version: VERSION.into(),
             created_at: Utc::now().to_rfc3339(),
             payload: payload.clone(),
-            proofs: vec![sign_receipt(&payload, &sid, &sk)],
+            proofs: vec![sign_receipt(&payload, &state.id, &sid, &sk)],
         };
 
         let updated = receipt
@@ -454,7 +432,7 @@ mod tests {
             version: VERSION.into(),
             created_at: Utc::now().to_rfc3339(),
             payload: payload.clone(),
-            proofs: vec![sign_receipt(&payload, &sid, &sk)],
+            proofs: vec![sign_receipt(&payload, &state.id, &sid, &sk)],
         };
 
         let updated = receipt
@@ -484,7 +462,7 @@ mod tests {
             version: VERSION.into(),
             created_at: Utc::now().to_rfc3339(),
             payload: payload.clone(),
-            proofs: vec![sign_receipt(&payload, &sid, &sk)],
+            proofs: vec![sign_receipt(&payload, &state.id, &sid, &sk)],
         };
         let err = receipt.verify_event(&mut state).unwrap_err();
         assert!(matches!(err, IdEventError::UnsupportedVersion));
@@ -510,7 +488,7 @@ mod tests {
             version: VERSION.into(),
             created_at: Utc::now().to_rfc3339(),
             payload: payload.clone(),
-            proofs: vec![sign_receipt(&payload, &sid, &sk)],
+            proofs: vec![sign_receipt(&payload, &state.id, &sid, &sk)],
         };
         let err = receipt.verify_event(&mut state).unwrap_err();
         assert!(matches!(err, IdEventError::InvalidTimestamp));
@@ -546,7 +524,7 @@ mod tests {
             version: VERSION.into(),
             created_at: Utc::now().to_rfc3339(),
             payload: payload.clone(),
-            proofs: vec![sign_receipt(&payload, &sid1, &sk1)],
+            proofs: vec![sign_receipt(&payload, &state.id, &sid1, &sk1)],
         };
         let err = receipt.verify_event(&mut state).unwrap_err();
         assert!(matches!(err, IdEventError::LackOfMinProofs));
@@ -572,7 +550,7 @@ mod tests {
             version: VERSION.into(),
             created_at: Utc::now().to_rfc3339(),
             payload: payload.clone(),
-            proofs: vec![sign_receipt(&payload, &sid, &sk)],
+            proofs: vec![sign_receipt(&payload, &state.id, &sid, &sk)],
         };
         let err = receipt.verify_event(&mut state).unwrap_err();
         assert!(matches!(err, IdEventError::PreviousNotMatch));
@@ -608,7 +586,7 @@ mod tests {
             version: VERSION.into(),
             created_at: Utc::now().to_rfc3339(),
             payload: payload.clone(),
-            proofs: vec![sign_receipt(&payload, &sid, &sk)],
+            proofs: vec![sign_receipt(&payload, &state.id, &sid, &sk)],
         };
 
         let updated = receipt
@@ -657,7 +635,7 @@ mod tests {
             version: VERSION.into(),
             created_at: Utc::now().to_rfc3339(),
             payload: payload.clone(),
-            proofs: vec![sign_receipt(&payload, &sid1, &sk1)],
+            proofs: vec![sign_receipt(&payload, &state.id, &sid1, &sk1)],
         };
         let err = receipt.verify_event(&mut state).unwrap_err();
         assert!(matches!(err, IdEventError::ThresholdNotMatch));
@@ -692,7 +670,7 @@ mod tests {
             version: VERSION.into(),
             created_at: Utc::now().to_rfc3339(),
             payload: payload.clone(),
-            proofs: vec![sign_receipt(&payload, &sid, &sk)],
+            proofs: vec![sign_receipt(&payload, &state.id, &sid, &sk)],
         };
         let err = receipt.verify_event(&mut state).unwrap_err();
         assert!(matches!(err, IdEventError::NextThresholdNotMatch));
@@ -723,7 +701,7 @@ mod tests {
             version: VERSION.into(),
             created_at: Utc::now().to_rfc3339(),
             payload: payload.clone(),
-            proofs: vec![sign_receipt(&payload, &sid, &sk)],
+            proofs: vec![sign_receipt(&payload, &state.id, &sid, &sk)],
         };
 
         let updated = receipt
@@ -761,7 +739,7 @@ mod tests {
             version: VERSION.into(),
             created_at: Utc::now().to_rfc3339(),
             payload: payload.clone(),
-            proofs: vec![sign_receipt(&payload, &sid1, &sk1)],
+            proofs: vec![sign_receipt(&payload, &state.id, &sid1, &sk1)],
         };
         let err = receipt.verify_event(&mut state).unwrap_err();
         assert!(matches!(err, IdEventError::ThresholdNotMatch));
@@ -793,7 +771,7 @@ mod tests {
             version: VERSION.into(),
             created_at: Utc::now().to_rfc3339(),
             payload: payload.clone(),
-            proofs: vec![sign_receipt(&payload, &sid, &sk)],
+            proofs: vec![sign_receipt(&payload, &state.id, &sid, &sk)],
         };
 
         let updated = receipt
@@ -833,9 +811,138 @@ mod tests {
             version: VERSION.into(),
             created_at: Utc::now().to_rfc3339(),
             payload: payload.clone(),
-            proofs: vec![sign_receipt(&payload, &sid, &sk)],
+            proofs: vec![sign_receipt(&payload, &state.id, &sid, &sk)],
         };
         let err = receipt.verify_event(&mut state).unwrap_err();
         assert!(matches!(err, IdEventError::InvalidNextSigner(_)));
+    }
+
+    #[test]
+    fn test_duplicate_proofs_rejected() {
+        let (sid, vk, sk) = create_signer();
+        let mut state = base_state_with_signer(&sid, vk.as_bytes());
+        let event = IdEvent {
+            version: VERSION.into(),
+            timestamp: Utc::now().timestamp(),
+            component: Cid::default(),
+            previous: state.event_id.clone(),
+            body: Interaction {
+                new_claims: BTreeSet::new(),
+                revoked_claims: BTreeSet::new(),
+            },
+        };
+        let payload = cbor::encode(&event);
+        let p1 = sign_receipt(&payload, &state.id, &sid, &sk);
+        let p2 = sign_receipt(&payload, &state.id, &sid, &sk);
+        let receipt = IdEventReceipt {
+            id: Cid::create(CBOR_CODE, &payload).unwrap().to_string(),
+            version: VERSION.into(),
+            created_at: Utc::now().to_rfc3339(),
+            payload: payload.clone(),
+            proofs: vec![p1, p2],
+        };
+        let err = receipt.verify_event(&mut state).unwrap_err();
+        assert!(matches!(err, IdEventError::InvalidProof { .. }));
+    }
+
+    #[test]
+    fn test_invalid_created_format_in_proof() {
+        let (sid, vk, sk) = create_signer();
+        let mut state = base_state_with_signer(&sid, vk.as_bytes());
+        let event = IdEvent {
+            version: VERSION.into(),
+            timestamp: Utc::now().timestamp(),
+            component: Cid::default(),
+            previous: state.event_id.clone(),
+            body: Interaction {
+                new_claims: BTreeSet::new(),
+                revoked_claims: BTreeSet::new(),
+            },
+        };
+        let payload = cbor::encode(&event);
+        let signature = sk.sign(&payload).to_vec();
+        let id = Cid::create(CBOR_CODE, &payload).unwrap().to_string();
+        let proof = IdProof {
+            id: id,
+            did: sid.clone(),
+            key_id: sid.clone(),
+            created: "not-a-date".into(),
+            purpose: "id-inception".into(),
+            signature,
+        };
+        let receipt = IdEventReceipt {
+            id: Cid::create(CBOR_CODE, &payload).unwrap().to_string(),
+            version: VERSION.into(),
+            created_at: Utc::now().to_rfc3339(),
+            payload: payload.clone(),
+            proofs: vec![proof],
+        };
+        let err = receipt.verify_event(&mut state).unwrap_err();
+        assert!(matches!(err, IdEventError::InvalidProof { .. }));
+    }
+
+    #[test]
+    fn test_invalid_signature_rejected() {
+        let (sid, vk, sk) = create_signer();
+        let mut state = base_state_with_signer(&sid, vk.as_bytes());
+        let event = IdEvent {
+            version: VERSION.into(),
+            timestamp: Utc::now().timestamp(),
+            component: Cid::default(),
+            previous: state.event_id.clone(),
+            body: Interaction {
+                new_claims: BTreeSet::new(),
+                revoked_claims: BTreeSet::new(),
+            },
+        };
+        let payload = cbor::encode(&event);
+        let mut bad_sig = sk.sign(&payload).to_vec();
+        bad_sig[0] ^= 0xFF;
+        let id = Cid::create(CBOR_CODE, &payload).unwrap().to_string();
+        let proof = IdProof {
+            id: id,
+            did: sid.clone(),
+            key_id: sid.clone(),
+            created: Utc::now().to_rfc3339(),
+            purpose: "id-inception".into(),
+            signature: bad_sig,
+        };
+        let receipt = IdEventReceipt {
+            id: Cid::create(CBOR_CODE, &payload).unwrap().to_string(),
+            version: VERSION.into(),
+            created_at: Utc::now().to_rfc3339(),
+            payload: payload.clone(),
+            proofs: vec![proof],
+        };
+        let err = receipt.verify_event(&mut state).unwrap_err();
+        assert!(matches!(err, IdEventError::InvalidProof { .. }));
+    }
+
+    #[test]
+    fn test_unknown_signer_in_proof() {
+        let (sid1, vk1, _sk1) = create_signer();
+        let (sid2, _vk2, sk2) = create_signer();
+        let mut state = base_state_with_signer(&sid1, vk1.as_bytes());
+        let event = IdEvent {
+            version: VERSION.into(),
+            timestamp: Utc::now().timestamp(),
+            component: Cid::default(),
+            previous: state.event_id.clone(),
+            body: Interaction {
+                new_claims: BTreeSet::new(),
+                revoked_claims: BTreeSet::new(),
+            },
+        };
+        let payload = cbor::encode(&event);
+        let proof = sign_receipt(&payload, &state.id, &sid2, &sk2);
+        let receipt = IdEventReceipt {
+            id: Cid::create(CBOR_CODE, &payload).unwrap().to_string(),
+            version: VERSION.into(),
+            created_at: Utc::now().to_rfc3339(),
+            payload: payload.clone(),
+            proofs: vec![proof],
+        };
+        let err = receipt.verify_event(&mut state).unwrap_err();
+        assert!(matches!(err, IdEventError::InvalidSigner(_)));
     }
 }
