@@ -3,74 +3,33 @@ use std::{
     sync::{Arc, Mutex},
 };
 
-//use idp2p::p2p::{self, types::{P2pError, P2pEvent}};
 use wasmtime::{
     Config, Engine, Store,
     component::{Component, Linker, bindgen},
 };
 
-bindgen!({
-    world:"idp2p-id",
-    path:  "./core/id/wit/",
-    additional_derives: [PartialEq, Eq, Hash, Clone, serde::Serialize, serde::Deserialize],
-});
-
-bindgen!({
-    world:"idp2p-p2p",
-    path:  "./core/p2p/wit/",
-    additional_derives: [PartialEq, Eq, Hash, Clone, serde::Serialize, serde::Deserialize],
-});
-
+mod verifier;
+mod handler;
 struct HostComponent {
     runtime: Arc<WasmRuntime>,
 }
 
-struct P2pState {
+struct MessageState {
     host: HostComponent,
 }
 
 struct IdState;
 
-impl p2p::p2p_host::Host for HostComponent {
-    #[doc = " Verifies an initial identity inception event."]
-    fn verify_inception(
-        &mut self,
-        component: String,
-        incepiton: Vec<u8>,
-    ) -> Result<Vec<u8>, P2pError> {
-        todo!()
-    }
-
-    #[doc = " Verifies an identity update event against the existing identity state."]
-    fn verify_event(
-        &mut self,
-        component: String,
-        state: Vec<u8>,
-        event: Vec<u8>,
-    ) -> Result<Vec<u8>, P2pError> {
-        todo!()
-    }
-
-    #[doc = " Gets a value from the store."]
-    fn get(&mut self, key: String) -> Result<Option<Vec<u8>>, P2pError> {
-        todo!()
-    }
-
-    #[doc = " Checks if a key exists in the store."]
-    fn exists(&mut self, key: String) -> Result<bool, P2pError> {
-        todo!()
-    }
-}
-
 struct WasmRuntime {
     engine: Engine,
     id_linker: Linker<IdState>,
-    p2p_linker: Linker<P2pState>,
+    p2p_linker: Linker<MessageState>,
     id_components: Mutex<HashMap<String, Component>>,
     p2p_components: Mutex<HashMap<String, Component>>,
 }
 
-impl WasmRuntime {
+
+/*impl WasmRuntime {
     // Initialize the runtime with both components
     pub fn new(
         id_comps: HashMap<String, Vec<u8>>,
@@ -154,6 +113,38 @@ impl WasmRuntime {
         Ok(())
     }
 }
+
+
+
+ #[doc = " Verifies an initial identity inception event."]
+    fn verify_inception(
+        &mut self,
+        component: String,
+        incepiton: Vec<u8>,
+    ) -> Result<Vec<u8>, P2pError> {
+        todo!()
+    }
+
+    #[doc = " Verifies an identity update event against the existing identity state."]
+    fn verify_event(
+        &mut self,
+        component: String,
+        state: Vec<u8>,
+        event: Vec<u8>,
+    ) -> Result<Vec<u8>, P2pError> {
+        todo!()
+    }
+
+    #[doc = " Gets a value from the store."]
+    fn get(&mut self, key: String) -> Result<Option<Vec<u8>>, P2pError> {
+        todo!()
+    }
+
+    #[doc = " Checks if a key exists in the store."]
+    fn exists(&mut self, key: String) -> Result<bool, P2pError> {
+        todo!()
+    }
+*/
 fn convert_to_component(bytes: &[u8]) -> Vec<u8> {
     wit_component::ComponentEncoder::default()
         .module(&bytes)

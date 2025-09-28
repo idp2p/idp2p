@@ -1,0 +1,8 @@
+interface id-verifier {
+    use types.{id-event-receipt, id-state, id-signer, idp2p-error};
+
+    /// Verifies an initial identity inception event.
+    verify-inception: func(inception: id-event-receipt) -> result<id-state, idp2p-error>; 
+    /// Verifies an identity update event against the existing identity state.
+    verify-event: func(state: id-state, event: id-event-receipt) -> result<id-state, idp2p-error>;
+}

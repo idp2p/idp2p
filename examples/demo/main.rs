@@ -17,16 +17,18 @@ mod store;
 mod user;
 mod utils;
 
-mod runtime;
 mod codec;
 #[derive(Debug, StructOpt)]
 #[structopt(name = "idp2p", about = "Usage of idp2p.")]
 struct Opt {
     #[structopt(short = "i", long = "id")]
     name: String,
-}*/
+}
 mod store;
-mod network;
+mod network;*/
+//pub use idp2p_id::types::*;
+
+mod runtime;
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     dotenv::dotenv().ok();

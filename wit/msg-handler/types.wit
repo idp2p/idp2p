@@ -1,0 +1,59 @@
+interface types {
+    record idp2p-error {
+        code: string,
+        message: string,
+    }
+
+    record id-claim-value {
+        id: string,
+        payload: option<list<u8>>,
+        valid-from: string,
+        valid-until: option<string>
+    }
+
+    record id-claim {
+        key: string,
+        values: list<id-claim-value>
+    }
+
+    record id-signer {
+        id: string,
+        public-key: list<u8>,
+        valid-from: string,
+        valid-until: option<string>
+    }
+
+    record id-state {
+        id: string,
+        prior-id: option<string>,
+        next-id: option<string>,
+        event-id: string,
+        event-timestamp: string,
+        threshold: u8,
+        next-threshold: u8,
+        signers: list<id-signer>,
+        current-signers: list<string>,
+        next-signers: list<string>,
+        delegators: list<string>,
+        claims: list<id-claim>,
+        revoked: bool,
+        revoked-at: option<string>
+    }
+
+    record id-event-receipt {
+        id: string,
+        version: string,
+        created-at: string,
+        payload: list<u8>,
+        proofs: list<id-proof>,
+    }
+
+    record id-proof {
+        id: string,
+        did: string,
+        key-id: string,
+        created: string,
+        purpose: string,
+        signature: list<u8>
+    }
+}

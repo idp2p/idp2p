@@ -7,7 +7,7 @@ mod model;
 mod handler;
 
 wit_bindgen::generate!({
-    path: "../../wit",
+    path: "../../wit/msg-handler/",
     world: "idp2p-message-handler",
     additional_derives: [PartialEq, Eq, Hash, Clone, serde::Serialize, serde::Deserialize],
 });

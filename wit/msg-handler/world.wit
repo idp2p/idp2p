@@ -1,0 +1,11 @@
+package idp2p:message;
+
+world idp2p-message-handler {
+    use types.{idp2p-error};
+
+    import store;
+    import id-verifier;
+    import p2p-sender;
+
+    export handle: func(message: list<u8>) -> result<_, idp2p-error>;
+}
