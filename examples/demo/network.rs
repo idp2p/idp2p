@@ -41,23 +41,17 @@ pub(crate) struct IdNetworkEventLoop {
     //id_handler: IdMessageHandler<S, V>,
 }
 
-impl<S: IdStore, V: IdVerifier> IdNetworkEventLoop<S, V> {
+impl IdNetworkEventLoop {
     pub fn new(
         port: u16,
-        store: Arc<InMemoryKvStore>,
-        event_sender: mpsc::Sender<IdAppEvent>,
         cmd_receiver: mpsc::Receiver<IdNetworkCommand>,
-        id_handler: IdMessageHandler<S, V>,
     ) -> anyhow::Result<(PeerId, Self)> {
         let swarm = create_swarm(port)?;
         Ok((
             swarm.local_peer_id().to_owned(),
             Self {
-                store,
                 swarm,
-                event_sender,
                 cmd_receiver,
-                id_handler,
             },
         ))
     }
@@ -110,7 +104,7 @@ impl<S: IdStore, V: IdVerifier> IdNetworkEventLoop<S, V> {
                     .behaviour_mut()
                     .gossipsub
                     .subscribe(&ident_topic)?;
-                let data = cbor::encode(&payload);
+                let data = idp2p_common::cbor::encode(&payload);
                 self.swarm.behaviour_mut().gossipsub.publish(topic, data)?;
             }
             Subscribe(topic) => {

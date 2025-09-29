@@ -7,9 +7,12 @@ mod model;
 mod handler;
 
 wit_bindgen::generate!({
-    path: "../../wit/msg-handler/",
+    path: "../../wit/",
     world: "idp2p-message-handler",
     additional_derives: [PartialEq, Eq, Hash, Clone, serde::Serialize, serde::Deserialize],
+     with: {
+        "idp2p:core/types": idp2p_id::types,
+    }
 });
 
 struct GuestComponent;

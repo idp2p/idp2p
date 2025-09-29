@@ -1,4 +1,4 @@
-package idp2p:id;
+package idp2p:core;
 
 world idp2p-id-verifier {
     import host: interface {
@@ -6,4 +6,14 @@ world idp2p-id-verifier {
         verify-proof: func(proof: id-proof, data: list<u8>) -> result<bool, idp2p-error>;
     }
     export id-verifier;
+}
+
+world idp2p-message-handler {
+    use types.{idp2p-error};
+
+    import store;
+    import id-verifier;
+    import p2p-sender;
+
+    export handle: func(message: list<u8>) -> result<_, idp2p-error>;
 }

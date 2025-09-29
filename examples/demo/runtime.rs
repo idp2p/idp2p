@@ -1,17 +1,24 @@
+use futures::channel::mpsc;
 use std::{
     collections::HashMap,
     sync::{Arc, Mutex},
 };
-
 use wasmtime::{
     Config, Engine, Store,
     component::{Component, Linker, bindgen},
 };
 
-mod verifier;
+use crate::{
+    network::IdNetworkCommand, runtime::verifier::id_verifier::idp2p::core::types::IdEventReceipt,
+    store::InMemoryKvStore,
+};
+
 mod handler;
+pub mod verifier;
 struct HostComponent {
     runtime: Arc<WasmRuntime>,
+    store: InMemoryKvStore,
+    network_cmd_sender: mpsc::Sender<IdNetworkCommand>,
 }
 
 struct MessageState {
@@ -28,8 +35,7 @@ struct WasmRuntime {
     p2p_components: Mutex<HashMap<String, Component>>,
 }
 
-
-/*impl WasmRuntime {
+impl WasmRuntime {
     // Initialize the runtime with both components
     pub fn new(
         id_comps: HashMap<String, Vec<u8>>,
@@ -41,7 +47,7 @@ struct WasmRuntime {
 
         // Create and set up linker
         let mut p2p_linker = Linker::new(&engine);
-        p2p::p2p_host::add_to_linker(&mut p2p_linker, |state: &mut P2pState| &mut state.host)?;
+        //p2p::p2p_host::add_to_linker(&mut p2p_linker, |state: &mut P2pState| &mut state.host)?;
 
         let id_linker = Linker::new(&engine);
 
@@ -70,12 +76,16 @@ struct WasmRuntime {
         runtime: Arc<Self>,
         topic: &str,
         msg: &[u8],
-    ) -> anyhow::Result<Vec<P2pEvent>> {
+    ) -> anyhow::Result<()> {
         // Create a new store with the secondary result
         let mut store = Store::new(
             &self.engine,
-            P2pState {
-                host: HostComponent { runtime },
+            MessageState {
+                host: HostComponent {
+                    runtime,
+                    store: todo!(),
+                    network_cmd_sender: todo!(),
+                },
             },
         );
         let comp = self
@@ -86,15 +96,16 @@ struct WasmRuntime {
             .unwrap()
             .to_owned();
         // Instantiate and call the primary component
-        let (p2p, _) = Idp2pP2p::instantiate(&mut store, &comp, &self.p2p_linker)?;
-        Ok(p2p
-            .interface0
-            .call_handle_pubsub(&mut store, topic, msg)
-            .unwrap()
-            .unwrap())
+        let (handler, _) = handler::message_handler::Idp2pMessageHandler::instantiate(
+            &mut store,
+            &comp,
+            &self.p2p_linker,
+        )?;
+        handler.call_handle(store, msg).unwrap();
+        Ok(())
     }
 
-    fn verify_inception(&self, inception: &[u8]) -> anyhow::Result<()> {
+    fn verify_inception(&self, inception: &IdEventReceipt) -> anyhow::Result<()> {
         // Create a new store with the secondary result
         let mut store = Store::new(&self.engine, IdState);
         let comp = self
@@ -105,8 +116,13 @@ struct WasmRuntime {
             .unwrap()
             .to_owned();
         // Instantiate and call the primary component
-        let (verifier, _) = Idp2pId::instantiate(&mut store, &comp, &self.id_linker)?;
+        let (verifier, _) = verifier::id_verifier::Idp2pIdVerifier::instantiate(
+            &mut store,
+            &comp,
+            &self.id_linker,
+        )?;
         verifier
+            .idp2p_core_id_verifier()
             .call_verify_inception(&mut store, inception)
             .unwrap()
             .unwrap();
@@ -114,37 +130,35 @@ struct WasmRuntime {
     }
 }
 
-
-
- #[doc = " Verifies an initial identity inception event."]
-    fn verify_inception(
-        &mut self,
-        component: String,
-        incepiton: Vec<u8>,
-    ) -> Result<Vec<u8>, P2pError> {
-        todo!()
+impl From<handler::message_handler::idp2p::core::types::IdProof>
+    for verifier::id_verifier::idp2p::core::types::IdProof
+{
+    fn from(value: handler::message_handler::idp2p::core::types::IdProof) -> Self {
+        Self {
+            id: value.id,
+            did: value.did,
+            key_id: value.key_id,
+            created: value.created,
+            purpose: value.purpose,
+            signature: value.signature,
+        }
     }
+}
 
-    #[doc = " Verifies an identity update event against the existing identity state."]
-    fn verify_event(
-        &mut self,
-        component: String,
-        state: Vec<u8>,
-        event: Vec<u8>,
-    ) -> Result<Vec<u8>, P2pError> {
-        todo!()
+impl From<handler::message_handler::idp2p::core::types::IdEventReceipt>
+    for verifier::id_verifier::idp2p::core::types::IdEventReceipt
+{
+    fn from(value: handler::message_handler::idp2p::core::types::IdEventReceipt) -> Self {
+        Self {
+            id: value.id,
+            version: value.version,
+            created_at: value.created_at,
+            payload: value.payload,
+            proofs: value.proofs.into_iter().map(|p| p.into()).collect(),
+        }
     }
+}
 
-    #[doc = " Gets a value from the store."]
-    fn get(&mut self, key: String) -> Result<Option<Vec<u8>>, P2pError> {
-        todo!()
-    }
-
-    #[doc = " Checks if a key exists in the store."]
-    fn exists(&mut self, key: String) -> Result<bool, P2pError> {
-        todo!()
-    }
-*/
 fn convert_to_component(bytes: &[u8]) -> Vec<u8> {
     wit_component::ComponentEncoder::default()
         .module(&bytes)

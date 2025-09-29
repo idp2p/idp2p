@@ -7,7 +7,7 @@ pub mod id_verifier {
     };
     bindgen!({
         world:"idp2p-id-verifier",
-        path:  "./wit/id-verifier/",
+        path:  "./wit/",
         additional_derives: [PartialEq, Eq, Hash, Clone, serde::Serialize, serde::Deserialize],
     });
     impl Host for HostComponent {

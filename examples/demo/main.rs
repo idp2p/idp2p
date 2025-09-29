@@ -27,8 +27,9 @@ struct Opt {
 mod store;
 mod network;*/
 //pub use idp2p_id::types::*;
-
+mod network;
 mod runtime;
+mod store;
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     dotenv::dotenv().ok();

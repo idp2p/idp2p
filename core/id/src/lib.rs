@@ -1,5 +1,5 @@
 use crate::{
-    exports::idp2p::id::id_verifier::Guest,
+    exports::idp2p::core::id_verifier::Guest,
     types::{IdEventReceipt, IdState, Idp2pError},
 };
 
@@ -12,10 +12,10 @@ const VERSION: &'static str = "1.0";
 
 wit_bindgen::generate!({
     world: "idp2p-id-verifier",
-    path: "../../wit/id-verifier/",
+    path: "../../wit/",
     additional_derives: [PartialEq, Eq, Hash, Clone, serde::Serialize, serde::Deserialize],
     with: {
-        "idp2p:id/types": crate::types,
+        "idp2p:core/types": crate::types,
     }
 });
 
