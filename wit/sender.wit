@@ -1,11 +1,8 @@
 interface p2p-sender {
     use types.{idp2p-error};
+    subscribe: func(topic: string) -> result<_, idp2p-error>;
 
     publish: func(topic: string, payload: list<u8>) -> result<_, idp2p-error>;
 
-    subscribe: func(topic: string) -> result<_, idp2p-error>;
-
-    request: func(addr: string, payload: list<u8>) -> result<_, idp2p-error>;
-
-    response: func(payload: list<u8>) -> result<_, idp2p-error>;
+    send: func(addr: string, payload: list<u8>) -> result<_, idp2p-error>;
 }

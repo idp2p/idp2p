@@ -30,44 +30,44 @@ struct IdState;
 struct WasmRuntime {
     engine: Engine,
     id_linker: Linker<IdState>,
-    p2p_linker: Linker<MessageState>,
+    msg_linker: Linker<MessageState>,
     id_components: Mutex<HashMap<String, Component>>,
-    p2p_components: Mutex<HashMap<String, Component>>,
+    msg_components: Mutex<HashMap<String, Component>>,
 }
 
 impl WasmRuntime {
     // Initialize the runtime with both components
     pub fn new(
         id_comps: HashMap<String, Vec<u8>>,
-        p2p_comps: HashMap<String, Vec<u8>>,
+        msg_comps: HashMap<String, Vec<u8>>,
     ) -> anyhow::Result<Self> {
         // primary: Vec<u8>, secondary: Vec<u8>) -> anyhow::Result<Self> {
         // Create engine with component model enabled
         let engine = Engine::new(Config::new().wasm_component_model(true))?;
 
         // Create and set up linker
-        let mut p2p_linker = Linker::new(&engine);
+        let mut msg_linker = Linker::new(&engine);
         //p2p::p2p_host::add_to_linker(&mut p2p_linker, |state: &mut P2pState| &mut state.host)?;
 
         let id_linker = Linker::new(&engine);
 
         let mut id_components: HashMap<String, Component> = HashMap::new();
-        let mut p2p_components: HashMap<String, Component> = HashMap::new();
+        let mut msg_components: HashMap<String, Component> = HashMap::new();
 
         for (id, bytes) in id_comps {
             let component = Component::from_binary(&engine, &convert_to_component(&bytes)).unwrap();
             id_components.insert(id, component);
         }
-        for (id, bytes) in p2p_comps {
+        for (id, bytes) in msg_comps {
             let component = Component::from_binary(&engine, &convert_to_component(&bytes)).unwrap();
-            p2p_components.insert(id, component);
+            msg_components.insert(id, component);
         }
         Ok(WasmRuntime {
             engine,
             id_linker,
-            p2p_linker,
+            msg_linker,
             id_components: Mutex::new(id_components),
-            p2p_components: Mutex::new(p2p_components),
+            msg_components: Mutex::new(msg_components),
         })
     }
 
@@ -89,7 +89,7 @@ impl WasmRuntime {
             },
         );
         let comp = self
-            .p2p_components
+            .msg_components
             .lock()
             .unwrap()
             .get("k")
@@ -99,7 +99,7 @@ impl WasmRuntime {
         let (handler, _) = handler::message_handler::Idp2pMessageHandler::instantiate(
             &mut store,
             &comp,
-            &self.p2p_linker,
+            &self.msg_linker,
         )?;
         handler.call_handle(store, msg).unwrap();
         Ok(())

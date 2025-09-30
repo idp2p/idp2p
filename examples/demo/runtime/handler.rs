@@ -1,6 +1,5 @@
 pub mod message_handler {
     use crate::runtime::{HostComponent, handler::message_handler::idp2p::core::*};
-    use libp2p::swarm::handler;
     use wasmtime::component::bindgen;
     bindgen!({
         world:"idp2p-message-handler",
@@ -21,20 +20,17 @@ pub mod message_handler {
     }
 
     impl p2p_sender::Host for HostComponent {
+        
+        fn subscribe(&mut self, topic: String) -> Result<(), types::Idp2pError> {
+            todo!()
+        }
+
         fn publish(&mut self, topic: String, payload: Vec<u8>) -> Result<(), types::Idp2pError> {
             // Send network command
             todo!()
         }
 
-        fn subscribe(&mut self, topic: String) -> Result<(), types::Idp2pError> {
-            todo!()
-        }
-
-        fn request(&mut self, addr: String, payload: Vec<u8>) -> Result<(), types::Idp2pError> {
-            todo!()
-        }
-
-        fn response(&mut self, payload: Vec<u8>) -> Result<(), types::Idp2pError> {
+        fn send(&mut self, addr: String, payload: Vec<u8>) -> Result<(), types::Idp2pError> {
             todo!()
         }
     }

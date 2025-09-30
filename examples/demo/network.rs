@@ -30,7 +30,7 @@ pub(crate) enum IdNetworkCommand {
 
 #[derive(NetworkBehaviour)]
 pub(crate) struct Idp2pBehaviour {
-    pub(crate) request_response: ReqResBehaviour<Wasmsg, Wasmsg>,
+    pub(crate) request_response: ReqResBehaviour<Wasmsg, bool>,
     pub(crate) gossipsub: GossipsubBehaviour,
 }
 
@@ -140,10 +140,18 @@ impl IdNetworkEventLoop {
                 request_response::Message::Request {
                     request, channel, ..
                 } => {
-                    
+                    // fire handle wasmsg event
+                    println!("{:?}", request);
+                    self.swarm
+                            .behaviour_mut()
+                            .request_response
+                            .send_response(channel, true)
+                            .unwrap()
                 },
                 request_response::Message::Response { response, .. } => {
-                    
+                    if response {
+                        println!("Message received")
+                    }
                 },
             },
             SwarmEvent::Behaviour(Idp2pBehaviourEvent::RequestResponse(
@@ -196,7 +204,7 @@ pub fn create_gossipsub(key: &Keypair) -> anyhow::Result<GossipsubBehaviour> {
     Ok(gossipsub)
 }
 
-pub fn create_reqres() -> ReqResBehaviour<Wasmsg, Wasmsg> {
+pub fn create_reqres() -> ReqResBehaviour<Wasmsg, bool> {
     libp2p::request_response::json::Behaviour::new(
         [(StreamProtocol::new("/idp2p/1"), ProtocolSupport::Full)],
         libp2p::request_response::Config::default(),

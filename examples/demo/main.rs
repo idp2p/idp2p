@@ -1,4 +1,10 @@
-/*use structopt::StructOpt;
+use std::sync::Arc;
+
+use tracing_subscriber::EnvFilter;
+
+use crate::store::InMemoryKvStore;
+use structopt::StructOpt;
+/*
 use tracing_subscriber::EnvFilter;
 use futures::{channel::mpsc, SinkExt, StreamExt};
 use idp2p_common::identifier::Id;
@@ -18,22 +24,24 @@ mod user;
 mod utils;
 
 mod codec;
-#[derive(Debug, StructOpt)]
-#[structopt(name = "idp2p", about = "Usage of idp2p.")]
-struct Opt {
-    #[structopt(short = "i", long = "id")]
-    name: String,
-}
+
 mod store;
 mod network;*/
 //pub use idp2p_id::types::*;
 mod network;
 mod runtime;
 mod store;
+
+#[derive(Debug, StructOpt)]
+#[structopt(name = "idp2p", about = "Usage of idp2p.")]
+struct Opt {
+    #[structopt(short = "i", long = "id")]
+    name: String,
+}
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     dotenv::dotenv().ok();
-    /*let opt = Opt::from_args();
+    let opt = Opt::from_args();
     color_eyre::install().map_err(anyhow::Error::msg)?;
     tracing_subscriber::fmt()
         .with_env_filter(EnvFilter::from_default_env())
@@ -41,7 +49,7 @@ async fn main() -> anyhow::Result<()> {
         .unwrap();
     let store = Arc::new(InMemoryKvStore::new());
 
-    let (handler_cmd_sender, handler_cmd_receiver) = mpsc::channel(0);
+    /*let (handler_cmd_sender, handler_cmd_receiver) = mpsc::channel(0);
     let (app_event_sender, app_event_receiver) = mpsc::channel(0);
     let (network_cmd_sender, network_cmd_receiver) = mpsc::channel(0);
     let comp_bytes = fs::read("./target/wasm32-unknown-unknown/debug/idp2p_id.wasm")

@@ -9,6 +9,7 @@ pub struct IdEntry {
     pub state: IdState,
     pub inception: IdEventReceipt,
     pub events: BTreeSet<IdEventReceipt>,
+    pub providers: BTreeSet<String>
 }
 
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
@@ -25,7 +26,6 @@ pub enum WasmsgValue {
     Event(IdEvent),
 }
 
-
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
 pub enum IdCommand {
     Create {
@@ -39,7 +39,9 @@ pub enum IdCommand {
 
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
 pub enum IdEvent {
-    Requested(String),
+    Requested {
+        id: String
+    },
     Resolved {
         id: String,
         inception: IdEventReceipt,

@@ -3,10 +3,6 @@ use std::{
     sync::{Arc, Mutex},
 };
 
-use idp2p_common::cbor;
-use libp2p::PeerId;
-use serde::{Deserialize, Serialize, de::DeserializeOwned};
-
 pub struct KvState {
     pub kvdb: HashMap<String, Vec<u8>>,
 }
