@@ -1,5 +1,5 @@
 pub mod message_handler {
-    use crate::runtime::{HostComponent, handler::message_handler::idp2p::core::*};
+    use crate::{network::IdNetworkCommand, runtime::{handler::message_handler::idp2p::core::*, HostComponent}};
     use wasmtime::component::bindgen;
     bindgen!({
         world:"idp2p-message-handler",
@@ -15,18 +15,20 @@ pub mod message_handler {
 
         #[doc = " Put a value in the store."]
         fn put(&mut self, key: String, value: Vec<u8>) -> Result<(), types::Idp2pError> {
-             Ok(self.store.set(&key, &value))
+            Ok(self.store.set(&key, &value))
         }
     }
 
     impl p2p_sender::Host for HostComponent {
-        
-        fn subscribe(&mut self, topic: String) -> Result<(), types::Idp2pError> {
-            todo!()
+        fn publish(&mut self, topic: String, payload: Vec<u8>) -> Result<(), types::Idp2pError> {
+            self.network_cmd_sender.try_send(IdNetworkCommand::Publish {
+                topic: topic.into(),
+                payload: payload,
+            }).unwrap();
+            Ok(())
         }
 
-        fn publish(&mut self, topic: String, payload: Vec<u8>) -> Result<(), types::Idp2pError> {
-            // Send network command
+        fn subscribe(&mut self, topic: String) -> Result<(), types::Idp2pError> {
             todo!()
         }
 
@@ -54,5 +56,4 @@ pub mod message_handler {
             todo!()
         }
     }
-
 }

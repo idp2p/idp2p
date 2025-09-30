@@ -22,8 +22,8 @@ pub(crate) enum IdNetworkCommand {
         req: Wasmsg,
     },
     Publish {
-        topic: TopicHash,
-        payload: Wasmsg,
+        topic: String,
+        payload: Vec<u8>,
     },
     Subscribe(IdentTopic),
 }
@@ -105,7 +105,8 @@ impl IdNetworkEventLoop {
                     .gossipsub
                     .subscribe(&ident_topic)?;
                 let data = idp2p_common::cbor::encode(&payload);
-                self.swarm.behaviour_mut().gossipsub.publish(topic, data)?;
+                let topichash = TopicHash::from_raw(topic.as_str());
+                self.swarm.behaviour_mut().gossipsub.publish(topichash, data)?;
             }
             Subscribe(topic) => {
                 info!(
