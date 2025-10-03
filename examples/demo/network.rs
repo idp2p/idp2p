@@ -1,25 +1,37 @@
-use futures::{channel::mpsc, future::FutureExt, select, stream::StreamExt, SinkExt};
+use futures::{SinkExt, channel::mpsc, future::FutureExt, select, stream::StreamExt};
 
 use idp2p_common::wasmsg::Wasmsg;
+use idp2p_id::types::IdEventReceipt;
 use libp2p::{
+    Multiaddr, PeerId, StreamProtocol, Swarm,
     gossipsub::{self, Behaviour as GossipsubBehaviour, IdentTopic, TopicHash},
     identity::Keypair,
     noise,
-    request_response::{self, json::Behaviour as ReqResBehaviour, ProtocolSupport},
-    swarm::{NetworkBehaviour, SwarmEvent},
-    tcp, yamux, PeerId, StreamProtocol, Swarm,
+    request_response::{self, ProtocolSupport, cbor::Behaviour as ReqResBehaviour},
+    swarm::{NetworkBehaviour, SwarmEvent, dial_opts::DialOpts},
+    tcp, yamux,
 };
 use std::{
+    collections::{BTreeSet, HashMap},
     hash::{DefaultHasher, Hash, Hasher},
-    sync::Arc,
+    sync::{Arc, Mutex},
     time::Duration,
 };
 use tracing::info;
 
-pub(crate) enum IdNetworkCommand {
+// pending request to dial
+// pending response to deliver
+
+pub trait IdNetworkStore {
+    fn set(&self, key: &str, value: &[u8]);
+    fn get(&self, key: &str) -> Option<Vec<u8>>;
+}
+
+pub enum IdNetworkCommand {
     SendRequest {
-        peer: PeerId,
-        req: Wasmsg,
+        peer_id: PeerId,
+        peer_addr: Multiaddr,
+        payload: Vec<u8>
     },
     Publish {
         topic: String,
@@ -28,30 +40,38 @@ pub(crate) enum IdNetworkCommand {
     Subscribe(IdentTopic),
 }
 
+pub enum IdNetworkEvent {}
+
 #[derive(NetworkBehaviour)]
-pub(crate) struct Idp2pBehaviour {
-    pub(crate) request_response: ReqResBehaviour<Wasmsg, bool>,
-    pub(crate) gossipsub: GossipsubBehaviour,
+pub struct Idp2pBehaviour {
+    pub request_response: ReqResBehaviour<Vec<u8>, bool>,
+    pub gossipsub: GossipsubBehaviour,
 }
 
-pub(crate) struct IdNetworkEventLoop {
+pub struct IdNetworkEventLoop<S: IdNetworkStore> {
+    store: Arc<S>,
     swarm: Swarm<Idp2pBehaviour>,
-    //event_sender: mpsc::Sender<IdAppEvent>,
+    event_sender: mpsc::Sender<IdNetworkEvent>,
     cmd_receiver: mpsc::Receiver<IdNetworkCommand>,
-    //id_handler: IdMessageHandler<S, V>,
+    pending_requests: HashMap<PeerId, Vec<Vec<u8>>>,
 }
 
-impl IdNetworkEventLoop {
+impl<S: IdNetworkStore> IdNetworkEventLoop<S> {
     pub fn new(
         port: u16,
+        store: S,
+        event_sender: mpsc::Sender<IdNetworkEvent>,
         cmd_receiver: mpsc::Receiver<IdNetworkCommand>,
     ) -> anyhow::Result<(PeerId, Self)> {
         let swarm = create_swarm(port)?;
         Ok((
             swarm.local_peer_id().to_owned(),
             Self {
+                store: Arc::new(store),
                 swarm,
                 cmd_receiver,
+                event_sender,
+                pending_requests: HashMap::new(),
             },
         ))
     }
@@ -82,31 +102,46 @@ impl IdNetworkEventLoop {
     async fn handle_command(&mut self, cmd: IdNetworkCommand) -> anyhow::Result<()> {
         use IdNetworkCommand::*;
         match cmd {
-            SendRequest { peer, req } => {
-                let _ = self
-                    .swarm
-                    .behaviour_mut()
-                    .request_response
-                    .send_request(&peer, req);
+            SendRequest {
+                peer_id,
+                peer_addr,
+                payload,
+            } => {
+                if self.swarm.is_connected(&peer_id) {
+                    let _ = self
+                        .swarm
+                        .behaviour_mut()
+                        .request_response
+                        .send_request(&peer_id, payload);
+                } else {
+                    // Queue the request
+                    self.pending_requests
+                        .entry(peer_id)
+                        .or_insert_with(Vec::new)
+                        .push(payload);
+
+                    self.swarm.dial(
+                        DialOpts::peer_id(peer_id)
+                            .addresses(vec![peer_addr])
+                            .build(),
+                    )?;
+                }
             }
             Publish { topic, payload } => {
                 info!(
                     "Publishing message: {topic}, payload: {payload:?}",
                     topic = topic.as_str()
                 );
-                /*let mesh_peers = self.swarm.behaviour_mut().gossipsub.mesh_peers(&topic);
-                for mpeer in mesh_peers {
-                    info!("Mesh peer: {}", mpeer);
-                }*/
-
                 let ident_topic = IdentTopic::new(topic.as_str());
                 self.swarm
                     .behaviour_mut()
                     .gossipsub
                     .subscribe(&ident_topic)?;
-                let data = idp2p_common::cbor::encode(&payload);
                 let topichash = TopicHash::from_raw(topic.as_str());
-                self.swarm.behaviour_mut().gossipsub.publish(topichash, data)?;
+                self.swarm
+                    .behaviour_mut()
+                    .gossipsub
+                    .publish(topichash, payload)?;
             }
             Subscribe(topic) => {
                 info!(
@@ -123,15 +158,37 @@ impl IdNetworkEventLoop {
         &mut self,
         event: SwarmEvent<Idp2pBehaviourEvent>,
     ) -> anyhow::Result<()> {
-
         match event {
+            SwarmEvent::NewListenAddr { address, .. } => {
+                let msg = format!("Listening on {address}");
+
+                println!("{msg}");
+            }
+            SwarmEvent::ConnectionEstablished { peer_id, .. } => {
+                println!("Connected to peer: {}", peer_id);
+
+                // Send all pending requests for this peer
+                if let Some(pending) = self.pending_requests.remove(&peer_id) {
+                    for req in pending {
+                        let _ = self
+                            .swarm
+                            .behaviour_mut()
+                            .request_response
+                            .send_request(&peer_id, req);
+                    }
+                }
+            }
             SwarmEvent::Behaviour(Idp2pBehaviourEvent::Gossipsub(event)) => match event {
                 libp2p::gossipsub::Event::Message {
                     propagation_source: _,
                     message_id: _,
                     message,
                 } => {
-                    
+                    /*
+                     if message.is_notify_message() {
+                        send a request to provided peer to get actual message
+                     }
+                    */
                 }
                 _ => {}
             },
@@ -141,37 +198,24 @@ impl IdNetworkEventLoop {
                 request_response::Message::Request {
                     request, channel, ..
                 } => {
-                    // fire handle wasmsg event
                     println!("{:?}", request);
+                    // get message content from store
+                    // authorize the client
+                    // send message
                     self.swarm
-                            .behaviour_mut()
-                            .request_response
-                            .send_response(channel, true)
-                            .unwrap()
-                },
+                        .behaviour_mut()
+                        .request_response
+                        .send_response(channel, true)
+                        .unwrap()
+                }
                 request_response::Message::Response { response, .. } => {
                     if response {
+                        // handle the message with runtime
                         println!("Message received")
                     }
-                },
+                }
             },
-            SwarmEvent::Behaviour(Idp2pBehaviourEvent::RequestResponse(
-                request_response::Event::OutboundFailure {
-                    peer,
-                    request_id,
-                    error,
-                },
-            )) => {
-                eprintln!(
-                    "Outbound request to peer {:?} (ID = {:?}) failed: {:?}",
-                    peer, request_id, error
-                );
-            }
-            SwarmEvent::NewListenAddr { address, .. } => {
-                let msg = format!("Listening on {address}");
 
-                println!("{msg}");
-            }
             other => {
                 println!("Swarm event: {other:?}");
             }
@@ -205,8 +249,8 @@ pub fn create_gossipsub(key: &Keypair) -> anyhow::Result<GossipsubBehaviour> {
     Ok(gossipsub)
 }
 
-pub fn create_reqres() -> ReqResBehaviour<Wasmsg, bool> {
-    libp2p::request_response::json::Behaviour::new(
+pub fn create_reqres() -> ReqResBehaviour<Vec<u8>, bool> {
+    libp2p::request_response::cbor::Behaviour::new(
         [(StreamProtocol::new("/idp2p/1"), ProtocolSupport::Full)],
         libp2p::request_response::Config::default(),
     )

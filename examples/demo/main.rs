@@ -31,6 +31,7 @@ mod network;*/
 mod network;
 mod runtime;
 mod store;
+mod app;
 
 #[derive(Debug, StructOpt)]
 #[structopt(name = "idp2p", about = "Usage of idp2p.")]
@@ -38,6 +39,7 @@ struct Opt {
     #[structopt(short = "i", long = "id")]
     name: String,
 }
+
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     dotenv::dotenv().ok();

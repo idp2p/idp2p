@@ -52,8 +52,8 @@ Sustainable, Portable, Resolvable(p2p or web)
 
 #### P2P
 
-- WASM COMPONENT
-- MESSAGE HANDLER
-- VERIFICATION ID AND EVENT
-- STORE
+- Id owner has a public and private channel to communicate
+- Id owner has a public provider peer to meet other id, publish events, send messages
+- Some peers may use shared store(pending messages and requests should be inside it)
+- 
 

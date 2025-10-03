@@ -3,6 +3,11 @@ use std::{
     sync::{Arc, Mutex},
 };
 
+pub trait IdStore {
+    fn set(&self, key: &str, value: &[u8]);
+    fn get(&self, key: &str) -> Option<Vec<u8>>;
+}
+
 pub struct KvState {
     pub kvdb: HashMap<String, Vec<u8>>,
 }

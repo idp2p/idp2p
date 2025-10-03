@@ -13,7 +13,7 @@ use crate::{
     store::InMemoryKvStore,
 };
 
-mod handler;
+//mod handler;
 pub mod verifier;
 struct HostComponent {
     runtime: Arc<WasmRuntime>,
@@ -96,12 +96,12 @@ impl WasmRuntime {
             .unwrap()
             .to_owned();
         // Instantiate and call the primary component
-        let (handler, _) = handler::message_handler::Idp2pMessageHandler::instantiate(
+        /*let (handler, _) = handler::message_handler::Idp2pMessageHandler::instantiate(
             &mut store,
             &comp,
             &self.msg_linker,
         )?;
-        handler.call_handle(store, msg).unwrap();
+        handler.call_handle(store, msg).unwrap();*/
         Ok(())
     }
 
@@ -130,7 +130,7 @@ impl WasmRuntime {
     }
 }
 
-impl From<handler::message_handler::idp2p::core::types::IdProof>
+/*impl From<handler::message_handler::idp2p::core::types::IdProof>
     for verifier::id_verifier::idp2p::core::types::IdProof
 {
     fn from(value: handler::message_handler::idp2p::core::types::IdProof) -> Self {
@@ -157,7 +157,7 @@ impl From<handler::message_handler::idp2p::core::types::IdEventReceipt>
             proofs: value.proofs.into_iter().map(|p| p.into()).collect(),
         }
     }
-}
+}*/
 
 fn convert_to_component(bytes: &[u8]) -> Vec<u8> {
     wit_component::ComponentEncoder::default()

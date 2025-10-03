@@ -4,6 +4,14 @@ interface types {
         message: string,
     }
 
+    record idp2p-message-request {
+        from-peer-addr: string,
+        from-peer-id: string,
+        from-id: string,
+        message-id: string
+    }
+
+
     record id-claim-value {
         id: string,
         payload: option<list<u8>>,

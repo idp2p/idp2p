@@ -9,7 +9,6 @@ pub struct IdEntry {
     pub state: IdState,
     pub inception: IdEventReceipt,
     pub events: BTreeSet<IdEventReceipt>,
-    pub providers: BTreeSet<String>
 }
 
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
@@ -22,11 +21,27 @@ pub struct Wasmsg {
 
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
 pub enum WasmsgValue {
-    Command(IdCommand),
-    Event(IdEvent),
+    IdPing {
+        from_id: String,
+        from_peer_id: String,
+        from_peer_addr: String,
+        from_inception: IdEventReceipt,
+        from_events: BTreeSet<IdEventReceipt>,
+        to_id: String,
+    },
+    IdPong {
+        from_id: String,
+        from_inception: IdEventReceipt,
+        from_events: BTreeSet<IdEventReceipt>,
+        to_id: String,
+    },
+    IdNotifyEvent(IdEventReceipt),
+    IdNotifyMessage {
+        
+    }
 }
 
-#[derive(Debug, PartialEq, Serialize, Deserialize)]
+/*#[derive(Debug, PartialEq, Serialize, Deserialize)]
 pub enum IdCommand {
     Create {
         id: String,
@@ -48,4 +63,4 @@ pub enum IdEvent {
         events: BTreeSet<IdEventReceipt>,
     },
     Notified(IdEventReceipt),
-}
+}*/
