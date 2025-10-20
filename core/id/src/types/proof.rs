@@ -16,6 +16,7 @@ pub struct IdProof {
     pub created: String,
     pub purpose: String,
     pub signature: Vec<u8>,
+    pub previous: Option<String>,
 }
 
 impl IdProof {

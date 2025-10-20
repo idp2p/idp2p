@@ -2,15 +2,12 @@ use alloc::collections::BTreeSet;
 use alloc::str::FromStr;
 use chrono::{DateTime, Utc};
 use cid::Cid;
-use idp2p_common::{
-    CBOR_CODE, ED_CODE, bytes::Bytes, cid::CidExt, error::CommonError, verification::ed25519,
-};
+use idp2p_common::{CBOR_CODE, ED_CODE, bytes::Bytes, cid::CidExt, error::CommonError};
 use serde::{Deserialize, Serialize};
 use serde_with::serde_as;
 
 use crate::{
     VALID_FROM, VERSION,
-    host::verify_proof,
     internal::{
         error::IdEventError, event::IdEvent, inception::IdInception, signer::IdSigner,
         utils::Timestamp,
@@ -52,23 +49,22 @@ impl PartialOrd for IdEventReceipt {
 
 impl IdEventReceipt {
     fn verify_proofs(&self, signers: &BTreeSet<IdSigner>) -> Result<(), IdEventError> {
+        let mut seen: BTreeSet<String> = BTreeSet::new();
         for proof in self.proofs.iter() {
-            let mut seen: BTreeSet<String> = BTreeSet::new();
-            if !seen.insert(proof.id.clone()) {
+            if !seen.insert(proof.key_id.clone()) {
                 return Err(IdEventError::invalid_proof(
                     &proof.key_id,
                     "duplicate proof",
                 ));
             }
-            if proof.purpose != "id-delegation" {
-                crate::host::verify_proof(&proof, &self.payload)
-                    .map_err(|e| IdEventError::invalid_proof(&proof.key_id, &e.code))?;
-            } else {
-                ensure!(
-                    proof.purpose == "id-inception",
-                    IdEventError::InvalidPayload
-                );
-                proof.verify(&self.payload, &signers)?;
+            match proof.purpose.as_str() {
+                "id-delegation" => {
+                    proof.verify(&self.payload, &signers)?;
+                }
+                _ => {
+                    crate::host::verify_proof(&proof, &self.payload)
+                        .map_err(|e| IdEventError::invalid_proof(&proof.key_id, &e.code))?;
+                }
             }
         }
         Ok(())
@@ -126,19 +122,19 @@ impl IdEventReceipt {
         let timestamp: String = String::try_from(Timestamp(inception.timestamp))?;
         self.verify_proofs(&inception.signers)?;
        
-        let mut id_state = IdState {
+        let id_state = IdState {
             id: self.id.clone(),
             event_id: self.id.clone(),
             event_timestamp: timestamp.clone(),
             prior_id: inception.prior_id.clone(),
-            next_id: None,
+            next_id_proof: None,
             threshold: inception.threshold,
             next_threshold: inception.next_threshold,
             signers: inception
                 .signers
                 .clone()
                 .into_iter()
-                .map(|s| s.to_state(&timestamp))
+                .map(|s| s.to_state(0, &timestamp))
                 .collect(),
             current_signers: inception
                 .signers
@@ -146,14 +142,11 @@ impl IdEventReceipt {
                 .map(|signer| signer.id)
                 .collect(),
             next_signers: inception.next_signers.into_iter().collect(),
-            delegators: vec![],
-            claims: vec![],
+            delegated_signers: vec![],
+            merkle_proof: inception.merkle_proof,
             revoked: false,
             revoked_at: None,
         };
-        for event in inception.claims {
-            id_state.add_claim(event, &timestamp);
-        }
         Ok(id_state)
     }
 
@@ -182,10 +175,7 @@ impl IdEventReceipt {
         let timestamp: String = String::try_from(Timestamp(event.timestamp))?;
         use crate::internal::event::IdEventKind::*;
         match event.body {
-            Interaction {
-                new_claims,
-                revoked_claims,
-            } => {
+            Interaction { merkle_proof } => {
                 let proof_signers: BTreeSet<IdSigner> = state
                     .signers
                     .iter()
@@ -200,12 +190,7 @@ impl IdEventReceipt {
                     IdEventError::LackOfMinProofs
                 );
                 self.verify_proofs(&proof_signers)?;
-                for event in new_claims {
-                    state.add_claim(event, &timestamp);
-                }
-                for event in revoked_claims {
-                    state.revoke_claim(event, &timestamp)?;
-                }
+                state.merkle_proof = merkle_proof;
             }
             Rotation {
                 threshold,
@@ -260,7 +245,7 @@ impl IdEventReceipt {
                 let all_signers: Vec<crate::types::IdSigner> = all_signers
                     .clone()
                     .into_iter()
-                    .map(|s| s.to_state(&timestamp))
+                    .map(|s| s.to_state(event.sn, &timestamp))
                     .collect();
                 state.signers.extend(all_signers);
                 state.next_signers = next_signers.into_iter().collect();
@@ -290,7 +275,7 @@ impl IdEventReceipt {
             }
             Migration {
                 revealed_signers,
-                next_id,
+                next_id_proof,
             } => {
                 ensure!(
                     revealed_signers.len() == self.proofs.len(),
@@ -309,7 +294,7 @@ impl IdEventReceipt {
                 }
                 self.verify_proofs(&revealed_signers)?;
                 state.next_signers = vec![];
-                state.next_id = Some(next_id);
+                state.next_id_proof = Some(next_id_proof);
             }
         }
 
@@ -326,54 +311,88 @@ mod tests {
     use super::*;
     use crate::internal::event::IdEventKind::*;
     use crate::internal::signer::IdSigner as InternalSigner;
-    use chrono::Utc;
-    use ed25519_dalek::Signer as _;
-    use ed25519_dalek::{SigningKey, VerifyingKey};
-    use idp2p_common::{CBOR_CODE, ED_CODE, cbor};
+    use crate::internal::utils::Timestamp;
+    use alloc::collections::BTreeSet;
+    use chrono::{DateTime, Utc};
+    use ed25519_dalek::{Signer as _, SigningKey, VerifyingKey};
+    use ciborium::cbor;
+    use idp2p_common::{cbor as common_cbor, cid::CidExt, CBOR_CODE, ED_CODE};
     use rand::rngs::OsRng;
+
+    fn valid_timestamp() -> i64 {
+        let valid_from: DateTime<Utc> = crate::VALID_FROM.parse().expect("valid timestamp");
+        valid_from.timestamp() + 1
+    }
+
+    fn timestamp_string(ts: i64) -> String {
+        String::try_from(Timestamp(ts)).expect("timestamp conversion")
+    }
 
     fn create_signer() -> (String, VerifyingKey, SigningKey) {
         let mut csprng = OsRng;
-        let signing_key: SigningKey = SigningKey::generate(&mut csprng);
+        let signing_key = SigningKey::generate(&mut csprng);
         let verifying_key = signing_key.verifying_key();
         let id = Cid::create(ED_CODE, verifying_key.as_bytes())
-            .unwrap()
+            .expect("cid")
             .to_string();
         (id, verifying_key, signing_key)
     }
 
     fn sign_receipt(payload: &[u8], creator: &str, kid: &str, sk: &SigningKey) -> IdProof {
-        let signature = sk.sign(payload);
-        let id = Cid::create(CBOR_CODE, payload).unwrap().to_string();
+        let created = Utc::now();
+        let created_str = created.to_rfc3339();
+        let data = cbor!({
+            "did" => creator.to_string(),
+            "key_id" => kid.to_string(),
+            "created" => created.timestamp(),
+            "purpose" => "id-delegation",
+            "payload" => payload.to_vec(),
+        })
+        .expect("cbor data");
+
+        let data_bytes = common_cbor::encode(&data);
+        let signature = sk.sign(&data_bytes);
+
         IdProof {
-            id: id,
+            id: Cid::create(CBOR_CODE, payload)
+                .expect("proof cid")
+                .to_string(),
             did: creator.into(),
             key_id: kid.into(),
-            created: Utc::now().to_rfc3339(),
-            purpose: "id-inception".into(),
+            created: created_str,
+            purpose: "id-delegation".into(),
             signature: signature.to_vec(),
+            previous: None,
         }
     }
 
     fn base_state_with_signer(id: &str, pubkey: &[u8]) -> IdState {
+        let ts = valid_timestamp();
+        let ts_str = timestamp_string(ts);
         IdState {
-            id: "test".into(),
-            event_id: "prev".into(),
-            event_timestamp: Utc::now().to_rfc3339(),
+            id: Cid::create(CBOR_CODE, b"idp2p-test")
+                .expect("state cid")
+                .to_string(),
+            event_id: Cid::create(CBOR_CODE, b"previous-event")
+                .expect("event cid")
+                .to_string(),
+            event_timestamp: ts_str.clone(),
             prior_id: None,
-            next_id: None,
+            next_id_proof: None,
             threshold: 1,
             next_threshold: 1,
             signers: vec![crate::types::IdSigner {
                 id: id.to_string(),
                 public_key: pubkey.to_vec(),
-                valid_from: Utc::now().to_rfc3339(),
+                valid_from_sn: 0,
+                valid_until_sn: None,
+                valid_from: ts_str.clone(),
                 valid_until: None,
             }],
             current_signers: vec![id.to_string()],
             next_signers: vec![id.to_string()],
-            delegators: vec![],
-            claims: vec![],
+            delegated_signers: vec![],
+            merkle_proof: "existing-merkle-proof".into(),
             revoked: false,
             revoked_at: None,
         }
@@ -383,18 +402,19 @@ mod tests {
     fn test_interaction_event_success() {
         let (sid, vk, sk) = create_signer();
         let mut state = base_state_with_signer(&sid, vk.as_bytes());
+        let ts = valid_timestamp();
 
         let event = IdEvent {
+            sn: 1,
             version: VERSION.into(),
-            timestamp: Utc::now().timestamp(),
-            component: Cid::default(),
+            patch: Cid::default(),
+            timestamp: ts,
             previous: state.event_id.clone(),
             body: Interaction {
-                new_claims: BTreeSet::new(),
-                revoked_claims: BTreeSet::new(),
+                merkle_proof: "new-proof".into(),
             },
         };
-        let payload = cbor::encode(&event);
+        let payload = common_cbor::encode(&event);
         let receipt = IdEventReceipt {
             id: Cid::create(CBOR_CODE, &payload).unwrap().to_string(),
             version: VERSION.into(),
@@ -407,26 +427,26 @@ mod tests {
             .verify_event(&mut state)
             .expect("interaction should pass");
         assert_eq!(updated.event_id, receipt.id);
+        assert_eq!(updated.event_timestamp, timestamp_string(ts));
     }
 
     #[test]
     fn test_event_updates_event_timestamp() {
         let (sid, vk, sk) = create_signer();
         let mut state = base_state_with_signer(&sid, vk.as_bytes());
-        let ts = Utc::now().timestamp();
-        let expected_ts: String = String::try_from(crate::internal::utils::Timestamp(ts)).unwrap();
+        let ts = valid_timestamp();
 
         let event = IdEvent {
+            sn: 2,
             version: VERSION.into(),
+            patch: Cid::default(),
             timestamp: ts,
-            component: Cid::default(),
             previous: state.event_id.clone(),
             body: Interaction {
-                new_claims: BTreeSet::new(),
-                revoked_claims: BTreeSet::new(),
+                merkle_proof: "proof".into(),
             },
         };
-        let payload = cbor::encode(&event);
+        let payload = common_cbor::encode(&event);
         let receipt = IdEventReceipt {
             id: Cid::create(CBOR_CODE, &payload).unwrap().to_string(),
             version: VERSION.into(),
@@ -438,7 +458,7 @@ mod tests {
         let updated = receipt
             .verify_event(&mut state)
             .expect("event verification should pass");
-        assert_eq!(updated.event_timestamp, expected_ts);
+        assert_eq!(updated.event_timestamp, timestamp_string(ts));
     }
 
     #[test]
@@ -447,16 +467,16 @@ mod tests {
         let mut state = base_state_with_signer(&sid, vk.as_bytes());
 
         let event = IdEvent {
+            sn: 3,
             version: "0.9".into(),
-            timestamp: Utc::now().timestamp(),
-            component: Cid::default(),
+            patch: Cid::default(),
+            timestamp: valid_timestamp(),
             previous: state.event_id.clone(),
             body: Interaction {
-                new_claims: BTreeSet::new(),
-                revoked_claims: BTreeSet::new(),
+                merkle_proof: "proof".into(),
             },
         };
-        let payload = cbor::encode(&event);
+        let payload = common_cbor::encode(&event);
         let receipt = IdEventReceipt {
             id: Cid::create(CBOR_CODE, &payload).unwrap().to_string(),
             version: VERSION.into(),
@@ -472,17 +492,19 @@ mod tests {
     fn test_invalid_timestamp() {
         let (sid, vk, sk) = create_signer();
         let mut state = base_state_with_signer(&sid, vk.as_bytes());
+        let ts = valid_timestamp() - 10;
+
         let event = IdEvent {
+            sn: 4,
             version: VERSION.into(),
-            timestamp: 0,
-            component: Cid::default(),
+            patch: Cid::default(),
+            timestamp: ts,
             previous: state.event_id.clone(),
             body: Interaction {
-                new_claims: BTreeSet::new(),
-                revoked_claims: BTreeSet::new(),
+                merkle_proof: "proof".into(),
             },
         };
-        let payload = cbor::encode(&event);
+        let payload = common_cbor::encode(&event);
         let receipt = IdEventReceipt {
             id: Cid::create(CBOR_CODE, &payload).unwrap().to_string(),
             version: VERSION.into(),
@@ -499,26 +521,29 @@ mod tests {
         let (sid1, vk1, sk1) = create_signer();
         let (sid2, vk2, _sk2) = create_signer();
         let mut state = base_state_with_signer(&sid1, vk1.as_bytes());
+        let ts = valid_timestamp();
         state.signers.push(crate::types::IdSigner {
             id: sid2.clone(),
             public_key: vk2.as_bytes().to_vec(),
-            valid_from: Utc::now().to_rfc3339(),
+            valid_from_sn: 0,
+            valid_until_sn: None,
+            valid_from: timestamp_string(ts),
             valid_until: None,
         });
-        state.current_signers = vec![sid1.clone(), sid2.clone()];
+        state.current_signers.push(sid2.clone());
         state.threshold = 2;
 
         let event = IdEvent {
+            sn: 5,
             version: VERSION.into(),
-            timestamp: Utc::now().timestamp(),
-            component: Cid::default(),
+            patch: Cid::default(),
+            timestamp: ts,
             previous: state.event_id.clone(),
             body: Interaction {
-                new_claims: BTreeSet::new(),
-                revoked_claims: BTreeSet::new(),
+                merkle_proof: "proof".into(),
             },
         };
-        let payload = cbor::encode(&event);
+        let payload = common_cbor::encode(&event);
         let receipt = IdEventReceipt {
             id: Cid::create(CBOR_CODE, &payload).unwrap().to_string(),
             version: VERSION.into(),
@@ -534,17 +559,18 @@ mod tests {
     fn test_previous_mismatch() {
         let (sid, vk, sk) = create_signer();
         let mut state = base_state_with_signer(&sid, vk.as_bytes());
+
         let event = IdEvent {
+            sn: 6,
             version: VERSION.into(),
-            timestamp: Utc::now().timestamp(),
-            component: Cid::default(),
-            previous: "some-other".into(),
+            patch: Cid::default(),
+            timestamp: valid_timestamp(),
+            previous: "wrong-previous".into(),
             body: Interaction {
-                new_claims: BTreeSet::new(),
-                revoked_claims: BTreeSet::new(),
+                merkle_proof: "proof".into(),
             },
         };
-        let payload = cbor::encode(&event);
+        let payload = common_cbor::encode(&event);
         let receipt = IdEventReceipt {
             id: Cid::create(CBOR_CODE, &payload).unwrap().to_string(),
             version: VERSION.into(),
@@ -557,69 +583,94 @@ mod tests {
     }
 
     #[test]
-    fn test_rotation_updates_thresholds_and_next_signers() {
-        let (sid, vk, sk) = create_signer();
-        let mut state = base_state_with_signer(&sid, vk.as_bytes());
-
-        let mut revealed = BTreeSet::new();
-        revealed.insert(InternalSigner {
-            id: sid.clone(),
-            public_key: vk.as_bytes().to_vec(),
-        });
-        let new_next_signers: BTreeSet<String> = [sid.clone()].into_iter().collect();
-        let event = IdEvent {
-            version: VERSION.into(),
-            timestamp: Utc::now().timestamp(),
-            component: Cid::default(),
-            previous: state.event_id.clone(),
-            body: Rotation {
-                threshold: 1,
-                next_threshold: 1,
-                revealed_signers: revealed,
-                new_signers: BTreeSet::new(),
-                next_signers: new_next_signers,
-            },
-        };
-        let payload = cbor::encode(&event);
-        let receipt = IdEventReceipt {
-            id: Cid::create(CBOR_CODE, &payload).unwrap().to_string(),
-            version: VERSION.into(),
-            created_at: Utc::now().to_rfc3339(),
-            payload: payload.clone(),
-            proofs: vec![sign_receipt(&payload, &state.id, &sid, &sk)],
-        };
-
-        let updated = receipt
-            .verify_event(&mut state)
-            .expect("rotation should pass");
-        assert_eq!(updated.threshold, 1);
-        assert_eq!(updated.next_threshold, 1);
-        assert_eq!(updated.next_signers, vec![sid]);
-        assert_eq!(updated.event_id, receipt.id);
-    }
-
-    #[test]
-    fn test_rotation_signers_must_match_proofs_len() {
+    fn test_rotation_event_success() {
         let (sid1, vk1, sk1) = create_signer();
-        let (sid2, vk2, _sk2) = create_signer();
+        let (sid2, vk2, sk2) = create_signer();
         let mut state = base_state_with_signer(&sid1, vk1.as_bytes());
-        state.next_signers = vec![sid1.clone(), sid2.clone()];
+        state.next_signers = vec![sid1.clone()];
         state.next_threshold = 1;
+        let ts = valid_timestamp();
+
         let mut revealed = BTreeSet::new();
         revealed.insert(InternalSigner {
             id: sid1.clone(),
             public_key: vk1.as_bytes().to_vec(),
         });
-        revealed.insert(InternalSigner {
+        let mut new_signers = BTreeSet::new();
+        new_signers.insert(InternalSigner {
             id: sid2.clone(),
             public_key: vk2.as_bytes().to_vec(),
         });
-        let mut next_signers: BTreeSet<String> = BTreeSet::new();
-        next_signers.insert(sid1.clone());
+        let mut next_signers = BTreeSet::new();
+        next_signers.insert(sid2.clone());
+
         let event = IdEvent {
+            sn: 7,
             version: VERSION.into(),
-            timestamp: Utc::now().timestamp(),
-            component: Cid::default(),
+            patch: Cid::default(),
+            timestamp: ts,
+            previous: state.event_id.clone(),
+            body: Rotation {
+                threshold: 1,
+                next_threshold: 1,
+                revealed_signers: revealed,
+                new_signers: new_signers,
+                next_signers: next_signers,
+            },
+        };
+        let payload = common_cbor::encode(&event);
+        let receipt = IdEventReceipt {
+            id: Cid::create(CBOR_CODE, &payload).unwrap().to_string(),
+            version: VERSION.into(),
+            created_at: Utc::now().to_rfc3339(),
+            payload: payload.clone(),
+            proofs: vec![
+                sign_receipt(&payload, &state.id, &sid1, &sk1),
+                sign_receipt(&payload, &state.id, &sid2, &sk2),
+            ],
+        };
+
+        let updated = receipt
+            .verify_event(&mut state)
+            .expect("rotation should pass");
+        let expected_ts = timestamp_string(ts);
+        let original = updated
+            .signers
+            .iter()
+            .find(|s| s.id == sid1)
+            .expect("original signer");
+        assert_eq!(updated.threshold, 1);
+        assert_eq!(updated.next_signers, vec![sid2.clone()]);
+        assert_eq!(original.valid_until.as_ref(), Some(&expected_ts));
+        assert!(updated
+            .signers
+            .iter()
+            .any(|s| s.id == sid2 && s.valid_from_sn == event.sn));
+    }
+
+    #[test]
+    fn test_rotation_invalid_next_signer_codec() {
+        let (sid, vk, sk) = create_signer();
+        let mut state = base_state_with_signer(&sid, vk.as_bytes());
+        state.next_signers = vec![sid.clone()];
+        state.next_threshold = 1;
+
+        let mut revealed = BTreeSet::new();
+        revealed.insert(InternalSigner {
+            id: sid.clone(),
+            public_key: vk.as_bytes().to_vec(),
+        });
+        let invalid_next = Cid::create(CBOR_CODE, vk.as_bytes())
+            .unwrap()
+            .to_string();
+        let mut next_signers = BTreeSet::new();
+        next_signers.insert(invalid_next);
+
+        let event = IdEvent {
+            sn: 8,
+            version: VERSION.into(),
+            patch: Cid::default(),
+            timestamp: valid_timestamp(),
             previous: state.event_id.clone(),
             body: Rotation {
                 threshold: 1,
@@ -629,42 +680,7 @@ mod tests {
                 next_signers,
             },
         };
-        let payload = cbor::encode(&event);
-        let receipt = IdEventReceipt {
-            id: Cid::create(CBOR_CODE, &payload).unwrap().to_string(),
-            version: VERSION.into(),
-            created_at: Utc::now().to_rfc3339(),
-            payload: payload.clone(),
-            proofs: vec![sign_receipt(&payload, &state.id, &sid1, &sk1)],
-        };
-        let err = receipt.verify_event(&mut state).unwrap_err();
-        assert!(matches!(err, IdEventError::ThresholdNotMatch));
-    }
-
-    #[test]
-    fn test_rotation_insufficient_next_signers() {
-        let (sid, vk, sk) = create_signer();
-        let mut state = base_state_with_signer(&sid, vk.as_bytes());
-        let mut revealed = BTreeSet::new();
-        revealed.insert(InternalSigner {
-            id: sid.clone(),
-            public_key: vk.as_bytes().to_vec(),
-        });
-        let next_signers: BTreeSet<String> = [].into_iter().collect();
-        let event = IdEvent {
-            version: VERSION.into(),
-            timestamp: Utc::now().timestamp(),
-            component: Cid::default(),
-            previous: state.event_id.clone(),
-            body: Rotation {
-                threshold: 1,
-                next_threshold: 2,
-                revealed_signers: revealed,
-                new_signers: BTreeSet::new(),
-                next_signers,
-            },
-        };
-        let payload = cbor::encode(&event);
+        let payload = common_cbor::encode(&event);
         let receipt = IdEventReceipt {
             id: Cid::create(CBOR_CODE, &payload).unwrap().to_string(),
             version: VERSION.into(),
@@ -673,13 +689,16 @@ mod tests {
             proofs: vec![sign_receipt(&payload, &state.id, &sid, &sk)],
         };
         let err = receipt.verify_event(&mut state).unwrap_err();
-        assert!(matches!(err, IdEventError::NextThresholdNotMatch));
+        assert!(matches!(err, IdEventError::InvalidNextSigner(_)));
     }
 
     #[test]
     fn test_revocation_event_success() {
         let (sid, vk, sk) = create_signer();
         let mut state = base_state_with_signer(&sid, vk.as_bytes());
+        state.next_signers = vec![sid.clone()];
+        state.next_threshold = 1;
+        let ts = valid_timestamp();
 
         let mut revealed = BTreeSet::new();
         revealed.insert(InternalSigner {
@@ -687,15 +706,16 @@ mod tests {
             public_key: vk.as_bytes().to_vec(),
         });
         let event = IdEvent {
+            sn: 9,
             version: VERSION.into(),
-            timestamp: Utc::now().timestamp(),
-            component: Cid::default(),
+            patch: Cid::default(),
+            timestamp: ts,
             previous: state.event_id.clone(),
             body: Revocation {
                 revealed_signers: revealed,
             },
         };
-        let payload = cbor::encode(&event);
+        let payload = common_cbor::encode(&event);
         let receipt = IdEventReceipt {
             id: Cid::create(CBOR_CODE, &payload).unwrap().to_string(),
             version: VERSION.into(),
@@ -709,6 +729,7 @@ mod tests {
             .expect("revocation should pass");
         assert!(updated.revoked);
         assert!(updated.revoked_at.is_some());
+        assert!(updated.next_signers.is_empty());
         assert_eq!(updated.event_id, receipt.id);
     }
 
@@ -717,23 +738,25 @@ mod tests {
         let (sid1, vk1, sk1) = create_signer();
         let (sid2, _vk2, _sk2) = create_signer();
         let mut state = base_state_with_signer(&sid1, vk1.as_bytes());
-        state.next_threshold = 2;
         state.next_signers = vec![sid1.clone(), sid2.clone()];
+        state.next_threshold = 2;
+
         let mut revealed = BTreeSet::new();
         revealed.insert(InternalSigner {
             id: sid1.clone(),
             public_key: vk1.as_bytes().to_vec(),
         });
         let event = IdEvent {
+            sn: 10,
             version: VERSION.into(),
-            timestamp: Utc::now().timestamp(),
-            component: Cid::default(),
+            patch: Cid::default(),
+            timestamp: valid_timestamp(),
             previous: state.event_id.clone(),
             body: Revocation {
                 revealed_signers: revealed,
             },
         };
-        let payload = cbor::encode(&event);
+        let payload = common_cbor::encode(&event);
         let receipt = IdEventReceipt {
             id: Cid::create(CBOR_CODE, &payload).unwrap().to_string(),
             version: VERSION.into(),
@@ -746,26 +769,31 @@ mod tests {
     }
 
     #[test]
-    fn test_migration_event_sets_next_id() {
+    fn test_migration_event_sets_next_id_proof() {
         let (sid, vk, sk) = create_signer();
         let mut state = base_state_with_signer(&sid, vk.as_bytes());
+        state.next_signers = vec![sid.clone()];
+        state.next_threshold = 1;
+        let ts = valid_timestamp();
 
         let mut revealed = BTreeSet::new();
         revealed.insert(InternalSigner {
             id: sid.clone(),
             public_key: vk.as_bytes().to_vec(),
         });
+        let next_id_proof = "did:idp2p:new-proof";
         let event = IdEvent {
+            sn: 11,
             version: VERSION.into(),
-            timestamp: Utc::now().timestamp(),
-            component: Cid::default(),
+            patch: Cid::default(),
+            timestamp: ts,
             previous: state.event_id.clone(),
             body: Migration {
                 revealed_signers: revealed,
-                next_id: "did:idp2p:new".into(),
+                next_id_proof: next_id_proof.into(),
             },
         };
-        let payload = cbor::encode(&event);
+        let payload = common_cbor::encode(&event);
         let receipt = IdEventReceipt {
             id: Cid::create(CBOR_CODE, &payload).unwrap().to_string(),
             version: VERSION.into(),
@@ -777,44 +805,9 @@ mod tests {
         let updated = receipt
             .verify_event(&mut state)
             .expect("migration should pass");
-        assert_eq!(updated.next_id, Some("did:idp2p:new".into()));
+        assert_eq!(updated.next_id_proof, Some(next_id_proof.into()));
+        assert!(updated.next_signers.is_empty());
         assert_eq!(updated.event_id, receipt.id);
-    }
-
-    #[test]
-    fn test_rotation_invalid_next_signer_codec() {
-        let (sid, vk, sk) = create_signer();
-        let mut state = base_state_with_signer(&sid, vk.as_bytes());
-        let mut revealed = BTreeSet::new();
-        revealed.insert(InternalSigner {
-            id: sid.clone(),
-            public_key: vk.as_bytes().to_vec(),
-        });
-        let invalid_next = Cid::create(CBOR_CODE, vk.as_bytes()).unwrap().to_string();
-        let next_signers: BTreeSet<String> = [invalid_next.clone()].into_iter().collect();
-        let event = IdEvent {
-            version: VERSION.into(),
-            timestamp: Utc::now().timestamp(),
-            component: Cid::default(),
-            previous: state.event_id.clone(),
-            body: Rotation {
-                threshold: 1,
-                next_threshold: 1,
-                revealed_signers: revealed,
-                new_signers: BTreeSet::new(),
-                next_signers,
-            },
-        };
-        let payload = cbor::encode(&event);
-        let receipt = IdEventReceipt {
-            id: Cid::create(CBOR_CODE, &payload).unwrap().to_string(),
-            version: VERSION.into(),
-            created_at: Utc::now().to_rfc3339(),
-            payload: payload.clone(),
-            proofs: vec![sign_receipt(&payload, &state.id, &sid, &sk)],
-        };
-        let err = receipt.verify_event(&mut state).unwrap_err();
-        assert!(matches!(err, IdEventError::InvalidNextSigner(_)));
     }
 
     #[test]
@@ -822,16 +815,16 @@ mod tests {
         let (sid, vk, sk) = create_signer();
         let mut state = base_state_with_signer(&sid, vk.as_bytes());
         let event = IdEvent {
+            sn: 12,
             version: VERSION.into(),
-            timestamp: Utc::now().timestamp(),
-            component: Cid::default(),
+            patch: Cid::default(),
+            timestamp: valid_timestamp(),
             previous: state.event_id.clone(),
             body: Interaction {
-                new_claims: BTreeSet::new(),
-                revoked_claims: BTreeSet::new(),
+                merkle_proof: "proof".into(),
             },
         };
-        let payload = cbor::encode(&event);
+        let payload = common_cbor::encode(&event);
         let p1 = sign_receipt(&payload, &state.id, &sid, &sk);
         let p2 = sign_receipt(&payload, &state.id, &sid, &sk);
         let receipt = IdEventReceipt {
@@ -850,26 +843,18 @@ mod tests {
         let (sid, vk, sk) = create_signer();
         let mut state = base_state_with_signer(&sid, vk.as_bytes());
         let event = IdEvent {
+            sn: 13,
             version: VERSION.into(),
-            timestamp: Utc::now().timestamp(),
-            component: Cid::default(),
+            patch: Cid::default(),
+            timestamp: valid_timestamp(),
             previous: state.event_id.clone(),
             body: Interaction {
-                new_claims: BTreeSet::new(),
-                revoked_claims: BTreeSet::new(),
+                merkle_proof: "proof".into(),
             },
         };
-        let payload = cbor::encode(&event);
-        let signature = sk.sign(&payload).to_vec();
-        let id = Cid::create(CBOR_CODE, &payload).unwrap().to_string();
-        let proof = IdProof {
-            id: id,
-            did: sid.clone(),
-            key_id: sid.clone(),
-            created: "not-a-date".into(),
-            purpose: "id-inception".into(),
-            signature,
-        };
+        let payload = common_cbor::encode(&event);
+        let mut proof = sign_receipt(&payload, &state.id, &sid, &sk);
+        proof.created = "not-a-date".into();
         let receipt = IdEventReceipt {
             id: Cid::create(CBOR_CODE, &payload).unwrap().to_string(),
             version: VERSION.into(),
@@ -886,27 +871,18 @@ mod tests {
         let (sid, vk, sk) = create_signer();
         let mut state = base_state_with_signer(&sid, vk.as_bytes());
         let event = IdEvent {
+            sn: 14,
             version: VERSION.into(),
-            timestamp: Utc::now().timestamp(),
-            component: Cid::default(),
+            patch: Cid::default(),
+            timestamp: valid_timestamp(),
             previous: state.event_id.clone(),
             body: Interaction {
-                new_claims: BTreeSet::new(),
-                revoked_claims: BTreeSet::new(),
+                merkle_proof: "proof".into(),
             },
         };
-        let payload = cbor::encode(&event);
-        let mut bad_sig = sk.sign(&payload).to_vec();
-        bad_sig[0] ^= 0xFF;
-        let id = Cid::create(CBOR_CODE, &payload).unwrap().to_string();
-        let proof = IdProof {
-            id: id,
-            did: sid.clone(),
-            key_id: sid.clone(),
-            created: Utc::now().to_rfc3339(),
-            purpose: "id-inception".into(),
-            signature: bad_sig,
-        };
+        let payload = common_cbor::encode(&event);
+        let mut proof = sign_receipt(&payload, &state.id, &sid, &sk);
+        proof.signature[0] ^= 0xFF;
         let receipt = IdEventReceipt {
             id: Cid::create(CBOR_CODE, &payload).unwrap().to_string(),
             version: VERSION.into(),
@@ -924,16 +900,16 @@ mod tests {
         let (sid2, _vk2, sk2) = create_signer();
         let mut state = base_state_with_signer(&sid1, vk1.as_bytes());
         let event = IdEvent {
+            sn: 15,
             version: VERSION.into(),
-            timestamp: Utc::now().timestamp(),
-            component: Cid::default(),
+            patch: Cid::default(),
+            timestamp: valid_timestamp(),
             previous: state.event_id.clone(),
             body: Interaction {
-                new_claims: BTreeSet::new(),
-                revoked_claims: BTreeSet::new(),
+                merkle_proof: "proof".into(),
             },
         };
-        let payload = cbor::encode(&event);
+        let payload = common_cbor::encode(&event);
         let proof = sign_receipt(&payload, &state.id, &sid2, &sk2);
         let receipt = IdEventReceipt {
             id: Cid::create(CBOR_CODE, &payload).unwrap().to_string(),

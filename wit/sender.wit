@@ -1,5 +1,12 @@
 interface p2p-sender {
-    use types.{idp2p-message-request, idp2p-error};
+    use types.{idp2p-error};
+
+    record idp2p-message-request {
+        from-peer-addr: string,
+        from-peer-id: string,
+        from-id: string,
+        message-id: string
+    }
 
     subscribe: func(topic: string) -> result<_, idp2p-error>;
 

@@ -1,7 +1,5 @@
 use futures::{SinkExt, channel::mpsc, future::FutureExt, select, stream::StreamExt};
 
-use idp2p_common::wasmsg::Wasmsg;
-use idp2p_id::types::IdEventReceipt;
 use libp2p::{
     Multiaddr, PeerId, StreamProtocol, Swarm,
     gossipsub::{self, Behaviour as GossipsubBehaviour, IdentTopic, TopicHash},
@@ -19,13 +17,6 @@ use std::{
 };
 use tracing::info;
 
-// pending request to dial
-// pending response to deliver
-
-pub trait IdNetworkStore {
-    fn set(&self, key: &str, value: &[u8]);
-    fn get(&self, key: &str) -> Option<Vec<u8>>;
-}
 
 pub enum IdNetworkCommand {
     SendRequest {
@@ -46,6 +37,10 @@ pub enum IdNetworkEvent {}
 pub struct Idp2pBehaviour {
     pub request_response: ReqResBehaviour<Vec<u8>, bool>,
     pub gossipsub: GossipsubBehaviour,
+}
+
+pub trait IdNetworkStore {
+    fn get(&self, key: &str) -> Option<Vec<u8>>;
 }
 
 pub struct IdNetworkEventLoop<S: IdNetworkStore> {

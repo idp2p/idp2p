@@ -2,31 +2,6 @@ use idp2p_common::bytes::Bytes;
 use serde::{Deserialize, Serialize};
 use serde_with::serde_as;
 
-use crate::internal::{
-    claim::{IdClaimCreateEvent, IdClaimRevokeEvent},
-    error::IdEventError,
-};
-
-#[serde_as]
-#[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
-pub struct IdClaimValue {
-    pub id: String,
-    pub payload: Option<Vec<u8>>,
-    pub valid_from: String,
-    #[serde(skip_serializing_if = "Option::is_none", default)]
-    pub valid_until: Option<String>,
-}
-
-/// It is useful when an identity needs claims
-/// Examples:
-/// Authentication, AssertionMethod, KeyAgreement, Mediator, Peer ...
-#[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
-pub struct IdClaim {
-    pub key: String,
-    #[serde(skip_serializing_if = "Vec::is_empty", default)]
-    pub values: Vec<IdClaimValue>,
-}
-
 #[serde_as]
 #[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
 pub struct IdSigner {
@@ -34,6 +9,11 @@ pub struct IdSigner {
     /// Public key of the signer.
     #[serde_as(as = "Bytes")]
     pub public_key: Vec<u8>,
+    /// Created at sn.
+    pub valid_from_sn: u64,
+    /// Revoked sn.
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub valid_until_sn: Option<u64>,
     /// Valid from timestamp.
     pub valid_from: String,
     /// Valid to timestamp.
@@ -58,7 +38,7 @@ pub struct IdState {
 
     /// Next id cid
     #[serde(skip_serializing_if = "Option::is_none", default)]
-    pub next_id: Option<String>,
+    pub next_id_proof: Option<String>,
 
     // Current threshold
     pub threshold: u8,
@@ -77,10 +57,9 @@ pub struct IdState {
 
     /// Delegators
     #[serde(skip_serializing_if = "Vec::is_empty", default)]
-    pub delegators: Vec<String>,
+    pub delegated_signers: Vec<String>,
 
-    #[serde(skip_serializing_if = "Vec::is_empty", default)]
-    pub claims: Vec<IdClaim>,
+    pub merkle_proof: String,
 
     pub revoked: bool,
 
@@ -88,37 +67,3 @@ pub struct IdState {
     pub revoked_at: Option<String>,
 }
 
-impl IdState {
-    pub fn add_claim(&mut self, event: IdClaimCreateEvent, valid_from: &str) {
-        // Find existing claim with the given key
-        if let Some(claim) = self.claims.iter_mut().find(|c| c.key == event.key) {
-            // Check if a value with this id already exists
-            if !claim.values.iter().any(|v| v.id == event.id) {
-                // Add new value only if id doesn't exist
-                claim.values.push(event.to_state(valid_from));
-            }
-        } else {
-            // Create new claim with the value
-            self.claims.push(IdClaim {
-                key: event.key.to_string(),
-                values: vec![event.to_state(valid_from)],
-            });
-        }
-    }
-
-    pub fn revoke_claim(
-        &mut self,
-        event: IdClaimRevokeEvent,
-        valid_until: &str,
-    ) -> Result<(), IdEventError> {
-        // Find existing claim with the given key
-        if let Some(claim) = self.claims.iter_mut().find(|c| c.key == event.key) {
-            // Find existing value with the given id
-            if let Some(value) = claim.values.iter_mut().find(|v| v.id == event.id) {
-                value.valid_until = Some(valid_until.to_string());
-                return Ok(());
-            }
-        }
-        Err(IdEventError::InvalidClaim(event.key.to_string()))
-    }
-}

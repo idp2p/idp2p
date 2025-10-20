@@ -1,4 +1,4 @@
-use super::{claim::IdClaimCreateEvent, signer::IdSigner};
+use super::signer::IdSigner;
 use alloc::collections::BTreeSet;
 use alloc::string::String;
 use cid::Cid;
@@ -16,8 +16,6 @@ pub struct IdInception {
     pub signers: BTreeSet<IdSigner>,
     pub next_signers: BTreeSet<String>,
     #[serde(skip_serializing_if = "BTreeSet::is_empty", default)]
-    pub delegators: BTreeSet<String>,
-    #[serde(skip_serializing_if = "BTreeSet::is_empty", default)]
-    pub claims: BTreeSet<IdClaimCreateEvent>,
+    pub delegated_signers: BTreeSet<String>,
+    pub merkle_proof: String
 }
-

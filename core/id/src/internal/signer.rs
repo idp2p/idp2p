@@ -12,10 +12,12 @@ pub struct IdSigner {
 
 
 impl IdSigner {
-    pub fn to_state(&self, valid_from: &str) -> crate::types::IdSigner {
+    pub fn to_state(&self, valid_from_sn: u64, valid_from: &str) -> crate::types::IdSigner {
         crate::types::IdSigner {
             id: self.id.to_owned(),
             public_key: self.public_key.to_owned(),
+            valid_from_sn: valid_from_sn,
+            valid_until_sn: None,
             valid_from: valid_from.to_owned(),
             valid_until: None,
         }

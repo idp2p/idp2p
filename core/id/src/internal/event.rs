@@ -1,9 +1,6 @@
 use alloc::collections::BTreeSet;
 
-use crate::internal::{
-    claim::{IdClaimCreateEvent, IdClaimRevokeEvent},
-    signer::IdSigner,
-};
+use crate::internal::signer::IdSigner;
 use alloc::string::String;
 use cid::Cid;
 use serde::{Deserialize, Serialize};
@@ -13,8 +10,7 @@ pub enum IdEventKind {
     /// Should be signed with state.current_signers
     /// The total number of signers should be greater than or equal the state.threshold
     Interaction {
-        new_claims: BTreeSet<IdClaimCreateEvent>,
-        revoked_claims: BTreeSet<IdClaimRevokeEvent>,
+        merkle_proof: String
     },
 
     /// Should be signed with signers and new_signers
@@ -46,18 +42,23 @@ pub enum IdEventKind {
     /// The total number of signers should be greater than or equal state.next_threshold
     Migration {
         revealed_signers: BTreeSet<IdSigner>,
-        next_id: String,
+        next_id_proof: String,
     },
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
 pub struct IdEvent {
+    /// Event number
+    pub sn: u64,
+    
+    /// Event version
     pub version: String,
+
+    /// Event version patch
+    pub patch: Cid,
+
     /// Timestamp of event
     pub timestamp: i64,
-
-    // The compoenent
-    pub component: Cid,
 
     /// Previous event id
     pub previous: String,

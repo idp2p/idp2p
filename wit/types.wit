@@ -4,29 +4,11 @@ interface types {
         message: string,
     }
 
-    record idp2p-message-request {
-        from-peer-addr: string,
-        from-peer-id: string,
-        from-id: string,
-        message-id: string
-    }
-
-
-    record id-claim-value {
-        id: string,
-        payload: option<list<u8>>,
-        valid-from: string,
-        valid-until: option<string>
-    }
-
-    record id-claim {
-        key: string,
-        values: list<id-claim-value>
-    }
-
     record id-signer {
         id: string,
         public-key: list<u8>,
+        valid-from-sn: u64,
+        valid-until-sn: option<u64>,
         valid-from: string,
         valid-until: option<string>
     }
@@ -34,7 +16,7 @@ interface types {
     record id-state {
         id: string,
         prior-id: option<string>,
-        next-id: option<string>,
+        next-id-proof: option<string>,
         event-id: string,
         event-timestamp: string,
         threshold: u8,
@@ -42,8 +24,8 @@ interface types {
         signers: list<id-signer>,
         current-signers: list<string>,
         next-signers: list<string>,
-        delegators: list<string>,
-        claims: list<id-claim>,
+        delegated-signers: list<string>,
+        merkle-proof: string,
         revoked: bool,
         revoked-at: option<string>
     }
@@ -62,6 +44,7 @@ interface types {
         key-id: string,
         created: string,
         purpose: string,
-        signature: list<u8>
+        signature: list<u8>,
+        previous: option<string>
     }
 }
